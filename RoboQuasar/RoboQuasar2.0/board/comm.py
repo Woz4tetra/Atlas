@@ -24,12 +24,12 @@ import sys
 import glob
 import threading
 
-# Flag used to kill all running threads (mainly the serial thread in
-# Communicator)
-exit_flag = False
-
 
 class Communicator(threading.Thread):
+    # Flag used to kill all running threads (mainly the serial thread in
+    # Communicator)
+    exit_flag = False
+
     def __init__(self, baud_rate, command_queue, sensors_pool,
                  use_handshake=True):
         self.serialRef = self._findPort(baud_rate)
@@ -135,5 +135,4 @@ class Communicator(threading.Thread):
             raise EnvironmentError('Unsupported platform')
 
     def stop(self):
-        global exit_flag
-        exit_flag = True
+        Communicator.exit_flag = True
