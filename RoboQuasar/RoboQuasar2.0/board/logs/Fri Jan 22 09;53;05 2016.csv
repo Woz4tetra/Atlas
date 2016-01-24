@@ -1,0 +1,2 @@
+,servo_steering,motor,builtin_accel,,,gps,,,,
+timestamp,position,speed,x,y,z,lat,long,speed,heading,hdop

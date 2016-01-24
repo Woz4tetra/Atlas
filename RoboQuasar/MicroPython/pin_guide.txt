@@ -1,0 +1,31 @@
+Arrows go from device -> pyboard
+Servo
+	Data -> X1, brown -> orange
+	5V -> VIN, red -> red
+	GND -> GND brown -> black
+
+L298N Motor Module
+        IN1 -> X2, red
+	IN2 -> X3, orange
+	IN3 -> X4, yellow
+	IN4 -> X5, green
+	12V -> battery pack (not pyboard)
+	GND -> GND (common ground between battery pack and pyboard)
+
+GPS
+	3.3V -> 3.3V on pyboard
+	TX -> Y2 (TX on GPS -> RX (UART 6) on pyboard)
+	RX -> Y1
+	GND -> GND
+	PPS -> X8
+
+MCP9808
+	Vdd -> 3.3V
+	GND -> GND
+	SCL -> Y9 (I2C bus #2)
+	SDA -> Y10
+
+TMP36 (with the flat end pointing towards you)
+      left - 3.3V
+      middle - Y12
+      right - GND
