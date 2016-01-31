@@ -33,7 +33,7 @@ servo_increase = True
 
 time_stamp0 = 0
 
-log_data = True
+log_data = False
 log = None
 
 if log_data:

@@ -42,7 +42,9 @@ class Recorder(object):
                 file_name += ".csv"
             self.file_name = file_name
 
-        self.csv_file = open(self.directory + self.file_name, 'a')
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+        self.csv_file = open(self.directory + self.file_name, 'w+')
 
         self.writer = csv.writer(self.csv_file, delimiter=',',
                                  quotechar='|',
