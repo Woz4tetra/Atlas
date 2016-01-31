@@ -19,6 +19,7 @@ gps = Sensor(3, ['lat', 'long', 'speed', 'heading', 'hdop'])
 accel_gyro = Sensor(4, ['accel_x', 'accel_y', 'accel_z',
                         'gyro_x', 'gyro_y', 'gyro_z'])
 compass = Sensor(5, ['heading'])
+encoder = Sensor(6, ['counts'])
 
 # encoder = Sensor(2, ['distance', 'delta'])
 
@@ -53,6 +54,7 @@ try:
         print(accel_gyro.accel_x, accel_gyro.accel_y, accel_gyro.accel_z)
         print(accel_gyro.gyro_x, accel_gyro.gyro_y, accel_gyro.gyro_z)
         print(compass.heading)
+        print(encoder.counts)
 
         # print(builtin_accel.x, builtin_accel.y, builtin_accel.z)
         # print(gps.lat, gps.long, gps.speed, gps.heading, gps.hdop)

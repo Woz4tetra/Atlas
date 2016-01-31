@@ -48,7 +48,7 @@ class Communicator(threading.Thread):
 
         :return: None
         """
-        while exit_flag == False:
+        while self.exit_flag == False:
             packet = bytearray()
             incoming = self.serialRef.read()
             while incoming != b'\r':
