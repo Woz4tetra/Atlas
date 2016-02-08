@@ -41,15 +41,14 @@ from camera import analyzers
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-                              cam_source='Ascension 10-17 roll 3-2.mov',
-                              loop_video=False)
+                              cam_source='Equinox 9-27 roll 2.mov',
+                              loop_video=False,
+                              start_frame=1386)
 
     capture_properties = dict(
         paused=False,
         apply_filters=True,
         enable_draw=True,
-        draw_avg=True, 
-        draw_all=False,
         currentFrame=camera1.currentTimeMsec(),
         write_video=False,
         slideshow=False,
@@ -57,9 +56,7 @@ def run():
     )
     
     frame1 = camera1.getFrame(readNextFrame=False)
-    height, width = frame1.shape[0:2] 
-    
-    line_follower = analyzers.LineFollower((0, 0), 0, width, height)
+    # height, width = frame1.shape[0:2]
     
     time_start = time.time()
     
@@ -74,11 +71,11 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
-                # ============================== #
-                # ===== line follower code ===== #
-                # ============================== #
-                pass
-                # frame1 = line_follower.update(frame1)
+                sobeled = cv2.medianBlur(frame1, 5)
+                sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 0, 1, ksize=3)
+                sobeled = np.absolute(sobeled)
+                frame1 = np.uint8(sobeled)
+                # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)
@@ -99,9 +96,9 @@ def run():
                 camera1.stopCamera()
             elif key == ' ':
                 if capture_properties['paused']:
-                    print(time.time() - time_start, ": ...Video unpaused")
+                    print("%0.4fs, %i: ...Video unpaused" % (time.time() - time_start, camera1.currentTimeMsec()))
                 else:
-                    print(time.time() - time_start, ": Video paused...")
+                    print("%0.4fs, %i: Video paused..." % (time.time() - time_start, camera1.currentTimeMsec()))
                 capture_properties['paused'] = not capture_properties['paused']
             elif key == 'o':
                 capture_properties['apply_filters'] = not capture_properties[
@@ -116,14 +113,7 @@ def run():
                 camera1.decrementFrame()
             elif key == 's':
                 camera1.saveFrame(frame1)
-
-            elif key == 'd':
-                capture_properties['draw_avg'] = not capture_properties[
-                    'draw_avg']
-            elif key == 'a':
-                capture_properties['draw_all'] = not capture_properties[
-                    'draw_all']
-
+                
             elif key == 'v':
                 if capture_properties['write_video'] == False:
                     camera1.initVideoWriter()

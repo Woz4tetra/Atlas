@@ -306,7 +306,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                 shape = frame.shape
             else:
                 cv2.imshow(windowName + str(capture), numpy.zeros(shape))
-            
+
     def searchForCamera(self):
         """
         Searches for an available camera by trying all numbers between
@@ -365,15 +365,16 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                     "Video failed to load! Did you misspell the video name?")
 
         self.videoLength_sec = self.lenVideoFrames / self.cameraFPS
+        self.videoLength_msec = int(self.videoLength_sec * 1000)
         self.singleFrame_sec = 1.0 / (self.cameraFPS * 1000)
 
         print("\tfps:", self.cameraFPS)
         print("\tlength (sec):", self.videoLength_sec)
         print("\tlength (frames):", self.lenVideoFrames)
 
+        self.slider_len = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH) // 3)
         cv2.createTrackbar(self.trackbarName, self.windowName, 0,
-                           # int(self.camera.get(cv2.CAP_PROP_FRAME_COUNT)),
-                           self.lenVideoFrames, self.onSlider)
+                           self.slider_len, self.onSlider)
 
         print("video loaded!")
 
@@ -406,17 +407,17 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         self.stopVideo()
         cv2.destroyWindow(self.windowName)
 
-    def setFrame(self, frameNumber):
+    def setFrame(self, time_msec):
         """
         If this Capture is a video, set the current frame to frameNumber.
 
-        :param frameNumber: An integer specifying the desired frame
+        :param time_msec: An integer specifying the desired frame
         :return: None
         """
-        if frameNumber >= self.camera.get(cv2.CAP_PROP_FRAME_COUNT):
-            frameNumber = 0
-        if type(self.camSource) == str and frameNumber >= 0:
-            self.camera.set(cv2.CAP_PROP_POS_FRAMES, frameNumber)
+        if time_msec >= self.videoLength_msec:
+            time_msec = 0
+        if type(self.camSource) == str and time_msec >= 0:
+            self.camera.set(cv2.CAP_PROP_POS_MSEC, int(time_msec))
 
     def incrementFrame(self):
         """
@@ -424,8 +425,9 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         :return: None
         """
-        currentFrame = self.camera.get(cv2.CAP_PROP_POS_FRAMES)
-        self.setFrame(currentFrame + 1.8)
+        print(self.currentTimeMsec(), end=", ")
+        self.setFrame(self.currentTimeMsec() + 1)
+        print(self.currentTimeMsec())
 
     def decrementFrame(self):
         """
@@ -433,8 +435,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         :return: None
         """
-        currentFrame = self.camera.get(cv2.CAP_PROP_POS_FRAMES)
-        self.setFrame(currentFrame - 1.8)
+        self.setFrame(self.currentTimeMsec() - 20)  # wut. why? Me no know
 
     def saveFrame(self, frame=None, default_name=True, directory=None):
         """
@@ -447,16 +448,17 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         if not default_name:
             name = time.strftime("%c").replace(":", ";") + ".png"
             print("Frame saved as " + str(name))
-            print("in directory:\n" + config.get_dir(":images"))
         else:
             name = datetime.datetime.now().strftime(
                     "%a %b %d %H;%M;%S.%f %p, %Y") + ".png"
+            print("Frame saved as " + str(name))
 
         if frame is None:
             frame = self.frame
 
         if directory == None:
             directory = config.get_dir(":images")
+        print("in directory:\n" + directory)
 
         if not os.path.isdir(directory):
             os.makedirs(directory)
@@ -496,16 +498,17 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             self.height = height
 
-    def onSlider(self, frameIndex):
+    def onSlider(self, slider_index):
         """
         If Capture is a video, When the slider is changed, jump the capture to
         corresponding frame.
 
-        :param frameIndex: Frame number to jump to
+        :param slider_index: Slider step to jump to
         :return: None
         """
-        if frameIndex != self.currentFrameNumber():
-            self.setFrame(frameIndex)
+        slider_time = int(slider_index * self.videoLength_msec / self.slider_len)
+        if slider_time != self.currentTimeMsec():
+            self.setFrame(slider_time)
             self.showFrame(self.getFrame(False))
 
     def getPressedKey(self, delay=1):
@@ -543,13 +546,13 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             cv2.imshow(self.windowName, self.frame)
 
 
-    def currentFrameNumber(self):
+    def currentTimeMsec(self):
         """
         If this Capture is a video, return the Capture's frame number
 
         :return: the frame number (might not be an integer)
         """
-        return int(self.camera.get(cv2.CAP_PROP_POS_FRAMES))
+        return int(self.camera.get(cv2.CAP_PROP_POS_MSEC))
 
     def getVideoFPS(self):
         """
@@ -642,6 +645,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             self.decrementFrame()
         if self.frameSkip > 0:
             if type(self.camSource) == str:
+
                 current = self.camera.get(cv2.CAP_PROP_POS_FRAMES)
                 self.camera.set(cv2.CAP_PROP_POS_FRAMES,
                                 current + self.frameSkip)
@@ -668,8 +672,8 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                                    interpolation=cv2.INTER_NEAREST)
 
             cv2.setTrackbarPos(self.trackbarName, self.windowName,
-                               int(self.camera.get(
-                                       cv2.CAP_PROP_POS_FRAMES)))
+                               int(self.currentTimeMsec() *
+                                   self.slider_len / self.videoLength_msec))
 
         if self.dimensions is not None:
             x0, y0, x1, y1 = self.dimensions
