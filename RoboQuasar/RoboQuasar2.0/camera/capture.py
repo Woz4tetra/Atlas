@@ -425,9 +425,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         :return: None
         """
-        print(self.currentTimeMsec(), end=", ")
         self.setFrame(self.currentTimeMsec() + 1)
-        print(self.currentTimeMsec())
 
     def decrementFrame(self):
         """
