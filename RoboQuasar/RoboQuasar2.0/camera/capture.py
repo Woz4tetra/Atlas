@@ -524,7 +524,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
     """
         key = cv2.waitKey(delay)
         if key != -1 and self.platform == "linux":
-            key -= 1048576
+            key -= 0x100000
         if key in self.key_codes:
             return self.key_codes[key]
         elif key > -1:
