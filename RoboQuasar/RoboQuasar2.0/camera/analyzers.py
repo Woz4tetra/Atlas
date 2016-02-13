@@ -3,6 +3,7 @@
 import numpy as np
 import cv2
 
+
 class LineFollower:
     def __init__(self, expected, y_bottom, width, height):
         self.centerRho, self.centerTheta = expected
