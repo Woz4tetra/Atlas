@@ -160,11 +160,14 @@ class Capture(object):
             self.frameSkip = frame_skip
 
         if sys.platform.startswith('darwin'):  # OS X
+            self.platform = "mac"
             self.key_codes = self.mac_keys
         elif (sys.platform.startswith('linux') or sys.platform.startswith(
                 'cygwin')):
+            self.platform = "linux"
             self.key_codes = self.linux_keys
         elif sys.platform.startswith('win'):  # Windows
+            self.platform = "win"
             self.key_codes = self.windows_keys
         else:
             raise EnvironmentError('Unsupported platform')
@@ -505,7 +508,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         :return: None
         """
         slider_time = int(slider_index * self.videoLength_msec / self.slider_len)
-        if slider_time != self.currentTimeMsec():
+        if abs(slider_time - self.currentTimeMsec()) > 10:
             self.setFrame(slider_time)
             self.showFrame(self.getFrame(False))
 
@@ -518,8 +521,10 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         :return: The pressed key as a single character string OR if the key
                 number matches Capture.mac_keys, it will return the
                 corresponding text. Type help(Capture.mac_keys) for details.
-        """
+    """
         key = cv2.waitKey(delay)
+        if key != -1 and self.platform == "linux":
+            key -= 1048576
         if key in self.key_codes:
             return self.key_codes[key]
         elif key > -1:
@@ -668,10 +673,10 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             if self.frame.shape[0:2] != (self.height, self.width):
                 self.frame = cv2.resize(self.frame, (self.width, self.height),
                                    interpolation=cv2.INTER_NEAREST)
-
-            cv2.setTrackbarPos(self.trackbarName, self.windowName,
-                               int(self.currentTimeMsec() *
-                                   self.slider_len / self.videoLength_msec))
+            if self.platform != "linux":
+                cv2.setTrackbarPos(self.trackbarName, self.windowName,
+                                   int(self.currentTimeMsec() *
+                                       self.slider_len / self.videoLength_msec))
 
         if self.dimensions is not None:
             x0, y0, x1, y1 = self.dimensions
