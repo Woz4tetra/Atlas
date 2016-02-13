@@ -49,9 +49,9 @@ void encoder_setup()
     is_in_range = false; //make sure we don't start at > 0 distance
     enc_distance = 0;
     
-    Timer1.attachInterrupt(handler); //handler is a function pointer
-    Timer1.start(ADC_POLLING_PERIOD_US);
-    
+    //Timer1.attachInterrupt(handler); //handler is a function pointer
+    //Timer1.start(ADC_POLLING_PERIOD_US);
+    attachInterrupt(digitalPinToInterrupt(pin), handler, CHANGE);
     interrupts();
 }
 

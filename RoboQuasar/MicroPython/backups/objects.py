@@ -5,8 +5,8 @@ import binascii
 
 from libraries.micro_gps import MicropyGPS
 
-# from libraries.orientation.bno055 import IMU
 from libraries.mpu6050 import MPU6050
+from libraries.hmc5883l import HMC5883L
 
 from data import *
 
@@ -122,7 +122,6 @@ class GPS(Sensor):
 class Servo(Command):
     def __init__(self, command_id, pin_num):
         super().__init__(command_id, 'i8')
-
         self.servo_ref = pyb.Servo(pin_num)
 
     def callback(self, angle):
@@ -143,40 +142,51 @@ class RotaryEncoder(Sensor):
 
 class HallEncoder(Sensor):
     def __init__(self, sensor_id, analog_pin):
-        super().__init__(sensor_id, 'u64')
+        super(HallEncoder, self).__init__(sensor_id, 'u64')
+
+        self.pin_ref = (
+            pyb.ADC(pyb.Pin(analog_pin,pyb.Pin.ANALOG)))
+
+        self.in_range = False
+        self.enc_dist = 0
+        self.timer1 = pyb.Timer(4, freq = 50)
+        self.timer1.callback(lambda t: self.on_interrupt())
+
+        #need to be calibrated to real life values
+        self.upper_threshold = 3600
+        self.lower_threshold = 3300
+
+    def on_interrupt(self):
+        hall_value = self.pin_ref.read()
+
+        if (self.in_range and (hall_value > self.upper_threshold)):
+            self.in_range = False
+            self.enc_dist += 1
+        elif (not self.in_range and (hall_value <= self.lower_threshold)):
+            self.in_range = True
+
 
     def update_data(self):
-        self.data = 0
+        self.data = [self.enc_dist]
 
 
-# class BNO_IMU(Sensor):
-#     def __init__(self, sensor_id, bus):
-#         super().__init__(sensor_id,
-#                          'i16', 'i16', 'i16',
-#                          'i16', 'i16', 'i16',
-#                          'i16', 'i16', 'i16',
-#                          'i16', 'i16', 'i16', 'i16')
-#
-#         self.imu = IMU(bus)
-#
-#     def update_data(self):
-#         self.data = (self.imu.get_vector("ACCELEROMETER", use_raw=True) +
-#                      self.imu.get_vector("GYROSCOPE", use_raw=True) +
-#                      self.imu.get_vector("MAGNETOMETER", use_raw=True) +
-#                      self.imu.get_quaternion(use_raw=True))
-
-class MPU_IMU(Sensor):
+class AccelGyro(Sensor):
     def __init__(self, sensor_id, bus):
         super().__init__(sensor_id,
-                         'u16', 'u16', 'u16',
-                         'u16', 'u16', 'u16')
+                         'f', 'f', 'f',
+                         'f', 'f', 'f')
         self.imu = MPU6050(bus, False)
 
     def update_data(self):
-        self.data = (
-        binascii.unhexlify(self.imu.get_accel_raw()).decode('utf-8') +
-        binascii.unhexlify(self.imu.get_gyro_raw()).decode('utf-8'))
+        self.data = self.imu.get_acc() + self.imu.get_gyro()
 
+class Compass(Sensor):
+    def __init__(self, sensor_id, bus):
+        super().__init__(sensor_id, 'f')
+        self.compass = HMC5883L(bus, declination=(-9, 16))
+    
+    def update_data(self):
+        self.data = [self.compass.heading()]
 
 class Motor(Command):
     # pin name: [(timer #, channel #), ...]

@@ -10,6 +10,9 @@ tmp36 = TMP36(0, pyb.Pin.board.Y12)
 mcp9808 = MCP9808(1, 1)
 accel = BuiltInAccel(2)
 gps = GPS(3)
+accel_gyro = AccelGyro(4, 1)
+compass = Compass(5, 1)
+encoder = HallEncoder(6, "X7")
 
 servo1 = Servo(0, 1)
 motor_a = Motor(1, 'X2', 'X3')
@@ -37,7 +40,10 @@ sensor_queue = SensorQueue(
         tmp36,
         mcp9808,
         accel,
-        gps
+        gps,
+        compass,
+        accel_gyro,
+	encoder
 )
 command_pool = CommandPool(
         servo1,
@@ -55,6 +61,8 @@ while True:
 
     communicator.write_packet()
     communicator.read_command()
+#    print()
+#    print(encoder.enc_dist)
 
     if increase:
         indicator.intensity(indicator.intensity() + 5)

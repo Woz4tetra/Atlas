@@ -2,7 +2,7 @@
 # can run arbitrary Python, but best to keep it minimal
 
 import pyb
-pyb.main('main.py') # main script to run after this one
+pyb.main('tests/servo_test.py') # main script to run after this one
 #pyb.main('test_pwm.py')
 
 pyb.usb_mode('CDC+MSC') # act as a serial and a storage device
