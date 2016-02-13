@@ -158,7 +158,9 @@ class BuggyJoystick:
 
 
 def joystick_init():
-    pygame.display.init()
+    pygame.init()
+    # pygame.display.init()
+    screen = pygame.display.set_mode((200, 200))
     pygame.joystick.init()
 
     return BuggyJoystick()
@@ -168,8 +170,8 @@ if __name__ == '__main__':
     # import time
 
     joystick = joystick_init()
-    while True:
-        print(joystick)
+    while joystick.done == False:
+        # print(joystick)
         joystick.update()
 
         # time.sleep(0.005)

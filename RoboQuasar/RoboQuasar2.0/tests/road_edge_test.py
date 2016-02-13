@@ -1,4 +1,5 @@
-'''
+
+"""
 Written by Ben Warwick
 With line analysis portion added by Elim Zhang
 
@@ -25,7 +26,7 @@ Keys
     v - start/stop create video (saved in camera/Videos/ directory)
     d - show average lines on screen
     a - show all lines found on screen within number tolerance
-'''
+"""
 
 import sys
 import cv2
@@ -36,6 +37,7 @@ import math
 import time
 
 sys.path.insert(0, '../')
+
 from camera import capture
 from camera import analyzers
 
@@ -73,11 +75,16 @@ def run():
 
             if capture_properties['apply_filters']:
                 sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
-                sobeled = cv2.medianBlur(sobeled, 5)
+                # sobeled = cv2.medianBlur(sobeled, 7)
+                sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
                 sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 0, 1, ksize=3)
                 sobeled = np.absolute(sobeled)
-                frame1 = np.uint8(sobeled)[:, :, 2]
+                sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
+                                       cv2.COLOR_BGR2GRAY)
+                # sobeled = np.uint8(sobeled)[:, :, 2]
+                value, frame1 = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
                 # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
+                # frame1 = sobeled
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)
