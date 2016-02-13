@@ -1,9 +1,8 @@
 import traceback
 import sys
+import time
 
 sys.path.insert(0, '../')
-
-import time
 
 from board.data import Sensor
 from board.data import Command

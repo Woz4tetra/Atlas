@@ -13,8 +13,11 @@ R: -0.809...0.809
 """
 
 import pygame
+import sys
 from dotable import Dotable
 
+sys.path.insert(0, "../")
+import config
 
 class BuggyJoystick:
     # TODO: add multiple joystick support
@@ -59,27 +62,69 @@ class BuggyJoystick:
             print(joy.get_name(), joy.get_id(), joy.get_init(),
                   joy.get_numaxes())
 
+        platform = config.get_platform()
+        if platform == "mac":
+            self.update = self.update_mac
+        elif platform == "linux":
+            self.update = self.update_linux
+        elif platform == "win":
+            self.update = self.update_mac
+        else:
+            raise EnvironmentError("Hey... how did you get here?\n"
+                                   "You should've failed earlier...")
+    def update_mac(self):
+        event = pygame.event.poll()
+        # if event.type != pygame.NOEVENT:
+        #     print(event)
+        if event.type == pygame.QUIT:
+            self.done = True
 
-    def update(self):
+        if event.type == pygame.JOYAXISMOTION:
+            if event.axis == 0:
+                self.mainStick.x = event.value
+            elif event.axis == 1:
+                self.mainStick.y = event.value
+            elif event.axis == 2:
+                self.cStick.x = event.value
+            elif event.axis == 3:
+                self.cStick.y = event.value
+            elif event.axis == 4:
+                self.triggers.L = event.value
+            elif event.axis == 5:
+                self.triggers.R = event.value
+
+            if (abs(self.mainStick.x) < self.deadzoneStick and
+                        abs(self.mainStick.y) < self.deadzoneStick):
+                self.mainStick.x = 0
+                self.mainStick.y = 0
+            if (abs(self.cStick.x) < self.deadzoneStick and
+                        abs(self.cStick.y) < self.deadzoneStick):
+                self.cStick.x = 0
+                self.cStick.y = 0
+        elif event.type == pygame.JOYBUTTONDOWN:
+            self._updateButtons(event, True)
+
+        elif event.type == pygame.JOYBUTTONUP:
+            self._updateButtons(event, False)
+
+    def update_linux(self):
         event = pygame.event.poll()
         if event.type == pygame.QUIT:
             self.done = True
 
         if event.type == pygame.JOYAXISMOTION:
-            if event.axis <= 3:
-                if event.axis == 0:
-                    self.mainStick.x = event.value
-                elif event.axis == 1:
-                    self.mainStick.y = event.value
-                elif event.axis == 2:
-                    self.cStick.x = event.value
-                elif event.axis == 3:
-                    self.cStick.y = event.value
-            else:
-                if event.axis == 4:
-                    self.triggers.L = event.value
-                elif event.axis == 5:
-                    self.triggers.R = event.value
+            if event.axis == 0:
+                self.mainStick.x = event.value
+            elif event.axis == 1:
+                self.mainStick.y = -event.value
+            elif event.axis == 2:
+                self.cStick.y = -event.value
+            elif event.axis == 3:
+                self.triggers.L = event.value
+            elif event.axis == 4:
+                self.triggers.R = event.value
+            elif event.axis == 5:
+                self.cStick.x = event.value
 
             if (abs(self.mainStick.x) < self.deadzoneStick and
                         abs(self.mainStick.y) < self.deadzoneStick):
@@ -167,11 +212,11 @@ def joystick_init():
 
 
 if __name__ == '__main__':
-    # import time
+    import time
 
     joystick = joystick_init()
     while joystick.done == False:
-        # print(joystick)
+        print(joystick)
         joystick.update()
 
-        # time.sleep(0.005)
+        time.sleep(0.005)

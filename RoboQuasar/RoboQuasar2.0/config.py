@@ -1,6 +1,7 @@
 # contains functions that return important project directories
 
 import os
+import sys
 
 CONFIGDIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -25,6 +26,16 @@ directories = {
     'project': CONFIGDIR + "/",
 }
 
+def get_platform():
+    if sys.platform.startswith('darwin'):  # OS X
+        return "mac"
+    elif (sys.platform.startswith('linux') or sys.platform.startswith(
+            'cygwin')):
+        return "linux"
+    elif sys.platform.startswith('win'):  # Windows
+        return "win"
+    else:
+        return None
 
 def get_dir(directory=""):
     if len(directory) > 0 and directory[0] == ':':

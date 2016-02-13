@@ -159,15 +159,12 @@ class Capture(object):
         else:
             self.frameSkip = frame_skip
 
-        if sys.platform.startswith('darwin'):  # OS X
-            self.platform = "mac"
+        self.platform = config.get_platform()
+        if self.platform == "mac":
             self.key_codes = self.mac_keys
-        elif (sys.platform.startswith('linux') or sys.platform.startswith(
-                'cygwin')):
-            self.platform = "linux"
+        elif self.platform == "linux":
             self.key_codes = self.linux_keys
-        elif sys.platform.startswith('win'):  # Windows
-            self.platform = "win"
+        elif self.platform == "win":
             self.key_codes = self.windows_keys
         else:
             raise EnvironmentError('Unsupported platform')
