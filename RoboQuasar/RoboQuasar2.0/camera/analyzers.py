@@ -3,6 +3,50 @@
 import numpy as np
 import cv2
 
+class RoadWarper:
+    def __init__(self, window_name, width, height, warp_points=None):
+        if warp_points == None:
+            self.pts1 = []
+        else:
+            self.pts1 = warp_points
+        self.pts2 = [[0, 0], [width, 0], [0, height], [width, height]]
+        self.M = None
+        self.width, self.height = width, height
+        cv2.setMouseCallback(window_name, self.on_mouse, self)
+        if len(self.pts1) == 4:
+            pts1 = np.array(self.pts1, np.float32)
+            pts2 = np.array(self.pts2, np.float32)
+            self.M = cv2.getPerspectiveTransform(pts1, pts2)
+
+    @staticmethod
+    def on_mouse(event, x, y, flags, self):
+        if event == cv2.EVENT_LBUTTONDBLCLK:
+            print("Point #%i: %s" % (len(self.pts1), str((x, y))))
+            if len(self.pts1) < 3:
+                self.pts1.append([x, y])
+            elif len(self.pts1) < 4:
+                self.pts1.append([x, y])
+                print("Points:", self.pts1)
+                pts1 = np.array(self.pts1, np.float32)
+                pts2 = np.array(self.pts2, np.float32)
+                self.M = cv2.getPerspectiveTransform(pts1, pts2)
+                print("Warp matrix:", self.M)
+
+
+    def update(self, frame):
+        if 0 < len(self.pts1) < 4:
+            for coord in self.pts1:
+                frame = cv2.circle(frame, tuple(coord), 2, (255, 0, 0), 2)
+        elif self.M != None:
+            frame = cv2.warpPerspective(frame, self.M, (self.width, self.height))
+        return frame
+
+    def reset(self):
+        print("Points reset")
+        self.pts1 = []
+        self.M = None
+
+
 
 class LineFollower:
     def __init__(self, expected, y_bottom, width, height):
@@ -10,7 +54,7 @@ class LineFollower:
         self.width, self.height = width, height
         self.yBottom = y_bottom
 
-    def isEqual(self, currentTheta, existedTheta, tolerance): 
+    def isEqual(self, currentTheta, existedTheta, tolerance):
         '''
         if rho and theta are close enough,
         set these lines as equivalent
@@ -18,33 +62,33 @@ class LineFollower:
         '''
         if abs(currentTheta - existedTheta) <= tolerance:
             return True
-        return False 
+        return False
 
     def merge(self, line_set):
         occurance = len(line_set)
-        # if occurs more than once, 
+        # if occurs more than once,
         # merge and return a single median (rho, theta)
         if occurance > 1:
             medianTheta = np.median(line_set[0][0])
             medianRho = np.median(line_set[0][1])
             line_set = [occurance, medianRho, medianTheta]
-        else: 
+        else:
             line_set = [occurance, line_set[0][0], line_set[0][1]]
         return line_set
 
     def findAverageLines(self, lines):
         '''
-        findAvgLines is not supposed to draw; 
-        use update to blur and find lines, 
+        findAvgLines is not supposed to draw;
+        use update to blur and find lines,
         then use findAvglines func to return avgline
         '''
         rightRho, rightTheta, leftRho, leftTheta = [], [], [], []
 
-        # Divide lines into left and right groups, accoridng to sign of gradient 
+        # Divide lines into left and right groups, accoridng to sign of gradient
         for currentLine in lines:
             # notes on indexing: currentline has format[[x1, y1]]
             (rho, theta)  = (currentLine[0], currentLine[1])
-            if theta > 0: 
+            if theta > 0:
                 # lines with negative gradient; (y increases downwards in frame)
                 leftTheta.append(theta)
                 leftRho.append(rho)
@@ -86,17 +130,17 @@ class LineFollower:
         Xavg = (x1+x2)/2
         Yavg = (y1+y2)/2
 
-        
+
         return (self.width-Xavg,self.height-Yavg)
 
     def key(self, item):
         return item[0]
-    
+
     def difference(self, expected, actual, y_bottom):
         return 0, 0  # distance difference, theta difference
         ''' need to filter out unneeded lines before taking avg'''
-    
-    def update(self, frame, draw_avg=True, draw_all=True, 
+
+    def update(self, frame, draw_avg=True, draw_all=True,
         maxNumLines = 10, tolerance = 0.04):
         frame = frame[90:360,::]
         frame_lines = cv2.medianBlur(frame, 5)
@@ -108,20 +152,20 @@ class LineFollower:
                                threshold=100,
                                min_theta=-60 * np.pi / 180,
                                max_theta= 60 * np.pi / 180)
-        
-        
+
+
         linesDrawn = []
         # updating lines, after merge in similar ones
-        # condense lines together (remove "duplicates") 
+        # condense lines together (remove "duplicates")
         if lines != None:
             lines = lines[:,0] # removing one layer of brackets
 
             '''
-            tests on merging and sorting starts here, 
+            tests on merging and sorting starts here,
             1) lines are sorted accoriding to their rho value (len)
             (could also sort according to theta)
             2) while loops compare neighboring ones to partition them,
-            3) merge func also append multiplicity/ occurance of that partition 
+            3) merge func also append multiplicity/ occurance of that partition
             4) all lines are sorted based on # of occurance
 
             '''
@@ -137,11 +181,11 @@ class LineFollower:
                     # ugly syntax, but it's comparing neighboring theta vals
                     temp.append(lines[i+1])
                     i += 1
-                temp = self.merge(temp) 
+                temp = self.merge(temp)
                 linesDrawn.append(temp)
 
             linesDrawn = np.array(linesDrawn)
-            
+
             #print (len(linesDrawn), "number of lines after merge") #for information purposes
 
 
@@ -171,16 +215,16 @@ class LineFollower:
                     y1 = int(y0 + 1000 * a)
                     x2 = int(x0 - 1000 * -b)
                     y2 = int(y0 - 1000 * a)
-                    
+
                     cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                     idx +=1
 
-            
+
 
         if lines is not None:
 
-            averaged_line = self.findAverageLines(lines[:maxNumLines]) 
-            (rho1, theta1) = (averaged_line)[0] 
+            averaged_line = self.findAverageLines(lines[:maxNumLines])
+            (rho1, theta1) = (averaged_line)[0]
             (rho2, theta2) = (averaged_line)[1]
             (x1, y1, x2, y2) = self.findLineCoord(rho1, theta1)
             (x3, y3, x4, y4) = self.findLineCoord(rho2, theta2)
