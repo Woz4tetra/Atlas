@@ -11,7 +11,7 @@
     SensorData (constructor parameter) object with new data received from
     serial. It will also send any commands put on the CommandQueue (also a
     constructor parameter).
-    
+
     This library follows a home-baked serial packet protocol. data.py handles
     all data conversion. Please refer to objects.py for proper usage tips and
     data.py for details of the sensor and command packet protocol.
@@ -55,9 +55,10 @@ class Communicator(threading.Thread):
                 if incoming != None:
                     packet += incoming
                 incoming = self.serialRef.read()
-            for index in range(len(packet)):
+            if len(packet) > 0:
                 self.sensor_pool.update(packet)
 
+            print(self.command_queue.is_empty())
             if not self.command_queue.is_empty():
                 self.serialRef.write(
                         bytearray(self.command_queue.get(), 'ascii'))
@@ -111,7 +112,7 @@ class Communicator(threading.Thread):
         """
         An internal method used by _initSerial to search all possible
         USB serial addresses.
-        
+
         :return: A list of strings containing all likely addresses
         """
         if sys.platform.startswith('darwin'):  # OS X

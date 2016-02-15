@@ -32,7 +32,7 @@ from math import atan2, degrees, pi
 
 class MPU6050():
     """
-    Module for the MPY6050 6DOF IMU. 
+    Module for the MPY6050 6DOF IMU.
     By default interrupts are disabled while reading or writing to the device. This
     prevents occasional bus lockups in the presence of pin interrupts, at the cost
     of disabling interrupts for about 250uS.
@@ -142,7 +142,7 @@ class MPU6050():
         """
         Returns the accelerometer range or sets it to the passed arg.
         Pass:               0   1   2   3
-        for range +/-:      2   4   8   16  g 
+        for range +/-:      2   4   8   16  g
         """
         # set range
         try:
@@ -202,27 +202,27 @@ class MPU6050():
     # get acceleration
     def get_acc(self, xyz=None):
         """
-        Returns the accelerations on axis passed in arg. Pass xyz or every 
+        Returns the accelerations on axis passed in arg. Pass xyz or every
         subset of this string. None defaults to xyz.
         """
         if xyz is None:
             xyz = 'xyz'
-        scale = (16384, 8192, 4096, 2048)
+        scale = (16384.0, 8192.0, 4096.0, 2048.0)
         raw = self.get_accel_raw()
-        axyz = {'x': unp('>h', raw[0:2])[0] / scale[self._ar],
-                'y': unp('>h', raw[2:4])[0] / scale[self._ar],
-                'z': unp('>h', raw[4:6])[0] / scale[self._ar]}
+        axyz = {'x': unp('<h', raw[0:2])[0] / scale[self._ar],
+                'y': unp('<h', raw[2:4])[0] / scale[self._ar],
+                'z': unp('<h', raw[4:6])[0] / scale[self._ar]}
 
         aout = []
         for char in xyz:
             aout.append(axyz[char])
         return aout
 
-    # get pitch  
+    # get pitch
     def pitch(self):
         """
         Returns pitch angle in degrees based on x and c accelerations.
-        
+
         """
         scale = (16384, 8192, 4096, 2048)
         raw = self.get_accel_raw()
@@ -248,7 +248,7 @@ class MPU6050():
     def get_gyro(self, xyz=None, use_radians=False):
         """
         Returns the turn rate on axis passed in arg in deg/s or rad/s,
-        defaulting to degrees. Pass xyz or every 
+        defaulting to degrees. Pass xyz or every
         subset of this string. None defaults to xyz.
         """
         if xyz is None:
@@ -258,9 +258,9 @@ class MPU6050():
         else:
             scale = (131.0, 65.5, 32.8, 16.4)
         raw = self.get_gyro_raw()
-        gxyz = {'x': unp('>h', raw[0:2])[0] / scale[self._gr],
-                'y': unp('>h', raw[2:4])[0] / scale[self._gr],
-                'z': unp('>h', raw[4:6])[0] / scale[self._gr]}
+        gxyz = {'x': unp('<h', raw[0:2])[0] / scale[self._gr],
+                'y': unp('<h', raw[2:4])[0] / scale[self._gr],
+                'z': unp('<h', raw[4:6])[0] / scale[self._gr]}
 
         gout = []
         for char in xyz:
