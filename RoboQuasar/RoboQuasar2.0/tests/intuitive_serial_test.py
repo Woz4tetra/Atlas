@@ -26,6 +26,10 @@ servo_steering = Command(0, 'position', (90, -90))
 # servo_brakes = Command(1, 'position', (90, -90))
 motor = Command(1, 'speed', (-255, 255))
 
+# not seeing any data? try rebooting the board
+# run basic_serial_test.py to make sure that data
+# is coming in
+
 start(use_handshake=False)
 
 servo_increase = True
@@ -55,9 +59,9 @@ try:
         print(compass["heading"])
         print(encoder["counts"])
 
-        # print(builtin_accel.x, builtin_accel.y, builtin_accel.z)
-        # print(gps.lat, gps.long, gps.speed, gps.heading, gps.hdop)
-        # print(tmp36.temp, mcp9808.temp)
+        print(builtin_accel["x"], builtin_accel["y"], builtin_accel["z"])
+        print(gps["lat"], gps["long"], gps["speed"], gps["heading"], gps["hdop"])
+        print(tmp36["temp"], mcp9808["temp"])
 
         # print(servo_steering.position)
 

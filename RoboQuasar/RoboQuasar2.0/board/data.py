@@ -71,7 +71,6 @@ class SensorPool(object):
         packet = packet.decode('ascii')
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
-
             if sensor_id in list(self.sensors.keys()):
                 sensor = self.sensors[sensor_id]
 
@@ -196,10 +195,16 @@ class Sensor(SerialObject):
             return int(raw_int)
 
         elif data_format == 'f':
-            return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            if len(hex_string) == 8:
+                return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            else:
+                return None
 
         elif data_format == 'd':
-            return struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            if len(hex_string) == 8:
+                return struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            else:
+                return None
 
         else:
             raise ValueError("Invalid data type: %s", str(data_format))
@@ -221,7 +226,9 @@ class Sensor(SerialObject):
             assert index < len(raw_data)
 
             data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
-            self._properties[key] = self.format_hex(raw_datum, data_type)
+            new_datum = self.format_hex(raw_datum, data_type)
+            if new_datum is not None:
+                self._properties[key] = new_datum
 
     def __str__(self):
         to_string = "["
@@ -272,7 +279,7 @@ class Command(SerialObject):
             return 8
         else:
             int_length = int(math.log(length, 16)) + 1
-            return int_length * 8
+            return int_length
 
     @staticmethod
     def get_type_size(data_range):
@@ -321,8 +328,7 @@ class Command(SerialObject):
 
         elif self.data_type == 'i':
             if data < 0:
-                data += (2 << (self.data_len - 1))
-
+                data += (2 << (self.data_len * 4 - 1))
             data %= MAXINT
             return self.to_hex(data, self.data_len)
 

@@ -55,12 +55,12 @@ class Communicator(threading.Thread):
                 if incoming != None:
                     packet += incoming
                 incoming = self.serialRef.read()
-            for index in range(len(packet)):
+            if len(packet) > 0:
                 self.sensor_pool.update(packet)
 
     def put(self, packet):
         self.serialRef.write(bytearray(packet, 'ascii'))
-
+        
     def _handshake(self):
         """
         Ensures communication between serial and arduino (or any microcontroller
