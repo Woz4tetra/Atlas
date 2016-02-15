@@ -50,10 +50,10 @@ if log_data:
 
 try:
     while True:
-        print(accel_gyro.accel_x, accel_gyro.accel_y, accel_gyro.accel_z)
-        print(accel_gyro.gyro_x, accel_gyro.gyro_y, accel_gyro.gyro_z)
-        print(compass.heading)
-        print(encoder.counts)
+        print(accel_gyro["accel_x"], accel_gyro["accel_y"], accel_gyro["accel_z"])
+        print(accel_gyro["gyro_x"], accel_gyro["gyro_y"], accel_gyro["gyro_z"])
+        print(compass["heading"])
+        print(encoder["counts"])
 
         # print(builtin_accel.x, builtin_accel.y, builtin_accel.z)
         # print(gps.lat, gps.long, gps.speed, gps.heading, gps.hdop)
