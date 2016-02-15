@@ -17,10 +17,9 @@ start(use_handshake=False)
 try:
     while True:
         joystick.update()
-        servo.position = int(
+        servo["position"] = int(
             50 * -(joystick.triggers.L - joystick.triggers.R))
         print(servo.current_packet)
-        # print(command_queue.queue)
         time.sleep(0.05)
 except:
     traceback.print_exc()

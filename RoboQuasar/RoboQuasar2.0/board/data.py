@@ -33,7 +33,6 @@ from sys import maxsize as MAXINT
 
 class SensorPool(object):
     def __init__(self):
-        self.sensor_index = 0
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -99,24 +98,41 @@ class CommandQueue(object):
         return len(self.queue) == 0
 
 
-# TODO: update
-def try_sensor(formats, hex_string=None):
-    exp_sensor = Sensor(0, *formats)
+def try_sensor(properties):
+    global sensor_pool
+    sensor_id = max(sensor_pool.sensors.keys()) + 1
+    exp_sensor = Sensor(sensor_id, properties)
 
-    if hex_string == None:
-        hex_string = ""
-        for counter in range(exp_sensor.data_len):
-            hex_string += "%0x" % (random.randint(0, 15))
-        print(("Using hex data:", hex_string))
+    packet = ""
+    for _ in properties:
+        data_type = random.choice(['i', 'u', 'f', 'b'])
+        if data_type == 'u' or data_type == 'i':
+            int_size = random.choice([8, 16, 32, 64])
+            data = random.randint(0, 2 << (int_size - 1) - 1)
+            print("%i, %x" % (data, data))
+            packet += "%s%x\t" % (data_type, data)
+        elif data_type == 'f':
+            data = random.random() * 10000
+            packet += "%s%0.8x\t" % (data_type,
+                                  struct.unpack('<I', struct.pack('<f', data))[0])
+        elif data_type == 'b':
+            data = random.choice([True, False])
+            if data == True:
+                data = random.randint(1, 15)
+            else:
+                data = 0
+            packet += "%s%x\t" % (data_type, data)
 
-    return exp_sensor.parse(hex_string)
+    exp_sensor.parse(packet[:-1])
+
+    return exp_sensor._properties
 
 
 def try_command(command_id, data_range, data=None):
     exp_command = Command(command_id, 'test', data_range)
-    print((exp_command.data_len * 4 - 2))
     if data == None:
         data = random.randint(exp_command.range[0], exp_command.range[1])
+        print("data:", data)
 
     exp_command.property_set('test', data)
     return exp_command.get_packet()
@@ -332,10 +348,10 @@ class Command(SerialObject):
             data %= MAXINT
             return self.to_hex(data, self.data_len)
 
-        elif self.data_type == 'float':
+        elif self.data_type == 'f':
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
-        elif self.data_type == 'double':
+        elif self.data_type == 'd':
             return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
@@ -351,14 +367,13 @@ class Command(SerialObject):
         return self.current_packet
 
 
+# init sensor pool
+sensor_pool = SensorPool()
+communicator = None
+
 # --------------------------------------------------
 #                    Test cases
 # --------------------------------------------------
-
-# init sensor pool and command queue
-sensor_pool = SensorPool()
-command_queue = CommandQueue()
-communicator = None
 
 if __name__ == '__main__':
     def almost_equal(value1, value2, epsilon=0.0005):
@@ -449,8 +464,7 @@ else:
 
     def start(baud=115200, use_handshake=True):
         global communicator
-        communicator = Communicator(baud, command_queue, sensor_pool,
-                                    use_handshake)
+        communicator = Communicator(baud, sensor_pool, use_handshake)
         communicator.start()
 
     def stop():

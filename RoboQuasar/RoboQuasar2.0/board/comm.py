@@ -30,14 +30,13 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, command_queue, sensors_pool,
+    def __init__(self, baud_rate, sensors_pool,
                  use_handshake=True):
         self.serialRef = self._findPort(baud_rate)
         if use_handshake:
             self._handshake()
 
         self.sensor_pool = sensors_pool
-        self.command_queue = command_queue
 
         super(Communicator, self).__init__()
 
@@ -60,7 +59,7 @@ class Communicator(threading.Thread):
 
     def put(self, packet):
         self.serialRef.write(bytearray(packet, 'ascii'))
-        
+
     def _handshake(self):
         """
         Ensures communication between serial and arduino (or any microcontroller
