@@ -5,7 +5,7 @@ import cv2
 
 class RoadWarper:
     def __init__(self, window_name, width, height, warp_points=None):
-        if warp_points == None:
+        if warp_points is None:
             self.pts1 = []
         else:
             self.pts1 = warp_points
@@ -20,7 +20,7 @@ class RoadWarper:
 
     @staticmethod
     def on_mouse(event, x, y, flags, self):
-        if event == cv2.EVENT_LBUTTONDBLCLK:
+        if event == cv2.EVENT_LBUTTONDOWN:
             print("Point #%i: %s" % (len(self.pts1), str((x, y))))
             if len(self.pts1) < 3:
                 self.pts1.append([x, y])
@@ -37,7 +37,7 @@ class RoadWarper:
         if 0 < len(self.pts1) < 4:
             for coord in self.pts1:
                 frame = cv2.circle(frame, tuple(coord), 2, (255, 0, 0), 2)
-        elif self.M != None:
+        elif self.M is not None:
             frame = cv2.warpPerspective(frame, self.M, (self.width, self.height))
         return frame
 
