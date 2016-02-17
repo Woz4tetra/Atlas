@@ -27,6 +27,7 @@ import struct
 import string
 import random
 import math
+import time
 from collections import OrderedDict
 from sys import maxsize as MAXINT
 
@@ -56,6 +57,8 @@ class SensorPool(object):
         for c in packet:
             if c.lower() not in '0123456789abcedfiu\t':
                 return False
+        if packet[2] != '\t' and packet[3] not in 'fibu':
+            return False
 
         return True
 
@@ -223,7 +226,8 @@ class Sensor(SerialObject):
                 return None
 
         else:
-            raise ValueError("Invalid data type: %s", str(data_format))
+            # raise ValueError("Invalid data type: %s", str(data_format))
+            return None
 
     def parse(self, hex_string):
         """
@@ -238,13 +242,12 @@ class Sensor(SerialObject):
         """
 
         raw_data = hex_string.split("\t")
-        for index, key in enumerate(self._properties):
-            assert index < len(raw_data)
-
-            data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
-            new_datum = self.format_hex(raw_datum, data_type)
-            if new_datum is not None:
-                self._properties[key] = new_datum
+        for index, key in enumerate(self._properties.keys()):
+            if index < len(raw_data):
+                data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
+                new_datum = self.format_hex(raw_datum, data_type)
+                if new_datum is not None:
+                    self._properties[key] = new_datum
 
     def __str__(self):
         to_string = "["
@@ -470,3 +473,9 @@ else:
     def stop():
         global communicator
         communicator.stop()
+        time.sleep(0.005)
+
+    _initial_time = time.time()
+    def is_running():
+        global communicator
+        return round(time.time() - _initial_time) == communicator.thread_time

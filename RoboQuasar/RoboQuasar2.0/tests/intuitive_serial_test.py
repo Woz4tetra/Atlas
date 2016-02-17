@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 
 from board.data import Sensor
 from board.data import Command
-from board.data import start, stop
+from board.data import start, stop, is_running
 
 from board.logger import Recorder
 
@@ -62,7 +62,9 @@ try:
         print(builtin_accel["x"], builtin_accel["y"], builtin_accel["z"])
         print(gps["lat"], gps["long"], gps["speed"], gps["heading"], gps["hdop"])
         print(tmp36["temp"], mcp9808["temp"])
+        print("is alive:", is_running())
 
+        time.sleep(1)
         # print(servo_steering.position)
 
         # if servo_increase:
@@ -94,4 +96,5 @@ try:
         time.sleep(0.005)
 except:
     traceback.print_exc()
+finally:
     stop()

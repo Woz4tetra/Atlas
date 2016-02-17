@@ -33,10 +33,16 @@ class Communicator(threading.Thread):
     def __init__(self, baud_rate, sensors_pool,
                  use_handshake=True):
         self.serialRef = self._findPort(baud_rate)
+        self.serialRef.flushInput()
+        self.serialRef.flushOutput()
+
         if use_handshake:
             self._handshake()
 
         self.sensor_pool = sensors_pool
+
+        self.start_time = time.time()
+        self.thread_time = 0
 
         super(Communicator, self).__init__()
 
@@ -47,7 +53,9 @@ class Communicator(threading.Thread):
 
         :return: None
         """
+
         while self.exit_flag == False:
+            self.thread_time = round(time.time() - self.start_time)
             packet = bytearray()
             incoming = self.serialRef.read()
             while incoming != b'\r':
@@ -78,7 +86,7 @@ class Communicator(threading.Thread):
         self.serialRef.write("\r")
         self.serialRef.flushInput()
         self.serialRef.flushOutput()
-        print("Arduino initialized!")
+        print("Board initialized!")
 
     def _findPort(self, baud_rate):
         """
@@ -93,7 +101,8 @@ class Communicator(threading.Thread):
         for possible_address in self._possibleAddresses():
             try:
                 serial_ref = serial.Serial(port=possible_address,
-                                           baudrate=baud_rate)
+                                           baudrate=baud_rate,
+                                           timeout=0.005)
                 address = possible_address
             except:
                 pass
@@ -134,3 +143,7 @@ class Communicator(threading.Thread):
 
     def stop(self):
         Communicator.exit_flag = True
+
+    def dump(self):
+        self.serialRef.flushInput()
+        self.serialRef.flushOutput()

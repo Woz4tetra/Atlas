@@ -19,8 +19,7 @@ try:
         joystick.update()
         servo["position"] = int(
             50 * -(joystick.triggers.L - joystick.triggers.R))
-        print(servo.current_packet)
-        time.sleep(0.05)
+        time.sleep(0.005)
 except:
     traceback.print_exc()
     stop()
