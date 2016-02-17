@@ -8,7 +8,7 @@
     Allows for easy sensor and command data logging.
 
     This class integrates nicely with the Sensor and Command objects found in
-    data.py. 
+    data.py.
 
     Recorder will take in the input object's data and write it to a csv file.
     It is formatted to be user-friendly and easy to interpret.
@@ -27,7 +27,7 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, file_name=None, directory=None):
+    def __init__(self, frequency=None, file_name=None, directory=None):
         if directory == None:
             self.directory = config.get_dir(":logs")
         else:
@@ -35,7 +35,7 @@ class Recorder(object):
                 directory += "/"
             self.directory = directory
 
-        if file_name == None or len(file_name) <= 4:
+        if file_name == None:
             self.file_name = time.strftime("%c").replace(":", ";") + ".csv"
         else:
             if file_name[-4:] != ".csv":
@@ -44,6 +44,7 @@ class Recorder(object):
 
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
+        print("Writing to:", self.directory + self.file_name)
         self.csv_file = open(self.directory + self.file_name, 'w+')
 
         self.writer = csv.writer(self.csv_file, delimiter=',',
@@ -55,6 +56,9 @@ class Recorder(object):
         self.header_row = []
 
         self.time0 = time.time()
+        self.log_init_time = self.time0
+        self.frequency = frequency
+        self.enable_record = True
 
     def add_tracker(self, sensor, name):
         self.header_row.append(
@@ -75,15 +79,20 @@ class Recorder(object):
         self.writer.writerow(self.current_row)
 
     def add_data(self, serial_object):
-        start_index = self.sensor_indices[serial_object.object_id]
-        for index, key in enumerate(serial_object._properties):
-            self.current_row[index + start_index] = serial_object._properties[
-                key]
+        if self.enable_record:
+            start_index = self.sensor_indices[serial_object.object_id]
+            for index, key in enumerate(serial_object._properties):
+                self.current_row[index + start_index] = serial_object._properties[key]
 
     def end_row(self):
-        self.current_row[0] = time.time() - self.time0
+        if self.enable_record:
+            self.current_row[0] = time.time() - self.log_init_time
+            self.writer.writerow(self.current_row)
+            self.enable_record = False
 
-        self.writer.writerow(self.current_row)
+        if (self.frequency is None) or (time.time() - self.time0) > self.frequency:
+            self.time0 = time.time()
+            self.enable_record = True
 
     def close(self):
         self.csv_file.close()
