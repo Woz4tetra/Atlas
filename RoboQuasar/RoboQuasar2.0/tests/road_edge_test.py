@@ -44,8 +44,8 @@ from camera import analyzersTrial as analyzers
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-                              # cam_source="Icarus 10-11 roll 5 (+hill 1).mov",
-                              cam_source="Icarus 10-17 roll 1.mov",
+                              cam_source="Icarus 10-11 roll 5 (+hill 1).mov",
+                            #   cam_source="Icarus 10-17 roll 1.mov",
                               loop_video=False,
                               start_frame=1386)
 
@@ -65,7 +65,8 @@ def run():
     time_start = time.time()
 
     warper = analyzers.RoadWarper(camera1.windowName, width, height,
-                                  [[190, 110], [469, 110], [19, 160], [628, 160]])
+                                  [[209, 116], [510, 116], [12, 203], [631, 203]])
+                                #   [[190, 110], [469, 110], [19, 160], [628, 160]])
 
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
@@ -85,7 +86,6 @@ def run():
                 sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
                 sobeled = np.absolute(sobeled)
                 sobeled = np.uint8(sobeled)[:, :, 2]
-
                 # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
                 #                        cv2.COLOR_BGR2GRAY)
                 # sobeled = np.uint8(sobeled)[:, :, 2]

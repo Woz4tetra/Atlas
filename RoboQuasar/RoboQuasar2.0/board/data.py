@@ -27,14 +27,13 @@ import struct
 import string
 import random
 import math
-from board.comm import Communicator
+import time
 from collections import OrderedDict
 from sys import maxsize as MAXINT
 
 
 class SensorPool(object):
     def __init__(self):
-        self.sensor_index = 0
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -58,6 +57,8 @@ class SensorPool(object):
         for c in packet:
             if c.lower() not in '0123456789abcedfiu\t':
                 return False
+        if packet[2] != '\t' and packet[3] not in 'fibu':
+            return False
 
         return True
 
@@ -72,7 +73,6 @@ class SensorPool(object):
         packet = packet.decode('ascii')
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
-
             if sensor_id in list(self.sensors.keys()):
                 sensor = self.sensors[sensor_id]
 
@@ -101,25 +101,43 @@ class CommandQueue(object):
         return len(self.queue) == 0
 
 
-def try_sensor(formats, hex_string=None):
-    exp_sensor = Sensor(0, *formats)
+def try_sensor(properties):
+    global sensor_pool
+    sensor_id = max(sensor_pool.sensors.keys()) + 1
+    exp_sensor = Sensor(sensor_id, properties)
 
-    if hex_string == None:
-        hex_string = ""
-        for counter in range(exp_sensor.data_len):
-            hex_string += "%0x" % (random.randint(0, 15))
-        print(("Using hex data:", hex_string))
+    packet = ""
+    for _ in properties:
+        data_type = random.choice(['i', 'u', 'f', 'b'])
+        if data_type == 'u' or data_type == 'i':
+            int_size = random.choice([8, 16, 32, 64])
+            data = random.randint(0, 2 << (int_size - 1) - 1)
+            print("%i, %x" % (data, data))
+            packet += "%s%x\t" % (data_type, data)
+        elif data_type == 'f':
+            data = random.random() * 10000
+            packet += "%s%0.8x\t" % (data_type,
+                                  struct.unpack('<I', struct.pack('<f', data))[0])
+        elif data_type == 'b':
+            data = random.choice([True, False])
+            if data == True:
+                data = random.randint(1, 15)
+            else:
+                data = 0
+            packet += "%s%x\t" % (data_type, data)
 
-    return exp_sensor.parse(hex_string)
+    exp_sensor.parse(packet[:-1])
+
+    return exp_sensor._properties
 
 
-def try_command(command_id, data_format, data=None):
-    exp_command = Command(command_id, data_format)
-    print((exp_command.data_len * 4 - 2))
+def try_command(command_id, data_range, data=None):
+    exp_command = Command(command_id, 'test', data_range)
     if data == None:
-        data = random.randint(0, int((2 << (exp_command.data_len * 4 - 2)) - 1))
+        data = random.randint(exp_command.range[0], exp_command.range[1])
+        print("data:", data)
 
-    exp_command._data = data
+    exp_command.property_set('test', data)
     return exp_command.get_packet()
 
 
@@ -169,11 +187,8 @@ class Sensor(SerialObject):
 
         sensor_pool.add_sensor(self)
 
-    def __getattr__(self, item):
-        if item not in self._properties.keys():
-            return self.__dict__[item]
-        else:
-            return self._properties[item]
+    def __getitem__(self, item):
+        return self._properties[item]
 
     @staticmethod
     def format_hex(hex_string, data_format):
@@ -199,13 +214,20 @@ class Sensor(SerialObject):
             return int(raw_int)
 
         elif data_format == 'f':
-            return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            if len(hex_string) == 8:
+                return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            else:
+                return None
 
         elif data_format == 'd':
-            return struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            if len(hex_string) == 8:
+                return struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            else:
+                return None
 
         else:
-            raise ValueError("Invalid data type: %s", str(data_format))
+            # raise ValueError("Invalid data type: %s", str(data_format))
+            return None
 
     def parse(self, hex_string):
         """
@@ -220,11 +242,12 @@ class Sensor(SerialObject):
         """
 
         raw_data = hex_string.split("\t")
-        for index, key in enumerate(self._properties):
-            assert index < len(raw_data)
-
-            data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
-            self._properties[key] = self.format_hex(raw_datum, data_type)
+        for index, key in enumerate(self._properties.keys()):
+            if index < len(raw_data):
+                data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
+                new_datum = self.format_hex(raw_datum, data_type)
+                if new_datum is not None:
+                    self._properties[key] = new_datum
 
     def __str__(self):
         to_string = "["
@@ -235,30 +258,37 @@ class Sensor(SerialObject):
 
 
 class Command(SerialObject):
-    def __init__(self, command_id, command_name, data_range):
-        temp_set = self.__setattr__
-        Command.__setattr__ = object.__setattr__
-
+    def __init__(self, command_id, command_name, data_range, bound=True):
         self.range = data_range
         self.data_type, self.data_len = self.get_type_size(data_range)
         self.command_name = command_name
         super().__init__(command_id, [command_name])
 
-        Command.__setattr__ = temp_set
+        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
+                                       self.to_hex(self.data_len, 2))
+        self.bound = bound
 
-    def __getattr__(self, item):
-        if item not in self._properties.keys():
-            return self.__dict__[item]
-        else:
-            return self._properties[item]
+    def __getitem__(self, item):
+        return self._properties[item]
 
-    def __setattr__(self, key, value):
-        if key in self.__dict__.keys():
-            self.__dict__[key] = value
-        else:
-            global command_queue
-            self._properties[key] = value
-            command_queue.put(self)
+    def __setitem__(self, key, value):
+        global communicator
+        self.property_set(key, value)
+        communicator.put(self.get_packet())
+
+    def property_set(self, key, value):
+        if self.bound:  # bound by self.data_range
+            if value > self.range[1]:
+                value = self.range[1]
+            elif value < self.range[0]:
+                value = self.range[0]
+        else:  # acts like mod. Wraps out of bound value to self.data_range
+            while value > self.range[1]:
+                value -= self.range[1] - self.range[0]
+            while value < self.range[0]:
+                value += self.range[1] - self.range[0]
+
+        self._properties[key] = value
 
     @staticmethod
     def get_data_size(data_range):
@@ -268,12 +298,14 @@ class Command(SerialObject):
             return 8
         else:
             int_length = int(math.log(length, 16)) + 1
-            return int_length * 8
+            return int_length
 
     @staticmethod
     def get_type_size(data_range):
         assert len(data_range) == 2
         assert type(data_range[0]) == type(data_range[1])
+        if data_range[0] > data_range[1]:
+            data_range = (data_range[1], data_range[0])
 
         if type(data_range[0]) == int:
             if data_range[0] < 0 or data_range[1] < 0:
@@ -315,15 +347,14 @@ class Command(SerialObject):
 
         elif self.data_type == 'i':
             if data < 0:
-                data += (2 << (self.data_len - 1))
-
+                data += (2 << (self.data_len * 4 - 1))
             data %= MAXINT
             return self.to_hex(data, self.data_len)
 
-        elif self.data_type == 'float':
+        elif self.data_type == 'f':
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
-        elif self.data_type == 'double':
+        elif self.data_type == 'd':
             return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
@@ -333,15 +364,15 @@ class Command(SerialObject):
         :return:
         """
 
-        packet = self.to_hex(self.object_id, 2) + "\t"
-        packet += self.to_hex(self.data_len, 2) + "\t"
+        self.current_packet = self.packet_info + \
+            self.format_data(self._properties[self.command_name]) + "\r"
 
-        packet += self.format_data(self._properties[self.command_name]) + "\r"
+        return self.current_packet
 
-        self.current_packet = packet
 
-        return packet
-
+# init sensor pool
+sensor_pool = SensorPool()
+communicator = None
 
 # --------------------------------------------------
 #                    Test cases
@@ -378,29 +409,29 @@ if __name__ == '__main__':
     imu.parse("u73e1\tu2305\tu5243\t"
               "uaa49\tua4d2\tue674\t"
               "u9627\tud3b2\tu3752")
-    assert imu.accel_x == 0x73e1
-    assert imu.accel_y == 0x2305
-    assert imu.accel_z == 0x5243
-    assert imu.gyro_x == 0xaa49
-    assert imu.gyro_y == 0xa4d2
-    assert imu.gyro_z == 0xe674
-    assert imu.mag_x == 0x9627
-    assert imu.mag_y == 0xd3b2
-    assert imu.mag_z == 0x3752
+    assert imu["accel_x"] == 0x73e1
+    assert imu["accel_y"] == 0x2305
+    assert imu["accel_z"] == 0x5243
+    assert imu["gyro_x"] == 0xaa49
+    assert imu["gyro_y"] == 0xa4d2
+    assert imu["gyro_z"] == 0xe674
+    assert imu["mag_x"] == 0x9627
+    assert imu["mag_y"] == 0xd3b2
+    assert imu["mag_z"] == 0x3752
 
     imu.parse("i933f\ticae9\ti047f\t"
               "i00d1\tiff35\ti107c\t"
               "i36ed\tic14b\tic349")
 
-    assert imu.accel_x == -0x6cc1
-    assert imu.accel_y == -0x3517
-    assert imu.accel_z == 0x47f
-    assert imu.gyro_x == 0xd1
-    assert imu.gyro_y == -0xcb
-    assert imu.gyro_z == 0x107c
-    assert imu.mag_x == 0x36ed
-    assert imu.mag_y == -0x3eb5
-    assert imu.mag_z == -0x3cb7
+    assert imu["accel_x"] == -0x6cc1
+    assert imu["accel_y"] == -0x3517
+    assert imu["accel_z"] == 0x47f
+    assert imu["gyro_x"] == 0xd1
+    assert imu["gyro_y"] == -0xcb
+    assert imu["gyro_z"] == 0x107c
+    assert imu["mag_x"] == 0x36ed
+    assert imu["mag_y"] == -0x3eb5
+    assert imu["mag_z"] == -0x3cb7
 
     gps = Sensor(1, ['lat', 'long', 'speed', 'heading', 'hdop'])
     gps.parse("f457ec735\t"
@@ -410,11 +441,11 @@ if __name__ == '__main__':
               "i69")
 
 
-    assert almost_equal(gps.lat, 4076.4504098326465)
-    assert almost_equal(gps.long, 4077.0990541993133)
-    assert almost_equal(gps.speed, 4001.4434308771893)
-    assert gps.heading == 26
-    assert gps.hdop == 105
+    assert almost_equal(gps["lat"], 4076.4504098326465)
+    assert almost_equal(gps["long"], 4077.0990541993133)
+    assert almost_equal(gps["speed"], 4001.4434308771893)
+    assert gps["heading"] == 26
+    assert gps["hdop"] == 105
 
     test = Sensor(2, ['value'])
     for value in range(-128, 128):
@@ -422,25 +453,29 @@ if __name__ == '__main__':
             value += (2 << 7)
 
         test.parse("i" + Command.to_hex(value, 8))
-        assert test.value == value
+        assert test["value"] == value
 
-    test = Sensor(2, ['value'])
+    test = Sensor(3, ['value'])
     for value in range(0, 256):
         test.parse("u" + Command.to_hex(value, 8))
-        assert test.value == value
+        assert test["value"] == value
+
+    print("Sensor IDs 0...3 have been taken")
 
 else:
-    # init sensor pool and command queue
-    sensor_pool = SensorPool()
-    command_queue = CommandQueue()
-    communicator = None
+    from board.comm import Communicator
 
     def start(baud=115200, use_handshake=True):
         global communicator
-        communicator = Communicator(baud, command_queue, sensor_pool,
-                                    use_handshake)
+        communicator = Communicator(baud, sensor_pool, use_handshake)
         communicator.start()
 
     def stop():
         global communicator
         communicator.stop()
+        time.sleep(0.005)
+
+    _initial_time = time.time()
+    def is_running():
+        global communicator
+        return round(time.time() - _initial_time) == communicator.thread_time

@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 
 from board.data import Sensor
 from board.data import Command
-from board.data import start, stop
+from board.data import start, stop, is_running
 
 from board.logger import Recorder
 
@@ -26,22 +26,25 @@ servo_steering = Command(0, 'position', (90, -90))
 # servo_brakes = Command(1, 'position', (90, -90))
 motor = Command(1, 'speed', (-255, 255))
 
+# not seeing any data? try rebooting the board
+# run basic_serial_test.py to make sure that data
+# is coming in
+
 start(use_handshake=False)
 
 servo_increase = True
 
-time_stamp0 = 0
-
-log_data = False
+log_data = True
 log = None
 
 if log_data:
-    log = Recorder()
-    # log.add_tracker(tmp36, 'tmp36', "temperature C")
-    # log.add_tracker(mcp9808, 'mcp9808', "temperature C")
-    # log.add_tracker(imu, 'imu')
-    # log.add_tracker(encoder, 'encoder')
-    log.add_tracker(builtin_accel, 'builtin_accel')
+    log = Recorder(frequency=1.0, file_name='test')
+    log.add_tracker(tmp36, "temperature C")
+    log.add_tracker(mcp9808, "temperature C")
+    log.add_tracker(accel_gyro, 'imu')
+    log.add_tracker(compass, 'compass heading')
+    log.add_tracker(encoder, 'encoder')
+    log.add_tracker(builtin_accel, 'builtin accel')
     log.add_tracker(gps, 'gps')
     log.add_tracker(servo_steering, 'servo_steering')
     # log.add_tracker(servo_brakes, 'servo_brakes')
@@ -50,15 +53,17 @@ if log_data:
 
 try:
     while True:
-        print(accel_gyro.accel_x, accel_gyro.accel_y, accel_gyro.accel_z)
-        print(accel_gyro.gyro_x, accel_gyro.gyro_y, accel_gyro.gyro_z)
-        print(compass.heading)
-        print(encoder.counts)
+        # print(accel_gyro["accel_x"], accel_gyro["accel_y"], accel_gyro["accel_z"])
+        # print(accel_gyro["gyro_x"], accel_gyro["gyro_y"], accel_gyro["gyro_z"])
+        # print(compass["heading"])
+        # print(encoder["counts"])
+        #
+        # print(builtin_accel["x"], builtin_accel["y"], builtin_accel["z"])
+        # print(gps["lat"], gps["long"], gps["speed"], gps["heading"], gps["hdop"])
+        # print(tmp36["temp"], mcp9808["temp"])
+        # print("is alive:", is_running())
 
-        # print(builtin_accel.x, builtin_accel.y, builtin_accel.z)
-        # print(gps.lat, gps.long, gps.speed, gps.heading, gps.hdop)
-        # print(tmp36.temp, mcp9808.temp)
-
+        # time.sleep(1)
         # print(servo_steering.position)
 
         # if servo_increase:
@@ -74,13 +79,11 @@ try:
         # motor.speed = servo_steering.position + 90
 
         if log_data:
-            # time_stamp1 = int(time.time() - log.time0)
-            # if time_stamp1 != time_stamp0:
-            #     time_stamp0 = time_stamp1
-            # log.add_data(tmp36)
-            # log.add_data(mcp9808)
-            # log.add_data(imu)
-            # log.add_data(encoder)
+            log.add_data(tmp36)
+            log.add_data(mcp9808)
+            log.add_data(accel_gyro)
+            log.add_data(compass)
+            log.add_data(encoder)
             log.add_data(builtin_accel)
             log.add_data(gps)
             log.add_data(servo_steering)
@@ -90,4 +93,5 @@ try:
         time.sleep(0.005)
 except:
     traceback.print_exc()
+finally:
     stop()

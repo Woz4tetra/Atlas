@@ -7,7 +7,7 @@ import serial
 
 class Communicator():
     def __init__(self, baud_rate, handshake=True):
-    self.serialRef = self._findPort(baud_rate)
+        self.serialRef = self._findPort(baud_rate)
         if handshake == True:
             self._handshake()
 

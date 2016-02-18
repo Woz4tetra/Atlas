@@ -11,7 +11,7 @@
     SensorData (constructor parameter) object with new data received from
     serial. It will also send any commands put on the CommandQueue (also a
     constructor parameter).
-    
+
     This library follows a home-baked serial packet protocol. data.py handles
     all data conversion. Please refer to objects.py for proper usage tips and
     data.py for details of the sensor and command packet protocol.
@@ -30,14 +30,19 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, command_queue, sensors_pool,
+    def __init__(self, baud_rate, sensors_pool,
                  use_handshake=True):
         self.serialRef = self._findPort(baud_rate)
+        self.serialRef.flushInput()
+        self.serialRef.flushOutput()
+
         if use_handshake:
             self._handshake()
 
         self.sensor_pool = sensors_pool
-        self.command_queue = command_queue
+
+        self.start_time = time.time()
+        self.thread_time = 0
 
         super(Communicator, self).__init__()
 
@@ -48,19 +53,20 @@ class Communicator(threading.Thread):
 
         :return: None
         """
+
         while self.exit_flag == False:
+            self.thread_time = round(time.time() - self.start_time)
             packet = bytearray()
             incoming = self.serialRef.read()
             while incoming != b'\r':
                 if incoming != None:
                     packet += incoming
                 incoming = self.serialRef.read()
-            for index in range(len(packet)):
+            if len(packet) > 0:
                 self.sensor_pool.update(packet)
 
-            if not self.command_queue.is_empty():
-                self.serialRef.write(
-                        bytearray(self.command_queue.get(), 'ascii'))
+    def put(self, packet):
+        self.serialRef.write(bytearray(packet, 'ascii'))
 
     def _handshake(self):
         """
@@ -80,7 +86,7 @@ class Communicator(threading.Thread):
         self.serialRef.write("\r")
         self.serialRef.flushInput()
         self.serialRef.flushOutput()
-        print("Arduino initialized!")
+        print("Board initialized!")
 
     def _findPort(self, baud_rate):
         """
@@ -95,7 +101,8 @@ class Communicator(threading.Thread):
         for possible_address in self._possibleAddresses():
             try:
                 serial_ref = serial.Serial(port=possible_address,
-                                           baudrate=baud_rate)
+                                           baudrate=baud_rate,
+                                           timeout=0.005)
                 address = possible_address
             except:
                 pass
@@ -111,7 +118,7 @@ class Communicator(threading.Thread):
         """
         An internal method used by _initSerial to search all possible
         USB serial addresses.
-        
+
         :return: A list of strings containing all likely addresses
         """
         if sys.platform.startswith('darwin'):  # OS X
@@ -136,3 +143,7 @@ class Communicator(threading.Thread):
 
     def stop(self):
         Communicator.exit_flag = True
+
+    def dump(self):
+        self.serialRef.flushInput()
+        self.serialRef.flushOutput()

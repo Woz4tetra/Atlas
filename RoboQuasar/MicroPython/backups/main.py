@@ -43,11 +43,11 @@ sensor_queue = SensorQueue(
         gps,
         compass,
         accel_gyro,
-	encoder
+	    encoder
 )
 command_pool = CommandPool(
         servo1,
-        motor_a
+        # motor_a
 )
 
 communicator = Communicator(sensor_queue, command_pool)
