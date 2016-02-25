@@ -125,8 +125,8 @@ class Communicator(threading.Thread):
             devices = os.listdir("/dev/")
             arduino_devices = []
             for device in devices:
-                if device.find("cu.usbmodem") > -1 or \
-                                device.find("tty.usbmodem") > -1:
+                if device.find("cu") > -1 or \
+                        device.find("tty") > -1:
                     arduino_devices.append("/dev/" + device)
             return arduino_devices
 

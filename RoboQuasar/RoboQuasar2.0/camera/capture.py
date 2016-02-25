@@ -257,7 +257,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         def updateCapture(windowName, video, capture, delta=None,
                           newCapture=None):
-            print(str(capture) + " ---> ", end=' ')
+            # print(str(capture) + " ---> ", end = ' ')
 
             video.release()
 
