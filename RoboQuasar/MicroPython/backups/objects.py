@@ -7,6 +7,7 @@ from libraries.micro_gps import MicropyGPS
 
 from libraries.mpu6050 import MPU6050
 from libraries.hmc5883l import HMC5883L
+from libraries.bno055 import BNO055
 
 from data import *
 
@@ -69,7 +70,7 @@ class MCP9808(Sensor):
         return temperature
 
     def update_data(self):
-        self.data[0] = self.read()
+        return self.read()
 
 
 class TMP36(Sensor):
@@ -85,7 +86,7 @@ class TMP36(Sensor):
         return (1.0 / 37 * millivolts) - 55 # (millivolts - 500) / 100
 
     def update_data(self):
-        self.data[0] = self.pin_ref.read()
+        return self.pin_ref.read()
 
 
 class BuiltInAccel(Sensor):
@@ -95,7 +96,7 @@ class BuiltInAccel(Sensor):
         self.accel = pyb.Accel()
 
     def update_data(self):
-        self.data = (self.accel.x(), self.accel.y(), self.accel.z())
+        return (self.accel.x(), self.accel.y(), self.accel.z())
 
 
 class GPS(Sensor):
@@ -108,7 +109,7 @@ class GPS(Sensor):
         self.gps_ref.update(character)
 
     def update_data(self):
-        self.data = \
+        return \
             (self.gps_ref.latitude[0],
              self.gps_ref.latitude[1],
              self.gps_ref.longitude[0],
@@ -137,7 +138,7 @@ class RotaryEncoder(Sensor):
                                     reverse)
 
     def update_data(self):
-        self.data = self.encoder.position
+        return self.encoder.position
 
 
 class HallEncoder(Sensor):
@@ -167,7 +168,7 @@ class HallEncoder(Sensor):
 
 
     def update_data(self):
-        self.data = [self.enc_dist]
+        return self.enc_dist
 
 
 class AccelGyro(Sensor):
@@ -177,16 +178,57 @@ class AccelGyro(Sensor):
                          'f', 'f', 'f')
         self.imu = MPU6050(bus, False)
 
+        self.accel_scale = 9.81 / 7900
+        self.gyro_scale = 1 / 7150
+
+    def scale(self, data, scale):
+        for index in range(len(data)):
+            data[index] *= scale
+
+    def interpret_buf(self, buf):
+        x = buf[0] << 8 | buf[1]
+        y = buf[2] << 8 | buf[3]
+        z = buf[4] << 8 | buf[5]
+        if x >> 15 == 1:
+            x -= 2 << 15
+        if y >> 15 == 1:
+            y -= 2 << 15
+        if z >> 15 == 1:
+            z -= 2 << 15
+
+        return [x, y, z]
+
     def update_data(self):
-        self.data = self.imu.get_acc() + self.imu.get_gyro()
+        accel = self.interpret_buf(self.imu.get_accel_raw())
+        gyro = self.interpret_buf(self.imu.get_gyro_raw())
+
+        self.scale(accel, self.accel_scale)
+        self.scale(gyro, self.gyro_scale)
+
+        return accel + gyro
+
 
 class Compass(Sensor):
     def __init__(self, sensor_id, bus):
         super().__init__(sensor_id, 'f')
         self.compass = HMC5883L(bus, declination=(-9, 16))
-    
+
     def update_data(self):
-        self.data = [self.compass.heading()]
+        return self.compass.heading()
+
+class IMU(Sensor):
+    def __init__(self, sensor_id, bus):
+        super().__init__(sensor_id, 'f', 'f', 'f',
+                                    'f', 'f', 'f',
+                                    'f', 'f', 'f',
+                                    'f', 'f', 'f', 'f')
+        self.bno = BNO055(bus)
+
+    def update_data(self):
+        return self.bno.get_lin_accel() + \
+            self.bno.get_gyro() + \
+            self.bno.get_euler() + \
+            self.bno.get_quat()
 
 class Motor(Command):
     # pin name: [(timer #, channel #), ...]

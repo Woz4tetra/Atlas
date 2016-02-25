@@ -158,7 +158,6 @@ class BuggyJoystick:
             # self.triggers[1] = 0
 
     def _updateButtons(self, event, value):
-        print(event.button)
         if event.button == 0:
             self.buttons.X = value
         elif event.button == 1:

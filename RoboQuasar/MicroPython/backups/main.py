@@ -13,6 +13,7 @@ gps = GPS(3)
 accel_gyro = AccelGyro(4, 1)
 compass = Compass(5, 1)
 encoder = HallEncoder(6, "X7")
+imu = IMU(7, 2)
 
 servo1 = Servo(0, 1)
 motor_a = Motor(1, 'X2', 'X3')
@@ -43,7 +44,8 @@ sensor_queue = SensorQueue(
         gps,
         compass,
         accel_gyro,
-	    encoder
+	    encoder,
+        imu
 )
 command_pool = CommandPool(
         servo1,
@@ -61,8 +63,6 @@ while True:
 
     communicator.write_packet()
     communicator.read_command()
-#    print()
-#    print(encoder.enc_dist)
 
     if increase:
         indicator.intensity(indicator.intensity() + 5)

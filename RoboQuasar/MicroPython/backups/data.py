@@ -128,7 +128,12 @@ class Sensor(SerialObject):
         pass
 
     def get_packet(self):
-        self.update_data()
+        self.data = self.update_data()
+        try:
+           _ = (e for e in self.data)
+        except TypeError:
+           # print(self.data, 'is not iterable')
+           self.data = [self.data]
         return "%s\t%s\r" % (self.to_hex(self.object_id, 2),
                              self.format_data())
 

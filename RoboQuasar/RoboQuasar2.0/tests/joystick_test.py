@@ -5,7 +5,7 @@ import time
 sys.path.insert(0, '../')
 
 from board.data import Command
-from board.data import start, stop, command_queue
+from board.data import start, stop, is_running
 from controller.gcjoystick import joystick_init
 
 servo = Command(0, 'position', (-90, 90))

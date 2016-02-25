@@ -25,11 +25,11 @@ class MainFilter(object):
         self.time = time.time()
         self.dt = 0
 
-    def update(self, gps, encoder, imu, compass):
+    def update(self, gps_lat, gps_lon, encoder_counts, accel_x, accel_y, gyro_z, heading):
         self.dt = time.time() - self.time
         self.time = time.time()
-        phi = self.headingKalman.update(compass, imu, self.dt)
-        x, y = self.placeKalman.update(gps, encoder, imu, phi, self.dt)
+        phi = self.headingKalman.update(heading, gyro_z, self.dt)
+        x, y = self.placeKalman.update(gps_lat, gps_lon, encoder_counts, accel_x, accel_y, phi, self.dt)
         return x, y, phi
 
 
@@ -40,10 +40,10 @@ class headingKalman(object):
         self.covariance = np.identity(2)
         self.obs_matrix = np.identity(2)
 
-    def update(self, compass, imu, dt):
+    def update(self, heading, gyro_z, dt):
         trans_matrix = np.array([[1, dt],
                                  [0, 1]])
-        obs = np.array([compass.heading, imu.gyro_z])
+        obs = np.array([heading, gyro_z])
         self.filt_state_mean, self.covariance = self.filter.filter_update(
                 filtered_state_mean=self.filt_state_mean,
                 filtered_state_covariance=self.covariance,
@@ -51,8 +51,7 @@ class headingKalman(object):
                 transition_matrix=trans_matrix,
                 observation_matrix=self.obs_matrix)
 
-        return self.filt_state_mean
-
+        return self.filt_state_mean[0]
 
 class placeKalman(object):
     def __init__(self, origin, circum, start_heading):
@@ -63,15 +62,25 @@ class placeKalman(object):
         self.covariance = np.identity(6)
         self.displacement_angle = start_heading
 
-    def update(self, gps, encoder, imu, phi, dt):
-        (dist, x_gps, y_gps) = self.geo_dist(gps.latitude, gps.longitude)
+    def update(self, gps_lat, gps_lon, encoder_counts, accel_x, accel_y, phi, dt):
+        (dist, x_gps, y_gps) = self.geo_dist(gps_lat, gps_lon)
         observation = np.array([x_gps, y_gps,
-                                encoder, imu.accel_x, imu.accel_y])
+                                encoder_counts, accel_x, accel_y])
+        x_coeff = 0
+        y_coeff = 0
+        if (math.cos(phi) == 0):
+            y_coeff = self.circum*dt / math.sin(phi)
+            x_coeff = 0
+        elif (math.sin(phi) == 0):
+            x_coeff = self.circum * dt / math.cos(phi)
+            y_coeff = 0
+        else:
+            x_coeff = 0.5 * self.circum * dt / math.cos(phi)
+            y_coeff = 0.5 * self.circum * dt / math.sin(phi)
         observation_matrix = np.array(
                 [[1, 0, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
-                 [0, 0, 0.5 * self.circum * dt / math.cos(phi),
-                  0.5 * self.circum * dt / math.sin(phi), 0, 0],
+                 [0, 0, x_coeff, y_coeff, 0, 0],
                  [0, 0, 0, 0, 1, 0],
                  [0, 0, 0, 0, 0, 1]])
 
@@ -90,6 +99,7 @@ class placeKalman(object):
                 observation=observation,
                 transition_matrix=transition_matrix,
                 observation_matrix=observation_matrix)
+
         return self.filt_state_mean[0], self.filt_state_mean[1]  # x, y
 
     def geo_dist(self, latitude, longitude):

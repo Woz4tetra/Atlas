@@ -476,6 +476,6 @@ else:
         time.sleep(0.005)
 
     _initial_time = time.time()
-    def is_running():
+    def is_running(threshold=2):
         global communicator
-        return round(time.time() - _initial_time) == communicator.thread_time
+        return (round(time.time() - _initial_time) - communicator.thread_time) <= threshold
