@@ -39,15 +39,17 @@ import time
 sys.path.insert(0, '../')
 
 from camera import capture
-from camera import analyzersTrial as analyzers
+from camera import analyzers
 
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-                              cam_source="Icarus 10-11 roll 5 (+hill 1).mov",
-                            #   cam_source="Icarus 10-17 roll 1.mov",
-                              loop_video=False,
-                              start_frame=1386)
+        cam_source='IMG_0832.MOV',
+        loop_video=False,
+        start_frame=0,
+        width=480,
+        height=270
+    )
 
     capture_properties = dict(
             paused=False,
@@ -64,8 +66,8 @@ def run():
 
     time_start = time.time()
 
-    warper = analyzers.RoadWarper(camera1.windowName, width, height,
-                                  [[209, 116], [510, 116], [12, 203], [631, 203]])
+    # warper = analyzers.RoadWarper(camera1.windowName, width, height,
+    #                               [[209, 116], [510, 116], [12, 203], [631, 203]])
                                 #   [[190, 110], [469, 110], [19, 160], [628, 160]])
 
     while camera1.isRunning:
@@ -79,8 +81,8 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
-                sobeled = warper.update(frame1)
-                sobeled = cv2.cvtColor(sobeled, cv2.COLOR_BGR2HSV)
+                # sobeled = warper.update(frame1)
+                sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
                 # sobeled = cv2.medianBlur(sobeled, 7)
                 sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
                 sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
