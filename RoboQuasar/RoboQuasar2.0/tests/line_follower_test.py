@@ -48,26 +48,26 @@ def run():
         paused=False,
         apply_filters=True,
         enable_draw=True,
-        draw_avg=True, 
+        draw_avg=True,
         draw_all=False,
         currentFrame=camera1.currentTimeMsec(),
         write_video=False,
         slideshow=False,
         burst_mode=False,
     )
-    
+
     frame1 = camera1.getFrame(readNextFrame=False)
-    height, width = frame1.shape[0:2] 
-    
+    height, width = frame1.shape[0:2]
+
     line_follower = analyzers.LineFollower((0, 0), 0, width, height)
-    
+
     time_start = time.time()
-    
+
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
             'currentFrame'] != camera1.currentTimeMsec():
             frame1 = camera1.getFrame()
-            
+
             if frame1 is None:
                 continue
 
@@ -137,7 +137,7 @@ def run():
                 print(("Burst mode is " + str(capture_properties['burst_mode'])))
             elif key == 'p':  # debug print
                 print("Frame #:", capture_properties['currentFrame'])
-    
+
 if __name__ == '__main__':
     print(__doc__)
     run()

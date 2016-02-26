@@ -39,15 +39,17 @@ import time
 sys.path.insert(0, '../')
 
 from camera import capture
-from camera import analyzersTrial as analyzers
+from camera import hsvTrial as analyzers
 
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-                              cam_source="Icarus 10-11 roll 5 (+hill 1).mov",
-                            #   cam_source="Icarus 10-17 roll 1.mov",
-                              loop_video=False,
-                              start_frame=1386)
+        cam_source='IMG_0832.MOV',
+        loop_video=False,
+        start_frame=0,
+        width=480,
+        height=270
+    )
 
     capture_properties = dict(
             paused=False,
