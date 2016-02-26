@@ -39,7 +39,7 @@ import time
 sys.path.insert(0, '../')
 
 from camera import capture
-from camera import hsvTrial as analyzers
+from camera import analyzersTrial as analyzers
 
 
 def run():

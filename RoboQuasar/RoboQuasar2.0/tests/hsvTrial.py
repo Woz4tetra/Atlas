@@ -21,7 +21,7 @@ Currenly works for video and picture inputs.
 import cv2
 import numpy as np
 
-""" Note: use escape key to quit window.""" 
+""" Note: use escape key to quit window."""
 
 def nothing(x): pass
 cv2.namedWindow('segmented')
@@ -40,46 +40,43 @@ switch = "0 : OFF \n1 : ON"
 cv2.createTrackbar(switch, "segmented", 0, 1, nothing)
 
 # cap = cv2.VideoCapture(0) # web cam as video source
-cap = cv2.VideoCapture("Videos/Orca 10-10 roll 4.mov")
+cap = cv2.VideoCapture("../camera/Videos/IMG_0832.MOV")
 
 while(1):
-    ret, original = cap.read()
-    segmented = np.zeros(original.shape, np.uint8) 
+    success, original = cap.read()
+    if success:
+        segmented = np.zeros(original.shape, np.uint8)
 
-    (y, x) = original.shape[0], original.shape[1]
-    if (y >= 360):
-        original = cv2.resize(original, (x, y))
+        (y, x) = original.shape[0], original.shape[1]
+        if (y >= 360):
+            original = cv2.resize(original, (x // 4, y // 4))
 
-    hsv = cv2.cvtColor(original, cv2.COLOR_BGR2HSV)
-    result = original
+        hsv = cv2.cvtColor(original, cv2.COLOR_BGR2HSV)
+        result = original
 
-    # get current positions of four trackbars
-    loH = cv2.getTrackbarPos('H_low','segmented')
-    loS = cv2.getTrackbarPos('S_low','segmented')
-    loV = cv2.getTrackbarPos('V_low','segmented')
-    hiH = cv2.getTrackbarPos('H_high','segmented')
-    hiS = cv2.getTrackbarPos('S_high','segmented')
-    hiV = cv2.getTrackbarPos('V_high','segmented')
-    s = cv2.getTrackbarPos(switch, "Segmented")
-    
-    low = np.array([loH, loS, loV])
-    high = np.array([hiH, hiS, hiV])
+        # get current positions of four trackbars
+        loH = cv2.getTrackbarPos('H_low','segmented')
+        loS = cv2.getTrackbarPos('S_low','segmented')
+        loV = cv2.getTrackbarPos('V_low','segmented')
+        hiH = cv2.getTrackbarPos('H_high','segmented')
+        hiS = cv2.getTrackbarPos('S_high','segmented')
+        hiV = cv2.getTrackbarPos('V_high','segmented')
+        s = cv2.getTrackbarPos(switch, "Segmented")
 
-    if s: 
-        mask = cv2.inRange(hsv, low, high)
-        result  = cv2.bitwise_and(original, original, mask = mask)
+        low = np.array([loH, loS, loV])
+        high = np.array([hiH, hiS, hiV])
 
-    cv2.imshow('segmented', result)
+        if s:
+            mask = cv2.inRange(hsv, low, high)
+            result  = cv2.bitwise_and(original, original, mask = mask)
 
-    key = cv2.waitKey(20) & 0xFF
-    if key == 27 or ():
-        break
-        cv2.destroyAllWindows()
-        cap.release()
+        cv2.imshow('segmented', result)
+
+        key = cv2.waitKey(20) & 0xFF
+        if key == 27 or ():
+            break
+            cv2.destroyAllWindows()
+            cap.release()
 
 cap.release()
 cv2.destroyAllWindows()
-
-
-
-
