@@ -465,10 +465,22 @@ if __name__ == '__main__':
 else:
     from board.comm import Communicator
 
-    def start(baud=115200, use_handshake=True):
+    def start(baud=115200, use_handshake=True, check_status=False):
         global communicator
         communicator = Communicator(baud, sensor_pool, use_handshake)
         communicator.start()
+        if check_status:
+            status = [False, False, False]
+            status_index = 0
+
+            print("Checking if board is alive...")
+            while any(status) == False:
+                if is_running():
+                    status[status_index] = True
+                    status_index += 1
+                print(".", end="")
+                time.sleep(0.25)
+            print("\nIt's alive!")
 
     def stop():
         global communicator

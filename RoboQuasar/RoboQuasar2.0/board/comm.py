@@ -59,7 +59,7 @@ class Communicator(threading.Thread):
             packet = bytearray()
             incoming = self.serialRef.read()
             while incoming != b'\r':
-                if incoming != None:
+                if incoming != None and incoming != b'':
                     packet += incoming
                 incoming = self.serialRef.read()
             if len(packet) > 0:

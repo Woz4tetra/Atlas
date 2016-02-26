@@ -14,15 +14,9 @@ from board.logger import Recorder
 from controller.interpreter import MainFilter
 
 # data type is specified by incoming packet
-tmp36 = Sensor(0, ['temp'])
-mcp9808 = Sensor(1, ['temp'])
-builtin_accel = Sensor(2, ['x', 'y', 'z'])
-gps = Sensor(3, ['lat', 'long', 'speed', 'heading', 'hdop'])
-accel_gyro = Sensor(4, ['accel_x', 'accel_y', 'accel_z',
-                        'gyro_x', 'gyro_y', 'gyro_z'])
-compass = Sensor(5, ['heading'])
-encoder = Sensor(6, ['counts'])
-imu = Sensor(7, ['accel_x', 'accel_y', 'accel_z',
+gps = Sensor(1, ['lat', 'long', 'speed', 'heading', 'hdop'])
+encoder = Sensor(2, ['counts'])
+imu = Sensor(3, ['accel_x', 'accel_y', 'accel_z',
                  'gyro_x', 'gyro_y', 'gyro_z',
                  'yaw', 'pitch', 'roll',
                  'quat_w', 'quat_x', 'quat_y', 'quat_z'])
@@ -30,31 +24,12 @@ imu = Sensor(7, ['accel_x', 'accel_y', 'accel_z',
 # encoder = Sensor(2, ['distance', 'delta'])
 
 servo_steering = Command(0, 'position', (90, -90))
-# servo_brakes = Command(1, 'position', (90, -90))
-motor = Command(1, 'speed', (-255, 255))
+servo_brakes = Command(1, 'position', (90, -90))
 
-
-
-# not seeing any data? try rebooting the board
-# run basic_serial_test.py to make sure that data
-# is coming in
-
-start(use_handshake=False)
+start(use_handshake=False, check_status=True)
 
 log_data = False
 log = None
-
-should_go = is_running()
-if should_go == False:
-    print("Hit enter to check if the robot is ready")
-    print("Type R then enter to start the program")
-
-    while should_go == False:
-        value = input("> ")
-        if value == "":
-            print(is_running())
-        if value.upper() == "R":
-            should_go = True
 
 k_filter = MainFilter(gps['lat'], gps['long'], 1, 0)
 
