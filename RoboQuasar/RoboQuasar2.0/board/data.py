@@ -259,8 +259,7 @@ class Sensor(SerialObject):
 
 class Command(SerialObject):
     def __init__(self, command_id, command_name, data_range, bound=True):
-        self.range = data_range
-        self.data_type, self.data_len = self.get_type_size(data_range)
+        self.data_type, self.data_len, self.range = self.get_type_size(data_range)
         self.command_name = command_name
         super().__init__(command_id, [command_name])
 
@@ -322,7 +321,7 @@ class Command(SerialObject):
         else:
             raise ValueError("Range invalid. Invalid data type: %s",
                              str(data_range))
-        return data_type, data_len
+        return data_type, data_len, data_range
 
     @staticmethod
     def to_hex(decimal, length):

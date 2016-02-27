@@ -12,7 +12,7 @@ import config
 
 class Capture(object):
     excludedSources = set()
-    increaseFPSActions = []
+    # increaseFPSActions = []
 
     resolutions = {
         "logitech": {
@@ -20,7 +20,7 @@ class Capture(object):
             12: (1440, 810),
             23: (960, 540),
             30: (480, 270),
-            31: (240, 135),
+            # 31: (240, 135),
             "default": 30
         },
         "ELP": {
@@ -68,6 +68,8 @@ class Capture(object):
     windows_keys = {
 
     }
+
+    video_num = 0
 
     def __init__(self, window_name=None, cam_source=None,
                  auto_select_source=False,
@@ -209,15 +211,18 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                         cv2.CAP_PROP_FRAME_WIDTH), self.camera.get(
                         cv2.CAP_PROP_FRAME_HEIGHT)
 
-        if type(self.camSource) == int:
-            Capture.increaseFPSActions.append(self.increaseFPS)
-            if len(Capture.increaseFPSActions) >= 2:
-                for increaseFPS in Capture.increaseFPSActions:
-                    increaseFPS()
-                Capture.increaseFPSActions = []
+        # if type(self.camSource) == int:
+        #     Capture.increaseFPSActions.append(self.increaseFPS)
+        #     if len(Capture.increaseFPSActions) >= 2:
+        #         for increaseFPS in Capture.increaseFPSActions:
+        #             increaseFPS()
+        #         Capture.increaseFPSActions = []
 
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+
+        # self.width = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+        # self.height = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
         if self.dimensions[0] is None:
             self.dimensions[0] = 0
@@ -257,8 +262,6 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         def updateCapture(windowName, video, capture, delta=None,
                           newCapture=None):
-            # print(str(capture) + " ---> ", end = ' ')
-
             video.release()
 
             cv2.destroyWindow(windowName + str(capture))
@@ -564,8 +567,8 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         """
         return self.camera.get(cv2.CAP_PROP_FPS)
 
-    def initVideoWriter(self, fps=30, video_name=None, includeTimestamp=True,
-                        codec='mp4v', format='mov',
+    def startVideo(self, fps=30, video_name=None, includeTimestamp=True,
+                        # codec='mp4v', format='mov',
                         output_dir=None):
         """
         Initialize the Capture's video writer.
@@ -581,21 +584,36 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         :param codec: The output video codec. mp4v is recommended
         :return: None
         """
+
+        if self.platform == 'mac':
+            video_format = 'mov'
+            codec='mp4v'
+        elif self.platform == 'linux':
+            video_format = 'avi'
+            codec='mjpg'
+        else:
+            raise EnvironmentError('Unsupported platform. Untested.')
+
         if video_name == None:
             video_name = ""
         elif video_name != None and includeTimestamp == True:
             video_name += " "
 
         if includeTimestamp == True:
-            video_name += time.strftime("%c").replace(":", ";") + "." + format
+            video_name += time.strftime("%c").replace(":", ";") + "." + video_format
 
         if output_dir == None:
-            output_dir = config.get_dir(":videos") + video_name
+            output_dir = config.get_dir(":videos")
         else:
-            output_dir += "/" + video_name
+            output_dir += "/"
 
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
+        if Capture.video_num > 0:
+            video_name += "-" + str(Capture.video_num)
+        Capture.video_num += 1
+
+        output_dir += video_name
 
         fourcc = cv2.VideoWriter_fourcc(*codec)
         self.video = cv2.VideoWriter()
@@ -609,18 +627,21 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
     def writeToVideo(self, frame):
         """
         Write the frame to the Capture's initialized video capture.
-        Type help(Capture.initVideoWriter) for details.
+        Type help(Capture.startVideo) for details.
 
         :param frame: A numpy array containing the frame to write
                 (shape = (height, width, 3))
         :return: None
         """
-        self.video.write(frame)
+        if len(frame.shape) == 2:
+            self.video.write(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR))
+        else:
+            self.video.write(frame)
 
     def stopVideo(self):
         """
         Close the initialized video capture.
-        Type help(Capture.initVideoWriter) for details.
+        Type help(Capture.startVideo) for details.
 
         :return: None
         """
@@ -641,11 +662,10 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         if self.isRunning is False:
             self.stopCamera()
             return
-        if readNextFrame is False:
+        if readNextFrame is False and type(self.camSource) == str:
             self.decrementFrame()
         if self.frameSkip > 0:
             if type(self.camSource) == str:
-
                 current = self.camera.get(cv2.CAP_PROP_POS_FRAMES)
                 self.camera.set(cv2.CAP_PROP_POS_FRAMES,
                                 current + self.frameSkip)

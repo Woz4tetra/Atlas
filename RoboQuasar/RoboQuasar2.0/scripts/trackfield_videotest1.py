@@ -43,10 +43,14 @@ from camera import analyzers
 
 
 def run():
-    camera1 = capture.Capture(window_name="line follow test",
-        cam_source='IMG_0832.MOV',
-        loop_video=False,
-        start_frame=0,
+    camera1 = capture.Capture(window_name="camera1",
+        cam_source=0,
+        width=480,
+        height=270
+    )
+
+    camera2 = capture.Capture(window_name="camera2",
+        cam_source=1,
         width=480,
         height=270
     )
@@ -61,8 +65,8 @@ def run():
             burst_mode=False,
     )
 
-    frame1 = camera1.getFrame(readNextFrame=False)
-    height, width = frame1.shape[0:2]
+    # frame1 = camera1.getFrame(readNextFrame=False)
+    # height, width = frame1.shape[0:2]
 
     time_start = time.time()
 
@@ -74,8 +78,9 @@ def run():
         if capture_properties['paused'] == False or capture_properties[
                 'currentFrame'] != camera1.currentTimeMsec():
             frame1 = camera1.getFrame()
+            frame2 = camera2.getFrame()
 
-            if frame1 is None:
+            if frame1 is None or frame2 is None:
                 continue
 
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
@@ -97,9 +102,11 @@ def run():
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)
+                camera2.showFrame(frame2)
 
             if capture_properties['write_video'] == True:
                 camera1.writeToVideo(frame1)
+                camera2.writeToVideo(frame2)
 
         if capture_properties['slideshow'] == True:
             capture_properties['paused'] = True
@@ -107,18 +114,22 @@ def run():
         if capture_properties['burst_mode'] == True and capture_properties[
             'paused'] == False:
             camera1.saveFrame(frame1, default_name=True)
+            camera2.saveFrame(frame2, default_name=True)
 
         if capture_properties['enable_draw'] is True:
             key = camera1.getPressedKey()
             if key == 'q' or key == "esc":
                 camera1.stopCamera()
+                camera2.stopCamera()
             elif key == ' ':
                 if capture_properties['paused']:
-                    print("%0.4fs, %i: ...Video unpaused" % (
-                    time.time() - time_start, camera1.currentTimeMsec()))
+                    print("%0.4fs, %i, %i: ...Video unpaused" % (
+                        time.time() - time_start, camera1.currentTimeMsec(),
+                        camera2.currentTimeMsec()))
                 else:
                     print("%0.4fs, %i: Video paused..." % (
-                    time.time() - time_start, camera1.currentTimeMsec()))
+                        time.time() - time_start, camera1.currentTimeMsec(),
+                        camera2.currentTimeMsec()))
                 capture_properties['paused'] = not capture_properties['paused']
             elif key == 'o':
                 capture_properties['apply_filters'] = not capture_properties[
@@ -127,18 +138,18 @@ def run():
                     "Applying filters is " + str(
                             capture_properties['apply_filters'])))
                 frame1 = camera1.getFrame(False)
-            elif key == "right":
-                camera1.incrementFrame()
-            elif key == "left":
-                camera1.decrementFrame()
+                frame2 = camera2.getFrame(False)
             elif key == 's':
                 camera1.saveFrame(frame1)
+                camera2.saveFrame(frame2)
 
             elif key == 'v':
                 if capture_properties['write_video'] == False:
                     camera1.startVideo()
+                    camera2.startVideo()
                 else:
                     camera1.stopVideo()
+                    camera2.stopVideo()
                 capture_properties['write_video'] = not capture_properties[
                     'write_video']
             elif key == 'b':  # burst photo mode
