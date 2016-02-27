@@ -221,8 +221,9 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
 
-        # self.width = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
-        # self.height = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if self.platform == 'linux':
+            self.width = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+            self.height = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
         if self.dimensions[0] is None:
             self.dimensions[0] = 0
@@ -590,7 +591,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             codec='mp4v'
         elif self.platform == 'linux':
             video_format = 'avi'
-            codec='mjpg'
+            codec='MJPG'
         else:
             raise EnvironmentError('Unsupported platform. Untested.')
 
@@ -600,7 +601,12 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             video_name += " "
 
         if includeTimestamp == True:
-            video_name += time.strftime("%c").replace(":", ";") + "." + video_format
+            video_name += time.strftime("%c").replace(":", ";")
+        if Capture.video_num > 0:
+            video_name += "-" + str(Capture.video_num)
+        Capture.video_num += 1
+
+        video_name += "." + video_format
 
         if output_dir == None:
             output_dir = config.get_dir(":videos")
@@ -609,17 +615,19 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
-        if Capture.video_num > 0:
-            video_name += "-" + str(Capture.video_num)
-        Capture.video_num += 1
 
         output_dir += video_name
 
         fourcc = cv2.VideoWriter_fourcc(*codec)
         self.video = cv2.VideoWriter()
-        self.video.open(output_dir, fourcc, fps,
-                        (int(self.dimensions[2] - self.dimensions[0]),
-                         int(self.dimensions[3] - self.dimensions[1])), True)
+        if self.platform == 'linux':  # ubuntu doesn't like putting videos in other directories...
+            self.video.open(video_name, fourcc, fps,
+                            (int(self.dimensions[2] - self.dimensions[0]),
+                             int(self.dimensions[3] - self.dimensions[1])), True)
+        else:
+            self.video.open(output_dir, fourcc, fps,
+                            (int(self.dimensions[2] - self.dimensions[0]),
+                             int(self.dimensions[3] - self.dimensions[1])), True)
 
         self.videoOutputDir = output_dir
         print("Initialized video named '%s'." % (video_name))

@@ -44,20 +44,20 @@ from camera import analyzers
 
 def run():
     camera1 = capture.Capture(window_name="camera1",
-        cam_source=0,
+        cam_source=1,
         width=480,
         height=270
     )
 
     camera2 = capture.Capture(window_name="camera2",
-        cam_source=1,
+        cam_source=2,
         width=480,
         height=270
     )
 
     capture_properties = dict(
             paused=False,
-            apply_filters=True,
+            apply_filters=False,
             enable_draw=True,
             currentFrame=camera1.currentTimeMsec(),
             write_video=False,
