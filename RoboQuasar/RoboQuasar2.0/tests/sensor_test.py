@@ -18,8 +18,10 @@ imu = Sensor(3, ['accel_x', 'accel_y', 'accel_z',
                  'yaw', 'pitch', 'roll',
                  'quat_w', 'quat_x', 'quat_y', 'quat_z'])
 
-servo_steering = Command(0, 'position', (90, -90))
-servo_brakes = Command(1, 'position', (90, -90))
+servo_control = Command(0, ['servo_num', (0, 15), 'position', (90, -90)])
+
+# servo_steering = Command(0, 'position', (90, -90))
+# servo_brakes = Command(1, 'position', (90, -90))
 
 # not seeing any data? try rebooting the board
 # run basic_serial_test.py to make sure that data
@@ -40,6 +42,7 @@ if log_data:
 
 try:
     while True:
+        servo_control.set(servo_num=0, position=80)
         print("%0.4f\t%0.4f\t%0.4f" % (imu["accel_x"], imu["accel_y"], imu["accel_z"]))
         print("%0.4f\t%0.4f\t%0.4f" % (imu["gyro_x"], imu["gyro_y"], imu["gyro_z"]))
         print("%0.4f\t%0.4f\t%0.4f" % (imu["roll"], imu["pitch"], imu["yaw"]))

@@ -44,7 +44,8 @@ from camera import analyzers
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-        cam_source='IMG_0832.MOV',
+        # cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
+        cam_source='',
         loop_video=False,
         start_frame=0,
         width=480,
@@ -66,9 +67,10 @@ def run():
 
     time_start = time.time()
 
-    # warper = analyzers.RoadWarper(camera1.windowName, width, height,
-    #                               [[209, 116], [510, 116], [12, 203], [631, 203]])
+    warper = analyzers.RoadWarper(camera1.windowName, width, height,
+                                  [[135, 81], [355, 89], [4, 132], [478, 156]])
                                 #   [[190, 110], [469, 110], [19, 160], [628, 160]])
+    line_follower = analyzers.LineFollower()
 
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
@@ -81,7 +83,7 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
-                # sobeled = warper.update(frame1)
+                frame1 = warper.update(frame1)
                 sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
                 # sobeled = cv2.medianBlur(sobeled, 7)
                 sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
@@ -91,9 +93,14 @@ def run():
                 # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
                 #                        cv2.COLOR_BGR2GRAY)
                 # sobeled = np.uint8(sobeled)[:, :, 2]
-                value, frame1 = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
+                sobeled = cv2.adaptiveThreshold(sobeled, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 13, -10)
+                # value, sobeled = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
                 # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
 
+                line_follower.update(sobeled, frame1)
+
+                sobeled = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
+                frame1 = np.concatenate((sobeled, frame1))
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)

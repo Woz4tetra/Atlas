@@ -61,6 +61,7 @@ class placeKalman(object):
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(6)
         self.displacement_angle = start_heading
+        self.earth_radius = 6371000
 
     def update(self, gps_lat, gps_lon, encoder_counts, accel_x, accel_y, phi, dt):
         (dist, x_gps, y_gps) = self.geo_dist(gps_lat, gps_lon)
@@ -102,22 +103,47 @@ class placeKalman(object):
 
         return self.filt_state_mean[0], self.filt_state_mean[1]  # x, y
 
+    # def geo_dist(self, latitude, longitude):
+    #     '''assuming the latitude and lontitude are given in degrees'''
+    #     dLat = latitude - self.origin[0]
+    #     dLong = longitude - self.origin[1]
+    #     if dLat == 0:
+    #         angle = 0
+    #     else:
+    #         angle = np.arctan(dLong / dLat)
+    #     radius = 6378.137  # radius of Earth in km
+    #     dLat *= math.pi / 180
+    #     dLong *= math.pi / 180
+    #     a = (math.sin(dLat / 2) * math.sin(dLat / 2) +
+    #          math.sin(dLong / 2) * math.sin(dLong / 2) * math.cos(self.origin[0]) * math.cos(
+    #                  self.origin[1]))
+    #     c = 2 * np.arctan2(math.sqrt(a), math.sqrt(1 - a))
+    #     dist = radius * c * 1000
+    #     dx = dist * math.cos(angle + self.displacement_angle)
+    #     dy = dist * math.sin(angle + self.displacement_angle)
+    #     return dist, dx, dy
+
     def geo_dist(self, latitude, longitude):
-        '''assuming the latitude and lontitude are given in degrees'''
-        dLat = latitude - self.origin[0]
-        dLong = longitude - self.origin[1]
-        if dLat == 0:
+        d_lat = latitude - self.origin[0]
+        d_long = longitude - self.origin[1]
+
+
+        if d_lat == 0:
             angle = 0
         else:
-            angle = np.arctan(dLong / dLat)
-        radius = 6378.137  # radius of Earth in km
-        dLat *= math.pi / 180
-        dLong *= math.pi / 180
-        a = (math.sin(dLat / 2) * math.sin(dLat / 2) +
-             math.sin(dLong / 2) * math.sin(dLong / 2) * math.cos(self.origin[0]) * math.cos(
-                     self.origin[1]))
-        c = 2 * np.arctan2(math.sqrt(a), math.sqrt(1 - a))
-        dist = radius * c * 1000
+            angle = np.arctan(d_long / d_lat)
+
+        phi1 = math.radians(latitude)
+        phi2 = math.radians(longitude)
+        d_phi1 = math.radians(d_lat)
+        d_phi2 = math.radians(d_long)
+
+        a = (np.sin(d_lat / 2) * np.sin(d_lat / 2) +
+                 np.sin(d_long / 2) * np.sin(d_long / 2) * np.cos(self.origin[0]) * np.cos(
+                         self.origin[1]))
+        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+        dist = self.earth_radius * c * 1000
+
         dx = dist * math.cos(angle + self.displacement_angle)
         dy = dist * math.sin(angle + self.displacement_angle)
         return dist, dx, dy

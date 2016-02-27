@@ -37,23 +37,29 @@ class Communicator():
             except:
                 pass
         if address is None:
-            raise Exception(
-                            "No boards could be found! Did you plug it in? Try "
-                            "entering the address manually.")
+            if (sys.platform.startswith('linux') or
+                      sys.platform.startswith('cygwin')):
+                raise Exception("No boards could be found! Did you plug it in?"
+                                "Try entering the address manually. Linux "
+                                "requires root privileges (sudo) to access"
+                                "serial ports")
+            else:
+                raise Exception("No boards could be found! Did you plug it in?"
+                                "Try entering the address manually.")
+
         else:
             return serial_ref
 
     @staticmethod
     def _possibleAddresses():
         """
-            An internal method used by _initSerial to search all possible
-            USB serial addresses.
+        An internal method used by _initSerial to search all possible
+        USB serial addresses.
 
-            :return: A list of strings containing all likely addresses
+        :return: A list of strings containing all likely addresses
         """
         if sys.platform.startswith('darwin'):  # OS X
             devices = os.listdir("/dev/")
-            print(devices)
             arduino_devices = []
             for device in devices:
                 if device.find("cu") > -1 or \
@@ -62,7 +68,7 @@ class Communicator():
             return arduino_devices
 
         elif (sys.platform.startswith('linux') or
-              sys.platform.startswith('cygwin')):  # linux
+                  sys.platform.startswith('cygwin')):  # linux
 
             return glob.glob('/dev/tty[A-Za-z]*')
 
@@ -83,7 +89,7 @@ class Communicator():
 
 import time
 
-comm = Communicator(9600, handshake=True)
+comm = Communicator(115200, handshake=False)
 
 # servo_val = "00"
 # led_val = True
