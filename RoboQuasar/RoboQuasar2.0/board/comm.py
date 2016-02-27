@@ -58,12 +58,18 @@ class Communicator(threading.Thread):
             self.thread_time = round(time.time() - self.start_time)
             packet = bytearray()
             incoming = self.serialRef.read()
-            while incoming != b'\r':
-                if incoming != None and incoming != b'':
-                    packet += incoming
-                incoming = self.serialRef.read()
-            if len(packet) > 0:
-                self.sensor_pool.update(packet)
+            if incoming != b'\r':
+                print(incoming.decode("ascii"), end="")
+            else:
+                print("{}")
+
+
+            # while incoming != b'\r':
+            #     if incoming != None and incoming != b'':
+            #         packet += incoming
+            #     incoming = self.serialRef.read()
+            # if len(packet) > 0:
+            #     self.sensor_pool.update(packet)
 
     def put(self, packet):
         self.serialRef.write(bytearray(packet, 'ascii'))

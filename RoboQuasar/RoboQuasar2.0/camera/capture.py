@@ -520,8 +520,8 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                 corresponding text. Type help(Capture.mac_keys) for details.
     """
         key = cv2.waitKey(delay)
-        if key != -1 and self.platform == "linux":
-            key -= 0x100000
+        # if key != -1 and self.platform == "linux":
+        #     key -= 0x100000
         if key in self.key_codes:
             return self.key_codes[key]
         elif key > -1:

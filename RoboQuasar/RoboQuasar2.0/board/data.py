@@ -258,15 +258,23 @@ class Sensor(SerialObject):
 
 
 class Command(SerialObject):
-    def __init__(self, command_id, command_name, data_range, bound=True):
-        self.range = data_range
-        self.data_type, self.data_len = self.get_type_size(data_range)
-        self.command_name = command_name
-        super().__init__(command_id, [command_name])
+    def __init__(self, command_id, commands):
+        self.command_names, self.data_types, self.sizes = self.init_commands(commands)
+        super().__init__(command_id, self.command_names)
 
-        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
-                                       self.to_hex(self.data_len, 2))
-        self.bound = bound
+    @staticmethod
+    def init_commands(commands):
+        assert(len(commands) % 2 == 0)
+        names = []
+        types = []
+        sizes = []
+        for index in range(0, len(commands), 2):
+            names.append(commands[index])
+            data_type, data_len = Command.get_type(commands[index + 1])
+            sizes.append(data_len)
+            types.append(data_type)
+        return names, types, sizes
+
 
     def __getitem__(self, item):
         return self._properties[item]
@@ -276,34 +284,40 @@ class Command(SerialObject):
         self.property_set(key, value)
         communicator.put(self.get_packet())
 
-    def property_set(self, key, value):
-        if self.bound:  # bound by self.data_range
-            if value > self.range[1]:
-                value = self.range[1]
-            elif value < self.range[0]:
-                value = self.range[0]
-        else:  # acts like mod. Wraps out of bound value to self.data_range
-            while value > self.range[1]:
-                value -= self.range[1] - self.range[0]
-            while value < self.range[0]:
-                value += self.range[1] - self.range[0]
+    def set(self, **values):
+        for name in self._properties.keys():
+            if name in values.keys():
+                self._properties[name] = values[name]
+            else:
+                self._properties[name] = None
+        communicator.put(self.get_packet())
 
+    def property_set(self, key, value):
+        if value > self.range[1]:
+            value = self.range[1]
+        elif value < self.range[0]:
+            value = self.range[0]
+
+        for name in self._properties.keys():
+            self._properties[name] = None
         self._properties[key] = value
 
     @staticmethod
-    def get_data_size(data_range):
-        length = abs(data_range[1] - data_range[0])
-
-        if length == 0:
-            return 8
+    def num_len(number, base=16):
+        if number == 0:
+            return 1
         else:
-            int_length = int(math.log(length, 16)) + 1
-            return int_length
+            return int(math.log(number, base)) + 1
 
     @staticmethod
-    def get_type_size(data_range):
+    def get_data_size(data_range):
+        return Command.num_len(abs(data_range[1] - data_range[0]))
+
+    @staticmethod
+    def get_type(data_range):
         assert len(data_range) == 2
         assert type(data_range[0]) == type(data_range[1])
+        assert abs(data_range[0] - data_range[1]) > 0
         if data_range[0] > data_range[1]:
             data_range = (data_range[1], data_range[0])
 
@@ -329,7 +343,7 @@ class Command(SerialObject):
         hex_format = "0.%sx" % length
         return ("%" + hex_format) % decimal
 
-    def format_data(self, data):
+    def format_data(self, data_type, data, data_len):
         """
         formats data for sending over serial
 
@@ -338,23 +352,26 @@ class Command(SerialObject):
         :return:
         """
 
-        if self.data_type == 'b':
+        if data is None:
+            return "-"
+
+        if data_type == 'b':
             return str(int(bool(data)))
 
-        elif self.data_type == 'u':
+        elif data_type == 'u':
             data %= MAXINT
-            return self.to_hex(data, self.data_len)
+            return self.to_hex(data, data_len)
 
-        elif self.data_type == 'i':
+        elif data_type == 'i':
             if data < 0:
-                data += (2 << (self.data_len * 4 - 1))
+                data += (2 << (data_len * 4 - 1))
             data %= MAXINT
-            return self.to_hex(data, self.data_len)
+            return self.to_hex(data, data_len)
 
-        elif self.data_type == 'f':
+        elif data_type == 'f':
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
-        elif self.data_type == 'd':
+        elif data_type == 'd':
             return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
@@ -364,10 +381,14 @@ class Command(SerialObject):
         :return:
         """
 
-        self.current_packet = self.packet_info + \
-            self.format_data(self._properties[self.command_name]) + "\r"
+        self.current_packet = self.to_hex(self.object_id, 2) + "\t"
+        for index in range(len(self.command_names)):
+            self.current_packet += self.data_types[index] + \
+                self.format_data(self.data_types[index],
+                    self._properties[self.command_names[index]],
+                    self.sizes[index]) + "\t"
 
-        return self.current_packet
+        return self.current_packet[0:-1] + "\r"
 
 
 # init sensor pool

@@ -57,6 +57,7 @@ class BuggyJoystick:
 
         joysticks = [pygame.joystick.Joystick(x) for x in
                      range(pygame.joystick.get_count())]
+        assert len(joysticks) > 0
         for joy in joysticks:
             joy.init()
             print(joy.get_name(), joy.get_id(), joy.get_init(),
@@ -203,8 +204,8 @@ class BuggyJoystick:
 
 def joystick_init():
     pygame.init()
-    # pygame.display.init()
-    screen = pygame.display.set_mode((200, 200))
+    pygame.display.init()
+    # screen = pygame.display.set_mode((200, 200))
     pygame.joystick.init()
 
     return BuggyJoystick()
