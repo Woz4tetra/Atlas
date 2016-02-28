@@ -1,0 +1,21 @@
+HuiJia  USB GamePad 0 1 6
+HuiJia  USB GamePad 1 1 6
+HuiJia  USB GamePad 2 1 6
+HuiJia  USB GamePad 3 1 6
+Invalid packet: '00e6\ti004f\tf42637a78\tf3000000fc00'
+Invalid packet: '03fc00'
+Invalid packet: '00000000df00'
+Invalid packet: '00009040000003\tf3e19999a\tf3c23d70a\tf3e0f5c29\tfba91a2b4\tf3bfedcbb\tfba91a2b4\tf3e400000\tfc08a0000\tf3e800000\tf3f7fd000\tf407fdb00\tf3d1a4000\tf407fdf00'
+Invalid packet: '000000000000000da00'
+Invalid packet: '00000000000\t00000002\t00000000020000000000d00000001\ti0028\tf41d69cac\ti004f\tf42637a78\tf3f9ed3d8\tf3f68f5c3\tf432e051f'
+Invalid packet: '0dc00'
+Invalid packet: 'dc00'
+Invalid packet: '00000dc00'
+Invalid packet: '00000dc00'
+Invalid packet: '010dc00'
+Invalid packet: '0dc00'
+Invalid packet: '0000f000000000d700'
+Invalid packet: '00000000000000000000000000000000000000b0000000000d400'
+Invalid packet: '000e000000c700'
+Invalid packet: '00000000000c00100000000000b0000000fe00000040000000400000b00000000000000000000e100'
+Invalid packet: '00006000000000000000e010f0000000300000000f00002\tu0000000000000000'

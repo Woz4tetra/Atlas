@@ -263,6 +263,10 @@ class Command(SerialObject):
         self.command_name = command_name
         super().__init__(command_id, [command_name])
 
+        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
+                                       self.to_hex(self.data_len, 2))
+        self.bound = bound
+
     def __getitem__(self, item):
         return self._properties[item]
 
@@ -271,40 +275,34 @@ class Command(SerialObject):
         self.property_set(key, value)
         communicator.put(self.get_packet())
 
-    def set(self, **values):
-        for name in self._properties.keys():
-            if name in values.keys():
-                self._properties[name] = values[name]
-            else:
-                self._properties[name] = None
-        communicator.put(self.get_packet())
-
     def property_set(self, key, value):
-        if value > self.range[1]:
-            value = self.range[1]
-        elif value < self.range[0]:
-            value = self.range[0]
+        if self.bound:  # bound by self.data_range
+            if value > self.range[1]:
+                value = self.range[1]
+            elif value < self.range[0]:
+                value = self.range[0]
+        else:  # acts like mod. Wraps out of bound value to self.data_range
+            while value > self.range[1]:
+                value -= self.range[1] - self.range[0]
+            while value < self.range[0]:
+                value += self.range[1] - self.range[0]
 
-        for name in self._properties.keys():
-            self._properties[name] = None
         self._properties[key] = value
 
     @staticmethod
-    def num_len(number, base=16):
-        if number == 0:
-            return 1
-        else:
-            return int(math.log(number, base)) + 1
-
-    @staticmethod
     def get_data_size(data_range):
-        return Command.num_len(abs(data_range[1] - data_range[0]))
+        length = abs(data_range[1] - data_range[0])
+
+        if length == 0:
+            return 8
+        else:
+            int_length = int(math.log(length, 16)) + 1
+            return int_length
 
     @staticmethod
-    def get_type(data_range):
+    def get_type_size(data_range):
         assert len(data_range) == 2
         assert type(data_range[0]) == type(data_range[1])
-        assert abs(data_range[0] - data_range[1]) > 0
         if data_range[0] > data_range[1]:
             data_range = (data_range[1], data_range[0])
 
@@ -330,53 +328,43 @@ class Command(SerialObject):
         hex_format = "0.%sx" % length
         return ("%" + hex_format) % decimal
 
-    def format_data(self, data_type, data, data_len):
+    def format_data(self, data):
         """
         formats data for sending over serial
-
         :param data:
         :param data_format:
         :return:
         """
 
-        if data is None:
-            return "-"
-
-        if data_type == 'b':
+        if self.data_type == 'b':
             return str(int(bool(data)))
 
-        elif data_type == 'u':
+        elif self.data_type == 'u':
             data %= MAXINT
-            return self.to_hex(data, data_len)
+            return self.to_hex(data, self.data_len)
 
-        elif data_type == 'i':
+        elif self.data_type == 'i':
             if data < 0:
-                data += (2 << (data_len * 4 - 1))
+                data += (2 << (self.data_len * 4 - 1))
             data %= MAXINT
-            return self.to_hex(data, data_len)
+            return self.to_hex(data, self.data_len)
 
-        elif data_type == 'f':
+        elif self.data_type == 'f':
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
-        elif data_type == 'd':
+        elif self.data_type == 'd':
             return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
         """
         creates the packet to send
-
         :return:
         """
 
-        self.current_packet = self.to_hex(self.object_id, 2) + "\t"
-        for index in range(len(self.command_names)):
-            self.current_packet += self.data_types[index] + \
-                self.format_data(self.data_types[index],
-                    self._properties[self.command_names[index]],
-                    self.sizes[index]) + "\t"
+        self.current_packet = self.packet_info + \
+            self.format_data(self._properties[self.command_name]) + "\r"
 
-        return self.current_packet[0:-1] + "\r"
-
+        return self.current_packet
 
 # init sensor pool
 sensor_pool = SensorPool()

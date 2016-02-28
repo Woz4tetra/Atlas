@@ -126,7 +126,7 @@ class placeKalman(object):
     def geo_dist(self, latitude, longitude):
         d_lat = latitude - self.origin[0]
         d_long = longitude - self.origin[1]
-
+        x = '''
 
         if d_lat == 0:
             angle = 0
@@ -141,9 +141,15 @@ class placeKalman(object):
         a = (np.sin(d_lat / 2) * np.sin(d_lat / 2) +
                  np.sin(d_long / 2) * np.sin(d_long / 2) * np.cos(self.origin[0]) * np.cos(
                          self.origin[1]))
-        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(abs(1 - a)))
         dist = self.earth_radius * c * 1000
 
         dx = dist * math.cos(angle + self.displacement_angle)
         dy = dist * math.sin(angle + self.displacement_angle)
-        return dist, dx, dy
+        print(dx, "dx")
+        print(dy, "dy")
+'''
+        # print(d_lat, "dlat")
+        # print(d_long, "dlong")
+
+        return 1, d_lat, d_long

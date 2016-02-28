@@ -45,14 +45,14 @@ from camera import analyzers
 def run():
     camera1 = capture.Capture(window_name="camera1",
         cam_source=1,
-        width=480,
-        height=270
+        width=640,
+        height=480
     )
 
     camera2 = capture.Capture(window_name="camera2",
         cam_source=2,
-        width=480,
-        height=270
+        width=640,
+        height=480
     )
 
     capture_properties = dict(
