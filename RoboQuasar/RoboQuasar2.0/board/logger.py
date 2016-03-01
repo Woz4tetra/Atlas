@@ -20,6 +20,7 @@ import csv
 import sys
 import time
 import os
+import numpy
 
 sys.path.insert(0, '../')
 
@@ -106,7 +107,7 @@ def is_float(string):
         return False
 
 
-def parse(file_dir):
+def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=False):
     if not os.path.isdir(file_dir):
         file_dir = config.get_dir(":logs") + file_dir
 
@@ -126,4 +127,18 @@ def parse(file_dir):
                     parsed_row.append(datum)
 
             data.append(parsed_row)
+    if omit_header_rows:
+        data.pop(0)
+        data.pop(0)
+
+    if np_array:
+        data = numpy.array(data)
+
+    if remove_timestamps:
+        if not np_array:
+            data = numpy.array(data)
+        data = data[:, 1:]
+        if not np_array:
+            data = data.tolist()
+
     return data
