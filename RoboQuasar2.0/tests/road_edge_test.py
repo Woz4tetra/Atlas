@@ -43,19 +43,14 @@ from camera import analyzers
 
 
 def run():
-    camera1 = capture.Capture(window_name="camera1",
-        cam_source=0,
-        width=160,
-        height=120
+    camera1 = capture.Capture(window_name="line follow test",
+        cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
+        cam_source='',
+        loop_video=False,
+        start_frame=0,
+        width=480,
+        height=270
     )
-    # camera1 = capture.Capture(window_name="line follow test",
-        # cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
-    #     cam_source='',
-    #     loop_video=False,
-    #     start_frame=0,
-    #     width=480,
-    #     height=270
-    # )
 
     capture_properties = dict(
             paused=False,
@@ -88,7 +83,7 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
-                # frame1 = warper.update(frame1)
+                frame1 = warper.update(frame1)
                 sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
                 # sobeled = cv2.medianBlur(sobeled, 7)
                 sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
@@ -102,10 +97,10 @@ def run():
                 # value, sobeled = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
                 # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
 
-                # line_follower.update(sobeled, frame1)
+                line_follower.update(sobeled, frame1)
 
-                frame1 = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
-                # frame1 = np.concatenate((sobeled, frame1))
+                sobeled = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
+                frame1 = np.concatenate((sobeled, frame1))
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)
