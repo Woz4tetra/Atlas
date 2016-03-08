@@ -56,6 +56,44 @@ def remove_duplicates(map, write_output=True, directory=None, map_name=None):
         write_map(map, directory, map_name)
     return map
 
+def separate_min_sec(value):
+    minutes = int(value)
+    seconds = (value - minutes) * 60
+    return minutes, seconds
+
+
+def merge_min_sec(minutes, seconds):
+    return minutes + seconds / 60
+
+def convert_gpx(file_name, directory=None):
+    if directory is None:
+        directory = config.get_dir(":gpx")
+
+    with open(directory + file_name, 'r') as gpx_file:
+        contents = gpx_file.read()
+        data = []
+
+        while len(contents) > 2:
+            lat_index_start = contents.find("lat") + 5
+            lat_index_end = contents.find('"', lat_index_start)
+            latitude = contents[lat_index_start: lat_index_end]
+
+            contents = contents[lat_index_end:]
+
+            lon_index_start = contents.find("lon") + 5
+            lon_index_end = contents.find('"', lon_index_start)
+            longitude = contents[lon_index_start: lon_index_end]
+
+            try:
+                data.append([separate_min_sec(float(latitude))[1],
+                             separate_min_sec(float(longitude))[1]])
+            except:
+                pass
+
+            contents = contents[lon_index_end:]
+
+        file_name = file_name[:-4] + " converted"
+        write_map(data, directory, file_name)
 
 class MapParser:
     def __init__(self, map_name):
@@ -146,7 +184,7 @@ def test():
 
 
 if __name__ == '__main__':
-    binder = Parser("Mon Mar  7 17;54;59 2016 GPS Map.csv")
+    binder = MapParser("Mon Mar  7 17;54;59 2016 GPS Map.csv")
 
     # pos = binder.bind((26.6156005859, 56.423500061))
     # pre_bind = binder.prev_bind

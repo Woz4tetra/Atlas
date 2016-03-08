@@ -6,17 +6,20 @@ from objects import *
 from data import *
 from comm import Communicator
 
-tmp36 = TMP36(0, pyb.Pin.board.Y12)
-mcp9808 = MCP9808(1, 1)
-accel = BuiltInAccel(2)
-gps = GPS(3)
-accel_gyro = AccelGyro(4, 1)
-compass = Compass(5, 1)
-encoder = HallEncoder(6, "X7")
-imu = IMU(7, 2)
+# tmp36 = TMP36(0, pyb.Pin.board.Y12)
+# mcp9808 = MCP9808(1, 1)
+# accel = BuiltInAccel(2)
+gps = GPS(1)
+# accel_gyro = AccelGyro(4, 1)
+# compass = Compass(5, 1)
+encoder = HallEncoder(2, "X7")
+imu = IMU(3, 2)
 
-servo1 = Servo(0, 1)
-motor_a = Motor(1, 'X2', 'X3')
+# servo_steering = I2CServo(2, 0, 0)
+# servo_brakes = I2CServo(2, 1, 1)
+
+servo_steering = Servo(0, 1, 0)
+# motor_a = Motor(1, 'X2', 'X3')
 
 gps_indicator = pyb.LED(3)
 
@@ -38,18 +41,13 @@ indicator = pyb.LED(4)
 increase = True
 
 sensor_queue = SensorQueue(
-        tmp36,
-        mcp9808,
-        accel,
         gps,
-        compass,
-        accel_gyro,
 	    encoder,
         imu
 )
 command_pool = CommandPool(
-        servo1,
-        # motor_a
+        servo_steering,
+        # servo_brakes
 )
 
 communicator = Communicator(sensor_queue, command_pool)

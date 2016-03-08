@@ -18,7 +18,7 @@ from board.data import start, stop, is_running
 
 from board.logger import Recorder
 
-from board.filter import MainFilter
+from board.filter import StateFilter
 
 from controller.gcjoystick import joystick_init
 from controller.servo_control import servo_value
@@ -26,14 +26,9 @@ from controller.servo_control import servo_value
 from map.map_parser import MapParser
 
 # data type is specified by incoming packet
-gps = Sensor(1, ['lat_min', 'lat_sec',
-                 'long_min', 'long_sec',
-                 'speed', 'heading', 'hdop'])
+gps = Sensor(1, ['lat_sec', 'long_sec'])
 encoder = Sensor(2, ['counts'])
-imu = Sensor(3, ['accel_x', 'accel_y', 'accel_z',
-                 'gyro_x', 'gyro_y', 'gyro_z',
-                 'yaw', 'pitch', 'roll',
-                 'quat_w', 'quat_x', 'quat_y', 'quat_z'])
+imu = Sensor(3, ['accel_x', 'accel_y', 'gyro_z', 'yaw'])
 
 servo_steering = Command(0, 'position', (90, -90))
 # servo_brakes = Command(1, 'position', (90, -90))
@@ -47,7 +42,7 @@ log = None
 
 time.sleep(0.5)
 
-k_filter = MainFilter(gps['lat_sec'], gps['long_sec'], 1, 0, encoder['counts'])
+k_filter = StateFilter(gps['lat_sec'], gps['long_sec'], 1, 0, encoder['counts'])
 
 map_parser = MapParser("Mon Mar  7 17;54;59 2016 GPS Map.csv")
 

@@ -7,7 +7,7 @@ CONFIGDIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def _arduino_dir():
-    root_dir_name = "Self-Driving-Buggy"
+    root_dir_name = "Atlas"
     root_dir = CONFIGDIR[:CONFIGDIR.rfind(root_dir_name) + len(root_dir_name)]
     return root_dir + "/Arduino/"
 
@@ -20,9 +20,11 @@ directories = {
     'videos': CONFIGDIR + "/camera/Videos/",
     'images': CONFIGDIR + "/camera/Images/",
     'controller': CONFIGDIR + "/controller/",
-    'maps': CONFIGDIR + "/controller/maps/",
-    'gpx': CONFIGDIR + "/controller/maps/gpx/",
+    'map': CONFIGDIR + "/map/",
+    'maps': CONFIGDIR + "/map/maps/",
+    'gpx': CONFIGDIR + "/map/maps/gpx/",
     'scripts': CONFIGDIR + "/scripts/",
+    'test': CONFIGDIR + "/tests/",
     'project': CONFIGDIR + "/",
 }
 

@@ -57,7 +57,8 @@ class CommandPool(object):
             data_len = int(packet[3:5], 16)
             hex_data = packet[6: data_len + 6]
 
-            if len(hex_data) == data_len:
+            if len(hex_data) == data_len and command_id in self.commands.keys():
+                self.commands[command_id].current_packet = packet
                 data = self.commands[command_id].format_data(hex_data)
                 self.commands[command_id].callback(data)
 
@@ -67,6 +68,8 @@ class SerialObject(object):
         self.formats = formats
 
         self.object_id = object_id
+
+        self.current_packet = ""
 
         self.data = []
         self.data_len = 0
@@ -134,8 +137,9 @@ class Sensor(SerialObject):
         except TypeError:
            # print(self.data, 'is not iterable')
            self.data = [self.data]
-        return "%s\t%s\r" % (self.to_hex(self.object_id, 2),
-                             self.format_data())
+        self.current_packet =  "%s\t%s\r" % (self.to_hex(self.object_id, 2),
+                                             self.format_data())
+        return self.current_packet
 
 
 class Command(SerialObject):

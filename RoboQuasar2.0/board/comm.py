@@ -61,12 +61,12 @@ class Communicator(threading.Thread):
         :return: None
         """
 
-        while self.exit_flag == False:
+        while not self.exit_flag:
             self.thread_time = round(time.time() - self.start_time)
             packet = bytearray()
             incoming = self.serial_ref.read()
             while incoming != b'\r':
-                if incoming != None and incoming != b'':
+                if incoming is not None and incoming != b'':
                     packet += incoming
                 incoming = self.serial_ref.read()
             if len(packet) > 0:
