@@ -80,7 +80,8 @@ class Binder:
                 self.prev_bind = index
                 return self.map[index+1]
 
-        return False
+        self.prev_bind = self.find_nearest(position)
+        return self.map[self.prev_bind + 1]
 
     def find_nearest(self, position):
         map_dist = [0] * len(self.map)
