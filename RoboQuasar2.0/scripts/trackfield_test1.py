@@ -12,7 +12,7 @@ from controller.gcjoystick import joystick_init
 
 from board.logger import Recorder
 
-from controller.interpreter import MainFilter
+from controller.filter import MainFilter
 
 # data type is specified by incoming packet
 gps = Sensor(1, ['lat_min', 'lat_sec', 'long_min', 'long_sec', 'speed', 'heading', 'hdop'])

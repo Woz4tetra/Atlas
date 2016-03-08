@@ -1,26 +1,25 @@
 """
     Written by Ben Warwick
 
-    data.py, written for RoboQuasar1.0
-    Version 12/28/2015
+    data.py, written for RoboQuasar2.0
+    Version 3/6/2016
     =========
 
     Handles sensor data sorting, the command queue, and raw data storage.
 
     Classes:
-        SensorPool - parses and sorts the incoming packet by giving it to the correct sensor
-        CommandQueue - A queue of Command objects. Use put to enqueue a command
+        SensorPool - parses and sorts the incoming packet by giving it to the
+            correct sensor
         SerialObject - Internal. The superclass of Sensor and Command.
-        Sensor - contains the sensor id, expected data format, and parsed sensor data
-        Command - contains the command id, data format, and last sent data
+        Sensor - An object containing data read from the micro-controller with
+            the matching sensor ID
+        Command - An object that allows data to be sent to the micro-controller
 
-    Functions:
-        try_sensor - given a list of formats and a hex string, this function
+    Functions (use with python -i data.py):
+        try_sensor - given a list of property names (strings), this function
             allows you to test what the output of your sensor would be
-            (try with python -i data.py)
-        try_command - given a single format (commands are single format)
-            and a python built-in type, this functions returns the packet that
-            would be written to serial
+        try_command - this functions returns the packet that
+            would be written to serial given typical inputs
 """
 
 import struct
@@ -34,22 +33,43 @@ from sys import maxsize as MAXINT
 
 class SensorPool(object):
     def __init__(self):
+        """
+        Constructor for SensorPool. Initializes sensor pool dictionary as empty
+
+        :return: SensorPool object
+        """
+
         self.sensors = {}
 
     def add_sensor(self, sensor):
-        # add sensors to self.sensors with non-repeating sensor IDs:
+        """
+        add sensors to self.sensors with non-repeating sensor IDs
+
+        :param sensor: A sensor object
+        :return: None
+        """
         if sensor.object_id in list(self.sensors.keys()):
             raise Exception(
                     "Sensor ID already taken: " + str(sensor.object_id))
+        elif not isinstance(sensor, Sensor):
+            raise TypeError(
+                    "Parameter is not of the type sensor: " + repr(sensor))
         else:
             self.sensors[sensor.object_id] = sensor
 
     def is_packet(self, packet):
         """
-        makes sure the packet is the right format and was safely delivered
+        Makes sure the packet is the right format and was safely delivered.
+        A packet must be 5 characters or more, contain some or all of the
+        following characters:
+            0 1 2 3 4 5 6 7 8 9 a b c e d f i u \t
+        has a \t character at index 2, and must only have the type identifying
+        characters f, i, b, or u at index 3
 
-        :param packet:
-        :return:
+        If any of these conditions are invalid, the packet is invalid
+
+        :param packet: A string that may or may not be a valid packet
+        :return: True or False depending on if the packet is valid
         """
 
         if len(packet) < 5:
@@ -64,10 +84,11 @@ class SensorPool(object):
 
     def update(self, packet):
         """
-        updates the sensors' data when called and. if correct, parses and replaces the old sensor data
+        updates the sensors' data when called and, if correct, parses and
+        replaces the old sensor data
 
-        :param packet:
-        :return:
+        :param packet: A string that may or may not be a valid packet
+        :return: None
         """
 
         packet = packet.decode('ascii')
@@ -79,31 +100,12 @@ class SensorPool(object):
                 sensor.parse(data)
                 sensor.current_packet = packet
         else:
-            print(("Invalid packet: " + repr(packet)))
+            print("Invalid packet: " + repr(packet))
 
 
-class CommandQueue(object):
-    """
-    creates a queue for all commands as a nice wrapper for using queues in Python
-    """
-
-    def __init__(self):
-        self.queue = []
-
-    def put(self, command):
-        assert (isinstance(command, Command))
-        self.queue.append(command.get_packet())
-
-    def get(self):
-        return self.queue.pop(0)
-
-    def is_empty(self):
-        return len(self.queue) == 0
-
-
-def try_sensor(properties):
+def try_sensor(sensor_id, properties):
     global sensor_pool
-    sensor_id = max(sensor_pool.sensors.keys()) + 1
+    # sensor_id = max(sensor_pool.sensors.keys()) + 1
     exp_sensor = Sensor(sensor_id, properties)
 
     packet = ""
@@ -117,7 +119,8 @@ def try_sensor(properties):
         elif data_type == 'f':
             data = random.random() * 10000
             packet += "%s%0.8x\t" % (data_type,
-                                  struct.unpack('<I', struct.pack('<f', data))[0])
+                                     struct.unpack('<I',
+                                                   struct.pack('<f', data))[0])
         elif data_type == 'b':
             data = random.choice([True, False])
             if data == True:
@@ -144,12 +147,16 @@ def try_command(command_id, data_range, data=None):
 class SerialObject(object):
     def __init__(self, object_id, properties):
         """
-        formats is the list of formats used by the serial object,
-        for this code, the sensors are the serial objects
+        Constructor for SerialObject.
+        Takes a list of strings (properties) and creates an internal dictionary
+        in which data will be stored.
 
-        :param object_id:
-        :param properties:
-        :return:
+        :param object_id: The unique SerialObject identifier. Used for matching
+            serial packets to Sensors or allowing micro-controllers to identify
+            Commands.
+        :param properties: A list of strings containing the properties of the
+            object
+        :return: SerialObject
         """
 
         assert (type(object_id) == int)
@@ -183,6 +190,17 @@ class SerialObject(object):
 
 class Sensor(SerialObject):
     def __init__(self, sensor_id, properties):
+        """
+        Constructor for Sensor. Inherits from SerialObject.
+        Adds self to sensor_pool (a module internal object)
+
+        :param sensor_id: The unique Sensor identifier. Used for matching
+            serial packets to Sensors or allowing micro-controllers to identify
+            Commands.
+        :param properties: A list of strings containing the properties of the
+            object
+        :return: Sensor
+        """
         super().__init__(sensor_id, properties)
 
         sensor_pool.add_sensor(self)
@@ -193,12 +211,15 @@ class Sensor(SerialObject):
     @staticmethod
     def format_hex(hex_string, data_format):
         """
-        formats each hex string according to what data format was given
-        (see SerialObject class for list of formats)
+        Formats each hex string according to what data format was given.
+        f = float
+        b = bool
+        u = unsigned int
+        i = int
 
-        :param hex_string:
-        :param data_format:
-        :return:
+        :param hex_string: A string of hex characters
+        :param data_format: A string containing a data type format
+        :return: a float, bool, or int depending on the input data type
         """
         if data_format == 'b':
             return bool(int(hex_string, 16))
@@ -229,7 +250,7 @@ class Sensor(SerialObject):
             # raise ValueError("Invalid data type: %s", str(data_format))
             return None
 
-    def parse(self, hex_string):
+    def parse(self, data_string):
         """
         a function to parse data, formatted into hex strings
 
@@ -237,11 +258,11 @@ class Sensor(SerialObject):
         packet since SensorPool has already sorted the data to the appropriate
         sensor.
 
-        :param hex_string:
-        :return:
+        :param data_string: A string of hex characters and data type identifiers
+        :return: None
         """
 
-        raw_data = hex_string.split("\t")
+        raw_data = data_string.split("\t")
         for index, key in enumerate(self._properties.keys()):
             if index < len(raw_data):
                 data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
@@ -259,18 +280,44 @@ class Sensor(SerialObject):
 
 class Command(SerialObject):
     def __init__(self, command_id, command_name, data_range, bound=True):
-        self.data_type, self.data_len, self.range = self.get_type_size(data_range)
+        """
+        Constructor for Command. Inherits from SerialObject.
+
+        :param command_id: The unique Command identifier. Allows
+            micro-controllers to identify Commands.
+        :param command_name: A string containing the name of property that the
+            command modifies
+        :param data_range: The range of values that the command can send. This
+            determines the data type and size. It doesn't matter if the smaller
+            value is first or second.
+        :param bound: The value bound type. If True and a value outside
+            data_range is given, it will be truncated to that bound, if False
+            and a value outside data_range is given, it will wrap around to the
+            appropriate value (kind of like overflow or modulo)
+        :return: Command object
+        """
+        self.data_type, self.data_len, self.range = self.get_type_size(
+                data_range)
         self.command_name = command_name
         super().__init__(command_id, [command_name])
 
         self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
-                                       self.to_hex(self.data_len, 2))
+                                         self.to_hex(self.data_len, 2))
         self.bound = bound
 
     def __getitem__(self, item):
         return self._properties[item]
 
     def __setitem__(self, key, value):
+        """
+        Allows properties to be set through python's dictionary syntax
+
+        command_example["property"] = value
+
+        :param key: A string with the name of the property
+        :param value: A number to send via the command object
+        :return: None
+        """
         global communicator
         self.property_set(key, value)
         communicator.put(self.get_packet())
@@ -281,16 +328,19 @@ class Command(SerialObject):
                 value = self.range[1]
             elif value < self.range[0]:
                 value = self.range[0]
-        else:  # acts like mod. Wraps out of bound value to self.data_range
-            while value > self.range[1]:
-                value -= self.range[1] - self.range[0]
-            while value < self.range[0]:
-                value += self.range[1] - self.range[0]
+        else:  # Wraps out of bound value to self.data_range (modulo)
+            value %= self.range[1] - self.range[0]
 
         self._properties[key] = value
 
     @staticmethod
     def get_data_size(data_range):
+        """
+        Gets the number of digits of a hexidecimal number
+
+        :param data_range: The range of values as supplied by the constructor
+        :return: Number of digits of the input
+        """
         length = abs(data_range[1] - data_range[0])
 
         if length == 0:
@@ -301,6 +351,13 @@ class Command(SerialObject):
 
     @staticmethod
     def get_type_size(data_range):
+        """
+        Get the data type of the command based on the command range
+
+        :param data_range: The range of values as supplied by the constructor
+        :return: The data type, the data length, and the data range
+            (this method swaps the values if the larger value comes first)
+        """
         assert len(data_range) == 2
         assert type(data_range[0]) == type(data_range[1])
         if data_range[0] > data_range[1]:
@@ -331,40 +388,49 @@ class Command(SerialObject):
     def format_data(self, data):
         """
         formats data for sending over serial
-        :param data:
-        :param data_format:
-        :return:
+
+        :param data: A number that matches the command's data type (exception:
+            you may supply integers for booleans. They will be interpreted
+            according to python's bool() function)
+        :return: A hex string containing the formatted number
         """
 
         if self.data_type == 'b':
+            assert (type(data) == bool or type(data) == int)
             return str(int(bool(data)))
 
         elif self.data_type == 'u':
+            assert (type(data) == int)
             data %= MAXINT
             return self.to_hex(data, self.data_len)
 
         elif self.data_type == 'i':
+            assert (type(data) == int)
             if data < 0:
                 data += (2 << (self.data_len * 4 - 1))
             data %= MAXINT
             return self.to_hex(data, self.data_len)
 
         elif self.data_type == 'f':
+            assert (type(data) == float)
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
         elif self.data_type == 'd':
+            assert (type(data) == float)
             return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
         """
         creates the packet to send
-        :return:
+        :return: A string containing a value packet to send over serial
         """
 
         self.current_packet = self.packet_info + \
-            self.format_data(self._properties[self.command_name]) + "\r"
+                              self.format_data(self._properties[
+                                                   self.command_name]) + "\r"
 
         return self.current_packet
+
 
 # init sensor pool
 sensor_pool = SensorPool()
@@ -436,7 +502,6 @@ if __name__ == '__main__':
               "i1a\t"
               "i69")
 
-
     assert almost_equal(gps["lat"], 4076.4504098326465)
     assert almost_equal(gps["long"], 4077.0990541993133)
     assert almost_equal(gps["speed"], 4001.4434308771893)
@@ -461,6 +526,7 @@ if __name__ == '__main__':
 else:
     from board.comm import Communicator
 
+
     def start(baud=115200, use_handshake=True, check_status=False):
         global communicator
         communicator = Communicator(baud, sensor_pool, use_handshake)
@@ -478,12 +544,17 @@ else:
                 time.sleep(0.25)
             print("\nIt's alive!")
 
+
     def stop():
         global communicator
         communicator.stop()
         time.sleep(0.005)
 
+
     _initial_time = time.time()
+
+
     def is_running(threshold=2):
         global communicator
-        return (round(time.time() - _initial_time) - communicator.thread_time) <= threshold
+        return (round(
+                time.time() - _initial_time) - communicator.thread_time) <= threshold

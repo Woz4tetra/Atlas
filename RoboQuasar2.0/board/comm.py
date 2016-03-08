@@ -1,20 +1,18 @@
 """
     Written by Ben Warwick
 
-    comm.py, written for RoboQuasar1.0
-    Version 12/7/2015
+    comm.py, written for RoboQuasar2.0
+    Version 3/6/2016
     =========
 
-    Handles direct serial communications with the arduino.
+    Handles direct serial communications with the micro-controller.
 
-    This class is a subclass of threading.Thread. It constantly updates the
-    SensorData (constructor parameter) object with new data received from
-    serial. It will also send any commands put on the CommandQueue (also a
-    constructor parameter).
+    This class is a subclass of threading.Thread. It's internally used by
+    data.py. It continually updates the passed in SensorPool object with
+    what ever sensor data comes in.
 
     This library follows a home-baked serial packet protocol. data.py handles
-    all data conversion. Please refer to objects.py for proper usage tips and
-    data.py for details of the sensor and command packet protocol.
+    all data conversion.
 """
 
 import serial
@@ -30,14 +28,24 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, sensors_pool,
-                 use_handshake=True):
-        self.serialRef = self._findPort(baud_rate)
-        self.serialRef.flushInput()
-        self.serialRef.flushOutput()
+    def __init__(self, baud_rate, sensors_pool, use_handshake=True):
+        """
+        Constructor for Communicator
+
+        :param baud_rate: Data communication rate. Make sure it matches your
+            device's baud rate! (For MicroPython it doesn't matter)
+        :param sensors_pool: The SensorPool object in which to put the sensor
+            data
+        :param use_handshake: For Arduino boards or any micro-controller that
+            reboots when a program connects over serial.
+        :return: Communicator object
+        """
+        self.serial_ref = self.find_port(baud_rate)
+        self.serial_ref.flushInput()
+        self.serial_ref.flushOutput()
 
         if use_handshake:
-            self._handshake()
+            self.handshake()
 
         self.sensor_pool = sensors_pool
 
@@ -48,8 +56,7 @@ class Communicator(threading.Thread):
 
     def run(self):
         """
-        Runs and constantly, updates packets for different sensors, puts
-        command packets on command queue into serial.
+        Runs and constantly, updates packets for different sensors
 
         :return: None
         """
@@ -57,38 +64,46 @@ class Communicator(threading.Thread):
         while self.exit_flag == False:
             self.thread_time = round(time.time() - self.start_time)
             packet = bytearray()
-            incoming = self.serialRef.read()
+            incoming = self.serial_ref.read()
             while incoming != b'\r':
                 if incoming != None and incoming != b'':
                     packet += incoming
-                incoming = self.serialRef.read()
+                incoming = self.serial_ref.read()
             if len(packet) > 0:
                 self.sensor_pool.update(packet)
 
     def put(self, packet):
-        self.serialRef.write(bytearray(packet, 'ascii'))
-
-    def _handshake(self):
         """
-        Ensures communication between serial and arduino (or any microcontroller
-        that needs it, micropython does not)
+        Directly puts a string into serial. This was revised from having a
+        command queue (the queue would fill faster than it would empty).
+        For use in data.py by Command objects.
+
+        :param packet: A string formed by a Command object
+        :return: None
+        """
+        self.serial_ref.write(bytearray(packet, 'ascii'))
+
+    def handshake(self):
+        """
+        Ensures communication between serial and Arduino (or any
+        micro-controller that needs it, MicroPython does not)
 
         :return: None
         """
-        read_flag = self.serialRef.read()
+        read_flag = self.serial_ref.read()
 
         print("Waiting for ready flag...")
         time.sleep(0.5)
         while read_flag != 'R':
             print(read_flag, end="")
-            read_flag = self.serialRef.read()
+            read_flag = self.serial_ref.read()
 
-        self.serialRef.write("\r")
-        self.serialRef.flushInput()
-        self.serialRef.flushOutput()
+        self.serial_ref.write("\r")
+        self.serial_ref.flushInput()
+        self.serial_ref.flushOutput()
         print("Board initialized!")
 
-    def _findPort(self, baud_rate):
+    def find_port(self, baud_rate):
         """
         Tries all possible addresses as found by _possibleAddresses() until
         a serial connection is established.
@@ -98,7 +113,7 @@ class Communicator(threading.Thread):
         """
         address = None
         serial_ref = None
-        for possible_address in self._possibleAddresses():
+        for possible_address in self.possible_addrs():
             try:
                 serial_ref = serial.Serial(port=possible_address,
                                            baudrate=baud_rate,
@@ -114,10 +129,10 @@ class Communicator(threading.Thread):
             return serial_ref
 
     @staticmethod
-    def _possibleAddresses():
+    def possible_addrs():
         """
-        An internal method used by _initSerial to search all possible
-        USB serial addresses.
+        Returns all addresses that could be a micro-controller.
+        TODO: Figure out how to implement multiple board support
 
         :return: A list of strings containing all likely addresses
         """
@@ -142,8 +157,18 @@ class Communicator(threading.Thread):
             raise EnvironmentError('Unsupported platform')
 
     def stop(self):
+        """
+        Sets the exit_flag to True. Stops the serial read thread
+
+        :return: None
+        """
         Communicator.exit_flag = True
 
     def dump(self):
-        self.serialRef.flushInput()
-        self.serialRef.flushOutput()
+        """
+        Dump all contents of serial
+
+        :return: None
+        """
+        self.serial_ref.flushInput()
+        self.serial_ref.flushOutput()

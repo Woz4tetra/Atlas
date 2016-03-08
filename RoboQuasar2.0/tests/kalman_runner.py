@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, "../")
 
 from board.logger import parse
-from controller.interpreter import MainFilter
+from controller.filter import MainFilter
 
 sensor_data = parse("Sat Feb 27 21;46;23 2016-edited.csv")
 

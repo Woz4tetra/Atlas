@@ -1,14 +1,14 @@
 """
     Written by Jason Kagie (modified by Ben Warwick)
 
-    interpreter.py, written for RoboQuasar1.0
+    interpreter.py, written for RoboQuasar2.0
     Version 1/4/2016
     =========
 
     Interprets sensor data from board/data.py to x, y, theta (current position).
 
     Classes:
-        Filter - contains a kalman filter tailored for gps, encoder,
+        MainFilter - contains a kalman filter tailored for gps, encoder,
             accelerometer and orientation input
 """
 

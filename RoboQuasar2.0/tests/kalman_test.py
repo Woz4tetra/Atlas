@@ -11,7 +11,7 @@ from board.data import start, stop, is_running
 
 from board.logger import Recorder
 
-from controller.interpreter import MainFilter
+from controller.filter import MainFilter
 
 # data type is specified by incoming packet
 gps = Sensor(1, ['lat', 'long', 'speed', 'heading', 'hdop'])
