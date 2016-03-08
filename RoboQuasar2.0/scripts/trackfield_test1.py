@@ -1,3 +1,10 @@
+"""
+Written by Ben Warwick
+
+Data recorder. Written for test day 1
+Version 2/29/16
+"""
+
 import traceback
 import sys
 import time
