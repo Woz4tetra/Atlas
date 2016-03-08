@@ -1,146 +1,92 @@
-
 """
 Written by Ben Warwick
 
-Video writer. Written for test day 1
-Version 2/29/16
+Data recorder. Written for test day 1
+Version 3/7/16
 """
 
+import traceback
 import sys
-import cv2
-import os
-import numpy as np
-import math
-
 import time
+import math
 
 sys.path.insert(0, '../')
 
-from camera import capture
-from camera import analyzers
+from board.data import Sensor
+from board.data import Command
+from board.data import start, stop, is_running
 
+from board.logger import Recorder
 
-def run():
-    camera1 = capture.Capture(window_name="camera1",
-        cam_source=1,
-        width=640,
-        height=480
-    )
+from board.filter import MainFilter
 
-    camera2 = capture.Capture(window_name="camera2",
-        cam_source=2,
-        width=640,
-        height=480
-    )
+from controller.gcjoystick import joystick_init
+from controller.servo_control import servo_value
 
-    capture_properties = dict(
-            paused=False,
-            apply_filters=False,
-            enable_draw=True,
-            currentFrame=camera1.currentTimeMsec(),
-            write_video=False,
-            slideshow=False,
-            burst_mode=False,
-    )
+from map.map_parser import MapParser
 
-    # frame1 = camera1.getFrame(readNextFrame=False)
-    # height, width = frame1.shape[0:2]
+# data type is specified by incoming packet
+gps = Sensor(1, ['lat_min', 'lat_sec',
+                 'long_min', 'long_sec',
+                 'speed', 'heading', 'hdop'])
+encoder = Sensor(2, ['counts'])
+imu = Sensor(3, ['accel_x', 'accel_y', 'accel_z',
+                 'gyro_x', 'gyro_y', 'gyro_z',
+                 'yaw', 'pitch', 'roll',
+                 'quat_w', 'quat_x', 'quat_y', 'quat_z'])
 
-    time_start = time.time()
+servo_steering = Command(0, 'position', (90, -90))
+# servo_brakes = Command(1, 'position', (90, -90))
 
-    # warper = analyzers.RoadWarper(camera1.windowName, width, height,
-    #                               [[209, 116], [510, 116], [12, 203], [631, 203]])
-                                #   [[190, 110], [469, 110], [19, 160], [628, 160]])
+joystick = joystick_init()
 
-    while camera1.isRunning:
-        if capture_properties['paused'] == False or capture_properties[
-                'currentFrame'] != camera1.currentTimeMsec():
-            frame1 = camera1.getFrame()
-            frame2 = camera2.getFrame()
+start(use_handshake=False)
 
-            if frame1 is None or frame2 is None:
-                continue
+log_data = False
+log = None
 
-            capture_properties['currentFrame'] = camera1.currentTimeMsec()
+time.sleep(0.5)
 
-            if capture_properties['apply_filters']:
-                # sobeled = warper.update(frame1)
-                sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
-                # sobeled = cv2.medianBlur(sobeled, 7)
-                sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
-                sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
-                sobeled = np.absolute(sobeled)
-                sobeled = np.uint8(sobeled)[:, :, 2]
-                # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
-                #                        cv2.COLOR_BGR2GRAY)
-                # sobeled = np.uint8(sobeled)[:, :, 2]
-                value, frame1 = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
-                # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
+k_filter = MainFilter(gps['lat_sec'], gps['long_sec'], 1, 0, encoder['counts'])
 
+map_parser = MapParser("Mon Mar  7 17;54;59 2016 GPS Map.csv")
 
-            if capture_properties['enable_draw'] is True:
-                camera1.showFrame(frame1)
-                camera2.showFrame(frame2)
+if log_data:
+    log = Recorder(frequency=0.01)
+    log.add_tracker(imu, 'imu')
+    log.add_tracker(encoder, 'encoder')
+    log.add_tracker(gps, 'gps')
+    log.add_tracker(servo_steering, 'servo_steering')
+    # log.add_tracker(servo_brakes, 'servo_brakes')
+    log.end_init()
 
-            if capture_properties['write_video'] == True:
-                camera1.writeToVideo(frame1)
-                camera2.writeToVideo(frame2)
+try:
+    while True:
+        print("is alive:", is_running())
+        x, y, phi = k_filter.update(gps["lat_sec"], gps["long_sec"],
+                                    encoder["counts"], imu["accel_x"],
+                                    imu["accel_y"],
+                                    imu["gyro_z"], imu['yaw'] * math.pi / 180)
+        print("%0.4f\t%0.4f\t%0.4f" % (x, y, phi))
 
-        if capture_properties['slideshow'] == True:
-            capture_properties['paused'] = True
+        joystick.update()
+        if joystick.triggers.L > 0.5 or joystick.triggers.R > 0.5:
+            stop()
 
-        if capture_properties['burst_mode'] == True and capture_properties[
-            'paused'] == False:
-            camera1.saveFrame(frame1, default_name=True)
-            camera2.saveFrame(frame2, default_name=True)
+        goal_position = map_parser.bind((x, y))
 
-        if capture_properties['enable_draw'] is True:
-            key = camera1.getPressedKey()
-            if key == 'q' or key == "esc":
-                camera1.stopCamera()
-                camera2.stopCamera()
-            elif key == ' ':
-                if capture_properties['paused']:
-                    print("%0.4fs, %i, %i: ...Video unpaused" % (
-                        time.time() - time_start, camera1.currentTimeMsec(),
-                        camera2.currentTimeMsec()))
-                else:
-                    print("%0.4fs, %i: Video paused..." % (
-                        time.time() - time_start, camera1.currentTimeMsec(),
-                        camera2.currentTimeMsec()))
-                capture_properties['paused'] = not capture_properties['paused']
-            elif key == 'o':
-                capture_properties['apply_filters'] = not capture_properties[
-                    'apply_filters']
-                print((
-                    "Applying filters is " + str(
-                            capture_properties['apply_filters'])))
-                frame1 = camera1.getFrame(False)
-                frame2 = camera2.getFrame(False)
-            elif key == 's':
-                camera1.saveFrame(frame1)
-                camera2.saveFrame(frame2)
+        servo_steering["position"] = servo_value((x, y, phi), goal_position)
 
-            elif key == 'v':
-                if capture_properties['write_video'] == False:
-                    camera1.startVideo()
-                    camera2.startVideo()
-                else:
-                    camera1.stopVideo()
-                    camera2.stopVideo()
-                capture_properties['write_video'] = not capture_properties[
-                    'write_video']
-            elif key == 'b':  # burst photo mode
-                capture_properties['burst_mode'] = not capture_properties[
-                    'burst_mode']
-                print((
-                      "Burst mode is " + str(capture_properties['burst_mode'])))
-            elif key == 'p':  # debug print
-                print("Frame #:", capture_properties['currentFrame'])
-            elif key == 'r':
-                warper.reset()
+        if log_data:
+            log.add_data(imu)
+            log.add_data(encoder)
+            log.add_data(gps)
+            log.add_data(servo_steering)
+            # log.add_data(servo_brakes)
+            log.end_row()
 
-
-if __name__ == '__main__':
-    print(__doc__)
-    run()
+        time.sleep(0.005)
+except:
+    traceback.print_exc()
+finally:
+    stop()

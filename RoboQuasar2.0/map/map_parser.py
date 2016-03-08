@@ -57,28 +57,28 @@ def remove_duplicates(map, write_output=True, directory=None, map_name=None):
     return map
 
 
-class Binder:
+class MapParser:
     def __init__(self, map_name):
         self.map = get_map(map_name)
-        #set to None so that it will be able to start at any point on the track
+        # set to None so that it will be able to start at any point on the track
         self.prev_bind = None
 
     def bind(self, position):
         if (self.prev_bind is None or self.prev_bind >= (len(self.map) - 1)
-            or self.prev_bind < 0):
-            #finds the smallest distance between the point and the map
+                or self.prev_bind < 0):
+            # finds the smallest distance between the point and the map
             self.prev_bind = self.find_nearest(position)
-            return self.map[self.prev_bind+1]
+            return self.map[self.prev_bind + 1]
 
         for index in range(self.prev_bind, len(self.map)):
             if self.is_near(index, position):
                 self.prev_bind = index
-                return self.map[index+1]
+                return self.map[index + 1]
 
         for index in range(self.prev_bind):
             if self.is_near(index, position):
                 self.prev_bind = index
-                return self.map[index+1]
+                return self.map[index + 1]
 
         self.prev_bind = self.find_nearest(position)
         return self.map[self.prev_bind + 1]
@@ -86,7 +86,7 @@ class Binder:
     def find_nearest(self, position):
         map_dist = [0] * len(self.map)
         for index in range(len(map_dist)):
-            dlat  = abs(float(self.map[index][0] - position[0]))
+            dlat = abs(float(self.map[index][0] - position[0]))
             dlong = abs(float(self.map[index][1] - position[1]))
             dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
             map_dist[index] = dist
@@ -99,16 +99,15 @@ class Binder:
         dy = abs(float(self.map[index][1]) - position[1])
         dist = ((dx ** 2) + (dy ** 2)) ** 0.5
 
-
         if index + 2 < len(self.map):
-            acc_dlat  = abs(float(self.map[index][0] - self.map[index+1][0]))
-            acc_dlong = abs(float(self.map[index][1] - self.map[index+1][1]))
+            acc_dlat = abs(float(self.map[index][0] - self.map[index + 1][0]))
+            acc_dlong = abs(float(self.map[index][1] - self.map[index + 1][1]))
 
         else:
             acc_dlat = abs(float(self.map[index][0] - self.map[index - 1][0]))
             acc_dlong = abs(float(self.map[index][1] - self.map[index - 1][1]))
 
-        accuracy = ((acc_dlat ** 2 + acc_dlong ** 2) ** 0.5)/2
+        accuracy = ((acc_dlat ** 2 + acc_dlong ** 2) ** 0.5) / 2
 
         return dist <= accuracy
 
@@ -147,7 +146,7 @@ def test():
 
 
 if __name__ == '__main__':
-    binder = Binder("Mon Mar  7 17;54;59 2016 GPS Map.csv")
+    binder = Parser("Mon Mar  7 17;54;59 2016 GPS Map.csv")
 
     # pos = binder.bind((26.6156005859, 56.423500061))
     # pre_bind = binder.prev_bind
