@@ -29,14 +29,14 @@ import config
 
 class Recorder(object):
     def __init__(self, frequency=None, file_name=None, directory=None):
-        if directory == None:
+        if directory is None:
             self.directory = config.get_dir(":logs")
         else:
             if directory[-1] != "/":
                 directory += "/"
             self.directory = directory
 
-        if file_name == None:
+        if file_name is None:
             self.file_name = time.strftime("%c").replace(":", ";") + ".csv"
         else:
             if file_name[-4:] != ".csv":

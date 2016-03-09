@@ -1,5 +1,6 @@
 import pyb
 import struct
+import math
 
 class BNO055():
     reg = dict(
@@ -32,12 +33,14 @@ class BNO055():
 
     BNO055_ID = 0xa0
 
-    def __init__(self, bus, default_address=True):
+    def __init__(self, bus, default_address=True, declination=(0, 0)):
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
         if default_address:
             self.address = 0x28
         else:
             self.address = 0x29
+
+        self.declination = (declination[0] + declination[1] / 60) * math.pi / 180
 
         self.quat_scale = 1.0 / (1 << 14)
         self.sample_delay = 100
@@ -141,6 +144,18 @@ class BNO055():
                 datum -= 0x10000
             data.append(datum)
         return data
+
+    def get_heading(self):
+        x, y, z = self.get_mag()
+        heading = math.atan2(y, x)
+        heading += self.declination
+        # Correct for reversed heading
+        if heading < 0:
+            heading += 2 * math.pi
+        # Check for wrap and compensate
+        elif heading > 2 * math.pi:
+            heading -= 2 * math.pi
+        return heading
 
     def write_8(self, register, data):
         return self.i2c.mem_write(data, self.address, register)

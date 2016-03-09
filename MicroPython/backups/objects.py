@@ -1,21 +1,21 @@
 import pyb
 from pyb import I2C
 
-import binascii
-
 from libraries.micro_gps import MicropyGPS
 
-from libraries.mpu6050 import MPU6050
-from libraries.hmc5883l import HMC5883L
+# from libraries.mpu6050 import MPU6050
+# from libraries.hmc5883l import HMC5883L
 from libraries.bno055 import BNO055
-from libraries.pca9685 import PCA9685
+# from libraries.pca9685 import PCA9685
 
 from data import *
 
 
 class GPS(Sensor):
     def __init__(self, sensor_id):
-        super().__init__(sensor_id, 'f', 'f')
+        super().__init__(sensor_id, ['f', 'f'],
+            ["latitude", "longitude", "speed", "heading", "altitude",
+             "satellites in view", "satellites in use", "hdop", "pdop", "vdop"])
 
         self.gps_ref = MicropyGPS()
 
@@ -24,32 +24,51 @@ class GPS(Sensor):
 
     def update_data(self):
         return (
-            # self.gps_ref.latitude[0],
-            self.gps_ref.latitude[1],
-            # self.gps_ref.longitude[0],
-            self.gps_ref.longitude[1],
-
-            # self.gps_ref.speed[2],
-            # self.gps_ref.hdop,
-            # self.gps_ref.course
+            self.gps_ref.latitude[0] + self.gps_ref.latitude[1] / 60,
+            self.gps_ref.longitude[0] + self.gps_ref.longitude[1] / 60
         )
+
+    def update_log(self):
+        return [
+            self.gps_ref.latitude,
+            self.gps_ref.longitude,
+            self.gps_ref.speed,
+            self.gps_ref.course,
+            self.gps_ref.altitude,
+            self.gps_ref.satellites_in_view,
+            self.gps_ref.satellites_in_use,
+            self.gps_ref.hdop,
+            self.gps_ref.pdop,
+            self.gps_ref.vdop,
+        ]
 
 
 class IMU(Sensor):
-    def __init__(self, sensor_id, bus):
+    def __init__(self, sensor_id, bus, declination=(9, 17)):
         super().__init__(sensor_id,
-                        #  'f', 'f', 'f',
-                        #  'f', 'f', 'f',
-                        #  'f', 'f', 'f')
-                         'f', 'f', 'f', 'f')
+                         ['f', 'f', 'f', 'f', 'f'],
+                         ["accel", "gyro", "euler", "quaternion", "temperature",
+                          "gravity", "magnet", "compass"])
         self.bno = BNO055(bus)
 
     def update_data(self):
         accel = self.bno.get_lin_accel()
         gyro = self.bno.get_gyro()
         euler = self.bno.get_euler()
-        return [accel[0], accel[1], gyro[2], euler[2]]
-        # return accel + gyro + euler
+        heading = self.bno.get_heading()
+        return [accel[0], accel[1], gyro[2], euler[2], heading]
+
+    def update_log(self):
+        return [
+            self.bno.get_lin_accel(),
+            self.bno.get_gyro(),
+            self.bno.get_euler(),
+            self.bno.get_quat(),
+            self.bno.get_temp(),
+            self.bno.get_grav(),
+            self.bno.get_mag(),
+            self.bno.get_heading()
+        ]
 
 
 class HallEncoder(Sensor):
@@ -80,15 +99,28 @@ class HallEncoder(Sensor):
     def update_data(self):
         return self.enc_dist
 
+    def update_log(self):
+        return [
+            ["counts", self.enc_dist]
+        ]
+
 class Servo(Command):
     def __init__(self, command_id, pin_num, start_pos=None):
         super().__init__(command_id, 'i8')
         self.servo_ref = pyb.Servo(pin_num)
         if start_pos is not None:
             self.servo_ref.angle(start_pos)
+        self.angle = start_pos
 
     def callback(self, angle):
-        self.servo_ref.angle(angle)
+        self.angle = angle
+        self.servo_ref.angle(self.angle)
+
+
+    def update_log(self):
+        return [
+            ["angle", self.angle]
+        ]
 
 # class MCP9808(Sensor):
 #     CONFIG = 0x01
