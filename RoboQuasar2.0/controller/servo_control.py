@@ -26,6 +26,9 @@ lookup_table = [
     [0.1072763485867491, 35],
 ]
 
+def py27_round(x):
+    return int(x + math.copysign(0.5, x))
+
 def map_servo(angle):
     if angle < lookup_table[0][0]:
         return lookup_table[0][1]
@@ -43,9 +46,8 @@ def map_servo(angle):
         slope = (lookup_table[table_index+1][1] - lookup_table[table_index][1])/(
             lookup_table[table_index+1][0]-lookup_table[table_index][0])
         servo_angle = lookup_table[table_index][1] + slope * (angle - lookup_table[table_index][0])
-        return round(servo_angle)
+        return int(py27_round(servo_angle))
 
-# TODO: Fix to be oriented in the correct axis
 def servo_value(current_state, goal_position):
     x, y, heading = current_state
     goal_x, goal_y = goal_position
@@ -59,7 +61,14 @@ if __name__ == '__main__':
     assert(map_servo(0.1072763485867491) == 35)
     assert(map_servo(2.0) == 35)
     assert(map_servo(-1.0) == -75)
-    assert(almost_equal(map_servo(0.057608353410290123), 2))
+    assert(almost_equal(map_servo(0.057608353410290123), 3))
     assert(almost_equal(map_servo(.00987), -21))
     assert(almost_equal(map_servo(.1045), 32))
-
+    assert(servo_value([0, 0, 0], [10, 0]) == -25)
+    assert(servo_value([0, 0, 0], [0, 10]) == 35)
+    assert(servo_value([0, 0, 0], [10, 10]) == 35)
+    assert(servo_value([0, 0, 0], [0, -10]) == -75)
+    assert(servo_value([0, 0, 0], [-10, 0]) == 35)
+    assert(servo_value([4, 3, math.pi/4], [10, 5]) == -75)
+    assert(servo_value([4, 3, math.pi/6], [5.67639042166, 4]) == -19)
+    assert(servo_value([1, 2, math.pi/8], [3, 3.0046132804729282]) == 13)
