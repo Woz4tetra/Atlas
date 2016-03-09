@@ -23,7 +23,7 @@ from board.filter import StateFilter
 from controller.gcjoystick import joystick_init
 from controller.servo_control import servo_value
 
-from map.map_parser import MapParser
+from map.parser import MapParser
 
 # data type is specified by incoming packet
 gps = Sensor(1, ['lat_sec', 'long_sec'])

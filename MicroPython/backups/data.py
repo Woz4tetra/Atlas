@@ -64,12 +64,20 @@ class CommandPool(object):
 
 
 class SerialObject(object):
-    def __init__(self, object_id, formats):
-        self.formats = formats
+    def __init__(self, object_id, formats, log_names=None):
+        if isinstance(formats, list) or isinstance(formats, tuple):
+            self.formats = formats
+        else:
+            self.formats = [formats]
 
         self.object_id = object_id
 
         self.current_packet = ""
+
+        if log_names is None:
+            self.log_names = []
+        else:
+            self.log_names = log_names
 
         self.data = []
         self.data_len = 0
@@ -94,10 +102,13 @@ class SerialObject(object):
             else:
                 raise ValueError("Invalid format: %s", str(data_format))
 
+    def update_log(self):
+        return []
+
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, *formats):
-        super().__init__(sensor_id, formats)
+    def __init__(self, sensor_id, formats, log_names=None):
+        super().__init__(sensor_id, formats, log_names)
 
     def to_hex(self, data, length=0):
         if type(data) == int:
@@ -143,8 +154,8 @@ class Sensor(SerialObject):
 
 
 class Command(SerialObject):
-    def __init__(self, command_id, format):
-        super().__init__(command_id, [format])
+    def __init__(self, command_id, format, log_names=None):
+        super().__init__(command_id, [format], log_names)
 
     def format_data(self, hex_string):
         if self.formats[0] == 'b':

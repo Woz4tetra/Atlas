@@ -5,6 +5,7 @@ from pyb import UART
 from objects import *
 from data import *
 from comm import Communicator
+from logger import Recorder
 
 # tmp36 = TMP36(0, pyb.Pin.board.Y12)
 # mcp9808 = MCP9808(1, 1)
@@ -50,6 +51,16 @@ command_pool = CommandPool(
         # servo_brakes
 )
 
+log_data = True
+log = None
+
+if log_data:
+    log = Recorder(frequency=0.01)
+    log.add_tracker(gps, "gps")
+    log.add_tracker(encoder, "encoder")
+    log.add_tracker(imu, "imu")
+    log.end_init()
+
 communicator = Communicator(sensor_queue, command_pool)
 
 while True:
@@ -71,5 +82,11 @@ while True:
         increase = True
     elif indicator.intensity() >= 255:
         increase = False
+
+    if log_data:
+        log.add_data(gps)
+        log.add_data(encoder)
+        log.add_data(imu)
+        log.end_row()
 
     pyb.delay(5)
