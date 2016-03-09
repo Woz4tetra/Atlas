@@ -1,15 +1,15 @@
 """
-    Written by Jason Kagie (modified by Ben Warwick)
+Written by Jason Kagie (modified by Ben Warwick)
 
-    interpreter.py, written for RoboQuasar2.0
-    Version 1/4/2016
-    =========
+interpreter.py, written for RoboQuasar2.0
+Version 1/4/2016
+=========
 
-    Interprets sensor data from board/data.py to x, y, theta (current position).
+Interprets sensor data from board/data.py to x, y, theta (current position).
 
-    Classes:
-        MainFilter - contains a kalman filter tailored for gps, encoder,
-            accelerometer and orientation input
+Classes:
+    MainFilter - contains a kalman filter tailored for gps, encoder,
+        accelerometer and orientation input
 """
 
 import numpy as np
@@ -19,21 +19,14 @@ import math
 
 
 class StateFilter(object):
-    def __init__(self, latitude, longitude, circum, heading,
-                 prev_encoder_value):
+    def __init__(self):
         self.headingKalman = HeadingKalman()
-        self.placeKalman = PositionKalman((latitude, longitude), circum,
-                                          heading, prev_encoder_value)
-        self.time = time.time()
-        self.dt = 0
+        self.placeKalman = PositionKalman()
 
-    def update(self, gps_lat, gps_lon, encoder_counts, accel_x, accel_y, gyro_z,
-               heading):
-        self.dt = 0.105
-        self.time = time.time()
-        phi = self.headingKalman.update(heading, gyro_z, self.dt)
-        x, y = self.placeKalman.update(gps_lat, gps_lon, encoder_counts,
-                                       accel_x, accel_y, phi, self.dt)
+    def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, gyro_z, heading, dt):
+        phi = self.headingKalman.update(heading, gyro_z, dt)
+        x, y = self.placeKalman.update(gps_x, gps_y, change_dist,
+                                       accel_x, accel_y, phi, dt)
         return x, y, phi
 
 
@@ -59,47 +52,25 @@ class HeadingKalman(object):
 
 
 class PositionKalman(object):
-    def __init__(self, origin, wheel_radius, start_heading, prev_encoder_data):
-        self.origin = (
-            origin[0] / 3600,
-            origin[1] / 3600
-        )
-
-        self.origin_rad = (
-            self.origin[0] * math.pi / 180,
-            self.origin[1] * math.pi / 180
-        )
-
-        self.wheel_radius = 2 * math.pi * wheel_radius
+    def __init__(self):
         self.filter = pykalman.KalmanFilter()
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(6)
-        self.displacement_angle = start_heading
-        self.earth_radius = 6371000
-        self.prev_encoder = prev_encoder_data
-        self.seconds_conversion = 1850.0 / 60.0  # 1 sec = this many meters
 
-    def update(self, gps_lat, gps_lon, encoder_value, accel_x, accel_y, heading,
-               dt):
-        x_gps, y_gps = self.geo_dist(gps_lat, gps_lon)
-
-        encoder_counts = encoder_value - self.prev_encoder
-        self.prev_encoder = encoder_value
-
-        observation = np.array([x_gps, y_gps,
-                                encoder_counts, accel_x, accel_y])
+    def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, heading, dt):
+        observation = np.array([gps_x, gps_y, change_dist, accel_x, accel_y])
 
         if (math.cos(heading) == 0):
-            y_coeff = self.wheel_radius * dt / math.sin(heading)
+            y_coeff = dt / math.sin(heading)
             x_coeff = 0
 
         elif (math.sin(heading) == 0):
-            x_coeff = self.wheel_radius * dt / math.cos(heading)
+            x_coeff = dt / math.cos(heading)
             y_coeff = 0
 
         else:
-            x_coeff = 0.5 * self.wheel_radius * dt / math.cos(heading)
-            y_coeff = 0.5 * self.wheel_radius * dt / math.sin(heading)
+            x_coeff = 0.5 * dt / math.cos(heading)
+            y_coeff = 0.5 * dt / math.sin(heading)
 
         observation_matrix = np.array(
             [[1, 0, 0, 0, 0, 0],
@@ -125,20 +96,3 @@ class PositionKalman(object):
             observation_matrix=observation_matrix)
 
         return self.filt_state_mean[0], self.filt_state_mean[1]  # x, y
-
-    def geo_dist(self, latitude, longitude):
-        """assuming the latitude and lontitude are given in seconds"""
-        phi1 = self.origin_rad[0]
-        phi2 = latitude / 3600 * math.pi / 180
-        dphi = phi2 - self.origin_rad[0]
-        dlambda = longitude / 3600 * math.pi / 180 - self.origin_rad[1]
-
-        a = (math.sin(dphi / 2) ** 2 +
-             math.cos(phi1) * math.cos(phi2) *
-             math.sin(dlambda / 2) ** 2)
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-        dist = self.earth_radius * c
-        angle = math.atan2(latitude - self.origin[0],
-                           longitude - self.origin[1])
-        return dist * math.cos(angle), dist * math.sin(angle)

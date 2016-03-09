@@ -4,37 +4,33 @@ sys.path.insert(0, "../")
 
 from board.logger import parse
 from board.filter import StateFilter
+from board.interpreter import Interpreter
 
-sensor_data = parse("Sat Feb 27 22;18;46 2016.csv")
+sensor_data = parse("Sat Feb 27 21;46;23 2016 modified.csv")
 
 if len(sensor_data[0]) == 23:
-    initial_lat = sensor_data[0][3]
-    initial_lon = sensor_data[0][5]
+    initial_lat = sensor_data[0][2] + sensor_data[0][3] / 60
+    initial_lon = sensor_data[0][4] + sensor_data[0][5] / 60
     initial_heading = sensor_data[0][16]
     prev_encoder_value = sensor_data[0][9]
 else:
-    initial_lat = sensor_data[0][2]
-    initial_lon = sensor_data[0][3]
-    initial_heading = sensor_data[0][14]
-    prev_encoder_value = sensor_data[0][7]
+    raise Exception("Missing degrees on gps")
 
-kfilter = StateFilter(initial_lat, initial_lon, 0.1333, initial_heading,
-                      prev_encoder_value)
+interpreter = Interpreter(prev_encoder_value, initial_lat, initial_lon, 1.344451296765884)
+kfilter = StateFilter()
 
 for row in sensor_data[1:]:
-    if len(row) == 23:
-        timestamp, servo, lat_min, lat_sec, lon_min, lon_sec, gps_speed, \
-        gps_heading, gps_hdop, encoder_counts, accel_x, accel_y, accel_z, \
-        gyro_x, gyro_y, gyro_z, yaw, pitch, roll, quat_w, quat_x, quat_y, \
-        quat_z = row
-    else:
-        timestamp, servo, lat_min, lat_sec, gps_speed, \
-        gps_heading, gps_hdop, encoder_counts, accel_x, accel_y, accel_z, \
-        gyro_x, gyro_y, gyro_z, yaw, pitch, roll, quat_w, quat_x, quat_y, \
-        quat_z = row
-        lon_min, lon_sec = 0, 0.0
+    timestamp, servo, lat_deg, lat_min, lon_deg, lon_min, gps_speed, \
+    gps_heading, gps_hdop, encoder_counts, accel_x, accel_y, accel_z, \
+    gyro_x, gyro_y, gyro_z, yaw, pitch, roll, quat_w, quat_x, quat_y, \
+    quat_z = row
 
-    x, y, phi = kfilter.update(lat_sec, lon_sec,
-                               encoder_counts, accel_x, accel_y,
-                               gyro_z, yaw)
-    print("%9.8f\t%9.8f\t%9.8f" % (x, y, phi))
+    latitude = lat_deg + lat_min / 60
+    longitude = lon_deg + lon_min / 60
+
+    gps_x, gps_y, enc_counts, gyro_z, yaw = interpreter.convert(
+        latitude, longitude, encoder_counts, gyro_z, yaw)
+
+    x, y, phi = kfilter.update(gps_x, gps_y, enc_counts, accel_x, accel_y,
+                               gyro_z, yaw, 0.105)
+    print("%9.8f,%9.8f,%9.8f" % (x, y, phi))
