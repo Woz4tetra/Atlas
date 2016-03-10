@@ -7,7 +7,7 @@ class Interpreter():
         self.origin_lat = origin_lat * math.pi / 180
         self.origin_long = origin_long * math.pi / 180
         self.wheel_radius = 0.1333  # TODO calculate wheel radius
-        self.deg_to_m = 111226.343
+        self.deg_to_m = 111226.343  # convert gps degrees to meters
         self.shift_angle = shift_angle
 
     def convert(self, latitude, longitude, enc_counts, gyro_z, yaw):
@@ -28,8 +28,8 @@ class Interpreter():
         x = (longitude - self.origin_long) * math.cos(lat_mean) * self.deg_to_m
         y = (latitude - self.origin_lat) * self.deg_to_m
 
-        shifted_x = math.cos(self.shift_angle) * x - math.sin(self.shift_angle) * y
-        shifted_y = math.sin(self.shift_angle) * x + math.cos(self.shift_angle) * y
+        shifted_x = x * math.cos(self.shift_angle) - y * math.sin(self.shift_angle)
+        shifted_y = x * math.sin(self.shift_angle) + y * math.cos(self.shift_angle)
         return shifted_x, shifted_y
 
     def convert_imu(self, gyro_z, heading):
