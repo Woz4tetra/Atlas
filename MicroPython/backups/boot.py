@@ -16,5 +16,9 @@ else:
     pyb.usb_mode('CDC+HID')
 
 pyb.LED(4).off()
+time0 = pyb.millis()
+while (pyb.millis() - time0) < 500:
+    pyb.LED(4).toggle()
+    pyb.delay(50)
 
 pyb.main('main.py') # main script to run after this on

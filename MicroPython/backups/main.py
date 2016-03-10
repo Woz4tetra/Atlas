@@ -43,7 +43,7 @@ increase = True
 
 sensor_queue = SensorQueue(
         gps,
-	    encoder,
+        encoder,
         imu
 )
 command_pool = CommandPool(
@@ -51,15 +51,32 @@ command_pool = CommandPool(
         # servo_brakes
 )
 
-log_data = True
+log_data = False
 log = None
 
-if log_data:
-    log = Recorder(frequency=0.01)
-    log.add_tracker(gps, "gps")
-    log.add_tracker(encoder, "encoder")
-    log.add_tracker(imu, "imu")
-    log.end_init()
+def toggle_log():
+    global log, log_data
+
+    time0 = pyb.millis()
+    while (pyb.millis() - time0) < 500:
+        pyb.LED(1).toggle()
+        pyb.delay(50)
+
+    if not log_data:
+        log = Recorder(frequency=0.01)
+        log.add_tracker(gps, "gps")
+        log.add_tracker(encoder, "encoder")
+        log.add_tracker(imu, "imu")
+        log.add_tracker(servo_steering, "servo")
+        log.end_init()
+
+        pyb.LED(1).on()
+        log_data = True
+        log.reset_time()
+    else:
+        log.close()
+        log_data = False
+        pyb.LED(1).off()
 
 communicator = Communicator(sensor_queue, command_pool)
 
@@ -67,6 +84,9 @@ while True:
     if new_data:
         while uart.any():
             gps.update(chr(uart.readchar()))
+
+    if pyb.Switch()():
+        toggle_log()
 
     new_data = False
 
@@ -87,6 +107,7 @@ while True:
         log.add_data(gps)
         log.add_data(encoder)
         log.add_data(imu)
+        log.add_data(servo_steering)
         log.end_row()
-
-    pyb.delay(5)
+    else:
+        pyb.delay(5)

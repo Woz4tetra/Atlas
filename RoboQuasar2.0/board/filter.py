@@ -34,8 +34,10 @@ class HeadingKalman(object):
     def __init__(self):
         self.filter = pykalman.KalmanFilter()
         self.filt_state_mean = np.array([0.0, 0.0])  # phi0 = 0, Vang0 = 0
-        self.covariance = np.identity(2)
+        self.covariance = np.array([[1.0,0.0],[0.0,1.0]])
         self.obs_matrix = np.identity(2)
+        #observation matrices are how you weight the inputs
+        self.observation_covariance = np.array([[1.0,0.0],[0.0,15.0]])
 
     def update(self, heading, gyro_z, dt):
         trans_matrix = np.array([[1, dt],
@@ -46,20 +48,45 @@ class HeadingKalman(object):
             filtered_state_covariance=self.covariance,
             observation=obs,
             transition_matrix=trans_matrix,
-            observation_matrix=self.obs_matrix)
+            observation_matrix=self.obs_matrix,
+            observation_covariance = self.observation_covariance)
+
+
+        #if the inputs are out of its bounds,
+        #reinitialize it to that bound so that it doesnt mess up
+        if self.filt_state_mean[0] < 0:
+            self.filt_state_mean[0] = 0
+            self.filter = pykalman.KalmanFilter(
+                    initial_state_mean = self.filt_state_mean,
+                    initial_state_covariance = self.covariance)
+        if self.filt_state_mean[0] >360:
+            self.filt_state_mean[0] = 360
+            self.filter = pykalman.KalmanFilter(
+                    initial_state_mean = self.filt_state_mean,
+                    initial_state_covariance = self.covariance)
 
         return self.filt_state_mean[0]
 
 
 class PositionKalman(object):
+    """
+    Takes in 5 observations: x, y, dist_traveled, ax, ay
+    Keeps track of x, y, vx, vy, ax, and ay
+    """
     def __init__(self):
-        self.filter = pykalman.KalmanFilter()
+        self.obs_covariance = np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
+                                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.0, 100.0, 0.0, 0.0],
+                                        [0.0, 0.0, 0.0, 100.0, 0.0],
+                                        [0.0, 0.0, 0.0, 0.0, 100.0]])
+        self.filter = pykalman.KalmanFilter(
+                observation_covariance = self.obs_covariance)
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(6)
 
     def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, heading, dt):
         observation = np.array([gps_x, gps_y, change_dist, accel_x, accel_y])
-
+#NOTE: SWITCHED SIN AND COSINE BLEOW THIS BC REASONS
         if (math.cos(heading) == 0):
             y_coeff = dt / math.sin(heading)
             x_coeff = 0
@@ -95,4 +122,5 @@ class PositionKalman(object):
             transition_matrix=transition_matrix,
             observation_matrix=observation_matrix)
 
-        return self.filt_state_mean[0], self.filt_state_mean[1]  # x, y
+        return self.filt_state_mean[0], self.filt_state_mean[1]
+    # x, y

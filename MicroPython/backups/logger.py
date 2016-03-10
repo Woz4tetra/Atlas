@@ -3,29 +3,23 @@ import pyb
 import os
 import time
 
+
 class Recorder(object):
-    def __init__(self, frequency=None, file_name=None, directory=None):
-        if directory is None:
-            if os.path.exists("/sd"):
-                self.directory = "/sd/logs/"
-            else:
-                self.directory = "/flash/logs/"
-        else:
-            if directory[-1] != "/":
-                directory += "/"
-            self.directory = directory
-
+    def __init__(self, frequency=None, file_name=None):
         if file_name is None:
-            self.file_name = time.strftime("%c").replace(":", ";") + ".csv"
-        else:
-            if file_name[-4:] != ".csv":
-                file_name += ".csv"
-            self.file_name = file_name
+            largest_num = 0
+            for log_file in os.listdir():
+                start_index = log_file.find("Log #")
+                end_index = log_file.rfind(".csv")
 
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-        print("Writing to:", self.directory + self.file_name)
-        self.csv_file = open(self.directory + self.file_name, 'w+')
+                if start_index != -1 and end_index != -1:
+                    log_num = int(log_file[start_index + 5:end_index])
+                    if log_num > largest_num:
+                        largest_num = log_num
+            self.file_name = "Log #" + str(largest_num + 1) + ".csv"
+
+
+        self.csv_file = open("logs/" + self.file_name, 'w+')
 
         self.current_row = ["timestamp"]
         self.sensor_indices = {}
@@ -36,7 +30,11 @@ class Recorder(object):
         self.frequency = frequency
         self.enable_record = True
 
-    def write_row(data_list):
+    def reset_time(self):
+        self.time0 = pyb.millis()
+        self.log_init_time = self.time0
+
+    def write_row(self, data_list):
         format_str = '{},' * len(data_list)
         format_str = format_str[:-1] + "\n"
         self.csv_file.write(format_str.format(*data_list))
@@ -58,6 +56,9 @@ class Recorder(object):
         for sensor_info in self.header_row:
             object_id, sensor_name, sensor, data_names = sensor_info
 
+            if not (isinstance(data_names, list) or isinstance(data_names, tuple)):
+                data_names = [data_names]
+
             self.sensor_indices[object_id] = len(self.current_row)
 
             names_row.append(sensor_name)
@@ -70,6 +71,8 @@ class Recorder(object):
         if self.enable_record:
             start_index = self.sensor_indices[serial_object.object_id]
             data = serial_object.update_log()
+            if not (isinstance(data, list) or isinstance(data, tuple)):
+                data = [data]
             if len(data) != len(serial_object.log_names):
                 raise ValueError(
                     "Data provided by update_log does not match expected number"

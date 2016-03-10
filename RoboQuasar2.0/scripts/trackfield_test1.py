@@ -69,7 +69,7 @@ try:
 
         joystick.update()
         servo_steering["position"] = int(
-            50 * (joystick.triggers.L - joystick.triggers.R)) - 25
+            50 * (joystick.triggers.L - joystick.triggers.R)) - 23
 
         if log_data:
             log.add_data(imu)

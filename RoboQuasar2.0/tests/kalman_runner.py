@@ -6,7 +6,7 @@ from board.logger import parse
 from board.filter import StateFilter
 from board.interpreter import Interpreter
 
-sensor_data = parse("Sat Feb 27 21;46;23 2016 modified.csv")
+sensor_data = parse("Sat Feb 27 22;05;19 2016.csv")
 
 if len(sensor_data[0]) == 23:
     initial_lat = sensor_data[0][2] + sensor_data[0][3] / 60
@@ -33,4 +33,6 @@ for row in sensor_data[1:]:
 
     x, y, phi = kfilter.update(gps_x, gps_y, enc_counts, accel_x, accel_y,
                                gyro_z, yaw, 0.105)
-    print("%9.8f,%9.8f,%9.8f" % (x, y, phi))
+    #print("%9.8f,%9.8f,%9.8f" % (x, y, phi))
+
+    print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f" % (gps_x,x,gps_y,y,enc_counts,phi))

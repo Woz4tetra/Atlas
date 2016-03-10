@@ -77,12 +77,15 @@ class SerialObject(object):
         if log_names is None:
             self.log_names = []
         else:
-            self.log_names = log_names
+            if isinstance(log_names, list) or isinstance(log_names, tuple):
+                self.log_names = log_names
+            else:
+                self.log_names = [log_names]
 
         self.data = []
         self.data_len = 0
         self.format_len = []
-        for data_format in formats:
+        for data_format in self.formats:
             if data_format[0] == 'u' or data_format[0] == 'i':
                 self.data.append(0)
                 self.format_len.append(int(data_format[1:]) // 4)

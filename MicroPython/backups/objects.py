@@ -14,8 +14,11 @@ from data import *
 class GPS(Sensor):
     def __init__(self, sensor_id):
         super().__init__(sensor_id, ['f', 'f'],
-            ["latitude", "longitude", "speed", "heading", "altitude",
-             "satellites in view", "satellites in use", "hdop", "pdop", "vdop"])
+            ["lat deg", "lat min", "long deg", "long min",
+             "speed x", "speed y", "speed z",
+             "heading", "altitude",
+             "satellites in view", "satellites in use",
+             "hdop", "pdop", "vdop"])
 
         self.gps_ref = MicropyGPS()
 
@@ -29,51 +32,58 @@ class GPS(Sensor):
         )
 
     def update_log(self):
-        return [
-            self.gps_ref.latitude,
-            self.gps_ref.longitude,
-            self.gps_ref.speed,
-            self.gps_ref.course,
+        return (
+            self.gps_ref.latitude[0:2] +
+            self.gps_ref.longitude[0:2] +
+            self.gps_ref.speed +
+            (self.gps_ref.course,
             self.gps_ref.altitude,
             self.gps_ref.satellites_in_view,
             self.gps_ref.satellites_in_use,
             self.gps_ref.hdop,
             self.gps_ref.pdop,
-            self.gps_ref.vdop,
-        ]
+            self.gps_ref.vdop)
+        )
 
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus, declination=(9, 17)):
         super().__init__(sensor_id,
                          ['f', 'f', 'f', 'f', 'f'],
-                         ["accel", "gyro", "euler", "quaternion", "temperature",
-                          "gravity", "magnet", "compass"])
+                         ["accel x", "accel y", "accel z",
+                          "gyro x", "gyro y", "gyro z",
+                          "euler x", "euler y", "euler z",
+                          "quat w", "quat x", "quat y", "quat z",
+                          "temperature",
+                          "grav x", "grav y", "grav z",
+                          "mag x", "mag y", "mag z",
+                          "compass"])
         self.bno = BNO055(bus)
+        self.mass_data = self.update_all()
+
+    def update_all(self):
+        self.mass_data = (
+            self.bno.get_lin_accel() +  # 0: x, 1: y, 2: z
+            self.bno.get_gyro() +  # 3: x, 4: y, 5: z
+            self.bno.get_euler() +  # 6: x, 7: y, 8: z
+            self.bno.get_quat() +  # 9: w, 10: x, 11: y, 12: z
+            (self.bno.get_temp(),) +  # 13
+            self.bno.get_grav() +   # 14: x, 15: y, 16: z
+            self.bno.get_mag() +   # 17: x, 18: y, 19: z
+            (self.bno.get_heading(),)  # 20
+        )
 
     def update_data(self):
-        accel = self.bno.get_lin_accel()
-        gyro = self.bno.get_gyro()
-        euler = self.bno.get_euler()
-        heading = self.bno.get_heading()
-        return [accel[0], accel[1], gyro[2], euler[2], heading]
+        self.update_all()
+        return self.mass_data[0], self.mass_data[1], self.mass_data[5], self.mass_data[8], self.mass_data[20]
 
     def update_log(self):
-        return [
-            self.bno.get_lin_accel(),
-            self.bno.get_gyro(),
-            self.bno.get_euler(),
-            self.bno.get_quat(),
-            self.bno.get_temp(),
-            self.bno.get_grav(),
-            self.bno.get_mag(),
-            self.bno.get_heading()
-        ]
+        return self.mass_data
 
 
 class HallEncoder(Sensor):
     def __init__(self, sensor_id, analog_pin):
-        super(HallEncoder, self).__init__(sensor_id, 'u64')
+        super(HallEncoder, self).__init__(sensor_id, 'u64', 'counts')
 
         self.pin_ref = (
             pyb.ADC(pyb.Pin(analog_pin, pyb.Pin.ANALOG)))
@@ -100,13 +110,11 @@ class HallEncoder(Sensor):
         return self.enc_dist
 
     def update_log(self):
-        return [
-            ["counts", self.enc_dist]
-        ]
+        return self.enc_dist
 
 class Servo(Command):
     def __init__(self, command_id, pin_num, start_pos=None):
-        super().__init__(command_id, 'i8')
+        super().__init__(command_id, 'i8', 'angle')
         self.servo_ref = pyb.Servo(pin_num)
         if start_pos is not None:
             self.servo_ref.angle(start_pos)
@@ -116,11 +124,8 @@ class Servo(Command):
         self.angle = angle
         self.servo_ref.angle(self.angle)
 
-
     def update_log(self):
-        return [
-            ["angle", self.angle]
-        ]
+        return self.angle
 
 # class MCP9808(Sensor):
 #     CONFIG = 0x01
