@@ -23,9 +23,9 @@ from analyzers.logger import Recorder
 from controllers.gcjoystick import joystick_init
 
 # data type is specified by incoming packet
-gps = Sensor(1, ['lat', 'long'])
-encoder = Sensor(2, ['counts'])
-imu = Sensor(3, ['accel_x', 'accel_y', 'yaw'])
+gps = Sensor(1, ['lat', 'long', 'heading'])
+encoder = Sensor(2, 'counts')
+imu = Sensor(3, 'yaw')
 
 servo_steering = Command(0, 'position', (90, -90))
 # servo_brakes = Command(1, 'position', (90, -90))
