@@ -78,11 +78,14 @@ class Map():
         return map
 
     @staticmethod
-    def convert_gpx(file_name, directory=None):
-        if directory is None:
-            directory = config.get_dir(":gpx")
+    def convert_gpx(file_name, in_directory=None, out_directory=None):
+        if in_directory is None:
+            in_directory = config.get_dir(":gpx")
 
-        with open(directory + file_name, 'r') as gpx_file:
+        if out_directory is None:
+            out_directory = config.get_dir(":maps")
+
+        with open(in_directory + file_name, 'r') as gpx_file:
             contents = gpx_file.read()
             data = []
 
@@ -97,12 +100,19 @@ class Map():
                 lon_index_end = contents.find('"', lon_index_start)
                 longitude = contents[lon_index_start: lon_index_end]
 
-                data = [latitude, longitude]
+                if len(longitude) > 0 and longitude[0] == '-':
+                    longitude = longitude[1:]
+                data.append([latitude, longitude])
 
                 contents = contents[lon_index_end:]
+            data.pop(-1)
 
             file_name = file_name[:-4] + " converted"
-            write_map(data, directory, file_name)
+
+            if "/" in file_name:
+                dir_index = file_name.find("/")
+                file_name = file_name[dir_index:]
+            Map.write_map(data, out_directory, file_name)
 
 class Binder:
     def __init__(self, map_name, shift_angle, origin_lat, origin_long, directory=None):
@@ -202,6 +212,11 @@ def test_shift():
     for row in test_obj.data:
         print("%f,%f" % (row[0], row[1]))
 
+def convert_map():
+    Map.convert_gpx(sys.argv[1])
+
+
 if __name__ == '__main__':
     # test_shift()
-    binder_test()
+    # binder_test()
+    convert_map()

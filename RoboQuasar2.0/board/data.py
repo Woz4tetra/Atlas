@@ -97,6 +97,7 @@ class SensorPool(object):
             if sensor_id in list(self.sensors.keys()):
                 sensor = self.sensors[sensor_id]
 
+                sensor._new_data_recved = True
                 sensor.parse(data)
                 sensor.current_packet = packet
         else:
@@ -202,11 +203,19 @@ class Sensor(SerialObject):
         :return: Sensor
         """
         super().__init__(sensor_id, properties)
+        self._new_data_recved = False
 
         sensor_pool.add_sensor(self)
 
     def __getitem__(self, item):
         return self._properties[item]
+
+    def has_new_data(self):
+        if self._new_data_recved:
+            self._new_data_recved = False
+            return True
+        else:
+            return False
 
     @staticmethod
     def format_hex(hex_string, data_format):

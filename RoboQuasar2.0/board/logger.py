@@ -1,19 +1,19 @@
 """
-    Written by Ben Warwick
+Written by Ben Warwick
 
-    data.py, written for RoboQuasar1.0
-    Version 12/7/2015
-    =========
+data.py, written for RoboQuasar2.0
+Version 3/10/2015
+=========
 
-    Allows for easy sensor and command data logging.
+Allows for easy sensor and command data logging.
 
-    This class integrates nicely with the Sensor and Command objects found in
-    data.py.
+This class integrates nicely with the Sensor and Command objects found in
+data.py.
 
-    Recorder will take in the input object's data and write it to a csv file.
-    It is formatted to be user-friendly and easy to interpret.
+Recorder will take in the input object's data and write it to a csv file.
+It is formatted to be user-friendly and easy to interpret.
 
-    Please refer to objects.py for proper usage tips.
+Please refer to objects.py for proper usage tips.
 """
 
 import csv
@@ -108,7 +108,7 @@ def is_float(string):
 
 
 def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=False):
-    if not os.path.isdir(file_dir):
+    if not os.path.isdir(file_dir) and not os.path.isfile(file_dir):
         file_dir = config.get_dir(":logs") + file_dir
 
     with open(file_dir, 'r') as csv_file:
