@@ -76,9 +76,9 @@ class PositionKalman(object):
     def __init__(self):
         self.obs_covariance = np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
                                         [0.0, 1.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 100.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 100.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 100.0]])
+                                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                                        [0.0, 0.0, 0.0, 1.0, 0.0],
+                                        [0.0, 0.0, 0.0, 0.0, 1.0]])
         self.filter = pykalman.KalmanFilter(
                 observation_covariance = self.obs_covariance)
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -86,7 +86,6 @@ class PositionKalman(object):
 
     def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, heading, dt):
         observation = np.array([gps_x, gps_y, change_dist, accel_x, accel_y])
-#NOTE: SWITCHED SIN AND COSINE BLEOW THIS BC REASONS
         if (math.cos(heading) == 0):
             y_coeff = dt / math.sin(heading)
             x_coeff = 0
