@@ -533,7 +533,7 @@ if __name__ == '__main__':
     print("Sensor IDs 0...3 have been taken")
 
 else:
-    from board.comm import Communicator
+    from microcontroller.comm import Communicator
 
 
     def start(baud=115200, use_handshake=True, check_status=False):
