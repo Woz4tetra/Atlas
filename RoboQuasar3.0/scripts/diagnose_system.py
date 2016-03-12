@@ -66,7 +66,7 @@ time.sleep(2)
 print("If the wheel is pointed towards the right, then it is working")
 print("Otherwise, the servo is not taking commands")
 servo_steering['position'] = -23
-tine.sleep(2)
+time.sleep(2)
 
 print("The wheel should now be pointed straight")
 
@@ -86,6 +86,6 @@ second_encoder = encoder['counts']
 num_rot = second_encoder - initial_encoder
 
 if num_rot > 0:
-    print("Succesfully completed at least one rotation")
+    print("Successfully completed at least one rotation")
 else:
-    print("did not succesfully complete one rotation")
+    print("Did not successfully complete one rotation")

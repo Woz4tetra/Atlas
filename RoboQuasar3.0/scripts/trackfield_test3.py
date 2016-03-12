@@ -34,8 +34,10 @@ joystick = joystick_init()
 
 start(use_handshake=False)
 
-log_data = False
+log_data = True
 log = None
+
+prev_status = is_running()
 
 time.sleep(0.5)
 
@@ -50,7 +52,21 @@ if log_data:
 
 try:
     while True:
-        # bayes filter with gps for observation and imu for transition
+        if imu.recved_data():
+            print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
+                                     imu["compass"], imu["yaw"]))
+        if gps.recved_data():
+            print(gps["lat"], gps["long"], gps["heading"])
+        if encoder.recved_data():
+            print(encoder["counts"])
+            # time.sleep(0.25)
+
+        if is_running() != prev_status:
+            if is_running() == True:
+                print("Connection made!")
+            else:
+                print("Connection lost...")
+            prev_status = is_running()
 
         joystick.update()
         servo_steering["position"] = int(
