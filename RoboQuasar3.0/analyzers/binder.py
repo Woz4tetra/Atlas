@@ -9,8 +9,8 @@ Finds goal position based on a supplied current position
 """
 
 class Binder:
-    def __init__(self, map_name, directory=None):
-        self.map = Map(map_name, directory)
+    def __init__(self, map):
+        self.map = map
         # set to None so that it will be able to start at any point on the track
         self.prev_bind = None
 
@@ -61,47 +61,3 @@ class Binder:
         accuracy = ((acc_dlat ** 2 + acc_dlong ** 2) ** 0.5) / 2
 
         return dist <= accuracy
-
-
-def binder_test():
-    binder = Binder("Mon Mar  7 17;54;59 2016 GPS Map.csv", 0,
-        26.611000061, 56.40650177)
-    for row in binder.map.data:
-        print("%f,%f" % (row[0], row[1]))
-
-    pos1 = (26.6, 56.329)
-    pos2 = (26.594, 56.34)
-    pos3 = (26.59, 56.35)
-    pos4 = (26.584, 56.357)
-    pos5 = (26.582, 56.36)
-
-    pos = binder.bind(pos1)
-    pre_bind = binder.prev_bind
-    print((binder.map.data[pre_bind]), "map[pre_bind]")
-    print((pos, pre_bind), "pos, pre_bind")
-
-    pos = binder.bind(pos2)
-    pre_bind = binder.prev_bind
-    print((binder.map.data[pre_bind]), "map[pre_bind]")
-    print((pos, pre_bind), "pos, pre_bind")
-
-    pos = binder.bind(pos3)
-    pre_bind = binder.prev_bind
-    print((binder.map.data[pre_bind]), "map[pre_bind]")
-    print((pos, pre_bind), "pos, pre_bind")
-
-    pos = binder.bind(pos4)
-    pre_bind = binder.prev_bind
-    print((binder.map.data[pre_bind]), "map[pre_bind]")
-    print((pos, pre_bind), "pos, pre_bind")
-
-    pos = binder.bind(pos5)
-    pre_bind = binder.prev_bind
-    print((binder.map.data[pre_bind]), "map[pre_bind]")
-    print((pos, pre_bind), "pos, pre_bind")
-
-def test_shift():
-    test_obj = Map("2015-11-08 07_58_30.csv", 0,
-                   40.4405106744, -79.9425712322)
-    for row in test_obj.data:
-        print("%f,%f" % (row[0], row[1]))
