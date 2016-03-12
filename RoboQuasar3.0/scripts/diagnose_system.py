@@ -17,9 +17,10 @@ from microcontroller.data import Sensor
 from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 
-#data
-gps = Sensor(1, ['lat','long'])
-encoder = Sensor(2, ['counts'])
+from controllers.gcjoystick import joystick_init
+
+gps = Sensor(1, ['lat','long', 'heading'])
+encoder = Sensor(2, 'counts')
 imu = Sensor(3, ['accel_x', 'accel_y', 'gyro_z', 'yaw', 'compass'])
 
 #controls
