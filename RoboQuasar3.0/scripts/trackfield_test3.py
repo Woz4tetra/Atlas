@@ -34,7 +34,7 @@ joystick = joystick_init()
 
 start(use_handshake=False)
 
-log_data = True
+log_data = False
 log = None
 
 prev_status = is_running()
@@ -52,13 +52,13 @@ if log_data:
 
 try:
     while True:
-        if imu.recved_data():
-            print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
-                                     imu["compass"], imu["yaw"]))
-        if gps.recved_data():
-            print(gps["lat"], gps["long"], gps["heading"])
-        if encoder.recved_data():
-            print(encoder["counts"])
+        # if imu.recved_data():
+        #     print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
+        #                              imu["compass"], imu["yaw"]))
+        # if gps.recved_data():
+        #     print(gps["lat"], gps["long"], gps["heading"])
+        # if encoder.recved_data():
+        #     print(encoder["counts"])
             # time.sleep(0.25)
 
         if is_running() != prev_status:
@@ -70,7 +70,7 @@ try:
 
         joystick.update()
         servo_steering["position"] = int(
-            50 * (joystick.triggers.L - joystick.triggers.R)) - 23
+            50 * (joystick.triggers.L - joystick.triggers.R)) - 22
 
         if log_data:
             log.add_data(imu)
