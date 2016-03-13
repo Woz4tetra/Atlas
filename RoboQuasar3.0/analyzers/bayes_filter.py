@@ -12,33 +12,55 @@ position on the provided gps map
 
 import numpy as np
 from scipy.ndimage import filters
+import math
+import sys
+
+sys.path.insert(0, "../")
+
+from analyzers.map import Map
+
+def old_round(number, decimal=0):
+    place = 10 ** decimal
+    return float(
+        math.floor((number * place) + math.copysign(0.5, number))) / place
 
 
 class BayesFilter():
-    def __init__(self, map, initial_pos):
-        self.map = map  # GPS map of a course
+    def __init__(self, map_name, initial_pos, num_redistrib_samples=None,
+                 particle_cut_off=0.5, deg_to_meters=111226.343,
+                 num_samples=None,
+                 gauss_mask=(5, 0.5)):
+        self.map = Map(map_name)  # GPS map of a course
 
-        self.num_samples = 100
-        self.redistrib_samples = 70
-        self.particle_cut_off = 0.5
+        if num_samples is None:
+            self.num_samples = len(self.map)
+        else:
+            self.num_samples = num_samples
+
+        if num_redistrib_samples is None:
+            self.redistrib_samples = self.num_samples // 3
+        else:
+            self.redistrib_samples = num_redistrib_samples
+
+        self.particle_cut_off = particle_cut_off
 
         # Uniform sampling of num_samples points from the course
         # a list of indices from the map
-        self.particles = []
+        self.particles = [None] * self.num_samples
         increment = len(self.map) // self.num_samples
         map_index = 0
         for index in range(self.num_samples):
-            self.particles[index] = self.map[map_index]
+            self.particles[index] = map_index
             map_index += increment
 
         # the weight of each particle (smaller numbers are better here)
-        self.particle_weights = []
+        self.particle_weights = [1] * len(self.particles)
 
-        self.deg_to_meters = 111226.343
+        self.deg_to_meters = deg_to_meters
 
         self.prev_pos = self.find_nearest(initial_pos)
 
-        self.gauss_mask = self.gauss((5, 1), 0.5)
+        self.gauss_mask = self.gauss((gauss_mask[0], 1), gauss_mask[1])
 
     def take_measurement(self, gps_coord):
         meas_lat, meas_lon = gps_coord
@@ -50,14 +72,13 @@ class BayesFilter():
             # weights determined by distance from measurement
             # Smaller distances are better (weighted higher)
             self.particle_weights[index] = ((lat - meas_lat) ** 2 + (
-            lon - meas_lon) ** 2) ** 0.5
+                lon - meas_lon) ** 2) ** 0.5
 
         likely_weight = min(self.particle_weights)
         locations = []
         for index, weight in enumerate(self.particle_weights):
             if weight == likely_weight:
                 locations.append(self.map[self.particles[index]])
-
         return locations
 
     def redistrib_particles(self):
@@ -73,11 +94,13 @@ class BayesFilter():
         index = 0
         add_forward = True
         offset = 1
-        while particles_left > 0:
+        while particles_left > 0 and len(self.particles) != self.num_samples:
             if add_forward:
-                self.particles.append(self.particles[index] + offset)
+                if self.particles[index] + offset not in self.particles:
+                    self.particles.append(self.particles[index] + offset)
             else:
-                self.particles.append(self.particles[index] - offset)
+                if self.particles[index] - offset not in self.particles:
+                    self.particles.append(self.particles[index] - offset)
 
             particles_left -= 1
             index = (index + 1) % major_end_index
@@ -86,7 +109,7 @@ class BayesFilter():
                 offset += 1
 
         particles_left = self.num_samples - self.redistrib_samples
-        while particles_left > 0:
+        while particles_left > 0 and len(self.particles) != self.num_samples:
             random_index = np.random.randint(0, len(self.map))
             if random_index not in self.particles:
                 self.particles.append(random_index)
@@ -122,8 +145,32 @@ class BayesFilter():
         at the end of each time step to the GPS's measured position to keep
         it from drifting.
         """
+        self.redistrib_particles()
+
         moved_by = self.find_nearest(enc_position) - self.prev_pos
 
+        min_index = self.particles.index(min(self.particles))
+        self.particles = self.particles[min_index:] + self.particles[:min_index]
 
-        # shift array by 'moved_by'
-        self.particles = self.particles[moved_by:] + self.particles[:moved_by]
+        # spread particles (transition error)
+        for index in range(1, len(self.particles) // 2):
+            dist = self.particles[index] + self.particles[index - 1]
+            self.particles[index] += int(dist * old_round(moved_by / 2))
+        for index in range(len(self.particles) - 1, len(self.particles) // 2, -1):
+            dist = self.particles[index] + self.particles[index - 1]
+            self.particles[index] -= int(dist * old_round(moved_by / 2))
+
+        # shift indices by 'moved_by'
+        for index in range(len(self.particles)):
+            self.particles[index] = (moved_by + self.particles[index]) % len(
+                self.map)
+
+
+if __name__ == '__main__':
+    bayes = BayesFilter("test maps/test map circle.csv", (11, 0))
+    print(bayes.take_measurement((10.5, 0.1)))
+    bayes.transition((10.3, 1.8))
+    print(bayes.take_measurement((10.3480775301221, 1.8364817766693)))
+    bayes.transition((9.3, 1))
+    print(bayes.take_measurement((9.89692620785909, 3.52020143325669)))
+    # print(bayes.take_measurement((0, 0)))

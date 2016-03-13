@@ -11,9 +11,8 @@ Handles map reading and parsing
 import time
 import csv
 import sys
-import os
 import numpy as np
-import copy
+import pprint
 
 sys.path.insert(0, '../')
 
@@ -31,6 +30,12 @@ class Map():
 
     def __setitem__(self, item, value):
         self.data[item] = value
+
+    def __len__(self):
+        return len(self.data)
+
+    def __str__(self):
+        return pprint.pformat(self.data)
 
     @staticmethod
     def get_map(map_name, directory=None):
