@@ -17,9 +17,10 @@ from microcontroller.data import Sensor
 from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 
-#data
-gps = Sensor(1, ['lat','long'])
-encoder = Sensor(2, ['counts'])
+from controllers.gcjoystick import joystick_init
+
+gps = Sensor(1, ['lat','long', 'heading'])
+encoder = Sensor(2, 'counts')
 imu = Sensor(3, ['accel_x', 'accel_y', 'gyro_z', 'yaw', 'compass'])
 
 #controls
@@ -65,7 +66,7 @@ time.sleep(2)
 print("If the wheel is pointed towards the right, then it is working")
 print("Otherwise, the servo is not taking commands")
 servo_steering['position'] = -23
-tine.sleep(2)
+time.sleep(2)
 
 print("The wheel should now be pointed straight")
 
@@ -85,6 +86,6 @@ second_encoder = encoder['counts']
 num_rot = second_encoder - initial_encoder
 
 if num_rot > 0:
-    print("Succesfully completed at least one rotation")
+    print("Successfully completed at least one rotation")
 else:
-    print("did not succesfully complete one rotation")
+    print("Did not successfully complete one rotation")

@@ -63,14 +63,15 @@ class Communicator(threading.Thread):
 
         while not self.exit_flag:
             self.thread_time = round(time.time() - self.start_time)
-            packet = bytearray()
-            incoming = self.serial_ref.read()
-            while incoming != b'\r':
-                if incoming is not None and incoming != b'':
-                    packet += incoming
+            if self.serial_ref.inWaiting() > 0:
+                packet = bytearray()
                 incoming = self.serial_ref.read()
-            if len(packet) > 0:
-                self.sensor_pool.update(packet)
+                while incoming != b'\r':
+                    if incoming is not None and incoming != b'':
+                        packet += incoming
+                    incoming = self.serial_ref.read()
+                if len(packet) > 0:
+                    self.sensor_pool.update(packet)
 
     def put(self, packet):
         """

@@ -161,7 +161,11 @@ class SerialObject(object):
         """
 
         assert (type(object_id) == int)
-        self._properties = self.init_properties(list(properties))
+        if type(properties) == str:
+            properties = [properties]
+        elif type(properties) != list:
+            properties = list(properties)
+        self._properties = self.init_properties(properties)
 
         self.object_id = object_id
 
@@ -210,7 +214,7 @@ class Sensor(SerialObject):
     def __getitem__(self, item):
         return self._properties[item]
 
-    def has_new_data(self):
+    def recved_data(self):
         if self._new_data_recved:
             self._new_data_recved = False
             return True
@@ -535,23 +539,26 @@ if __name__ == '__main__':
 else:
     from microcontroller.comm import Communicator
 
+    reset = Command(255, 'reset', (False, True))
 
     def start(baud=115200, use_handshake=True, check_status=False):
         global communicator
         communicator = Communicator(baud, sensor_pool, use_handshake)
         communicator.start()
         if check_status:
-            status = [False, False, False]
+            status = [False] * 5
             status_index = 0
 
             print("Checking if board is alive...")
-            while any(status) == False:
+            while not all(status):
                 if is_running():
                     status[status_index] = True
                     status_index += 1
-                print(".", end="")
-                time.sleep(0.25)
+                print(".")
+                time.sleep(2)
             print("\nIt's alive!")
+
+        reset['reset'] = True
 
 
     def stop():
