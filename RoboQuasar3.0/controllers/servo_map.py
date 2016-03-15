@@ -27,7 +27,6 @@ hypotenuse = 50
 
 for index in range(len(lookup_table)):
     lookup_table[index][1] = math.asin(lookup_table[index][1] / hypotenuse)
-    print( lookup_table[index])
 
 def py27_round(x):
     return int(x + math.copysign(0.5, x))
@@ -54,7 +53,6 @@ def map_servo(angle):
 def servo_value(current_state, goal_position):
     x, y, heading = current_state
     goal_x, goal_y = goal_position
-    print(math.atan2(goal_y - y, goal_x - x) - heading)
     return map_servo(math.atan2(goal_y - y, goal_x - x) - heading)
 
 # if __name__ == '__main__':

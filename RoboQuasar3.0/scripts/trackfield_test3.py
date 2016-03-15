@@ -21,6 +21,13 @@ from microcontroller.data import start, stop, is_running
 from analyzers.logger import Recorder
 
 from controllers.gcjoystick import joystick_init
+from controllers.servo_map import *
+
+script_options = dict(
+    log_data=True,
+    enable_joystick=True,
+    print_data=False
+)
 
 # data type is specified by incoming packet
 gps = Sensor(1, ['lat', 'long', 'heading'])
@@ -30,18 +37,18 @@ imu = Sensor(3, ['accel_x', 'accel_y', 'yaw', 'compass'])
 servo_steering = Command(0, 'position', (90, -90))
 # servo_brakes = Command(1, 'position', (90, -90))
 
-joystick = joystick_init()
-
 start(use_handshake=False)
 
-log_data = False
+if script_options['enable_joystick']:
+    joystick = joystick_init()
+
 log = None
 
-prev_status = is_running()
+prev_status = not is_running()
 
 time.sleep(0.5)
 
-if log_data:
+if script_options['log_data']:
     log = Recorder(frequency=0.01)
     log.add_tracker(imu, 'imu')
     log.add_tracker(encoder, 'encoder')
@@ -52,14 +59,15 @@ if log_data:
 
 try:
     while True:
-        # if imu.recved_data():
-        #     print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
-        #                              imu["compass"], imu["yaw"]))
-        # if gps.recved_data():
-        #     print(gps["lat"], gps["long"], gps["heading"])
-        # if encoder.recved_data():
-        #     print(encoder["counts"])
-            # time.sleep(0.25)
+        if script_options['print_data']:
+            if imu.recved_data():
+                print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
+                                         imu["compass"], imu["yaw"]))
+            if gps.recved_data():
+                print(gps["lat"], gps["long"], gps["heading"])
+            if encoder.recved_data():
+                print(encoder["counts"])
+                # time.sleep(0.25)
 
         if is_running() != prev_status:
             if is_running() == True:
@@ -68,11 +76,13 @@ try:
                 print("Connection lost...")
             prev_status = is_running()
 
-        joystick.update()
-        servo_steering["position"] = int(
-            50 * (joystick.triggers.L - joystick.triggers.R)) - 22
+        if script_options['enable_joystick']:
+            joystick.update()
+            servo_steering["position"] = int(
+                50 * (joystick.triggers.L - joystick.triggers.R)) - 23
+            # servo_steering["position"] = servo_value([0,0,0], [joystick.mainStick.y, -5.34/90*joystick.mainStick.x])
 
-        if log_data:
+        if script_options['log_data']:
             log.add_data(imu)
             log.add_data(encoder)
             log.add_data(gps)

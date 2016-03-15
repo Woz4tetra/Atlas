@@ -558,6 +558,7 @@ else:
                 time.sleep(2)
             print("\nIt's alive!")
 
+        communicator.serial_ref.write(struct.pack("B", 4))
         reset['reset'] = True
 
 
