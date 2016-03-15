@@ -94,11 +94,11 @@ def plot_all(plot_func, directory=None, **params):
             plot_func(directory + file_name, **params)
 
 if __name__ == '__main__':
-    plot_all(plot_angles, source="yaw", directory="Test Day 4")
-    # plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", density=100)
+    # plot_all(plot_angles, source="yaw", directory="Test Day 4")
+    plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", density=100)
     # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
 
-    # data = parse("/home/atlas/Documents/Atlas/RoboQuasar2.0/map/maps/2016-03-07 21_46_18 converted.csv", omit_header_rows=False)
-    # plt.plot(data[:, 0], data[:, 1])
+    data = parse(config.get_dir(":maps") + "2016-03-07 21_46_18 converted.csv", omit_header_rows=False)
+    plt.plot(data[:, 0], data[:, 1])
 
     plt.show()

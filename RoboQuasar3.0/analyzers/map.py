@@ -37,6 +37,17 @@ class Map():
     def __str__(self):
         return pprint.pformat(self.data)
 
+    def find_nearest(self, position):
+        map_dist = [0] * len(self.data)
+        for index in range(len(map_dist)):
+            dlat = abs(float(self.data[index][0] - position[0]))
+            dlong = abs(float(self.data[index][1] - position[1]))
+            dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
+            map_dist[index] = dist
+        smallest_value = min(map_dist)
+        index = map_dist.index(smallest_value)
+        return index
+
     @staticmethod
     def get_map(map_name, directory=None):
         if directory is None:
