@@ -6,8 +6,8 @@ import math
 class Interpreter():
     def __init__(self, initial_encoder, origin_lat, origin_long, shift_angle):
         self.prev_encoder = initial_encoder
-        self.origin_lat = origin_lat * math.pi / 180
-        self.origin_long = origin_long * math.pi / 180
+        self.origin_lat = origin_lat #* math.pi / 180
+        self.origin_long = origin_long# * math.pi / 180
         self.wheel_radius = 0.1333  # TODO calculate wheel radius
         self.deg_to_m = 111226.343  # convert gps degrees to meters
         self.shift_angle = shift_angle
@@ -24,8 +24,8 @@ class Interpreter():
         return 2 * math.pi * self.wheel_radius * delta_counts
 
     def convert_gps(self, latitude, longitude):
-        latitude *= math.pi / 180
-        longitude *= math.pi / 180
+        #latitude *= math.pi / 180
+        #longitude *= math.pi / 180
         lat_mean = (latitude + self.origin_lat) / 2
         x = (longitude - self.origin_long) * math.cos(lat_mean) * self.deg_to_m
         y = (latitude - self.origin_lat) * self.deg_to_m

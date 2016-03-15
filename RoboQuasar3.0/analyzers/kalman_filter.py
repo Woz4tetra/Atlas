@@ -24,46 +24,55 @@ class StateFilter(object):
 
     def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, heading, dt):
         #changed so that it no longer runs a filter on the yaw value
-        x, y = self.placeKalman.update(gps_x, gps_y, change_dist,
-                                       accel_x, accel_y, heading, dt)
-        return x, y, heading
+        data = self.placeKalman.update(gps_x, gps_y, change_dist,
+                                       accel_x, accel_y, heading,
+                                       dt)
+        return data
 
 
 class PositionKalman(object):
     """
-    Takes in 5 observations: x, y, dist_traveled, ax, ay
+    Takes in 6 observations: x, y, dx, dy, ax, ay
     Keeps track of x, y, vx, vy, ax, and ay
     """
     def __init__(self):
-        self.obs_covariance = np.array([[1.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 1.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 100.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 100.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 100.0]])
+        self.obs_covariance = \
+            np.array([[1, 0, 0, 0, 0, 0],
+                      [0, 1, 0, 0, 0, 0],
+                      [0, 0, 1, 0, 0, 0],
+                      [0, 0, 0, 1, 0, 0],
+                      [0, 0, 0, 0, 1, 0],
+                      [0, 0, 0, 0, 0, 1]])
+
+        self.trans_covariance = \
+            np.array([[0.5, 0, 0, 0, 0, 0],
+                      [0, 0.5, 0, 0, 0, 0],
+                      [0, 0, 1, 0, 0, 0],
+                      [0, 0, 0, 1, 0, 0],
+                      [0, 0, 0, 0, 1, 0],
+                      [0, 0, 0, 0, 0, 1]])
+
         self.filter = pykalman.KalmanFilter(
-                observation_covariance = self.obs_covariance)
+                observation_covariance = self.obs_covariance,
+                transition_covariance  = self.trans_covariance)
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(6)
 
     def update(self, gps_x, gps_y, change_dist, accel_x, accel_y, heading, dt):
-        observation = np.array([gps_x, gps_y, change_dist, accel_x, accel_y])
-        if (math.cos(heading) == 0):
-            y_coeff = dt / math.sin(heading)
-            x_coeff = 0
 
-        elif (math.sin(heading) == 0):
-            x_coeff = dt / math.cos(heading)
-            y_coeff = 0
+        #need to convert change_dist into dx,dy
+        dx = change_dist * math.cos(heading)
+        dy = change_dist * math.sin(heading)
 
-        else:
-            x_coeff = 0.5 * dt / math.cos(heading)
-            y_coeff = 0.5 * dt / math.sin(heading)
+        observation = np.array([gps_x, gps_y,
+            dx, dy, accel_x, accel_y])
 
         observation_matrix = np.array(
-            [[1, 0, 0, 0, 0, 0],
-             [0, 1, 0, 0, 0, 0],
-             [0, 0, x_coeff, y_coeff, 0, 0],
-             [0, 0, 0, 0, 1, 0],
+            [[1, 0, 0,  0, 0, 0],
+             [0, 1, 0,  0, 0, 0],
+             [0, 0, dt, 0, 0, 0],
+             [0, 0, 0, dt, 0, 0],
+             [0, 0, 0, 0,  1, 0],
              [0, 0, 0, 0, 0, 1]])
 
         transition_matrix = np.array(
@@ -82,5 +91,5 @@ class PositionKalman(object):
             transition_matrix=transition_matrix,
             observation_matrix=observation_matrix)
 
-        return self.filt_state_mean[0], self.filt_state_mean[1]
-    # x, y
+        return self.filt_state_mean
+    # all of them

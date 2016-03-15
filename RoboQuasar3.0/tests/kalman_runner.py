@@ -42,14 +42,16 @@ for row in sensor_data[1:]:
          encoder_counts, accel_x, accel_y, yaw, compass) = row
 
 
+    #print("%9.8f\t%9.8f\t%9.8f" % (accel_x, accel_y, yaw))
+
     gps_x, gps_y, enc_counts, yaw = interpreter.convert(
         latitude, longitude, encoder_counts, yaw)
 
-    x, y, phi = kfilter.update(gps_x, gps_y, enc_counts, accel_x,
-            accel_y, yaw, 0.105)
-    #print("%9.8f,%9.8f,%9.8f" % (x, y, phi))
+    x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, enc_counts,
+            accel_x, accel_y, yaw, 0.105)
 
-    print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f" % (gps_x,x,gps_y,y,enc_counts,phi))
+    print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
+            % (gps_x,gps_y,x,y,vx,vy,ax,ay))
 
 
 
