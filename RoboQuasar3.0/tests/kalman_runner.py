@@ -1,4 +1,5 @@
 import sys
+import math
 
 sys.path.insert(0, "../")
 
@@ -14,18 +15,30 @@ if len(sensor_data[0]) == 23:
     initial_heading = sensor_data[0][16]
     prev_encoder_value = sensor_data[0][9]
 
+
 elif len(sensor_data[0]) == 10:
     initial_lat = sensor_data[0][2]
     initial_lon = sensor_data[0][3]
-    initial_heading = sensor_data[0][8]  # TODO: Check if this is right
+    initial_heading = sensor_data[0][8]
     #currently using yaw rather than heading
     prev_encoder_value = sensor_data[0][5]
+    prev_time = sensor_data[0][0]
+
 
 else:
     raise Exception("Missing degrees on gps")
 
-interpreter = Interpreter(prev_encoder_value, initial_lat, initial_lon, 1.344451296765884)
+interpreter = Interpreter(prev_encoder_value, initial_lat,
+                          initial_lon, initial_heading)
+# this value was 1.344451296765884 (added 2 to it)
+# then made it intial_heading * pi/180
+
+
+
 kfilter = StateFilter()
+
+prev_acc = [0,0]
+prev_gps = [0,0]
 
 for row in sensor_data[1:]:
 
@@ -47,11 +60,28 @@ for row in sensor_data[1:]:
     gps_x, gps_y, enc_counts, yaw = interpreter.convert(
         latitude, longitude, encoder_counts, yaw)
 
+#cant really deal with figuring out whether encoder was updated or not from
+#here. there isnt enough information that i can find
+    enc_flag = False
+    gps_flag = False
+
+    if prev_acc == [accel_x, accel_y]:
+        acc_flag = True
+    else:
+        acc_flag = False
+
+    prev_acc = [accel_x, accel_y]
+
+    if prev_gps == [gps_x, gps_y]:
+        gps_flag = True
+    else:
+        gps_flag = False
+
     x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, enc_counts,
-            accel_x, accel_y, yaw, 0.105)
+            enc_flag, accel_x, accel_y, yaw,
+            timestamp - prev_time, acc_flag, gps_flag)
+
+    prev_time = timestamp
 
     print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
             % (gps_x,gps_y,x,y,vx,vy,ax,ay))
-
-
-
