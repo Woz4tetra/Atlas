@@ -20,22 +20,25 @@ import config
 
 
 class Map():
-    def __init__(self, map_name=None, directory=None, origin_lat=0,
-                 origin_long=0, shift_angle=0):
+    def __init__(self, map_name=None, directory=None, origin_lat=None,
+                 origin_long=None, shift_angle=None):
         if map_name is None:
             self.data = []
         else:
             self.data = self.get_map(map_name, directory)
-        self.origin_lat = origin_lat
-        self.origin_long = origin_long
-        self.shift_matrix = np.array(
-            [[np.cos(shift_angle), np.sin(shift_angle)],
-             [-np.sin(shift_angle), np.cos(shift_angle)]]
-        )
-        self.deg_to_m = 111226.343
 
-        self.convert_data()
-        self.data = np.dot(self.data, self.shift_matrix)
+        if origin_lat is not None and origin_long is not None:
+            self.origin_lat = origin_lat
+            self.origin_long = origin_long
+            self.shift_matrix = np.array(
+                [[np.cos(shift_angle), np.sin(shift_angle)],
+                 [-np.sin(shift_angle), np.cos(shift_angle)]]
+            )
+            self.deg_to_m = 111226.343
+
+            self.convert_data()
+        if shift_angle is not None:
+            self.data = np.dot(self.data, self.shift_matrix)
 
     def convert_data(self):
         """
@@ -155,4 +158,4 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
 
 
 if __name__ == '__main__':
-    pass
+    Map("Sat Feb 27 21;46;23 2016 GPS Map.csv").remove_duplicates()

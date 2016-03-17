@@ -32,8 +32,8 @@ directories = {
     'controllers': CONFIGDIR + "/controllers/",
     'scripts': CONFIGDIR + "/scripts/",
     'test': CONFIGDIR + "/tests/",
-    'sound': CONFIGDIR + "/sounds/",
-    'tunes': CONFIGDIR + "/sounds/tunes/",
+    'sound': CONFIGDIR + "/sound/",
+    'tunes': CONFIGDIR + "/sound/tunes/",
     'project': CONFIGDIR + "/",
 }
 

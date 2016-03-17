@@ -59,7 +59,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
     # 1.344451296765884 for shift_angle?
     interpreter = Interpreter(0, gps["lat"], gps["long"], imu["compass"])
     kfilter = StateFilter()
-    map = Map("", origin_lat=gps["lat"], origin_long=gps["long"],
+    map = Map("Sat Feb 27 21;46;23 2016 GPS Map.csv", origin_lat=gps["lat"], origin_long=gps["long"],
               shift_angle=imu["compass"])
     binder = Binder(map)
 
@@ -114,7 +114,11 @@ def main(log_data=True, manual_mode=True, print_data=False):
             else:
                 gps_x, gps_y, change_dist, shifted_yaw = interpreter.convert(
                     gps["lat"], gps["long"], encoder["counts"], imu["yaw"])
-                x, y, heading = kfilter.update()
+                current_time = time.time()
+                x, y, heading = kfilter.update(gps_x, gps_y, enc_counts,
+                        enc_flag, accel_x, accel_y, yaw,
+                        current_time - prev_time, acc_flag, gps_flag)
+                prev_time = current_time
                 goal_x, goal_y = binder.bind((x, y))
                 servo_steering["position"] = \
                     servo_value((x, y, heading), (goal_x, goal_y))

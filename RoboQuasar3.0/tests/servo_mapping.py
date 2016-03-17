@@ -27,8 +27,8 @@ try:
         # new_servo_angle = math.pi/180.0 * new_servo_value
         # servo["position"] = map_servo(new_servo_angle)
         print('x,y: ', joystick.mainStick.y, -joystick.mainStick.x)
-        servo["position"] = servo_value([0,0,0], [joystick.mainStick.y, -5.34/90*joystick.mainStick.x])
-        print('servo_value: ', servo_value([0,0,0], [joystick.mainStick.y, -5.34/90*joystick.mainStick.x]))
+        servo["position"] = servo_value([0,0,0], [joystick.mainStick.y, -5.34/180*joystick.mainStick.x])
+        print('servo_value: ', servo_value([0,0,0], [joystick.mainStick.y, -5.34/180*joystick.mainStick.x]))
         time.sleep(0.005)
 except:
     traceback.print_exc()

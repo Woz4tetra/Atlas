@@ -28,6 +28,7 @@ from analyzers.kalman_filter import StateFilter
 from analyzers.interpreter import Interpreter
 from analyzers.map import Map
 from analyzers.binder import Binder
+from analyzers.logger import parse
 
 from controllers.gcjoystick import joystick_init
 from controllers.servo_map import *
@@ -35,104 +36,118 @@ from controllers.servo_map import *
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=True, print_data=False):
-    # data type is specified by incoming packet
-    gps = Sensor(1, ['lat', 'long', 'heading'])
-    encoder = Sensor(2, 'counts')
-    imu = Sensor(3, ['accel_x', 'accel_y', 'yaw', 'compass'])
 
+def find_nearest(map, position):
+    map_dist = [0] * len(map)
+    for index in range(len(map_dist)):
+        dlat = abs(float(map[index][0] - position[0]))
+        dlong = abs(float(map[index][1] - position[1]))
+        dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
+        map_dist[index] = dist
+    smallest_value = min(map_dist)
+    index = map_dist.index(smallest_value)
+    return map[index]
+
+def main(log_data=True, manual_mode=True, print_data=False):
     servo_steering = Command(0, 'position', (90, -90))
     # servo_brakes = Command(1, 'position', (90, -90))
+
+    sensor_data = parse("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    if len(sensor_data[0]) == 23:
+        initial_lat = sensor_data[0][2] + sensor_data[0][3] / 60
+        initial_lon = sensor_data[0][4] + sensor_data[0][5] / 60
+        initial_heading = sensor_data[0][16]
+        prev_encoder_value = sensor_data[0][9]
+    elif len(sensor_data[0]) == 10:
+        initial_lat = sensor_data[0][2]
+        initial_lon = sensor_data[0][3]
+        initial_heading = sensor_data[0][8]
+        #currently using yaw rather than heading
+        prev_encoder_value = sensor_data[0][5]
+        prev_time = sensor_data[0][0]
+    else:
+        raise Exception("Missing degrees on gps")
 
     joystick = joystick_init()
     notifier = TunePlayer()
 
     print("Awaiting user input...")
+    notifier.play("Coin.wav")
     while not joystick.buttons.A:
         joystick.update()
         time.sleep(0.005)
 
-    notifier.play("")  # TODO: Find sound effects
+    notifier.play("Coin.wav")  # TODO: Find sound effects
 
     start(use_handshake=False)
 
     # 1.344451296765884 for shift_angle?
-    interpreter = Interpreter(0, gps["lat"], gps["long"], imu["compass"])
+    interpreter = Interpreter(prev_encoder_value, initial_lat,
+                              initial_lon, initial_heading)
+    prev_acc = [0,0]
+    prev_gps = [0,0]
+
     kfilter = StateFilter()
-    map = Map("", origin_lat=gps["lat"], origin_long=gps["long"],
-              shift_angle=imu["compass"])
+    map = Map("Sat Feb 27 21;46;23 2016 GPS Map.csv",
+              origin_lat=initial_lat,
+              origin_long=initial_lon,
+              shift_angle=initial_heading)
     binder = Binder(map)
 
-    log = None
+    for index in range(1, len(sensor_data), 100):
+        row = sensor_data[index]
+        if len(row) == 23:
+            timestamp, servo, lat_deg, lat_min, lon_deg, lon_min, gps_speed, \
+            gps_heading, gps_hdop, encoder_counts, accel_x, accel_y, accel_z, \
+            gyro_x, gyro_y, gyro_z, yaw, pitch, roll, quat_w, quat_x, quat_y, \
+            quat_z = row
+            latitude = lat_deg + lat_min / 60
+            longitude = lon_deg + lon_min / 60
 
-    prev_status = not is_running()
+        elif len(row == 10):
+            (timestamp, servo, latitude, longitude, gps_heading,
+             encoder_counts, accel_x, accel_y, yaw, compass) = row
 
-    time.sleep(0.5)
 
-    if log_data:
-        log = Recorder(frequency=0.01)
-        log.add_tracker(imu, 'imu')
-        log.add_tracker(encoder, 'encoder')
-        log.add_tracker(gps, 'gps')
-        log.add_tracker(servo_steering, 'servo_steering')
-        # log.add_tracker(servo_brakes, 'servo_brakes')
-        log.end_init()
+        #print("%9.8f\t%9.8f\t%9.8f" % (accel_x, accel_y, yaw))
 
-    try:
-        while True:
-            imu_flag = imu.received()
-            gps_flag = gps.received()
-            enc_flag = encoder.received()
+        gps_x, gps_y, enc_counts, yaw = interpreter.convert(
+            latitude, longitude, encoder_counts, yaw)
 
-            if print_data:
-                if imu_flag:
-                    print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
-                                             imu["compass"], imu["yaw"]))
-                if gps_flag:
-                    print(gps["lat"], gps["long"], gps["heading"])
-                    notifier.play("")  # TODO: Find sound effects
-                if enc_flag:
-                    print(encoder["counts"])
-                    # time.sleep(0.25)
+    #cant really deal with figuring out whether encoder was updated or not from
+    #here. there isnt enough information that i can find
+        enc_flag = False
+        gps_flag = False
 
-            if is_running() != prev_status:
-                if is_running():
-                    print("Connection made!")
-                    notifier.play("")  # TODO: Find sound effects
-                else:
-                    print("Connection lost...")
-                    notifier.play("")  # TODO: Find sound effects
-                prev_status = is_running()
+        if prev_acc == [accel_x, accel_y]:
+            acc_flag = True
+        else:
+            acc_flag = False
 
-            if manual_mode:
-                joystick.update()
-                # servo_steering["position"] = int(
-                #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
-                servo_steering["position"] = \
-                    servo_value([0, 0, 0], [joystick.mainStick.y,
-                                            -5.34 / 90 * joystick.mainStick.x])
-            else:
-                gps_x, gps_y, change_dist, shifted_yaw = interpreter.convert(
-                    gps["lat"], gps["long"], encoder["counts"], imu["yaw"])
-                x, y, heading = kfilter.update()
-                goal_x, goal_y = binder.bind((x, y))
-                servo_steering["position"] = \
-                    servo_value((x, y, heading), (goal_x, goal_y))
+        prev_acc = [accel_x, accel_y]
 
-            if log_data:
-                log.add_data(imu, imu_flag)
-                log.add_data(encoder, gps_flag)
-                log.add_data(gps, enc_flag)
-                log.add_data(servo_steering)
-                # log.add_data(servo_brakes)
-                log.end_row()
+        if prev_gps == [gps_x, gps_y]:
+            gps_flag = True
+        else:
+            gps_flag = False
 
-            time.sleep(0.005)
-    except KeyboardInterrupt:
-        traceback.print_exc()
-    finally:
-        stop()
+        x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, enc_counts,
+                enc_flag, accel_x, accel_y, yaw,
+                timestamp - prev_time, acc_flag, gps_flag)
 
+        prev_time = timestamp
+
+        # print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
+        #         % (gps_x,gps_y,x,y,vx,vy,ax,ay))
+        goal_x, goal_y = find_nearest(map, (x, y))
+        servo_steering["position"] = \
+            servo_value((x, y, yaw), (goal_x, goal_y))
+        print(timestamp, x, y, servo_steering["position"])
+
+        time.sleep(0.005)
+    notifier.play("PuzzleDone.wav")
+    stop()
+    time.sleep(1)
 
 if __name__ == '__main__':
     print(__doc__)

@@ -11,7 +11,7 @@ pygame.mixer.init()
 class TunePlayer():
     def __init__(self):
         self.tunes = {}
-        tunes_dir = config.get_dir("tunes")
+        tunes_dir = config.get_dir(":tunes")
         for tune_name in os.listdir(tunes_dir):
             self.tunes[tune_name] = pygame.mixer.Sound(tunes_dir + tune_name)
 

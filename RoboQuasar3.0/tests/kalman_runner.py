@@ -14,8 +14,6 @@ if len(sensor_data[0]) == 23:
     initial_lon = sensor_data[0][4] + sensor_data[0][5] / 60
     initial_heading = sensor_data[0][16]
     prev_encoder_value = sensor_data[0][9]
-
-
 elif len(sensor_data[0]) == 10:
     initial_lat = sensor_data[0][2]
     initial_lon = sensor_data[0][3]
@@ -23,8 +21,6 @@ elif len(sensor_data[0]) == 10:
     #currently using yaw rather than heading
     prev_encoder_value = sensor_data[0][5]
     prev_time = sensor_data[0][0]
-
-
 else:
     raise Exception("Missing degrees on gps")
 
