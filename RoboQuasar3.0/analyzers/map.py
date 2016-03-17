@@ -158,4 +158,6 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
 
 
 if __name__ == '__main__':
-    Map("Sat Feb 27 21;46;23 2016 GPS Map.csv").remove_duplicates()
+    test_map = Map("Thu Mar 17 17;53;53 2016.csv")
+    test_map.data = test_map.data[1:-1:10]
+    test_map.write_map()
