@@ -6,7 +6,7 @@ from analyzers.logger import parse
 from analyzers.kalman_filter import StateFilter
 from analyzers.interpreter import Interpreter
 
-sensor_data = parse("Test Day 4/Sat Mar 12 22;27;45 2016.csv")
+sensor_data = parse("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
 
 if len(sensor_data[0]) == 23:
     initial_lat = sensor_data[0][2] + sensor_data[0][3] / 60
@@ -50,8 +50,6 @@ for row in sensor_data[1:]:
     x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, enc_counts,
             accel_x, accel_y, yaw, 0.105)
 
-    print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
-            % (gps_x,gps_y,x,y,vx,vy,ax,ay))
-
-
-
+    # print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
+    #         % (gps_x,gps_y,x,y,vx,vy,ax,ay))
+    print("%f,%f" % (x, y))

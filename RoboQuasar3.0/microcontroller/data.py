@@ -207,16 +207,16 @@ class Sensor(SerialObject):
         :return: Sensor
         """
         super().__init__(sensor_id, properties)
-        self._new_data_recved = False
+        self._new_data_received = False
 
         sensor_pool.add_sensor(self)
 
     def __getitem__(self, item):
         return self._properties[item]
 
-    def recved_data(self):
-        if self._new_data_recved:
-            self._new_data_recved = False
+    def received(self):
+        if self._new_data_received:
+            self._new_data_received = False
             return True
         else:
             return False

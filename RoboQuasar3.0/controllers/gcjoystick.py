@@ -61,6 +61,8 @@ class BuggyJoystick:
         })
         self.done = False
 
+        self.values_changed = False
+
         joysticks = [pygame.joystick.Joystick(x) for x in
                      range(pygame.joystick.get_count())]
         assert len(joysticks) > 0
@@ -78,7 +80,7 @@ class BuggyJoystick:
             self.update = self.update_mac
         else:
             raise EnvironmentError("Hey... how did you get here?\n"
-                                   "You should've failed earlier...")
+                                   "You should've failed in config...")
     def update_mac(self):
         event = pygame.event.poll()
         # if event.type != pygame.NOEVENT:

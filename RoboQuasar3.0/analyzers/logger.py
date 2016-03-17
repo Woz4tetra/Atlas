@@ -79,11 +79,17 @@ class Recorder(object):
         self.writer.writerow(names_row)
         self.writer.writerow(self.current_row)
 
-    def add_data(self, serial_object):
+    def add_data(self, serial_object, new_data_received=True):
         if self.enable_record:
             start_index = self.sensor_indices[serial_object.object_id]
-            for index, key in enumerate(serial_object._properties):
-                self.current_row[index + start_index] = serial_object._properties[key]
+            if new_data_received:
+                for index, key in enumerate(serial_object._properties):
+                    self.current_row[index + start_index] = \
+                        serial_object._properties[key]
+            else:
+                for index in range(len(serial_object._properties)):
+                    self.current_row[index + start_index] = ""
+
 
     def end_row(self):
         if self.enable_record:
@@ -106,7 +112,6 @@ def is_float(string):
     except ValueError:
         return False
 
-
 def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=False):
     if not os.path.isdir(file_dir) and not os.path.isfile(file_dir):
         file_dir = config.get_dir(":logs") + file_dir
@@ -123,6 +128,8 @@ def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=Fals
                     parsed_row.append(float(datum))
                 elif datum.isdigit():
                     parsed_row.append(int(datum))
+                elif datum == "":
+                    parsed_row.append(None)
                 else:
                     parsed_row.append(datum)
 

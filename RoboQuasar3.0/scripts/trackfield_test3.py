@@ -60,17 +60,17 @@ if script_options['log_data']:
 try:
     while True:
         if script_options['print_data']:
-            if imu.recved_data():
+            if imu.received():
                 print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
                                          imu["compass"], imu["yaw"]))
-            if gps.recved_data():
+            if gps.received():
                 print(gps["lat"], gps["long"], gps["heading"])
-            if encoder.recved_data():
+            if encoder.received():
                 print(encoder["counts"])
                 # time.sleep(0.25)
 
         if is_running() != prev_status:
-            if is_running() == True:
+            if is_running():
                 print("Connection made!")
             else:
                 print("Connection lost...")
@@ -80,7 +80,10 @@ try:
             joystick.update()
             servo_steering["position"] = int(
                 50 * (joystick.triggers.L - joystick.triggers.R)) - 23
-            # servo_steering["position"] = servo_value([0,0,0], [joystick.mainStick.y, -5.34/90*joystick.mainStick.x])
+            # servo_steering["position"] = \
+            #     servo_value([0, 0, 0],
+            #                 [joystick.mainStick.y,
+            #                  -5.34 / 90 * joystick.mainStick.x])
 
         if script_options['log_data']:
             log.add_data(imu)

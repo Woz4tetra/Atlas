@@ -55,13 +55,18 @@ def plot_encoder(file_name):
 
     plt.plot(timestamps, sensor_data[0])
 
-def plot_angles(file_name, density=100, source="yaw"):
+def plot_angles(file_name, density=100, source="yaw", set_limits=True, data_range=None):
     timestamps, sensor_data = get_plottable_data(file_name, ["lat", "long", source])
+    if data_range is None:
+        data_range = (0, len(sensor_data[0]))
+    else:
+        data_range = (data_range[0], data_range[1])
 
-    plt.plot(sensor_data[0], sensor_data[1])
+    plt.plot(sensor_data[0][data_range[0]: data_range[1]],
+             sensor_data[1][data_range[0]: data_range[1]])
 
     lines = []
-    for index in range(0, len(sensor_data[0]), density):
+    for index in range(data_range[0], data_range[1], density):
         lines.append(
             (sensor_data[0][index],
              sensor_data[0][index] + 0.0001 * np.sin(sensor_data[2][index]))
@@ -77,9 +82,10 @@ def plot_angles(file_name, density=100, source="yaw"):
         lines.append('r')
     plt.plot(*lines)
 
-    axes = plt.gca()
-    axes.set_xlim([40.4425,40.444])
-    axes.set_ylim([79.939,79.942])
+    if set_limits:
+        axes = plt.gca()
+        axes.set_xlim([40.4425,40.444])
+        axes.set_ylim([79.939,79.942])
 
 def plot_all(plot_func, directory=None, **params):
     if not os.path.isdir(directory):
@@ -94,11 +100,14 @@ def plot_all(plot_func, directory=None, **params):
             plot_func(directory + file_name, **params)
 
 if __name__ == '__main__':
-    # plot_all(plot_angles, source="yaw", directory="Test Day 4")
-    plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", density=100)
-    # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    # plot_all(plot_angles, source="yaw", directory="Test Day 4", density=50)
+    plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", source="yaw",
+        density=100)#, data_range=(0, 3000), set_limits=False)
 
-    data = parse(config.get_dir(":maps") + "2016-03-07 21_46_18 converted.csv", omit_header_rows=False)
-    plt.plot(data[:, 0], data[:, 1])
+    # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    # plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+
+    # data = parse(config.get_dir(":maps") + "kalman_map4.csv", omit_header_rows=False)
+    # plt.plot(data[:, 0], data[:, 1])
 
     plt.show()
