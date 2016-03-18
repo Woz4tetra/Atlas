@@ -49,7 +49,8 @@ while(1):
     (y, x) = original.shape[0], original.shape[1]
     if (y >= 360):
         original = cv2.resize(original, (x, y))
-
+    else: 
+        original = cv2.resize(original, (x, y))
     hsv = cv2.cvtColor(original, cv2.COLOR_BGR2HSV)
     result = original
 
@@ -72,7 +73,7 @@ while(1):
     cv2.imshow('segmented', result)
 
     key = cv2.waitKey(20) & 0xFF
-    if key == 27 or ():
+    if key == 27 or chr(key) == 'q':
         break
         cv2.destroyAllWindows()
         cap.release()
