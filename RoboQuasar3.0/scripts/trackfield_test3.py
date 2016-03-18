@@ -24,9 +24,9 @@ from controllers.gcjoystick import joystick_init
 from controllers.servo_map import *
 
 script_options = dict(
-    log_data=True,
+    log_data=False,
     enable_joystick=True,
-    print_data=False
+    print_data=True
 )
 
 # data type is specified by incoming packet
@@ -61,8 +61,9 @@ try:
     while True:
         if script_options['print_data']:
             if imu.received():
-                print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
-                                         imu["compass"], imu["yaw"]))
+                print(("%0.4f\t" * 4) % (
+                    imu["accel_x"], imu["accel_y"],
+                    imu["compass"], imu["yaw"]))
             if gps.received():
                 print(gps["lat"], gps["long"], gps["heading"])
             if encoder.received():
