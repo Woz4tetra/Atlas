@@ -103,13 +103,15 @@ def plot_map(map_name):
     data = parse(config.get_dir(":maps") + map_name, omit_header_rows=False)
     plt.plot(data[:, 0], data[:, 1])
 
+
+
 if __name__ == '__main__':
     # plot_all(plot_angles, source="yaw", directory="Test Day 4", density=50)
     # plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", source="yaw",
     #     density=100)#, data_range=(0, 3000), set_limits=False)
 
     # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
-    # plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
 
     plot_map("Sat Feb 27 21;46;23 2016 GPS Map.csv")
 

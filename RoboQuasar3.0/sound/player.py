@@ -15,8 +15,14 @@ class TunePlayer():
         for tune_name in os.listdir(tunes_dir):
             self.tunes[tune_name] = pygame.mixer.Sound(tunes_dir + tune_name)
 
-    def play(self, tune_name, loops=0):
-        self.tunes[tune_name].play(loops)
+        pygame.mixer.set_num_channels(8)
+        self.channel = pygame.mixer.Channel(5)
 
-    def stop(self):
-        self.tunes[tune_name].stop()
+    def play(self, tune_name):
+        self.channel.play(self.tunes[tune_name])
+
+    def stop(self, tune_name):
+        self.channel.stop(self.tunes[tune_name])
+
+    def any_playing(self):
+        return self.channel.get_busy()

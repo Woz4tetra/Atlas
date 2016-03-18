@@ -161,6 +161,8 @@ def main(log_data=True, manual_mode=True, print_data=True):
     finally:
         stop()
         notifier.play("PuzzleDone.wav")
+        while notifier.any_playing():
+            time.sleep(0.005)
 
 
 if __name__ == '__main__':
