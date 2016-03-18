@@ -75,16 +75,16 @@ class PositionKalman(object):
 
         self.count +=1
 
-        if self.count > 1:
-            observation[0] = np.ma.masked
-            observation[1] = np.ma.masked
+#        if self.count > 1:
+#            observation[0] = np.ma.masked
+#            observation[1] = np.ma.masked
 
-        if self.count == 35:
-            self.count = 0
+#        if self.count == 35:
+#            self.count = 0
 
-        if gps_flag:
-            observation[0] = np.ma.masked
-            observation[1] = np.ma.masked
+#        if gps_flag:
+#            observation[0] = np.ma.masked
+#            observation[1] = np.ma.masked
 
         if enc_flag:
             observation[2] = np.ma.masked
