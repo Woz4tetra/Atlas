@@ -76,7 +76,6 @@ class LineFollower():
                         cv2.line(draw_frame,(x1,y1),(x2,y2),(0,0,255),2)
 
 
-
 # class LineFollower:
 #     def __init__(self, expected, y_bottom, width, height):
 #         self.centerRho, self.centerTheta = expected

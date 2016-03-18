@@ -58,6 +58,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
         initial_lon = sensor_data[0][4] + sensor_data[0][5] / 60
         initial_heading = sensor_data[0][16]
         prev_encoder_value = sensor_data[0][9]
+        prev_time = sensor_data[0][0]
     elif len(sensor_data[0]) == 10:
         initial_lat = sensor_data[0][2]
         initial_lon = sensor_data[0][3]
@@ -104,9 +105,11 @@ def main(log_data=True, manual_mode=True, print_data=False):
             latitude = lat_deg + lat_min / 60
             longitude = lon_deg + lon_min / 60
 
-        elif len(row == 10):
+        elif len(row) == 10:
             (timestamp, servo, latitude, longitude, gps_heading,
              encoder_counts, accel_x, accel_y, yaw, compass) = row
+        else:
+            raise ValueError("Invalid file. Not correct data headers")
 
 
         #print("%9.8f\t%9.8f\t%9.8f" % (accel_x, accel_y, yaw))
@@ -117,7 +120,6 @@ def main(log_data=True, manual_mode=True, print_data=False):
     #cant really deal with figuring out whether encoder was updated or not from
     #here. there isnt enough information that i can find
         enc_flag = False
-        gps_flag = False
 
         if prev_acc == [accel_x, accel_y]:
             acc_flag = True

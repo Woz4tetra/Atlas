@@ -40,11 +40,14 @@ sys.path.insert(0, '../')
 from camera import capture
 from camera import analyzers
 
+import copy
+def create_array(value, width, height):
+    return [[copy.copy(value) for _ in range(width)] for _ in range(height)]
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
         cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
-        cam_source='',
+        # cam_source='',
         loop_video=False,
         start_frame=0,
         width=480,
