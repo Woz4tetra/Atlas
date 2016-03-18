@@ -45,7 +45,7 @@ def find_nearest(map, position):
         dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
         map_dist[index] = dist
     smallest_value = min(map_dist)
-    index = map_dist.index(smallest_value)
+    index = (map_dist.index(smallest_value) + 2) % len(map)
     return map[index]
 
 def main(log_data=True, manual_mode=True, print_data=False):
@@ -71,14 +71,6 @@ def main(log_data=True, manual_mode=True, print_data=False):
     joystick = joystick_init()
     notifier = TunePlayer()
 
-    print("Awaiting user input...")
-    notifier.play("Coin.wav")
-    while not joystick.buttons.A:
-        joystick.update()
-        time.sleep(0.005)
-
-    notifier.play("Coin.wav")  # TODO: Find sound effects
-
     start(use_handshake=False)
 
     # 1.344451296765884 for shift_angle?
@@ -88,13 +80,13 @@ def main(log_data=True, manual_mode=True, print_data=False):
     prev_gps = [0,0]
 
     kfilter = StateFilter()
-    map = Map("Sat Feb 27 21;46;23 2016 GPS Map.csv",
+    map = Map("From Test Day 4 Long Data Run.csv",
               origin_lat=initial_lat,
               origin_long=initial_lon,
               shift_angle=initial_heading)
     binder = Binder(map)
 
-    for index in range(1, len(sensor_data), 100):
+    for index in range(1, len(sensor_data)):
         row = sensor_data[index]
         if len(row) == 23:
             timestamp, servo, lat_deg, lat_min, lon_deg, lon_min, gps_speed, \
@@ -139,12 +131,12 @@ def main(log_data=True, manual_mode=True, print_data=False):
 
         # print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
         #         % (gps_x,gps_y,x,y,vx,vy,ax,ay))
-        goal_x, goal_y = find_nearest(map, (x, y))
+        goal_x, goal_y = binder.bind((x, y))# find_nearest(map, (x, y))
         servo_steering["position"] = \
             servo_value((x, y, yaw), (goal_x, goal_y))
-        print(timestamp, x, y, servo_steering["position"])
+        print("%0.4f, (%0.4f, %0.4f), (%0.4f, %0.4f), %i" % (timestamp, x, y, goal_x, goal_y, servo_steering["position"]))
 
-        time.sleep(0.005)
+        # time.sleep(0.005)
     notifier.play("PuzzleDone.wav")
     stop()
     time.sleep(1)

@@ -24,15 +24,17 @@ class Binder:
         for index in range(self.prev_bind, len(self.map.data)):
             if self.is_near(index, position):
                 self.prev_bind = index
-                return self.map.data[index + 1]
+                index = (index + 1) % len(self.map)
+                return self.map.data[index]
 
         for index in range(self.prev_bind):
             if self.is_near(index, position):
                 self.prev_bind = index
-                return self.map.data[index + 1]
+                index = (index + 1) % len(self.map)
+                return self.map.data[index]
 
         self.prev_bind = self.find_nearest(position)
-        return self.map.data[self.prev_bind + 1]
+        return self.map.data[(self.prev_bind + 1) % len(self.map)]
 
     def find_nearest(self, position):
         map_dist = [0] * len(self.map.data)

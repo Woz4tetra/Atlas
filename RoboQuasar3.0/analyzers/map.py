@@ -97,6 +97,8 @@ class Map():
             directory = config.get_dir(":maps")
         if file_name is None:
             file_name = time.strftime("%c").replace(":", ";")
+        print("Writing to: " + directory)
+        print("File name to: " + file_name)
         with open(directory + file_name + ".csv", 'w') as csv_file:
             map_writer = csv.writer(csv_file, delimiter=',',
                                     quotechar='|',
@@ -157,7 +159,20 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
         map.write_map(out_directory, file_name)
 
 
-if __name__ == '__main__':
+def edit_map():
     test_map = Map("Thu Mar 17 17;53;53 2016.csv")
     test_map.data = test_map.data[1:-1:10]
     test_map.write_map()
+
+def make_map(log_file, map_name):
+    import plotter
+    timestamps, sensor_data = plotter.get_plottable_data(log_file, ["lat", "long"])
+    map_data = []
+    for index in range(len(sensor_data[0])):
+        map_data.append([sensor_data[0][index], sensor_data[1][index]])
+    map = Map()
+    map.data = map_data
+    map.remove_duplicates(map_name=map_name)
+
+if __name__ == '__main__':
+    make_map("Test Day 4/Sat Mar 12 23;06;53 2016.csv", "From Test Day 4 Long Data Run")

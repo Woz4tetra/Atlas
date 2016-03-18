@@ -11,6 +11,7 @@ Converts the robot's current heading and a goal heading to a servo position.
 import math
 
 lookup_table = [
+    # servo, distance from centerline in inches
     [-73, -4.55],
     [-63, -3.95],
     [-53, -3.15],
@@ -23,7 +24,12 @@ lookup_table = [
     [23, 4.45],
     [33, 4.75],
 ]
-hypotenuse = 50
+hypotenuse = 50  # distance from turning point on steering
+zero_index = 0
+for index in range(len(lookup_table)):
+    if lookup_table[index][1] == 0.0:
+        zero_index = index
+        break
 
 for index in range(len(lookup_table)):
     lookup_table[index][1] = math.asin(lookup_table[index][1] / hypotenuse)
@@ -38,7 +44,7 @@ def map_servo(angle):
     elif angle > lookup_table[-1][1]:
         return lookup_table[-1][0]
     else:
-        table_index = 5  # index of 0 degrees
+        table_index = zero_index  # index of 0 degrees
         for index in range(len(lookup_table) - 1):
             if lookup_table[index][1] <= angle <= lookup_table[index + 1][1]:
                 table_index = index
@@ -53,24 +59,31 @@ def map_servo(angle):
 def servo_value(current_state, goal_position):
     x, y, heading = current_state
     goal_x, goal_y = goal_position
-    return map_servo(math.atan2(goal_y - y, goal_x - x) - heading)
+    angle = math.atan2(goal_y - y, goal_x - x)
+    if angle < 0:
+        angle += 2 * math.pi
+    angle = (angle - heading) % (2 * math.pi)
+    if math.pi < angle:  # TODO: Fix wrap around problem
+        angle -= 2 * math.pi
+    print(angle)
+    return map_servo(-angle)
 
-# if __name__ == '__main__':
-#     def almost_equal(val1, val2, epsilon = .001):
-#         return abs(val1-val2) <= epsilon
-#     assert(map_servo(0.0) == -25)
-#     assert(map_servo(-0.09712231328780105) == -75)
-#     assert(map_servo(0.1072763485867491) == 35)
-#     assert(map_servo(2.0) == 35)
-#     assert(map_servo(-1.0) == -75)
-#     assert(almost_equal(map_servo(0.057608353410290123), 3))
-#     assert(almost_equal(map_servo(.00987), -21))
-#     assert(almost_equal(map_servo(.1045), 32))
-#     assert(servo_value([0, 0, 0], [10, 0]) == -25)
-#     assert(servo_value([0, 0, 0], [0, 10]) == 35)
-#     assert(servo_value([0, 0, 0], [10, 10]) == 35)
-#     assert(servo_value([0, 0, 0], [0, -10]) == -75)
-#     assert(servo_value([0, 0, 0], [-10, 0]) == 35)
-#     assert(servo_value([4, 3, math.pi/4], [10, 5]) == -75)
-#     assert(servo_value([4, 3, math.pi/6], [5.67639042166, 4]) == -19)
-#     assert(servo_value([1, 2, math.pi/8], [3, 3.0046132804729282]) == 13)
+if __name__ == '__main__':
+    def almost_equal(val1, val2, epsilon = .001):
+        return abs(val1-val2) <= epsilon
+    assert(map_servo(0.0) == -25)
+    assert(map_servo(-0.09712231328780105) == -75)
+    assert(map_servo(0.1072763485867491) == 35)
+    assert(map_servo(2.0) == 35)
+    assert(map_servo(-1.0) == -75)
+    assert(almost_equal(map_servo(0.057608353410290123), 3))
+    assert(almost_equal(map_servo(.00987), -21))
+    assert(almost_equal(map_servo(.1045), 32))
+    assert(servo_value([0, 0, 0], [10, 0]) == -25)
+    assert(servo_value([0, 0, 0], [0, 10]) == 35)
+    assert(servo_value([0, 0, 0], [10, 10]) == 35)
+    assert(servo_value([0, 0, 0], [0, -10]) == -75)
+    assert(servo_value([0, 0, 0], [-10, 0]) == 35)
+    assert(servo_value([4, 3, math.pi/4], [10, 5]) == -75)
+    assert(servo_value([4, 3, math.pi/6], [5.67639042166, 4]) == -19)
+    assert(servo_value([1, 2, math.pi/8], [3, 3.0046132804729282]) == 13)

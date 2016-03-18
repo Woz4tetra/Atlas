@@ -15,7 +15,9 @@ class Interpreter():
     def convert(self, latitude, longitude, enc_counts, yaw):
         x, y = self.convert_gps(latitude, longitude)
         enc_counts = self.convert_encoder(enc_counts)
-        yaw = self.convert_imu(yaw)
+        yaw = (yaw + self.shift_angle) % (2 * math.pi)
+        if math.pi < yaw:
+            yaw -= 2 * math.pi
         return x, y, enc_counts, yaw
 
     def convert_encoder(self, counts):
@@ -33,6 +35,3 @@ class Interpreter():
         shifted_x = x * math.cos(self.shift_angle) - y * math.sin(self.shift_angle)
         shifted_y = x * math.sin(self.shift_angle) + y * math.cos(self.shift_angle)
         return shifted_x, shifted_y
-
-    def convert_imu(self, heading):
-        return heading * math.pi / 180
