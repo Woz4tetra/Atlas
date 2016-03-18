@@ -39,23 +39,15 @@ import time
 sys.path.insert(0, '../')
 
 from camera import capture
-<<<<<<< HEAD:RoboQuasar/RoboQuasar2.0/tests/road_edge_test.py
 # from camera import analyzersTrial as analyzers
 from camera import analyzers
-=======
-from camera import analyzers
-
->>>>>>> 01c4d39c7a53dabaf71b94274c763044793dae8e:RoboQuasar2.0/tests/road_edge_test.py
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
-        cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
-        cam_source='',
-        loop_video=False,
-        start_frame=0,
-        width=480,
-        height=270
-    )
+                              cam_source="Icarus 10-11 roll 5 (+hill 1).mov",
+                            #   cam_source="Icarus 10-17 roll 1.mov",
+                              loop_video=False,
+                              start_frame=1386)
 
     capture_properties = dict(
             paused=False,
@@ -75,16 +67,10 @@ def run():
     time_start = time.time()
 
     warper = analyzers.RoadWarper(camera1.windowName, width, height,
-<<<<<<< HEAD:RoboQuasar/RoboQuasar2.0/tests/road_edge_test.py
                                   [[209, 116], [510, 116], [12, 203], [631, 203]])
                                   # [[190, 110], [469, 110], [19, 160], [628, 160]])
     line_follower = analyzers.LineFollower((None, None), 360, width, height)
 
-=======
-                                  [[135, 81], [355, 89], [4, 132], [478, 156]])
-                                #   [[190, 110], [469, 110], [19, 160], [628, 160]])
-    line_follower = analyzers.LineFollower()
->>>>>>> 01c4d39c7a53dabaf71b94274c763044793dae8e:RoboQuasar2.0/tests/road_edge_test.py
 
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
@@ -97,21 +83,15 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
-<<<<<<< HEAD:RoboQuasar/RoboQuasar2.0/tests/road_edge_test.py
 
                 ''' filer and road warper '''
                 sobeled = warper.update(frame1)
                 # sobeled = cv2.cvtColor(sobeledf, cv2.COLOR_BGR2HSV)
-=======
-                frame1 = warper.update(frame1)
-                sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
->>>>>>> 01c4d39c7a53dabaf71b94274c763044793dae8e:RoboQuasar2.0/tests/road_edge_test.py
                 # sobeled = cv2.medianBlur(sobeled, 7)
                 # sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
                 # sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
                 # sobeled = np.absolute(sobeled)
                 # sobeled = np.uint8(sobeled)[:, :, 2]
-<<<<<<< HEAD:RoboQuasar/RoboQuasar2.0/tests/road_edge_test.py
                 # # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
                 # #                        cv2.COLOR_BGR2GRAY)
                 # # sobeled = np.uint8(sobeled)[:, :, 2]
@@ -123,16 +103,7 @@ def run():
                     capture_properties['draw_avg'], 
                     capture_properties['draw_all'])
                 # assert_fn(result, expected, capture_properties['currentFrame'])
-=======
-                sobeled = cv2.adaptiveThreshold(sobeled, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 13, -10)
-                # value, sobeled = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
-                # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
->>>>>>> 01c4d39c7a53dabaf71b94274c763044793dae8e:RoboQuasar2.0/tests/road_edge_test.py
 
-                line_follower.update(sobeled, frame1)
-
-                sobeled = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
-                frame1 = np.concatenate((sobeled, frame1))
 
             if capture_properties['enable_draw'] is True:
                 camera1.showFrame(frame1)
@@ -181,7 +152,7 @@ def run():
 
             elif key == 'v':
                 if capture_properties['write_video'] == False:
-                    camera1.startVideo()
+                    camera1.initVideoWriter()
                 else:
                     camera1.stopVideo()
                 capture_properties['write_video'] = not capture_properties[
