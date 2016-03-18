@@ -12,10 +12,9 @@ python __main__.py
 python RoboQuasar3.0
 
 """
-import traceback
 import sys
 import time
-import math
+import traceback
 
 sys.path.insert(0, '../')
 
@@ -33,6 +32,7 @@ from controllers.gcjoystick import joystick_init
 from controllers.servo_map import *
 
 from sound.player import TunePlayer
+
 
 # Binder and/or the map (more likely, set a point off in the distance) might be fucked
 # shifting needs to be done during a run (localize heading)
@@ -52,28 +52,23 @@ def main(log_data=True, manual_mode=True, print_data=True):
 
     start(use_handshake=False)
 
-    print("Awaiting user input... (Press A)")
-
+    print("Wait for the GPS to lock on, then press A")
 
     while int(gps['lat']) == 0 or int(gps['long']) == 0:
         joystick.update()
         time.sleep(0.005)
     print(gps['lat'], gps['long'])
-    notifier.play("EnterLevel.wav")
+    notifier.play("000029fd.wav")
     while not joystick.buttons.A:
         joystick.update()
 
     reset()
 
-    notifier.play("Coin.wav")  # TODO: Find sound effects
+    notifier.play("000029f6.wav")
     # 1.344451296765884 for shift_angle?
-    interpreter = Interpreter(0, gps["lat"], gps["long"], imu["compass"])
+    interpreter = Interpreter(0, gps["lat"], gps["long"])
     kfilter = StateFilter()
-    map = Map("Track Field Map Trimmed.csv",
-              origin_lat=gps["lat"],
-              origin_long=gps["long"],
-              shift_angle=imu["compass"])
-    binder = Binder(map)
+    binder = Binder(Map("Track Field Map Trimmed.csv"))
 
     log = None
 
@@ -104,6 +99,9 @@ def main(log_data=True, manual_mode=True, print_data=True):
             gps_flag = gps.received()
             enc_flag = encoder.received()
 
+            if gps_flag:
+                notifier.play("Cool Notification 20.wav")
+
             # if print_data:
             #     if imu_flag:
             #         print(("%0.4f\t" * 5) % (
@@ -120,31 +118,36 @@ def main(log_data=True, manual_mode=True, print_data=True):
             if is_running() != prev_status:
                 if is_running():
                     print("Connection made!")
-                    # notifier.play("")  # TODO: Find sound effects
+                    notifier.play("00002a1b.wav")
                 else:
                     print("Connection lost...")
-                    # notifier.play("")  # TODO: Find sound effects
+                    notifier.play("00002a1a.wav")
                 prev_status = is_running()
 
             if manual_mode:
                 # servo_steering["position"] = int(
                 #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
                 servo_steering["position"] = \
-                    servo_value([0, 0, 0], [1, -5.34 / 90 * joystick.mainStick.x])
+                    servo_value([0, 0, 0],
+                                [1, -5.34 / 90 * joystick.mainStick.x])
                 print(time.time() - prev_time, servo_steering["position"])
             else:
                 gps_x, gps_y, change_dist, shifted_yaw = interpreter.convert(
                     gps["lat"], gps["long"], encoder["counts"], imu["yaw"])
                 current_time = time.time()
                 x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, change_dist,
-                        enc_flag, imu["accel_x"], imu["accel_y"], shifted_yaw,
-                        current_time - prev_time, imu_flag, gps_flag)
+                                                      enc_flag, imu["accel_x"],
+                                                      imu["accel_y"],
+                                                      shifted_yaw,
+                                                      current_time - prev_time,
+                                                      imu_flag, gps_flag)
                 prev_time = current_time
                 goal_x, goal_y = binder.bind((x, y))
                 servo_steering["position"] = \
                     servo_value((x, y, shifted_yaw), (goal_x, goal_y))
                 if print_data:
-                    print(goal_x - x, goal_y - y, shifted_yaw, servo_steering["position"])
+                    print(goal_x - x, goal_y - y, shifted_yaw,
+                          servo_steering["position"])
 
             if log_data:
                 log.add_data(imu, imu_flag)

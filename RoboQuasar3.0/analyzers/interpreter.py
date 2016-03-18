@@ -4,21 +4,25 @@ This class converts the sensor data into correct units
 import math
 
 class Interpreter():
-    def __init__(self, initial_encoder, origin_lat, origin_long, shift_angle):
+    def __init__(self, initial_encoder, origin_lat, origin_long):
         self.prev_encoder = initial_encoder
-        self.origin_lat = origin_lat #* math.pi / 180
-        self.origin_long = origin_long# * math.pi / 180
-        self.wheel_radius = 0.1333  # TODO calculate wheel radius
+        self.origin_lat = origin_lat
+        self.origin_long = origin_long
+        self.wheel_radius = 0.1778  # wheel radius in meters
         self.deg_to_m = 111226.343  # convert gps degrees to meters
-        self.shift_angle = shift_angle
+        self.shift_angle = 0
 
-    def convert(self, latitude, longitude, enc_counts, yaw):
+    def convert(self, latitude, longitude, accel_x, accel_y, enc_counts, yaw, gps_heading):
         x, y = self.convert_gps(latitude, longitude)
         enc_counts = self.convert_encoder(enc_counts)
         yaw = (yaw + self.shift_angle) % (2 * math.pi)
         if math.pi < yaw:
             yaw -= 2 * math.pi
-        return x, y, enc_counts, yaw
+
+        shifted_accel_x = accel_x * math.cos(self.shift_angle) - accel_y * math.sin(self.shift_angle)
+        shifted_accel_y = accel_x * math.sin(self.shift_angle) + accel_y * math.cos(self.shift_angle)
+
+        return x, y, shifted_accel_x, shifted_accel_y, enc_counts, yaw
 
     def convert_encoder(self, counts):
         delta_counts = counts - self.prev_encoder
@@ -26,12 +30,8 @@ class Interpreter():
         return 2 * math.pi * self.wheel_radius * delta_counts
 
     def convert_gps(self, latitude, longitude):
-        #latitude *= math.pi / 180
-        #longitude *= math.pi / 180
         lat_mean = (latitude + self.origin_lat) / 2
         x = (longitude - self.origin_long) * math.cos(lat_mean) * self.deg_to_m
         y = (latitude - self.origin_lat) * self.deg_to_m
 
-        shifted_x = x * math.cos(self.shift_angle) - y * math.sin(self.shift_angle)
-        shifted_y = x * math.sin(self.shift_angle) + y * math.cos(self.shift_angle)
-        return shifted_x, shifted_y
+        return x, y
