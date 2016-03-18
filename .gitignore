@@ -124,3 +124,10 @@ __pycache__/
 *.xcuserstate
 project.xcworkspace/
 xcuserdata/
+
+
+# Backup files #
+################
+.swp
+\.*
+\#*
