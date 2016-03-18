@@ -39,8 +39,8 @@ import time
 sys.path.insert(0, '../')
 
 from camera import capture
-from camera import analyzersTrial as analyzers
-
+# from camera import analyzersTrial as analyzers
+from camera import analyzers
 
 def run():
     camera1 = capture.Capture(window_name="line follow test",
@@ -57,6 +57,8 @@ def run():
             write_video=False,
             slideshow=False,
             burst_mode=False,
+            draw_avg = True,
+            draw_all = False,
     )
 
     frame1 = camera1.getFrame(readNextFrame=False)
@@ -66,7 +68,9 @@ def run():
 
     warper = analyzers.RoadWarper(camera1.windowName, width, height,
                                   [[209, 116], [510, 116], [12, 203], [631, 203]])
-                                #   [[190, 110], [469, 110], [19, 160], [628, 160]])
+                                  # [[190, 110], [469, 110], [19, 160], [628, 160]])
+    line_follower = analyzers.LineFollower((None, None), 360, width, height)
+
 
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
@@ -79,18 +83,26 @@ def run():
             capture_properties['currentFrame'] = camera1.currentTimeMsec()
 
             if capture_properties['apply_filters']:
+
+                ''' filer and road warper '''
                 sobeled = warper.update(frame1)
-                sobeled = cv2.cvtColor(sobeled, cv2.COLOR_BGR2HSV)
+                # sobeled = cv2.cvtColor(sobeledf, cv2.COLOR_BGR2HSV)
                 # sobeled = cv2.medianBlur(sobeled, 7)
-                sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
-                sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
-                sobeled = np.absolute(sobeled)
-                sobeled = np.uint8(sobeled)[:, :, 2]
-                # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
-                #                        cv2.COLOR_BGR2GRAY)
+                # sobeled = cv2.GaussianBlur(sobeled, (5, 5), 0)
+                # sobeled = cv2.Sobel(sobeled, cv2.CV_64F, 1, 0, ksize=3)
+                # sobeled = np.absolute(sobeled)
                 # sobeled = np.uint8(sobeled)[:, :, 2]
-                value, frame1 = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
-                # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
+                # # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
+                # #                        cv2.COLOR_BGR2GRAY)
+                # # sobeled = np.uint8(sobeled)[:, :, 2]
+                # value, frame1 = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
+                # # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
+
+                ''' line follower starts here '''
+                frame1, result = line_follower.update(sobeled, 
+                    capture_properties['draw_avg'], 
+                    capture_properties['draw_all'])
+                # assert_fn(result, expected, capture_properties['currentFrame'])
 
 
             if capture_properties['enable_draw'] is True:
@@ -110,6 +122,12 @@ def run():
             key = camera1.getPressedKey()
             if key == 'q' or key == "esc":
                 camera1.stopCamera()
+            elif key == 'd':
+                capture_properties['draw_avg'] = not capture_properties[
+                    'draw_avg']
+            elif key == 'a':
+                capture_properties['draw_all'] = not capture_properties[
+                    'draw_all']
             elif key == ' ':
                 if capture_properties['paused']:
                     print("%0.4fs, %i: ...Video unpaused" % (
