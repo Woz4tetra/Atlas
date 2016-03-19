@@ -23,7 +23,7 @@ from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running, reset
 
 from analyzers.logger import Recorder
-from analyzers.kalman_filter import StateFilter
+from analyzers.kalman_filter import PositionFilter
 from analyzers.interpreter import Interpreter
 from analyzers.map import Map
 from analyzers.binder import Binder
@@ -67,7 +67,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
     notifier.play("000029f6.wav")
     # 1.344451296765884 for shift_angle?
     interpreter = Interpreter(0, gps["lat"], gps["long"])
-    kfilter = StateFilter()
+    kfilter = PositionFilter()
     binder = Binder(Map("Track Field Map Trimmed.csv"))
 
     log = None
@@ -135,7 +135,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
                 gps_x, gps_y, change_dist, shifted_yaw = interpreter.convert(
                     gps["lat"], gps["long"], encoder["counts"], imu["yaw"])
                 current_time = time.time()
-                x, y, vx, vy, ax, ay = kfilter.update(gps_x, gps_y, change_dist,
+                x, y = kfilter.update(gps_x, gps_y, change_dist,
                                                       enc_flag, imu["accel_x"],
                                                       imu["accel_y"],
                                                       shifted_yaw,

@@ -17,20 +17,7 @@ import pykalman
 import time
 import math
 
-
-class StateFilter(object):
-    def __init__(self):
-        self.placeKalman = PositionKalman()
-
-    def update(self, gps_x, gps_y, change_dist, enc_flag,
-            accel_x, accel_y, heading, dt, acc_flag, gps_flag):
-        data = self.placeKalman.update(gps_x, gps_y, change_dist, enc_flag,
-                                       accel_x, accel_y, heading,
-                                       dt, acc_flag, gps_flag)
-        return data
-
-
-class PositionKalman(object):
+class PositionFilter:
     """
     Takes in 6 observations: x, y, dx, dy, ax, ay
     Keeps track of x, y, vx, vy, ax, and ay
@@ -82,9 +69,9 @@ class PositionKalman(object):
 #        if self.count == 35:
 #            self.count = 0
 
-#        if gps_flag:
-#            observation[0] = np.ma.masked
-#            observation[1] = np.ma.masked
+        if gps_flag:
+            observation[0] = np.ma.masked
+            observation[1] = np.ma.masked
 
         if enc_flag:
             observation[2] = np.ma.masked
@@ -118,5 +105,54 @@ class PositionKalman(object):
             transition_matrix=transition_matrix,
             observation_matrix=observation_matrix)
 
+        return self.filt_state_mean[0:2]
+
+class HeadingFilter:
+    def __init__(self):
+        self.obs_covariance = \
+            np.array([[1, 0],
+                      [0, 1]])
+
+        self.trans_covariance = \
+            np.array([[1, 0],
+                      [0, 1]])
+
+        self.filter = pykalman.KalmanFilter(
+            observation_covariance=self.obs_covariance,
+            transition_covariance=self.trans_covariance)
+        self.filt_state_mean = np.array([0.0])
+        self.covariance = np.identity(2)
+        self.count = 0
+
+    def update(self, gps_heading, compass, imu_flag, gps_flag):
+
+        # need to convert change_dist into dx,dy
+
+        observation = np.array([])
+
+        observation = np.ma.asarray(observation)
+
+        if gps_flag:
+            observation[] = np.ma.masked
+            observation[] = np.ma.masked
+
+        if imu_flag:
+            observation[] = np.ma.masked
+            observation[] = np.ma.masked
+
+        observation_matrix = np.array(
+            []
+        )
+
+        transition_matrix = np.array(
+            []
+        )
+
+        self.filt_state_mean, self.covariance = self.filter.filter_update(
+            filtered_state_mean=self.filt_state_mean,
+            filtered_state_covariance=self.covariance,
+            observation=observation,
+            transition_matrix=transition_matrix,
+            observation_matrix=observation_matrix)
+
         return self.filt_state_mean
-    # all of them

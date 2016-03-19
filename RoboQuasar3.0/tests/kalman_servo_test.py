@@ -24,7 +24,7 @@ from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 
 from analyzers.logger import Recorder
-from analyzers.kalman_filter import StateFilter
+from analyzers.kalman_filter import PositionFilter
 from analyzers.interpreter import Interpreter
 from analyzers.map import Map
 from analyzers.binder import Binder
@@ -80,7 +80,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
     prev_acc = [0,0]
     prev_gps = [0,0]
 
-    kfilter = StateFilter()
+    kfilter = PositionFilter()
     map = Map("From Test Day 4 Long Data Run.csv",
               origin_lat=initial_lat,
               origin_long=initial_lon,
