@@ -61,7 +61,7 @@ class Communicator(threading.Thread):
         :return: None
         """
 
-        while not self.exit_flag:
+        while not Communicator.exit_flag:
             self.thread_time = round(time.time() - self.start_time)
             if self.serial_ref.inWaiting() > 0:
                 packet = bytearray()

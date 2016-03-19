@@ -208,6 +208,8 @@ class Sensor(SerialObject):
         """
         super().__init__(sensor_id, properties)
         self._new_data_received = False
+        self.time0 = time.time()
+        self._last_received_at = 0.0
 
         sensor_pool.add_sensor(self)
 
@@ -217,9 +219,14 @@ class Sensor(SerialObject):
     def received(self):
         if self._new_data_received:
             self._new_data_received = False
+            self._last_received_at = time.time() - self.time0
+            self.time0 = time.time()
             return True
         else:
             return False
+
+    def since_update(self):
+        return self._last_received_at
 
     @staticmethod
     def format_hex(hex_string, data_format):

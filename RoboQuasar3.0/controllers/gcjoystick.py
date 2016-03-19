@@ -21,11 +21,15 @@ R: -0.809...0.809
 import pygame
 import sys
 from dotable import Dotable
+import threading
+import time
 
 sys.path.insert(0, "../")
 import config
 
-class BuggyJoystick:
+class BuggyJoystick(threading.Thread):
+    exit_flag = False
+
     # TODO: add multiple joystick support
     def __init__(self):
         self.deadzoneStick = 0.15
@@ -81,6 +85,16 @@ class BuggyJoystick:
         else:
             raise EnvironmentError("Hey... how did you get here?\n"
                                    "You should've failed in config...")
+        super(BuggyJoystick, self).__init__()
+
+    def run(self):
+        while not BuggyJoystick.exit_flag:
+            self.update()
+            time.sleep(0.001)
+
+    def stop(self):
+        BuggyJoystick.exit_flag = True
+
     def update_mac(self):
         event = pygame.event.poll()
         # if event.type != pygame.NOEVENT:
@@ -216,7 +230,9 @@ def joystick_init():
     # screen = pygame.display.set_mode((200, 200))
     pygame.joystick.init()
 
-    return BuggyJoystick()
+    joystick = BuggyJoystick()
+    joystick.start()
+    return joystick
 
 
 if __name__ == '__main__':
@@ -225,6 +241,5 @@ if __name__ == '__main__':
     joystick = joystick_init()
     while joystick.done == False:
         print(joystick)
-        joystick.update()
 
         time.sleep(0.005)
