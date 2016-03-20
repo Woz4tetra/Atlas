@@ -17,9 +17,10 @@ Please refer to objects.py for proper usage tips.
 """
 
 import csv
+import os
 import sys
 import time
-import os
+
 import numpy
 
 sys.path.insert(0, '../')
@@ -28,7 +29,8 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, frequency=None, file_name=None, directory=None):
+    def __init__(self, frequency=None, file_name=None, directory=None,
+                 supply_flags=True):
         if directory is None:
             self.directory = config.get_dir(":logs")
         else:
@@ -60,10 +62,16 @@ class Recorder(object):
         self.log_init_time = self.time0
         self.frequency = frequency
         self.enable_record = True
+        self.supply_flags = supply_flags
 
     def add_tracker(self, sensor, name):
-        self.header_row.append(
+        if not self.supply_flags:
+            self.header_row.append(
                 (sensor.object_id, name, sensor, sensor._properties.keys()))
+        else:
+            self.header_row.append(
+                (sensor.object_id, name, sensor,
+                 sensor._properties.keys(), "new", "dt"))
 
     def end_init(self):
         self.header_row.sort(key=lambda element: element[0])
@@ -79,17 +87,19 @@ class Recorder(object):
         self.writer.writerow(names_row)
         self.writer.writerow(self.current_row)
 
-    def add_data(self, serial_object, new_data_received=True):
+    def add_data(self, serial_object, new_data_received=None):
+        if self.supply_flags is True and new_data_received is None:
+            raise ValueError("If supply_flags is enabled for this logger, "
+                             "please supply a new_data_received flag")
         if self.enable_record:
             start_index = self.sensor_indices[serial_object.object_id]
-            if new_data_received:
-                for index, key in enumerate(serial_object._properties):
-                    self.current_row[index + start_index] = \
-                        serial_object._properties[key]
-            else:
-                for index in range(len(serial_object._properties)):
-                    self.current_row[index + start_index] = ""
-
+            index = 0
+            for index, key in enumerate(serial_object._properties):
+                self.current_row[index + start_index] = \
+                    serial_object._properties[key]
+            self.current_row[index + start_index] = \
+                "T" if new_data_received else "F"
+            self.current_row[index + start_index + 1] = serial_object.sleep_time
 
     def end_row(self):
         if self.enable_record:
@@ -97,7 +107,8 @@ class Recorder(object):
             self.writer.writerow(self.current_row)
             self.enable_record = False
 
-        if (self.frequency is None) or (time.time() - self.time0) > self.frequency:
+        if (self.frequency is None) or (
+            time.time() - self.time0) > self.frequency:
             self.time0 = time.time()
             self.enable_record = True
 
@@ -112,7 +123,9 @@ def is_float(string):
     except ValueError:
         return False
 
-def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=False):
+
+def parse(file_dir, np_array=True, omit_header_rows=True,
+          remove_timestamps=False):
     if not os.path.isdir(file_dir) and not os.path.isfile(file_dir):
         file_dir = config.get_dir(":logs") + file_dir
 
@@ -128,8 +141,10 @@ def parse(file_dir, np_array=True, omit_header_rows=True, remove_timestamps=Fals
                     parsed_row.append(float(datum))
                 elif datum.isdigit():
                     parsed_row.append(int(datum))
-                elif datum == "":
-                    parsed_row.append(None)
+                elif datum == "T":
+                    parsed_row.append(True)
+                elif datum == "F":
+                    parsed_row.append(False)
                 else:
                     parsed_row.append(datum)
 

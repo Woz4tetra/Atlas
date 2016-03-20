@@ -3,6 +3,7 @@ This class converts the sensor data into correct units
 """
 import math
 
+
 class Interpreter():
     def __init__(self, initial_encoder, origin_lat, origin_long):
         self.prev_encoder = initial_encoder
@@ -10,17 +11,19 @@ class Interpreter():
         self.origin_long = origin_long
         self.wheel_radius = 0.1778  # wheel radius in meters
         self.deg_to_m = 111226.343  # convert gps degrees to meters
-        self.shift_angle = 0
 
-    def convert(self, latitude, longitude, accel_x, accel_y, enc_counts, yaw, gps_heading):
+    def convert(self, latitude, longitude, accel_x, accel_y, enc_counts, yaw,
+                kalman_heading):
         x, y = self.convert_gps(latitude, longitude)
         enc_counts = self.convert_encoder(enc_counts)
-        yaw = (yaw + self.shift_angle) % (2 * math.pi)
+        yaw = (yaw + kalman_heading) % (2 * math.pi)
         if math.pi < yaw:
             yaw -= 2 * math.pi
 
-        shifted_accel_x = accel_x * math.cos(self.shift_angle) - accel_y * math.sin(self.shift_angle)
-        shifted_accel_y = accel_x * math.sin(self.shift_angle) + accel_y * math.cos(self.shift_angle)
+        shifted_accel_x = accel_x * math.cos(
+            kalman_heading) - accel_y * math.sin(kalman_heading)
+        shifted_accel_y = accel_x * math.sin(
+            kalman_heading) + accel_y * math.cos(kalman_heading)
 
         return x, y, shifted_accel_x, shifted_accel_y, enc_counts, yaw
 

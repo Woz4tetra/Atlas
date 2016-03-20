@@ -62,32 +62,59 @@ def plot_encoder(file_name):
 
 
 def plot_angles(file_name, density=100, source="yaw", set_limits=True,
-                data_range=None):
-    timestamps, sensor_data = get_plottable_data(file_name,
-                                                 ["lat", "long", source])
-    if data_range is None:
-        data_range = (0, len(sensor_data[0]))
+                data_range=None, shift_angle=0.0, swap_angle=False,
+                rainbow_colors=False):
+    if source == "atan":
+        timestamps, sensor_data = get_plottable_data(file_name,
+                                                     ["lat", "long"])
     else:
-        data_range = (data_range[0], data_range[1])
+        # lat: x, long: y, source: angle
+        timestamps, sensor_data = get_plottable_data(file_name,
+                                                     ["lat", "long", source])
+    if data_range is None:
+        data_range = (0, len(sensor_data[0]) - density)
+    else:
+        data_range = (data_range[0], data_range[1] - density)
 
     plt.plot(sensor_data[0][data_range[0]: data_range[1]],
              sensor_data[1][data_range[0]: data_range[1]])
 
     lines = []
     for index in range(data_range[0], data_range[1], density):
+        x1, x0 = sensor_data[0][index + density], sensor_data[0][index]
+        y1, y0 = sensor_data[1][index + density], sensor_data[1][index]
+        dx = x1 - x0
+        dy = y1 - y0
+
+        # hypotenuse of a triangle for coords, 1.5 is to have it stick out more
+        hypotenuse = 1.5 * ((dx ** 2 + dy ** 2) ** .5)
+
+        if source == "atan":
+            angle = np.arctan2(dy, dx)
+        else:
+            angle = sensor_data[2][index]
+
+        if swap_angle:
+            angle = shift_angle - angle
+        else:
+            angle += shift_angle
+
         lines.append(
             (sensor_data[0][index],
-             sensor_data[0][index] + 0.0001 * np.sin(sensor_data[2][index]))
+             sensor_data[0][index] + hypotenuse * np.cos(angle))
         )
         lines.append(
             (sensor_data[1][index],
-             sensor_data[1][index] + 0.0001 * np.cos(sensor_data[2][index]))
+             sensor_data[1][index] + hypotenuse * np.sin(angle))
         )
-        # lines.append("#%0.2x%0.2x%0.2x" %
-        #     (255 - int(np.random.normal(128, 128)) % 255,
-        #      255 - int(np.random.normal(128, 128)) % 255,
-        #      255 - int(np.random.normal(128, 128)) % 255))
-        lines.append('r')
+        if rainbow_colors:
+            lines.append("#%0.2x%0.2x%0.2x" %
+                (255 - int(np.random.normal(128, 128)) % 255,
+                 255 - int(np.random.normal(128, 128)) % 255,
+                 255 - int(np.random.normal(128, 128)) % 255))
+        else:
+            lines.append('r')
+
     plt.plot(*lines)
 
     if set_limits:
@@ -116,12 +143,14 @@ def plot_map(map_name):
 
 if __name__ == '__main__':
     # plot_all(plot_angles, source="yaw", directory="Test Day 4", density=50)
-    # plot_angles("Test Day 4/Sat Mar 12 23;06;53 2016.csv", source="yaw",
-    #     density=100)#, data_range=(0, 3000), set_limits=False)
+    # plot_angles("Test Day 4/Sat Mar 12 22;27;45 2016.csv", source="yaw",
+    #             density=100, shift_angle=np.pi / 2, swap_angle=True)
+    plot_angles("Test Day 4/Sat Mar 12 22;27;45 2016.csv", source="atan",
+                density=100)
 
     # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
-    plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    # plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
 
-    plot_map("Sat Feb 27 21;46;23 2016 GPS Map.csv")
+    plot_map("Track Field Map Trimmed.csv")
 
     plt.show()

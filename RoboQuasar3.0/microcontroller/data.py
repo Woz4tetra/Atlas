@@ -39,6 +39,8 @@ class SensorPool(object):
         :return: SensorPool object
         """
 
+
+
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -98,6 +100,9 @@ class SensorPool(object):
                 sensor = self.sensors[sensor_id]
 
                 sensor._new_data_received = True
+                sensor.sleep_time = time.time() - sensor.prev_time
+                sensor.prev_time = time.time()
+
                 sensor.parse(data)
                 sensor.current_packet = packet
         else:
@@ -208,8 +213,8 @@ class Sensor(SerialObject):
         """
         super().__init__(sensor_id, properties)
         self._new_data_received = False
-        self.time0 = time.time()
-        self._last_received_at = 0.0
+        self.sleep_time = 0.0
+        self.prev_time = time.time()
 
         sensor_pool.add_sensor(self)
 
@@ -219,14 +224,9 @@ class Sensor(SerialObject):
     def received(self):
         if self._new_data_received:
             self._new_data_received = False
-            self._last_received_at = time.time() - self.time0
-            self.time0 = time.time()
             return True
         else:
             return False
-
-    def since_update(self):
-        return self._last_received_at
 
     @staticmethod
     def format_hex(hex_string, data_format):

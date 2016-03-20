@@ -8,15 +8,18 @@ Version 3/10/2015
 Finds goal position based on a supplied current position
 """
 
+from analyzers.map import Map
+
+
 class Binder:
-    def __init__(self, map):
-        self.map = map
+    def __init__(self, map_name):
+        self.map = Map(map_name)
         # set to None so that it will be able to start at any point on the track
         self.prev_bind = None
 
     def bind(self, position):
         if (self.prev_bind is None or self.prev_bind >= (len(self.map.data) - 1)
-                or self.prev_bind < 0):
+            or self.prev_bind < 0):
             # finds the smallest distance between the point and the map
             self.prev_bind = self.find_nearest(position)
             return self.map.data[self.prev_bind + 1]
@@ -53,12 +56,16 @@ class Binder:
         dist = ((dx ** 2) + (dy ** 2)) ** 0.5
 
         if index + 2 < len(self.map.data):
-            acc_dlat = abs(float(self.map.data[index][0] - self.map.data[index + 1][0]))
-            acc_dlong = abs(float(self.map.data[index][1] - self.map.data[index + 1][1]))
+            acc_dlat = abs(
+                float(self.map.data[index][0] - self.map.data[index + 1][0]))
+            acc_dlong = abs(
+                float(self.map.data[index][1] - self.map.data[index + 1][1]))
 
         else:
-            acc_dlat = abs(float(self.map.data[index][0] - self.map.data[index - 1][0]))
-            acc_dlong = abs(float(self.map.data[index][1] - self.map.data[index - 1][1]))
+            acc_dlat = abs(
+                float(self.map.data[index][0] - self.map.data[index - 1][0]))
+            acc_dlong = abs(
+                float(self.map.data[index][1] - self.map.data[index - 1][1]))
 
         accuracy = ((acc_dlat ** 2 + acc_dlong ** 2) ** 0.5) / 2
 
