@@ -73,7 +73,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
     prev_time = time.time()
 
     if log_data:
-        log = Recorder(frequency=0.01)
+        log = Recorder(directory="Autonomous Test Day 2", frequency=0.01)
         log.add_tracker(imu, 'imu')
         log.add_tracker(encoder, 'encoder')
         log.add_tracker(gps, 'gps')

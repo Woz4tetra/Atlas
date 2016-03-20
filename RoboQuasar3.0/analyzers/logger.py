@@ -37,6 +37,8 @@ class Recorder(object):
             if directory[-1] != "/":
                 directory += "/"
             self.directory = directory
+            if not os.path.isdir(self.directory):
+                self.directory = config.get_dir(":logs") + self.directory
 
         if file_name is None:
             self.file_name = time.strftime("%c").replace(":", ";") + ".csv"
