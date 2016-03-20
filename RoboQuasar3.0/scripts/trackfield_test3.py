@@ -24,9 +24,9 @@ from controllers.gcjoystick import joystick_init
 from controllers.servo_map import *
 
 script_options = dict(
-    log_data=True,
+    log_data=False,
     enable_joystick=True,
-    print_data=False
+    print_data=True
 )
 
 # data type is specified by incoming packet
@@ -60,9 +60,10 @@ if script_options['log_data']:
 try:
     while True:
         if script_options['print_data']:
-            if imu.received():
-                print(("%0.4f\t" * 4) % (imu["accel_x"], imu["accel_y"],
-                                         imu["compass"], imu["yaw"]))
+            # if imu.received():
+            #     print(("%0.4f\t" * 4) % (
+            #         imu["accel_x"], imu["accel_y"],
+            #         imu["compass"], imu["yaw"]))
             if gps.received():
                 print(gps["lat"], gps["long"], gps["heading"])
             if encoder.received():
@@ -77,13 +78,11 @@ try:
             prev_status = is_running()
 
         if script_options['enable_joystick']:
-            joystick.update()
-            servo_steering["position"] = int(
-                50 * (joystick.triggers.L - joystick.triggers.R)) - 23
-            # servo_steering["position"] = \
-            #     servo_value([0, 0, 0],
-            #                 [joystick.mainStick.y,
-            #                  -5.34 / 90 * joystick.mainStick.x])
+            # servo_steering["position"] = int(
+            #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
+            servo_steering["position"] = \
+                servo_value([0, 0, 0],
+                            [1, 5.34 / 90 * joystick.mainStick.x])
 
         if script_options['log_data']:
             log.add_data(imu)
@@ -98,3 +97,4 @@ except:
     traceback.print_exc()
 finally:
     stop()
+    joystick.stop()

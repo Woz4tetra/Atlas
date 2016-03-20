@@ -1,4 +1,3 @@
-
 """
 Written by Ben Warwick, edited by Elim Zhang
 
@@ -40,48 +39,51 @@ sys.path.insert(0, '../')
 from camera import capture
 from camera import analyzers
 
+import copy
 
-def run():
-    camera1 = capture.Capture(window_name="line follow test",
+
+def create_array(value, width, height):
+    return [[copy.copy(value) for _ in range(width)] for _ in range(height)]
+
+
+def run(paused=False,
+        apply_filters=True,
+        enable_draw=True,
+        write_video=False,
+        slideshow=False,
+        burst_mode=False):
+    camera1 = capture.Capture(
+        window_name="line follow test",
         cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
-        cam_source='',
         loop_video=False,
         start_frame=0,
         width=480,
         height=270
     )
 
-    capture_properties = dict(
-            paused=False,
-            apply_filters=True,
-            enable_draw=True,
-            currentFrame=camera1.currentTimeMsec(),
-            write_video=False,
-            slideshow=False,
-            burst_mode=False,
-    )
+    currentFrame = camera1.currentTimeMsec()
 
     frame1 = camera1.getFrame(readNextFrame=False)
     height, width = frame1.shape[0:2]
 
     time_start = time.time()
 
-    warper = analyzers.RoadWarper(camera1.windowName, width, height,
-                                  [[135, 81], [355, 89], [4, 132], [478, 156]])
-                                #   [[190, 110], [469, 110], [19, 160], [628, 160]])
+    warper = analyzers.RoadWarper(
+        camera1.windowName, width, height,
+        [[135, 81], [355, 89], [4, 132], [478, 156]])
+    #   [[190, 110], [469, 110], [19, 160], [628, 160]])
     line_follower = analyzers.LineFollower()
 
     while camera1.isRunning:
-        if capture_properties['paused'] == False or capture_properties[
-                'currentFrame'] != camera1.currentTimeMsec():
+        if not paused or currentFrame != camera1.currentTimeMsec():
             frame1 = camera1.getFrame()
 
             if frame1 is None:
                 continue
 
-            capture_properties['currentFrame'] = camera1.currentTimeMsec()
+            currentFrame = camera1.currentTimeMsec()
 
-            if capture_properties['apply_filters']:
+            if apply_filters:
                 frame1 = warper.update(frame1)
                 sobeled = cv2.cvtColor(frame1, cv2.COLOR_BGR2HSV)
                 # sobeled = cv2.medianBlur(sobeled, 7)
@@ -92,7 +94,9 @@ def run():
                 # sobeled = cv2.cvtColor(cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_HSV2BGR),
                 #                        cv2.COLOR_BGR2GRAY)
                 # sobeled = np.uint8(sobeled)[:, :, 2]
-                sobeled = cv2.adaptiveThreshold(sobeled, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 13, -10)
+                sobeled = cv2.adaptiveThreshold(sobeled, 255,
+                                                cv2.ADAPTIVE_THRESH_MEAN_C,
+                                                cv2.THRESH_BINARY, 13, -10)
                 # value, sobeled = cv2.threshold(sobeled, 255, 255, cv2.THRESH_OTSU)
                 # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
 
@@ -101,37 +105,33 @@ def run():
                 sobeled = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
                 frame1 = np.concatenate((sobeled, frame1))
 
-            if capture_properties['enable_draw'] is True:
+            if enable_draw:
                 camera1.showFrame(frame1)
 
-            if capture_properties['write_video'] == True:
+            if write_video:
                 camera1.writeToVideo(frame1)
 
-        if capture_properties['slideshow'] == True:
-            capture_properties['paused'] = True
+        if slideshow:
+            paused = True
 
-        if capture_properties['burst_mode'] == True and capture_properties[
-            'paused'] == False:
+        if burst_mode and paused:
             camera1.saveFrame(frame1, default_name=True)
 
-        if capture_properties['enable_draw'] is True:
+        if enable_draw:
             key = camera1.getPressedKey()
             if key == 'q' or key == "esc":
                 camera1.stopCamera()
             elif key == ' ':
-                if capture_properties['paused']:
+                if paused:
                     print("%0.4fs, %i: ...Video unpaused" % (
-                    time.time() - time_start, camera1.currentTimeMsec()))
+                        time.time() - time_start, camera1.currentTimeMsec()))
                 else:
                     print("%0.4fs, %i: Video paused..." % (
-                    time.time() - time_start, camera1.currentTimeMsec()))
-                capture_properties['paused'] = not capture_properties['paused']
+                        time.time() - time_start, camera1.currentTimeMsec()))
+                paused = not paused
             elif key == 'o':
-                capture_properties['apply_filters'] = not capture_properties[
-                    'apply_filters']
-                print((
-                    "Applying filters is " + str(
-                            capture_properties['apply_filters'])))
+                apply_filters = not apply_filters
+                print(("Applying filters is " + str(apply_filters)))
                 frame1 = camera1.getFrame(False)
             elif key == "right":
                 camera1.incrementFrame()
@@ -141,19 +141,16 @@ def run():
                 camera1.saveFrame(frame1)
 
             elif key == 'v':
-                if capture_properties['write_video'] == False:
+                if not write_video:
                     camera1.startVideo()
                 else:
                     camera1.stopVideo()
-                capture_properties['write_video'] = not capture_properties[
-                    'write_video']
+                write_video = not write_video
             elif key == 'b':  # burst photo mode
-                capture_properties['burst_mode'] = not capture_properties[
-                    'burst_mode']
-                print((
-                      "Burst mode is " + str(capture_properties['burst_mode'])))
+                burst_mode = not burst_mode
+                print("Burst mode is " + str(burst_mode))
             elif key == 'p':  # debug print
-                print("Frame #:", capture_properties['currentFrame'])
+                print("Frame #:", currentFrame)
             elif key == 'r':
                 warper.reset()
 

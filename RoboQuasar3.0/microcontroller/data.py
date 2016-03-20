@@ -39,6 +39,8 @@ class SensorPool(object):
         :return: SensorPool object
         """
 
+
+
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -97,7 +99,10 @@ class SensorPool(object):
             if sensor_id in list(self.sensors.keys()):
                 sensor = self.sensors[sensor_id]
 
-                sensor._new_data_recved = True
+                sensor._new_data_received = True
+                sensor.sleep_time = time.time() - sensor.prev_time
+                sensor.prev_time = time.time()
+
                 sensor.parse(data)
                 sensor.current_packet = packet
         else:
@@ -208,6 +213,8 @@ class Sensor(SerialObject):
         """
         super().__init__(sensor_id, properties)
         self._new_data_received = False
+        self.sleep_time = 0.0
+        self.prev_time = time.time()
 
         sensor_pool.add_sensor(self)
 
@@ -539,7 +546,12 @@ if __name__ == '__main__':
 else:
     from microcontroller.comm import Communicator
 
-    reset = Command(255, 'reset', (False, True))
+    reset_command = Command(255, 'reset', (False, True))
+
+    def reset():
+        global reset_command
+        communicator.serial_ref.write(struct.pack("B", 4))
+        reset_command['reset'] = True
 
     def start(baud=115200, use_handshake=True, check_status=False):
         global communicator
@@ -557,10 +569,7 @@ else:
                 print(".")
                 time.sleep(2)
             print("\nIt's alive!")
-
-        communicator.serial_ref.write(struct.pack("B", 4))
-        reset['reset'] = True
-
+        reset()
 
     def stop():
         global communicator
@@ -572,6 +581,8 @@ else:
 
 
     def is_running(threshold=2):
-        global communicator
-        return (round(
-                time.time() - _initial_time) - communicator.thread_time) <= threshold
+        global communicator, _initial_time
+        status = (round(time.time() - _initial_time) - communicator.thread_time) <= threshold
+        if status is True:
+            communicator.start_time = _initial_time = time.time()
+        return status

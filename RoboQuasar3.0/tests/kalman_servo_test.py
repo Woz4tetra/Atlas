@@ -24,7 +24,7 @@ from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 
 from analyzers.logger import Recorder
-from analyzers.kalman_filter import StateFilter
+from analyzers.kalman_filter import PositionFilter
 from analyzers.interpreter import Interpreter
 from analyzers.map import Map
 from analyzers.binder import Binder
@@ -45,7 +45,7 @@ def find_nearest(map, position):
         dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
         map_dist[index] = dist
     smallest_value = min(map_dist)
-    index = map_dist.index(smallest_value)
+    index = (map_dist.index(smallest_value) + 2) % len(map)
     return map[index]
 
 def main(log_data=True, manual_mode=True, print_data=False):
@@ -58,6 +58,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
         initial_lon = sensor_data[0][4] + sensor_data[0][5] / 60
         initial_heading = sensor_data[0][16]
         prev_encoder_value = sensor_data[0][9]
+        prev_time = sensor_data[0][0]
     elif len(sensor_data[0]) == 10:
         initial_lat = sensor_data[0][2]
         initial_lon = sensor_data[0][3]
@@ -71,14 +72,6 @@ def main(log_data=True, manual_mode=True, print_data=False):
     joystick = joystick_init()
     notifier = TunePlayer()
 
-    print("Awaiting user input...")
-    notifier.play("Coin.wav")
-    while not joystick.buttons.A:
-        joystick.update()
-        time.sleep(0.005)
-
-    notifier.play("Coin.wav")  # TODO: Find sound effects
-
     start(use_handshake=False)
 
     # 1.344451296765884 for shift_angle?
@@ -87,14 +80,14 @@ def main(log_data=True, manual_mode=True, print_data=False):
     prev_acc = [0,0]
     prev_gps = [0,0]
 
-    kfilter = StateFilter()
-    map = Map("Sat Feb 27 21;46;23 2016 GPS Map.csv",
+    kfilter = PositionFilter()
+    map = Map("From Test Day 4 Long Data Run.csv",
               origin_lat=initial_lat,
               origin_long=initial_lon,
               shift_angle=initial_heading)
     binder = Binder(map)
 
-    for index in range(1, len(sensor_data), 100):
+    for index in range(1, len(sensor_data)):
         row = sensor_data[index]
         if len(row) == 23:
             timestamp, servo, lat_deg, lat_min, lon_deg, lon_min, gps_speed, \
@@ -104,9 +97,11 @@ def main(log_data=True, manual_mode=True, print_data=False):
             latitude = lat_deg + lat_min / 60
             longitude = lon_deg + lon_min / 60
 
-        elif len(row == 10):
+        elif len(row) == 10:
             (timestamp, servo, latitude, longitude, gps_heading,
              encoder_counts, accel_x, accel_y, yaw, compass) = row
+        else:
+            raise ValueError("Invalid file. Not correct data headers")
 
 
         #print("%9.8f\t%9.8f\t%9.8f" % (accel_x, accel_y, yaw))
@@ -117,7 +112,6 @@ def main(log_data=True, manual_mode=True, print_data=False):
     #cant really deal with figuring out whether encoder was updated or not from
     #here. there isnt enough information that i can find
         enc_flag = False
-        gps_flag = False
 
         if prev_acc == [accel_x, accel_y]:
             acc_flag = True
@@ -139,12 +133,12 @@ def main(log_data=True, manual_mode=True, print_data=False):
 
         # print("%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f\t%9.8f"
         #         % (gps_x,gps_y,x,y,vx,vy,ax,ay))
-        goal_x, goal_y = find_nearest(map, (x, y))
+        goal_x, goal_y = binder.bind((x, y))# find_nearest(map, (x, y))
         servo_steering["position"] = \
             servo_value((x, y, yaw), (goal_x, goal_y))
-        print(timestamp, x, y, servo_steering["position"])
+        print("%0.4f, (%0.4f, %0.4f), (%0.4f, %0.4f), %i" % (timestamp, x, y, goal_x, goal_y, servo_steering["position"]))
 
-        time.sleep(0.005)
+        # time.sleep(0.005)
     notifier.play("PuzzleDone.wav")
     stop()
     time.sleep(1)

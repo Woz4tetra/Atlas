@@ -4,7 +4,7 @@ import math
 sys.path.insert(0, "../")
 
 from analyzers.logger import parse
-from analyzers.kalman_filter import StateFilter
+from analyzers.kalman_filter import PositionFilter
 from analyzers.interpreter import Interpreter
 
 sensor_data = parse("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
@@ -31,7 +31,7 @@ interpreter = Interpreter(prev_encoder_value, initial_lat,
 
 
 
-kfilter = StateFilter()
+kfilter = PositionFilter()
 
 prev_acc = [0,0]
 prev_gps = [0,0]

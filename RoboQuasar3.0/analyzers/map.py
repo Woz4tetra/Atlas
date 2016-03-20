@@ -20,41 +20,11 @@ import config
 
 
 class Map():
-    def __init__(self, map_name=None, directory=None, origin_lat=None,
-                 origin_long=None, shift_angle=None):
+    def __init__(self, map_name=None, directory=None):
         if map_name is None:
             self.data = []
         else:
             self.data = self.get_map(map_name, directory)
-
-        if origin_lat is not None and origin_long is not None:
-            self.origin_lat = origin_lat
-            self.origin_long = origin_long
-            self.shift_matrix = np.array(
-                [[np.cos(shift_angle), np.sin(shift_angle)],
-                 [-np.sin(shift_angle), np.cos(shift_angle)]]
-            )
-            self.deg_to_m = 111226.343
-
-            self.convert_data()
-        if shift_angle is not None:
-            self.data = np.dot(self.data, self.shift_matrix)
-
-    def convert_data(self):
-        """
-        goes through every lat, long pair and replaces it with the x y distance
-        from the origin point
-
-        :return: None
-        """
-        for i in range(len(self.data)):
-            point_lat = self.data[i][0]
-            point_long = self.data[i][1]
-            lat_mean = (point_lat + self.origin_lat) / 2
-            x = (point_long - self.origin_long) * np.cos(lat_mean)
-            y = (point_lat - self.origin_lat)
-            self.data[i][0] = x * self.deg_to_m
-            self.data[i][1] = y * self.deg_to_m
 
     def __getitem__(self, item):
         return self.data[item]
@@ -97,6 +67,8 @@ class Map():
             directory = config.get_dir(":maps")
         if file_name is None:
             file_name = time.strftime("%c").replace(":", ";")
+        print("Writing to: " + directory)
+        print("File name to: " + file_name)
         with open(directory + file_name + ".csv", 'w') as csv_file:
             map_writer = csv.writer(csv_file, delimiter=',',
                                     quotechar='|',
@@ -157,7 +129,20 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
         map.write_map(out_directory, file_name)
 
 
-if __name__ == '__main__':
+def edit_map():
     test_map = Map("Thu Mar 17 17;53;53 2016.csv")
     test_map.data = test_map.data[1:-1:10]
     test_map.write_map()
+
+def make_map(log_file, map_name):
+    import plotter
+    timestamps, sensor_data = plotter.get_plottable_data(log_file, ["lat", "long"])
+    map_data = []
+    for index in range(len(sensor_data[0])):
+        map_data.append([sensor_data[0][index], sensor_data[1][index]])
+    map = Map()
+    map.data = map_data
+    map.remove_duplicates(map_name=map_name)
+
+if __name__ == '__main__':
+    make_map("Test Day 4/Sat Mar 12 23;06;53 2016.csv", "From Test Day 4 Long Data Run")

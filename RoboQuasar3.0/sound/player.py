@@ -15,8 +15,13 @@ class TunePlayer():
         for tune_name in os.listdir(tunes_dir):
             self.tunes[tune_name] = pygame.mixer.Sound(tunes_dir + tune_name)
 
-    def play(self, tune_name, loops=0):
-        self.tunes[tune_name].play(loops)
 
-    def stop(self):
-        self.tunes[tune_name].stop()
+    def play(self, tune_name):
+        self.tunes[tune_name + ".wav"].play()
+
+    def stop(self, tune_name):
+        self.tunes[tune_name + ".wav"].stop()
+
+    def stop_all(self):
+        for tune_name in self.tunes.keys():
+            self.tunes[tune_name].stop()
