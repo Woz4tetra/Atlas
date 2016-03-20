@@ -30,7 +30,7 @@ script_options = dict(
 )
 
 # data type is specified by incoming packet
-gps = Sensor(1, ['lat', 'long', 'heading'])
+gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
 encoder = Sensor(2, 'counts')
 imu = Sensor(3, ['accel_x', 'accel_y', 'yaw', 'compass'])
 
@@ -65,7 +65,7 @@ try:
             #         imu["accel_x"], imu["accel_y"],
             #         imu["compass"], imu["yaw"]))
             if gps.received():
-                print(gps["lat"], gps["long"], gps["heading"])
+                print(gps["lat"], gps["long"], gps["heading"], gps["found"])
             if encoder.received():
                 print(encoder["counts"])
                 # time.sleep(0.25)

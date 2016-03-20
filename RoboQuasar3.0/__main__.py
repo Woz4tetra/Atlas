@@ -31,7 +31,7 @@ from sound.player import TunePlayer
 # shifting needs to be done during a run (localize heading)
 # make sure angle shifting is consistent
 
-def main(log_data=True, manual_mode=True, print_data=True):
+def main(log_data=False, manual_mode=False, print_data=True):
     # data type is specified by incoming packet
     gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
     encoder = Sensor(2, 'counts')
@@ -72,14 +72,15 @@ def main(log_data=True, manual_mode=True, print_data=True):
 
     prev_time = time.time()
 
-    if log_data:
-        log = Recorder(directory="Autonomous Test Day 2", frequency=0.01)
-        log.add_tracker(imu, 'imu')
-        log.add_tracker(encoder, 'encoder')
-        log.add_tracker(gps, 'gps')
-        log.add_tracker(servo_steering, 'servo_steering')
-        # log.add_tracker(servo_brakes, 'servo_brakes')
-        log.end_init()
+    # if log_data:
+    #     # TODO: make enable flags per sensor based
+    #     log = Recorder(directory="Autonomous Test Day 2", frequency=0.01)
+    #     log.add_tracker(imu, 'imu')
+    #     log.add_tracker(encoder, 'encoder')
+    #     log.add_tracker(gps, 'gps')
+    #     log.add_tracker(servo_steering, 'servo_steering')
+    #     # log.add_tracker(servo_brakes, 'servo_brakes')
+    #     log.end_init()
 
     try:
         while True:  # maybe in future, reset global events here (received data)
@@ -98,7 +99,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
             enc_flag = encoder.received()
 
             if gps_flag:
-                notifier.play("bloop")
+                notifier.play("click")
 
             if prev_gps_status != gps['found']:
                 if gps['found']:
@@ -108,16 +109,22 @@ def main(log_data=True, manual_mode=True, print_data=True):
                 prev_gps_status = gps['found']
 
             if print_data:
-                if imu_flag:
-                    print(("%0.4f\t" * 5) % (
-                        time.time() - prev_time,
-                        imu["accel_x"], imu["accel_y"],
-                        imu["compass"], imu["yaw"]))
-                if gps_flag:
-                    print(time.time() - prev_time, gps["lat"], gps["long"],
-                          gps["heading"], gps["found"])
-                if enc_flag:
-                    print(time.time() - prev_time, encoder["counts"])
+                # if imu_flag:
+                #     print(("%0.4f\t" * 5) % (
+                #         time.time() - prev_time,
+                #         imu["accel_x"], imu["accel_y"],
+                #         imu["compass"], imu["yaw"]))
+                # if gps_flag:
+                #     print(time.time() - prev_time, gps["lat"], gps["long"],
+                #           gps["heading"], gps["found"])
+                # if enc_flag:
+                #     print(time.time() - prev_time, encoder["counts"])
+                print(("%0.4f\t" * 5 + "%i\t" + "%0.4f\t" * 4 + "%i\t" * 2 + "%0.4f\t" + "%i\t%i\t%0.4f") % (
+                    time.time() - prev_time,
+                    imu["accel_x"], imu["accel_y"],
+                    imu["compass"], imu["yaw"], imu_flag, imu.sleep_time,
+                    gps["lat"], gps["long"], gps["heading"], gps["found"], gps_flag, gps.sleep_time,
+                    encoder["counts"], enc_flag, encoder.sleep_time))
 
             if is_running() != prev_status:
                 if is_running():
@@ -133,7 +140,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
                 #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
                 servo_steering["position"] = \
                     servo_value([0, 0, 0],
-                                [1, -5.34 / 90 * joystick.mainStick.x])
+                                [1, 5.34 / 90 * joystick.mainStick.x])
                 print(time.time() - prev_time, servo_steering["position"])
             else:
                 current_time = time.time()
@@ -157,21 +164,20 @@ def main(log_data=True, manual_mode=True, print_data=True):
                 goal_x, goal_y = binder.bind((x, y))
 
                 servo_steering["position"] = \
-                    servo_value((x, y, heading), (goal_x, goal_y))
+                    servo_value((x, y, kalman_heading), (goal_x, goal_y))
 
-                if print_data:
-                    print(goal_x, goal_y, x, y, heading,
-                          servo_steering["position"])
+                print(goal_x, goal_y, x, y, heading, kalman_heading,
+                      servo_steering["position"])
 
                 prev_time = current_time
 
-            if log_data:
-                log.add_data(imu, imu_flag)
-                log.add_data(encoder, gps_flag)
-                log.add_data(gps, enc_flag)
-                log.add_data(servo_steering)
-                # log.add_data(servo_brakes)
-                log.end_row()
+            # if log_data:
+            #     log.add_data(imu, imu_flag)
+            #     log.add_data(encoder, gps_flag)
+            #     log.add_data(gps, enc_flag)
+            #     log.add_data(servo_steering, True)
+            #     # log.add_data(servo_brakes)
+            #     log.end_row()
 
             time.sleep(0.001)
 
@@ -179,7 +185,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
         traceback.print_exc()
     finally:
         stop()
-        notifier.play("PuzzleDone.wav")
+        notifier.play("PuzzleDone")
         time.sleep(1)
 
 

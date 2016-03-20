@@ -141,4 +141,4 @@ class HeadingFilter:
             transition_matrix=transition_matrix,
             observation_matrix=observation_matrix)
 
-        return self.filt_state_mean
+        return self.filt_state_mean[0]

@@ -20,11 +20,30 @@ import config
 
 
 class Map():
-    def __init__(self, map_name=None, directory=None):
+    def __init__(self, map_name=None, directory=None, origin_lat=None, origin_long=None):
         if map_name is None:
             self.data = []
         else:
             self.data = self.get_map(map_name, directory)
+            self.deg_to_m = 111226.343
+            if origin_lat is not None and origin_long is not None:
+                self.shift_data()
+            
+    def shift_data(self):
+        """
+        goes through every lat, long pair and replaces it with the x y distance
+        from the origin point
+
+        :return: None
+        """
+        for i in range(len(self.data)):
+            point_lat  = self.data[i][0] * np.pi / 180
+            point_long = self.data[i][1] * np.pi / 180
+            lat_mean = (point_lat + self.origin_lat) / 2
+            x = (point_long - self.origin_long) * np.cos(lat_mean)
+            y = (point_lat - self.origin_lat)
+            self.data[i][0] = x * self.deg_to_m
+            self.data[i][1] = y * self.deg_to_m
 
     def __getitem__(self, item):
         return self.data[item]

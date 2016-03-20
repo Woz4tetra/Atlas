@@ -67,13 +67,8 @@ class Recorder(object):
         self.supply_flags = supply_flags
 
     def add_tracker(self, sensor, name):
-        if not self.supply_flags:
-            self.header_row.append(
-                (sensor.object_id, name, sensor, sensor._properties.keys()))
-        else:
-            self.header_row.append(
-                (sensor.object_id, name, sensor,
-                 sensor._properties.keys(), "new", "dt"))
+        self.header_row.append(
+            (sensor.object_id, name, sensor, sensor._properties.keys()))
 
     def end_init(self):
         self.header_row.sort(key=lambda element: element[0])
@@ -81,11 +76,12 @@ class Recorder(object):
         for sensor_info in self.header_row:
             object_id, sensor_name, sensor, data_names = sensor_info
 
-            self.sensor_indices[object_id] = len(self.current_row)
+            self.sensor_indices[object_id] = len(self.current_row) + 2
 
             names_row.append(sensor_name)
-            names_row += [""] * (len(data_names) - 1)
+            names_row += [""] * (len(data_names) + 1)
             self.current_row += data_names
+            self.current_row += ["new", "dt"]
         self.writer.writerow(names_row)
         self.writer.writerow(self.current_row)
 
@@ -96,9 +92,11 @@ class Recorder(object):
         if self.enable_record:
             start_index = self.sensor_indices[serial_object.object_id]
             index = 0
+            print(self.current_row, len(self.current_row))
             for index, key in enumerate(serial_object._properties):
                 self.current_row[index + start_index] = \
                     serial_object._properties[key]
+            print(start_index, index)
             self.current_row[index + start_index] = \
                 "T" if new_data_received else "F"
             self.current_row[index + start_index + 1] = serial_object.sleep_time

@@ -165,6 +165,9 @@ class SerialObject(object):
         :return: SerialObject
         """
 
+        self.sleep_time = 0.0
+        self.prev_time = time.time()
+
         assert (type(object_id) == int)
         if type(properties) == str:
             properties = [properties]
@@ -213,8 +216,6 @@ class Sensor(SerialObject):
         """
         super().__init__(sensor_id, properties)
         self._new_data_received = False
-        self.sleep_time = 0.0
-        self.prev_time = time.time()
 
         sensor_pool.add_sensor(self)
 
@@ -340,6 +341,8 @@ class Command(SerialObject):
         """
         global communicator
         self.property_set(key, value)
+        self.sleep_time = time.time() - self.prev_time
+        self.prev_time = time.time()
         communicator.put(self.get_packet())
 
     def property_set(self, key, value):

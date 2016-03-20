@@ -12,8 +12,8 @@ from analyzers.map import Map
 
 
 class Binder:
-    def __init__(self, map_name):
-        self.map = Map(map_name)
+    def __init__(self, map_name, origin_lat=None, origin_long=None):
+        self.map = Map(map_name, origin_lat=origin_lat, origin_long=origin_long)
         # set to None so that it will be able to start at any point on the track
         self.prev_bind = None
 
@@ -22,7 +22,7 @@ class Binder:
             or self.prev_bind < 0):
             # finds the smallest distance between the point and the map
             self.prev_bind = self.find_nearest(position)
-            return self.map.data[self.prev_bind + 1]
+            return self.map.data[(self.prev_bind + 1) % len(self.map)]
 
         for index in range(self.prev_bind, len(self.map.data)):
             if self.is_near(index, position):
