@@ -32,7 +32,8 @@ class PositionFilter:
                       [0, 0, 0, 0, 0, 1]])
 
 #TODO make the velocity/encoder not fucking shit
-
+        #ie keep track of actual non duplicates
+#TODO keep track of the dt for each sensor
         self.trans_covariance = \
             np.array([[1, 0, 0, 0, 0, 0],
                       [0, 1, 0, 0, 0, 0],
@@ -109,44 +110,25 @@ class PositionFilter:
 
 class HeadingFilter:
     def __init__(self):
-        self.obs_covariance = \
-            np.array([[1, 0],
-                      [0, 1]])
-
-        self.trans_covariance = \
-            np.array([[1, 0],
-                      [0, 1]])
-
-        self.filter = pykalman.KalmanFilter(
-            observation_covariance=self.obs_covariance,
-            transition_covariance=self.trans_covariance)
+        self.filter = pykalman.KalmanFilter()
         self.filt_state_mean = np.array([0.0])
-        self.covariance = np.identity(2)
-        self.count = 0
+        self.covariance = np.identity(1)
 
     def update(self, gps_heading, compass, imu_flag, gps_flag):
-
-        # need to convert change_dist into dx,dy
-
-        observation = np.array([])
-
+        observation = np.array([gps_heading, compass])
         observation = np.ma.asarray(observation)
 
         if gps_flag:
-            observation[] = np.ma.masked
-            observation[] = np.ma.masked
+            observation[0] = np.ma.masked
 
         if imu_flag:
-            observation[] = np.ma.masked
-            observation[] = np.ma.masked
+            observation[1] = np.ma.masked
+            observation[1] = np.ma.masked
 
-        observation_matrix = np.array(
-            []
-        )
+        observation_matrix = np.array([[1],
+                                       [1]])
 
-        transition_matrix = np.array(
-            []
-        )
+        transition_matrix = np.identity(1)
 
         self.filt_state_mean, self.covariance = self.filter.filter_update(
             filtered_state_mean=self.filt_state_mean,
