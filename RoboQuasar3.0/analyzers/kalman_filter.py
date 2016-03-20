@@ -50,7 +50,7 @@ class PositionFilter:
         self.count = 0
 
     def update(self, gps_x, gps_y, change_dist, enc_flag,
-            accel_x, accel_y, heading, dt, acc_flag, gps_flag):
+            accel_x, accel_y, heading, dt, acc_flag, gps_flag,dt_enc):
 
         #need to convert change_dist into dx,dy
         dx = change_dist * math.cos(heading)
@@ -85,8 +85,8 @@ class PositionFilter:
         observation_matrix = np.array(
             [[1, 0, 0,  0, 0, 0],
              [0, 1, 0,  0, 0, 0],
-             [0, 0, dt, 0, 0, 0],
-             [0, 0, 0, dt, 0, 0],
+             [0, 0, dt_enc, 0, 0, 0],
+             [0, 0, 0, dt_enc, 0, 0],
              [0, 0, 0, 0,  1, 0],
              [0, 0, 0, 0, 0, 1]])
 
