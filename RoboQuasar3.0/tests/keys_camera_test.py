@@ -19,9 +19,9 @@ from camera import capture
 def run():
     camera1 = capture.Capture(window_name="camera", cam_source=0)
     while True:
-        frame1 = camera1.getFrame()
-        camera1.showFrame(frame1)
-        key = camera1.getPressedKey()
+        frame1 = camera1.get_frame()
+        camera1.show_frame(frame1)
+        key = camera1.key_pressed()
         if key != -1:
             print(repr(key))
 

@@ -1,7 +1,10 @@
 # applies houghlines or cascade classfier filters on an input camera frame
 
-import numpy as np
+import bisect
+
 import cv2
+import numpy as np
+
 
 class RoadWarper:
     def __init__(self, window_name, width, height, warp_points=None):
@@ -32,13 +35,13 @@ class RoadWarper:
                 self.M = cv2.getPerspectiveTransform(pts1, pts2)
                 print("Warp matrix:", self.M)
 
-
     def update(self, frame):
         if 0 < len(self.pts1) < 4:
             for coord in self.pts1:
                 frame = cv2.circle(frame, tuple(coord), 2, (255, 0, 0), 2)
         elif self.M is not None:
-            frame = cv2.warpPerspective(frame, self.M, (self.width, self.height))
+            frame = cv2.warpPerspective(frame, self.M,
+                                        (self.width, self.height))
         return frame
 
     def reset(self):
@@ -46,35 +49,179 @@ class RoadWarper:
         self.pts1 = []
         self.M = None
 
-class LineFollower():
-    def __init__(self):
-        self.num_lines = 10
 
-    def update(self, frame, draw_frame=None):
-        frame_lines = cv2.Canny(frame, 1, 100)
-        #smooth the edge detection image for easier use(above)
+def detect_lines(frame, max_lines=None):
+    detected = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # detected = cv2.medianBlur(detected, 5)
+    # detected = cv2.GaussianBlur(detected, (3, 3), 0)
 
-        lines = cv2.HoughLines(frame_lines, rho=1, theta=np.pi / 180,
-                               threshold=100,)
-                            #    min_theta=-60 * np.pi / 180,
-                            #    max_theta= 60 * np.pi / 180)
-        if lines is not None and len(lines) >= self.num_lines:
-            for line in lines[0:self.num_lines]:
-                for rho,theta in line:
-                    a = np.cos(theta)
-                    b = np.sin(theta)
-                    x0 = a*rho
-                    y0 = b*rho
-                    x1 = int(x0 + 1000*(-b))
-                    y1 = int(y0 + 1000*(a))
-                    x2 = int(x0 - 1000*(-b))
-                    y2 = int(y0 - 1000*(a))
+    # detected = cv2.Sobel(detected, cv2.CV_64F, 1, 0, ksize=3)
+    # detected = np.absolute(detected)
+    # detected = np.uint8(detected)
 
-                    if draw_frame is None:
-                        cv2.line(frame,(x1,y1),(x2,y2),(0,0,255),2)
-                    else:
-                        cv2.line(draw_frame,(x1,y1),(x2,y2),(0,0,255),2)
+    detected = cv2.Canny(detected, 1, 100)
+    lines = cv2.HoughLines(detected, rho=1.2, theta=np.pi / 180,
+                           threshold=100,
+                           min_theta=-70 * np.pi / 180,
+                           max_theta=70 * np.pi / 180)
 
+    if max_lines is not None and lines is not None:
+        lines = lines[0:max_lines]
+    return lines, cv2.cvtColor(np.uint8(detected), cv2.COLOR_GRAY2BGR)
+
+
+def threshold_dark_image(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    gray = cv2.equalizeHist(gray)
+    gray = cv2.GaussianBlur(gray, (11, 11), 0)
+
+    thresh_val, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
+    return binary
+
+
+def get_contours(binary, epsilon=None):
+    """
+    Find the contours of an image and return an array of them sorted by increasing perimeter size.
+
+    :param binary: The binary image that contours are to be calculated
+    :param epsilon: If specified the approxPolyDP algorithm will be applied to the result.
+                    Recommended value is 0.001
+    :return: A 2D numpy array of the contours
+    """
+    binary, contours, hierarchy = cv2.findContours(binary.copy(), cv2.RETR_TREE,
+                                                   cv2.CHAIN_APPROX_SIMPLE)
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    sig_contours = []
+    perimeters = []
+
+    for contour in contours:
+        perimeter = cv2.arcLength(contour, closed=False)
+        index = bisect.bisect(perimeters, perimeter)
+        if epsilon is not None:
+            approx = cv2.approxPolyDP(contour, epsilon * perimeter, False)
+            sig_contours.insert(index, approx)
+        else:
+            sig_contours.insert(index, contour)
+        perimeters.insert(index, perimeter)
+
+    return sig_contours
+
+
+def draw_contours(frame, contours):
+    return cv2.drawContours(frame.copy(), contours, -1, (255, 255, 255), 3)
+
+
+def get_pid_goal(lines, offset_x, reference_height, frame=None):
+    """
+    Returns a goal x and angle according to the specifications of cv_pid.py
+    (goal y assumed to be the top of the screen)
+
+    :param lines: an array of rho, theta pairs returned from cv2.HoughLines
+    :param offset_x: Center line location
+    :param reference_height: The point to reference distance from
+    :param frame: frame to draw result on
+    :return: goal x in pixels that the buggy should point to, incident angle to
+        line (radians). 0 radians is defined down the screen along the center
+        line. A negative angle indicates the line is sloping downward
+        (positive angle: /, negative angle: \)
+    """
+    if lines is not None:
+        shortest_dist = None
+        closest_line = None
+        # intersect_angle = 0  # measured from reference line
+        draw_pts = None
+        for line in lines:
+            rho, theta = line[0][0], line[0][1]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            x1 = int(x0 + 1000 * -b)
+            y1 = int(y0 + 1000 * a)
+
+            if x1 - x0 != 0:
+                slope_hough = (y1 - y0) / (x1 - x0)
+                offset_hough = y0 - (y1 - y0) / (x1 - x0) * x0
+
+                intersect_y = slope_hough * offset_x + offset_hough
+                distance = reference_height - intersect_y
+
+                # y2 = reference_height
+                # x2 = (y2 - offset_hough) / slope_hough
+
+                # angle = np.arctan2(x2 - offset_x, y2 - intersect_y)
+
+                if shortest_dist is None or distance < shortest_dist:
+                    closest_line = (slope_hough, offset_hough)
+                    shortest_dist = distance
+                    # intersect_angle = angle
+                    if frame is not None:
+                        draw_pts = ((int(offset_x), int(reference_height)),
+                                    (int(offset_x), int(intersect_y)))
+            else:
+                distance = reference_height
+                if shortest_dist is None or distance < shortest_dist:
+                    closest_line = None
+                    shortest_dist = distance
+                    # intersect_angle = 0.0
+                    if frame is not None:
+                        draw_pts = ((int(offset_x), 0),
+                                    (int(offset_x), int(reference_height)))
+        if frame is not None:
+            if draw_pts is not None:
+                cv2.line(frame, draw_pts[0], draw_pts[1], (0, 0, 255), 2)
+            if closest_line is not None:
+                cv2.circle(frame, (int(-closest_line[1] / closest_line[0]), 0), 3, (200, 200, 0), 2)
+
+        if closest_line is not None:
+            return -closest_line[1] / closest_line[0]
+
+    return offset_x
+
+
+def draw_lines(frame, lines):
+    if lines is not None:
+        for line in lines:
+            rho, theta = line[0][0], line[0][1]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            x1 = int(x0 + 1000 * -b)
+            y1 = int(y0 + 1000 * a)
+            x2 = int(x0 - 1000 * -b)
+            y2 = int(y0 - 1000 * a)
+            cv2.line(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+# class LineFollower():
+#     def __init__(self):
+#         self.num_lines = 10
+#
+#     def update(self, frame, draw_frame=None):
+#         frame_lines = cv2.Canny(frame, 1, 100)
+#         # smooth the edge detection image for easier use(above)
+#
+#         lines = cv2.HoughLines(frame_lines, rho=1, theta=np.pi / 180,
+#                                threshold=100, )
+#         #    min_theta=-60 * np.pi / 180,
+#         #    max_theta= 60 * np.pi / 180)
+#         if lines is not None and len(lines) >= self.num_lines:
+#             for line in lines[0:self.num_lines]:
+#                 for rho, theta in line:
+#                     a = np.cos(theta)
+#                     b = np.sin(theta)
+#                     x0 = a * rho
+#                     y0 = b * rho
+#                     x1 = int(x0 + 1000 * (-b))
+#                     y1 = int(y0 + 1000 * (a))
+#                     x2 = int(x0 - 1000 * (-b))
+#                     y2 = int(y0 - 1000 * (a))
+#
+#                     if draw_frame is None:
+#                         cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+#                     else:
+#                         cv2.line(draw_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
 # class LineFollower:
 #     def __init__(self, expected, y_bottom, width, height):

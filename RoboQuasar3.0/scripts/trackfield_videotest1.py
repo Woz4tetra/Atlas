@@ -40,7 +40,7 @@ def run():
             paused=False,
             apply_filters=False,
             enable_draw=True,
-            currentFrame=camera1.currentTimeMsec(),
+            currentFrame=camera1.current_pos(),
             write_video=False,
             slideshow=False,
             burst_mode=False,
@@ -57,14 +57,14 @@ def run():
 
     while camera1.isRunning:
         if capture_properties['paused'] == False or capture_properties[
-                'currentFrame'] != camera1.currentTimeMsec():
-            frame1 = camera1.getFrame()
-            frame2 = camera2.getFrame()
+                'currentFrame'] != camera1.current_pos():
+            frame1 = camera1.get_frame()
+            frame2 = camera2.get_frame()
 
             if frame1 is None or frame2 is None:
                 continue
 
-            capture_properties['currentFrame'] = camera1.currentTimeMsec()
+            capture_properties['currentFrame'] = camera1.current_pos()
 
             if capture_properties['apply_filters']:
                 # sobeled = warper.update(frame1)
@@ -82,35 +82,35 @@ def run():
 
 
             if capture_properties['enable_draw'] is True:
-                camera1.showFrame(frame1)
-                camera2.showFrame(frame2)
+                camera1.show_frame(frame1)
+                camera2.show_frame(frame2)
 
             if capture_properties['write_video'] == True:
-                camera1.writeToVideo(frame1)
-                camera2.writeToVideo(frame2)
+                camera1.write_to_video(frame1)
+                camera2.write_to_video(frame2)
 
         if capture_properties['slideshow'] == True:
             capture_properties['paused'] = True
 
         if capture_properties['burst_mode'] == True and capture_properties[
             'paused'] == False:
-            camera1.saveFrame(frame1, default_name=True)
-            camera2.saveFrame(frame2, default_name=True)
+            camera1.save_frame(frame1, default_name=True)
+            camera2.save_frame(frame2, default_name=True)
 
         if capture_properties['enable_draw'] is True:
-            key = camera1.getPressedKey()
+            key = camera1.key_pressed()
             if key == 'q' or key == "esc":
-                camera1.stopCamera()
-                camera2.stopCamera()
+                camera1.stop_camera()
+                camera2.stop_camera()
             elif key == ' ':
                 if capture_properties['paused']:
                     print("%0.4fs, %i, %i: ...Video unpaused" % (
-                        time.time() - time_start, camera1.currentTimeMsec(),
-                        camera2.currentTimeMsec()))
+                        time.time() - time_start, camera1.current_pos(),
+                        camera2.current_pos()))
                 else:
                     print("%0.4fs, %i: Video paused..." % (
-                        time.time() - time_start, camera1.currentTimeMsec(),
-                        camera2.currentTimeMsec()))
+                        time.time() - time_start, camera1.current_pos(),
+                        camera2.current_pos()))
                 capture_properties['paused'] = not capture_properties['paused']
             elif key == 'o':
                 capture_properties['apply_filters'] = not capture_properties[
@@ -118,19 +118,19 @@ def run():
                 print((
                     "Applying filters is " + str(
                             capture_properties['apply_filters'])))
-                frame1 = camera1.getFrame(False)
-                frame2 = camera2.getFrame(False)
+                frame1 = camera1.get_frame(False)
+                frame2 = camera2.get_frame(False)
             elif key == 's':
-                camera1.saveFrame(frame1)
-                camera2.saveFrame(frame2)
+                camera1.save_frame(frame1)
+                camera2.save_frame(frame2)
 
             elif key == 'v':
                 if capture_properties['write_video'] == False:
-                    camera1.startVideo()
-                    camera2.startVideo()
+                    camera1.start_video()
+                    camera2.start_video()
                 else:
-                    camera1.stopVideo()
-                    camera2.stopVideo()
+                    camera1.stop_video()
+                    camera2.stop_video()
                 capture_properties['write_video'] = not capture_properties[
                     'write_video']
             elif key == 'b':  # burst photo mode

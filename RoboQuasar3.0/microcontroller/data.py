@@ -109,6 +109,9 @@ class SensorPool(object):
             print("Invalid packet: " + repr(packet))
 
 
+sensor_pool = SensorPool()
+communicator = None
+
 def try_sensor(sensor_id, properties):
     global sensor_pool
     # sensor_id = max(sensor_pool.sensors.keys()) + 1
@@ -455,10 +458,6 @@ class Command(SerialObject):
         return self.current_packet
 
 
-# init sensor pool
-sensor_pool = SensorPool()
-communicator = None
-
 # --------------------------------------------------
 #                    Test cases
 # --------------------------------------------------
@@ -545,47 +544,3 @@ if __name__ == '__main__':
         assert test["value"] == value
 
     print("Sensor IDs 0...3 have been taken")
-
-else:
-    from microcontroller.comm import Communicator
-
-    reset_command = Command(255, 'reset', (False, True))
-
-    def reset():
-        global reset_command
-        communicator.serial_ref.write(struct.pack("B", 4))
-        reset_command['reset'] = True
-
-    def start(baud=115200, use_handshake=True, check_status=False):
-        global communicator
-        communicator = Communicator(baud, sensor_pool, use_handshake)
-        communicator.start()
-        if check_status:
-            status = [False] * 5
-            status_index = 0
-
-            print("Checking if board is alive...")
-            while not all(status):
-                if is_running():
-                    status[status_index] = True
-                    status_index += 1
-                print(".")
-                time.sleep(2)
-            print("\nIt's alive!")
-        reset()
-
-    def stop():
-        global communicator
-        communicator.stop()
-        time.sleep(0.005)
-
-
-    _initial_time = time.time()
-
-
-    def is_running(threshold=2):
-        global communicator, _initial_time
-        status = (round(time.time() - _initial_time) - communicator.thread_time) <= threshold
-        if status is True:
-            communicator.start_time = _initial_time = time.time()
-        return status

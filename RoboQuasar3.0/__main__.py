@@ -23,15 +23,11 @@ from controllers.gcjoystick import joystick_init
 from controllers.servo_map import *
 from microcontroller.data import Command
 from microcontroller.data import Sensor
-from microcontroller.data import start, stop, is_running, reset
+from microcontroller.dashboard import start, stop, is_running, reset
 from sound.player import TunePlayer
 
 
-# Binder and/or the map (more likely, set a point off in the distance) might be fucked
-# shifting needs to be done during a run (localize heading)
-# make sure angle shifting is consistent
-
-def main(log_data=False, manual_mode=False, print_data=True):
+def main(log_data=True, manual_mode=False, print_data=True):
     # data type is specified by incoming packet
     gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
     encoder = Sensor(2, 'counts')
@@ -72,15 +68,16 @@ def main(log_data=False, manual_mode=False, print_data=True):
 
     prev_time = time.time()
 
-    # if log_data:
-    #     # TODO: make enable flags per sensor based
-    #     log = Recorder(directory="Autonomous Test Day 2", frequency=0.01)
-    #     log.add_tracker(imu, 'imu')
-    #     log.add_tracker(encoder, 'encoder')
-    #     log.add_tracker(gps, 'gps')
-    #     log.add_tracker(servo_steering, 'servo_steering')
-    #     # log.add_tracker(servo_brakes, 'servo_brakes')
-    #     log.end_init()
+    if log_data:
+        log = Recorder(
+            'gps lat', 'gps long', 'gps heading', 'gps found', 'gps flag',
+            'gps sleep time',
+            'encoder counts', 'encoder flag', 'encoder sleep time',
+            'imu accel x', 'imu accel y', 'imu yaw', 'imu compass', 'imu flag',
+            'imu sleep time',
+            'kalman x', 'kalman y', 'kalman heading', 'goal x', 'goal y',
+            'servo',
+            directory="Autonomous Test Day 2", frequency=0.01)
 
     try:
         while True:  # maybe in future, reset global events here (received data)
@@ -108,24 +105,6 @@ def main(log_data=False, manual_mode=False, print_data=True):
                     notifier.play("saved")
                 prev_gps_status = gps['found']
 
-            if print_data:
-                # if imu_flag:
-                #     print(("%0.4f\t" * 5) % (
-                #         time.time() - prev_time,
-                #         imu["accel_x"], imu["accel_y"],
-                #         imu["compass"], imu["yaw"]))
-                # if gps_flag:
-                #     print(time.time() - prev_time, gps["lat"], gps["long"],
-                #           gps["heading"], gps["found"])
-                # if enc_flag:
-                #     print(time.time() - prev_time, encoder["counts"])
-                print(("%0.4f\t" * 5 + "%i\t" + "%0.4f\t" * 4 + "%i\t" * 2 + "%0.4f\t" + "%i\t%i\t%0.4f") % (
-                    time.time() - prev_time,
-                    imu["accel_x"], imu["accel_y"],
-                    imu["compass"], imu["yaw"], imu_flag, imu.sleep_time,
-                    gps["lat"], gps["long"], gps["heading"], gps["found"], gps_flag, gps.sleep_time,
-                    encoder["counts"], enc_flag, encoder.sleep_time))
-
             if is_running() != prev_status:
                 if is_running():
                     print("Connection made!")
@@ -135,49 +114,58 @@ def main(log_data=False, manual_mode=False, print_data=True):
                     notifier.play("broken")
                 prev_status = is_running()
 
+            kalman_heading = heading_filter.update(imu["compass"], imu_flag,
+                                                   gps["heading"], gps_flag)
+
+            gps_x, gps_y, accel_x, accel_y, change_dist, heading = \
+                interpreter.convert(
+                    gps["lat"], gps["long"], imu["accel_x"], imu["accel_y"],
+                    encoder["counts"], imu["yaw"], kalman_heading
+                )
+
+            current_time = time.time()
+
+            kalman_x, kalman_y = position_filter.update(
+                gps_x, gps_y, gps_flag,
+                accel_x, accel_y, heading, imu_flag,
+                change_dist, enc_flag, encoder.sleep_time,
+                current_time - prev_time
+            )
+
+            prev_time = current_time
+
+            goal_x, goal_y = binder.bind((kalman_x, kalman_y))
+
+            if print_data:
+                if imu_flag:
+                    print(("%0.4f\t" * 5) % (
+                        time.time() - prev_time,
+                        imu["accel_x"], imu["accel_y"],
+                        imu["compass"], imu["yaw"]))
+                if gps_flag:
+                    print(time.time() - prev_time, gps["lat"], gps["long"],
+                          gps["heading"], gps["found"])
+                if enc_flag:
+                    print(time.time() - prev_time, encoder["counts"])
+
             if manual_mode:
-                # servo_steering["position"] = int(
-                #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
                 servo_steering["position"] = \
                     servo_value([0, 0, 0],
                                 [1, 5.34 / 90 * joystick.mainStick.x])
                 print(time.time() - prev_time, servo_steering["position"])
             else:
-                current_time = time.time()
-
-                kalman_heading = heading_filter.update(imu["compass"], imu_flag,
-                                                       gps["heading"], gps_flag)
-
-                gps_x, gps_y, accel_x, accel_y, change_dist, heading = \
-                    interpreter.convert(
-                        gps["lat"], gps["long"], imu["accel_x"], imu["accel_y"],
-                        encoder["counts"], imu["yaw"], kalman_heading
-                    )
-
-                x, y = position_filter.update(
-                    gps_x, gps_y, gps_flag,
-                    accel_x, accel_y, heading, imu_flag,
-                    change_dist, enc_flag, encoder.sleep_time,
-                    current_time - prev_time
-                )
-
-                goal_x, goal_y = binder.bind((x, y))
-
                 servo_steering["position"] = \
-                    servo_value((x, y, kalman_heading), (goal_x, goal_y))
+                    servo_value((kalman_x, kalman_y, kalman_heading),
+                                (goal_x, goal_y))
 
-                print(goal_x, goal_y, x, y, heading, kalman_heading,
-                      servo_steering["position"])
-
-                prev_time = current_time
-
-            # if log_data:
-            #     log.add_data(imu, imu_flag)
-            #     log.add_data(encoder, gps_flag)
-            #     log.add_data(gps, enc_flag)
-            #     log.add_data(servo_steering, True)
-            #     # log.add_data(servo_brakes)
-            #     log.end_row()
+            if log_data:
+                log.add_row(gps['lat'], gps['long'], gps['heading'],
+                            gps['found'], gps_flag, gps.sleep_time,
+                            encoder['counts'], enc_flag, encoder.sleep_time,
+                            imu['accel_x'], imu['accel_y'], imu['yaw'],
+                            imu['compass'], imu_flag, imu.sleep_time,
+                            kalman_x, kalman_y, kalman_heading, goal_x, goal_y,
+                            servo_steering["position"])
 
             time.sleep(0.001)
 

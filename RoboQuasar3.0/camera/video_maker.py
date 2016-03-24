@@ -119,13 +119,13 @@ def video_from_camera(output_dir, fps, video_name,
                             includeTimestamp=add_timestamp)
 
     while True:
-        frame1 = camera1.getFrame()
-        camera1.writeToVideo(frame1)
-        camera1.showFrame(frame1)
-        key = camera1.getPressedKey()
+        frame1 = camera1.get_frame()
+        camera1.write_to_video(frame1)
+        camera1.show_frame(frame1)
+        key = camera1.key_pressed()
 
         if key == 'q' or key == "esc":
-            camera1.stopCamera()
+            camera1.stop_camera()
             break
 
 if __name__ == '__main__':

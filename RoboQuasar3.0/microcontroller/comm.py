@@ -49,7 +49,7 @@ class Communicator(threading.Thread):
 
         self.sensor_pool = sensors_pool
 
-        self.start_time = time.time()
+        self.time0 = time.time()
         self.thread_time = 0
 
         super(Communicator, self).__init__()
@@ -62,7 +62,7 @@ class Communicator(threading.Thread):
         """
 
         while not Communicator.exit_flag:
-            self.thread_time = round(time.time() - self.start_time)
+            self.thread_time = round(time.time() - self.time0)
             if self.serial_ref.inWaiting() > 0:
                 packet = bytearray()
                 incoming = self.serial_ref.read()

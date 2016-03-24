@@ -26,9 +26,11 @@ class Map():
         else:
             self.data = self.get_map(map_name, directory)
             self.deg_to_m = 111226.343
+            self.origin_lat = origin_lat
+            self.origin_long = origin_long
             if origin_lat is not None and origin_long is not None:
                 self.shift_data()
-            
+
     def shift_data(self):
         """
         goes through every lat, long pair and replaces it with the x y distance
@@ -37,8 +39,8 @@ class Map():
         :return: None
         """
         for i in range(len(self.data)):
-            point_lat  = self.data[i][0] * np.pi / 180
-            point_long = self.data[i][1] * np.pi / 180
+            point_lat  = self.data[i][0]
+            point_long = self.data[i][1]
             lat_mean = (point_lat + self.origin_lat) / 2
             x = (point_long - self.origin_long) * np.cos(lat_mean)
             y = (point_lat - self.origin_lat)
@@ -86,9 +88,11 @@ class Map():
             directory = config.get_dir(":maps")
         if file_name is None:
             file_name = time.strftime("%c").replace(":", ";")
+        if not file_name.endswith(".csv"):
+            file_name += ".csv"
         print("Writing to: " + directory)
         print("File name to: " + file_name)
-        with open(directory + file_name + ".csv", 'w') as csv_file:
+        with open(directory + file_name, 'w') as csv_file:
             map_writer = csv.writer(csv_file, delimiter=',',
                                     quotechar='|',
                                     quoting=csv.QUOTE_MINIMAL)
@@ -163,5 +167,8 @@ def make_map(log_file, map_name):
     map.data = map_data
     map.remove_duplicates(map_name=map_name)
 
+def shift_map(map_name, new_name, origin_lat, origin_long):
+    Map(map_name, origin_lat=origin_lat, origin_long=origin_long).remove_duplicates(map_name=new_name)
+
 if __name__ == '__main__':
-    make_map("Test Day 4/Sat Mar 12 23;06;53 2016.csv", "From Test Day 4 Long Data Run")
+    shift_map("raw map.csv", "shifted map.csv", 40.44363784790039, 79.9408187866211)

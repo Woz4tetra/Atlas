@@ -1,12 +1,12 @@
 # handles all interfacing with OpenCV camera objects
 
+import datetime
 import os
 import time
-import datetime
-import sys
 
 import cv2
 import numpy
+
 import config
 
 
@@ -183,22 +183,22 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         if cam_source is not None:
             if type(cam_source) == str:
-                self.loadVideo(cam_source)
+                self.load_video(cam_source)
             else:
-                self.loadCamera(cam_source)
+                self.load_camera(cam_source)
         else:
             if auto_select_source is True:
-                capture = self.searchForCamera()
+                capture = self.search_for_camera()
             else:
-                capture = self.cameraSelector()
-            self.loadCamera(capture)
+                capture = self.camera_selector()
+            self.load_camera(capture)
 
         if width is not None and height is not None:
             self.width, self.height = width, height
 
         elif self.sizeByFPS is not None:
             if (self.sizeByFPS in list(self.resolutions.keys())) is False:
-                self.sizeByFPS = self.findClosestRes(size_by_fps)
+                self.sizeByFPS = self.find_closest_res(size_by_fps)
             self.width, self.height = self.resolutions[self.sizeByFPS]
 
         else:
@@ -208,8 +208,8 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
             else:
                 self.width, self.height = self.camera.get(
-                        cv2.CAP_PROP_FRAME_WIDTH), self.camera.get(
-                        cv2.CAP_PROP_FRAME_HEIGHT)
+                    cv2.CAP_PROP_FRAME_WIDTH), self.camera.get(
+                    cv2.CAP_PROP_FRAME_HEIGHT)
 
         # if type(self.camSource) == int:
         #     Capture.increaseFPSActions.append(self.increaseFPS)
@@ -236,15 +236,15 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         time2 = time.time()
         print((str(self.camSource) + " loaded in " + str(
-                time2 - time1) + " seconds. Capture size is " +
-              str(int(self.width)) + "x" + str(int(self.height))))
+            time2 - time1) + " seconds. Capture size is " +
+               str(int(self.width)) + "x" + str(int(self.height))))
 
         if start_frame > 0:
-            self.setFrame(start_frame)
+            self.set_frame(start_frame)
 
         self.frame = numpy.zeros((self.height, self.width, 3))
 
-    def cameraSelector(self):
+    def camera_selector(self):
         """
         A mini application to assist in camera selection. Cycle through the
         cameras with the left and right arrow keys and jump between cameras with
@@ -285,7 +285,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         video.set(cv2.CAP_PROP_FRAME_HEIGHT, 450)
 
         while True:
-            key = self.getPressedKey(1)
+            key = self.key_pressed(1)
             if key == "left":
                 print("Loading camera. Please wait...")
                 video, capture = updateCapture(windowName, video, capture,
@@ -311,7 +311,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             else:
                 cv2.imshow(windowName + str(capture), numpy.zeros(shape))
 
-    def searchForCamera(self):
+    def search_for_camera(self):
         """
         Searches for an available camera by trying all numbers between
         0...10 then -1...-10. It will ignored all captures in
@@ -343,7 +343,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         return capture
 
-    def loadCamera(self, capture):
+    def load_camera(self, capture):
         """
         Loads a numbered camera and adds it to Capture.excludedSources so that
         duplicate cameras don't arise.
@@ -352,21 +352,21 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         :return: None
         """
         print("loading camera " + str(capture) + " into window named '" + str(
-                self.windowName) + "'...")
+            self.windowName) + "'...")
         self.camera = cv2.VideoCapture(capture)
         self.camSource = capture
         Capture.excludedSources.add(capture)
 
-    def loadVideo(self, camSource):
+    def load_video(self, camSource):
         print("loading video into window named '" + str(
-                self.windowName) + "'...")
+            self.windowName) + "'...")
         self.camera = cv2.VideoCapture(config.get_dir(":videos") + camSource)
 
         self.cameraFPS = self.camera.get(cv2.CAP_PROP_FPS)
         self.lenVideoFrames = int(self.camera.get(cv2.CAP_PROP_FRAME_COUNT))
         if self.lenVideoFrames <= 0:
             raise Exception(
-                    "Video failed to load! Did you misspell the video name?")
+                "Video failed to load! Did you misspell the video name?")
 
         self.videoLength_sec = self.lenVideoFrames / self.cameraFPS
         self.videoLength_msec = int(self.videoLength_sec * 1000)
@@ -377,12 +377,22 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         print("\tlength (frames):", self.lenVideoFrames)
 
         self.slider_len = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH) // 3)
-        cv2.createTrackbar(self.trackbarName, self.windowName, 0,
-                           self.slider_len, self.onSlider)
+        if camSource.endswith(".avi"):
+            cv2.createTrackbar(self.trackbarName, self.windowName, 0,
+                               self.slider_len, self.on_slider_frames)
+            self.current_pos = self.current_frame
+            self.set_frame = self.set_frame_pos
+            self.video_length = self.lenVideoFrames
+        else:
+            cv2.createTrackbar(self.trackbarName, self.windowName, 0,
+                               self.slider_len, self.on_slider_msec)
+            self.current_pos = self.current_time_msec
+            self.set_frame = self.set_frame_msec
+            self.video_length = self.videoLength_msec
 
         print("video loaded!")
 
-    def findClosestRes(self, sizeByFPS):
+    def find_closest_res(self, sizeByFPS):
         """
         Finds the closest number in self.resolutions. self.resolutions is
         determined by the cameraType parameter. See Capture.__init__ for
@@ -400,7 +410,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         index = numpy.where(difference == minimum)[0][0]
         return possibleFPSs[index]
 
-    def stopCamera(self):
+    def stop_camera(self):
         """
         End an OpenCV capture cleanly and close the corresponding window
 
@@ -408,10 +418,19 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         """
         self.isRunning = False
         self.camera.release()
-        self.stopVideo()
+        self.stop_video()
         cv2.destroyWindow(self.windowName)
 
-    def setFrame(self, time_msec):
+    def set_frame(self, position):
+        pass
+
+    def set_frame_pos(self, position):
+        if position >= self.lenVideoFrames:
+            position = 0
+        if type(self.camSource) == str and position >= 0:
+            self.camera.set(cv2.CAP_PROP_POS_FRAMES, int(position))
+
+    def set_frame_msec(self, time_msec):
         """
         If this Capture is a video, set the current frame to frameNumber.
 
@@ -423,23 +442,23 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         if type(self.camSource) == str and time_msec >= 0:
             self.camera.set(cv2.CAP_PROP_POS_MSEC, int(time_msec))
 
-    def incrementFrame(self):
+    def increment_frame(self):
         """
         If this Capture is a video, increment the current frame by 1.
 
         :return: None
         """
-        self.setFrame(self.currentTimeMsec() + 1)
+        self.set_frame(self.current_pos() + 1)
 
-    def decrementFrame(self):
+    def decrement_frame(self):
         """
         If this Capture is a video, decrement the current frame by 1.
 
         :return: None
         """
-        self.setFrame(self.currentTimeMsec() - 20)  # wut. why? Me no know
+        self.set_frame(self.current_pos() - 2)
 
-    def saveFrame(self, frame=None, default_name=True, directory=None):
+    def save_frame(self, frame=None, default_name=True, directory=None):
         """
         Write the input frame to Camera/Images
 
@@ -452,13 +471,13 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             print("Frame saved as " + str(name))
         else:
             name = datetime.datetime.now().strftime(
-                    "%a %b %d %H;%M;%S.%f %p, %Y") + ".png"
+                "%a %b %d %H;%M;%S.%f %p, %Y") + ".png"
             print("Frame saved as " + str(name))
 
         if frame is None:
             frame = self.frame
 
-        if directory == None:
+        if directory is None:
             directory = config.get_dir(":images")
         print("in directory:\n" + directory)
 
@@ -467,7 +486,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         cv2.imwrite(directory + name, frame)
 
-    def increaseFPS(self):
+    def increase_fps(self):
         """
         If another camera is added, Capture will automatically increase the
         FPS to maintain stability. This is done by selecting the next biggest
@@ -483,9 +502,9 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         self.sizeByFPS = possibleFPSs[index]
         self.width, self.height = self.resolutions[self.sizeByFPS]
-        self.setCameraSize(self.width, self.height)
+        self.set_camera_size(self.width, self.height)
 
-    def setCameraSize(self, width=None, height=None):
+    def set_camera_size(self, width=None, height=None):
         """
         Set the capture width and height
 
@@ -500,7 +519,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             self.height = height
 
-    def onSlider(self, slider_index):
+    def on_slider_msec(self, slider_index):
         """
         If Capture is a video, When the slider is changed, jump the capture to
         corresponding frame.
@@ -508,12 +527,27 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         :param slider_index: Slider step to jump to
         :return: None
         """
-        slider_time = int(slider_index * self.videoLength_msec / self.slider_len)
-        if abs(slider_time - self.currentTimeMsec()) > 10:
-            self.setFrame(slider_time)
-            self.showFrame(self.getFrame(False))
+        slider_time = int(
+            slider_index * self.videoLength_msec / self.slider_len)
+        if abs(slider_time - self.current_time_msec()) > 10:
+            self.set_frame(slider_time)
+            self.show_frame(self.get_frame(False))
 
-    def getPressedKey(self, delay=1):
+    def on_slider_frames(self, slider_index):
+        """
+        If Capture is a video, When the slider is changed, jump the capture to
+        corresponding frame.
+
+        :param slider_index: Slider step to jump to
+        :return: None
+        """
+        slider_time = int(
+            slider_index * self.lenVideoFrames / self.slider_len)
+        if abs(slider_time - self.current_frame()) > 10:
+            self.set_frame(slider_time)
+            self.show_frame(self.get_frame(False))
+
+    def key_pressed(self, delay=1):
         """
         Using OpenCV's waitKey, get the user's pressed key.
 
@@ -536,7 +570,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         else:
             return key
 
-    def showFrame(self, frame=None):
+    def show_frame(self, frame=None):
         """
         Display the frame in the Capture's window using cv2.imshow
 
@@ -549,16 +583,21 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         else:
             cv2.imshow(self.windowName, self.frame)
 
-
-    def currentTimeMsec(self):
+    def current_pos(self):
         """
         If this Capture is a video, return the Capture's frame number
 
         :return: the frame number (might not be an integer)
         """
+        return 0
+
+    def current_time_msec(self):
         return int(self.camera.get(cv2.CAP_PROP_POS_MSEC))
 
-    def getVideoFPS(self):
+    def current_frame(self):
+        return int(self.camera.get(cv2.CAP_PROP_POS_FRAMES))
+
+    def get_video_fps(self):
         """
         If this Capture is a video, return the Capture's FPS
 
@@ -568,9 +607,9 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         """
         return self.camera.get(cv2.CAP_PROP_FPS)
 
-    def startVideo(self, fps=30, video_name=None, includeTimestamp=True,
-                        # codec='mp4v', format='mov',
-                        output_dir=None):
+    def start_video(self, fps=30, video_name=None, add_timestamp=True,
+                    format=None,
+                    output_dir=None, width=None, height=None):
         """
         Initialize the Capture's video writer.
 
@@ -580,27 +619,36 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                 analyzing the video in this setting.
         :param video_name: The name of the video. If "", a time stamp will
                 automatically be inserted
-        :param includeTimestamp: An optional parameter specifying whether the
+        :param add_timestamp: An optional parameter specifying whether the
                 time should be included. True by default
-        :param codec: The output video codec. mp4v is recommended
+        :param output_dir: directory to put video in
+
         :return: None
         """
 
-        if self.platform == 'mac':
-            video_format = 'mov'
-            codec='mp4v'
-        elif self.platform == 'linux':
-            video_format = 'avi'
-            codec='MJPG'
+        if format is None:
+            if self.platform == 'mac':
+                video_format = 'mov'
+                codec = 'mp4v'
+            elif self.platform == 'linux':
+                video_format = 'avi'
+                codec = 'MJPG'
+            else:
+                raise EnvironmentError('Unsupported platform. Untested.')
         else:
-            raise EnvironmentError('Unsupported platform. Untested.')
+            if format.lower() == 'mov':
+                video_format = 'mov'
+                codec = 'mp4v'
+            else:
+                video_format = 'avi'
+                codec = 'MJPG'
 
-        if video_name == None:
+        if video_name is None:
             video_name = ""
-        elif video_name != None and includeTimestamp == True:
+        elif video_name is not None and add_timestamp:
             video_name += " "
 
-        if includeTimestamp == True:
+        if add_timestamp:
             video_name += time.strftime("%c").replace(":", ";")
         if Capture.video_num > 0:
             video_name += "-" + str(Capture.video_num)
@@ -608,7 +656,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         video_name += "." + video_format
 
-        if output_dir == None:
+        if output_dir is None:
             output_dir = config.get_dir(":videos")
         else:
             output_dir += "/"
@@ -620,19 +668,28 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
 
         fourcc = cv2.VideoWriter_fourcc(*codec)
         self.video = cv2.VideoWriter()
-        if self.platform == 'linux':  # ubuntu doesn't like putting videos in other directories...
-            self.video.open(video_name, fourcc, fps,
-                            (int(self.dimensions[2] - self.dimensions[0]),
-                             int(self.dimensions[3] - self.dimensions[1])), True)
+
+        # ubuntu doesn't like putting videos in other directories...
+        if self.platform == 'linux':
+            output_dir = video_name
+
+        if width is None:
+            self.video_width = int(self.dimensions[2] - self.dimensions[0])
         else:
-            self.video.open(output_dir, fourcc, fps,
-                            (int(self.dimensions[2] - self.dimensions[0]),
-                             int(self.dimensions[3] - self.dimensions[1])), True)
+            self.video_width = width
+
+        if height is None:
+            self.video_height = int(self.dimensions[3] - self.dimensions[1])
+        else:
+            self.video_height = height
+
+        self.video.open(output_dir, fourcc, fps,
+                        (self.video_width, self.video_height), True)
 
         self.videoOutputDir = output_dir
-        print("Initialized video named '%s'." % (video_name))
+        print("Initialized video named '%s'." % video_name)
 
-    def writeToVideo(self, frame):
+    def write_to_video(self, frame):
         """
         Write the frame to the Capture's initialized video capture.
         Type help(Capture.startVideo) for details.
@@ -641,12 +698,17 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                 (shape = (height, width, 3))
         :return: None
         """
+        if frame.shape[0:2] != (self.video_height, self.video_width):
+            raise ValueError(
+                "Video size does not match incoming frame:\n"
+                "video: %s, frame: %s" % ((self.video_width, self.video_height),
+                                          (frame.shape[1], frame.shape[0])))
         if len(frame.shape) == 2:
             self.video.write(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR))
         else:
             self.video.write(frame)
 
-    def stopVideo(self):
+    def stop_video(self):
         """
         Close the initialized video capture.
         Type help(Capture.startVideo) for details.
@@ -657,7 +719,7 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             self.video.release()
             print("Video written to:\n" + self.videoOutputDir)
 
-    def getFrame(self, readNextFrame=True):
+    def get_frame(self, readNextFrame=True):
         """
         A method to be used inside of a while loop. Reads frames from a video
         or a live capture.
@@ -668,10 +730,10 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
                 (shape = (height, width, 3))
         """
         if self.isRunning is False:
-            self.stopCamera()
+            self.stop_camera()
             return
         if readNextFrame is False and type(self.camSource) == str:
-            self.decrementFrame()
+            self.decrement_frame()
         if self.frameSkip > 0:
             if type(self.camSource) == str:
                 current = self.camera.get(cv2.CAP_PROP_POS_FRAMES)
@@ -683,11 +745,11 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
             if type(self.camSource) == int:
                 raise Exception("Failed to read from camera!")
             elif self.loopVideo == True:
-                self.setFrame(0)
+                self.set_frame(0)
                 while success is False or self.frame is None:
                     success, self.frame = self.camera.read()
             else:
-                self.stopCamera()
+                self.stop_camera()
                 if not self.quitOnEnd:
                     return None  # it's a video. stop the loop
                 else:
@@ -697,11 +759,11 @@ Please type help(Capture.resolutions) for a dictionary of available camera data.
         if type(self.camSource) == str:
             if self.frame.shape[0:2] != (self.height, self.width):
                 self.frame = cv2.resize(self.frame, (self.width, self.height),
-                                   interpolation=cv2.INTER_NEAREST)
+                                        interpolation=cv2.INTER_NEAREST)
             if self.platform != "linux":
                 cv2.setTrackbarPos(self.trackbarName, self.windowName,
-                                   int(self.currentTimeMsec() *
-                                       self.slider_len / self.videoLength_msec))
+                                   int(self.current_pos() *
+                                       self.slider_len / self.video_length))
 
         if self.dimensions is not None:
             x0, y0, x1, y1 = self.dimensions

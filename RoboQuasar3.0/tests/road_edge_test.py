@@ -27,23 +27,15 @@ Keys
 """
 
 import sys
-import cv2
-import os
-import numpy as np
-import math
-
 import time
+
+import cv2
+import numpy as np
 
 sys.path.insert(0, '../')
 
 from camera import capture
 from camera import analyzers
-
-import copy
-
-
-def create_array(value, width, height):
-    return [[copy.copy(value) for _ in range(width)] for _ in range(height)]
 
 
 def run(paused=False,
@@ -54,34 +46,35 @@ def run(paused=False,
         burst_mode=False):
     camera1 = capture.Capture(
         window_name="line follow test",
-        cam_source='Icarus 10-11 roll 5 (+hill 1).mov',
+        cam_source='Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
         loop_video=False,
         start_frame=0,
         width=480,
         height=270
     )
 
-    currentFrame = camera1.currentTimeMsec()
+    currentFrame = camera1.current_pos()
 
-    frame1 = camera1.getFrame(readNextFrame=False)
+    frame1 = camera1.get_frame(readNextFrame=False)
     height, width = frame1.shape[0:2]
 
     time_start = time.time()
 
     warper = analyzers.RoadWarper(
         camera1.windowName, width, height,
-        [[135, 81], [355, 89], [4, 132], [478, 156]])
-    #   [[190, 110], [469, 110], [19, 160], [628, 160]])
+        # [[135, 81], [355, 89], [4, 132], [478, 156]])
+        [[189, 161], [347, 161], [5, 227], [474, 212]])
+        # [[190, 110], [469, 110], [19, 160], [628, 160]])
     line_follower = analyzers.LineFollower()
 
     while camera1.isRunning:
-        if not paused or currentFrame != camera1.currentTimeMsec():
-            frame1 = camera1.getFrame()
+        if not paused or currentFrame != camera1.current_pos():
+            frame1 = camera1.get_frame()
 
             if frame1 is None:
                 continue
 
-            currentFrame = camera1.currentTimeMsec()
+            currentFrame = camera1.current_pos()
 
             if apply_filters:
                 frame1 = warper.update(frame1)
@@ -101,50 +94,49 @@ def run(paused=False,
                 # frame1 = cv2.inRange(sobeled, (70, ) * 3, (255, ) * 3)
 
                 line_follower.update(sobeled, frame1)
-
                 sobeled = cv2.cvtColor(np.uint8(sobeled), cv2.COLOR_GRAY2BGR)
                 frame1 = np.concatenate((sobeled, frame1))
 
             if enable_draw:
-                camera1.showFrame(frame1)
+                camera1.show_frame(frame1)
 
             if write_video:
-                camera1.writeToVideo(frame1)
+                camera1.write_to_video(frame1)
 
         if slideshow:
             paused = True
 
         if burst_mode and paused:
-            camera1.saveFrame(frame1, default_name=True)
+            camera1.save_frame(frame1, default_name=True)
 
         if enable_draw:
-            key = camera1.getPressedKey()
+            key = camera1.key_pressed()
             if key == 'q' or key == "esc":
-                camera1.stopCamera()
+                camera1.stop_camera()
             elif key == ' ':
                 if paused:
                     print("%0.4fs, %i: ...Video unpaused" % (
-                        time.time() - time_start, camera1.currentTimeMsec()))
+                        time.time() - time_start, camera1.current_pos()))
                 else:
                     print("%0.4fs, %i: Video paused..." % (
-                        time.time() - time_start, camera1.currentTimeMsec()))
+                        time.time() - time_start, camera1.current_pos()))
                 paused = not paused
             elif key == 'o':
                 apply_filters = not apply_filters
                 print(("Applying filters is " + str(apply_filters)))
-                frame1 = camera1.getFrame(False)
+                frame1 = camera1.get_frame(False)
             elif key == "right":
-                camera1.incrementFrame()
+                camera1.increment_frame()
             elif key == "left":
-                camera1.decrementFrame()
+                camera1.decrement_frame()
             elif key == 's':
-                camera1.saveFrame(frame1)
+                camera1.save_frame(frame1)
 
             elif key == 'v':
                 if not write_video:
-                    camera1.startVideo()
+                    camera1.start_video()
                 else:
-                    camera1.stopVideo()
+                    camera1.stop_video()
                 write_video = not write_video
             elif key == 'b':  # burst photo mode
                 burst_mode = not burst_mode

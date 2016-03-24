@@ -29,8 +29,8 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, frequency=None, file_name=None, directory=None,
-                 supply_flags=True):
+    def __init__(self, *column_names, frequency=None, file_name=None,
+                 directory=None):
         if directory is None:
             self.directory = config.get_dir(":logs")
         else:
@@ -56,61 +56,23 @@ class Recorder(object):
                                  quotechar='|',
                                  quoting=csv.QUOTE_MINIMAL)
 
-        self.current_row = ["timestamp"]
-        self.sensor_indices = {}
-        self.header_row = []
+        self.current_row = []
 
         self.time0 = time.time()
-        self.log_init_time = self.time0
         self.frequency = frequency
         self.enable_record = True
-        self.supply_flags = supply_flags
 
-    def add_tracker(self, sensor, name):
-        self.header_row.append(
-            (sensor.object_id, name, sensor, sensor._properties.keys()))
+        self.row_length = len(column_names)
+        self.writer.writerow(("time",) + column_names)
 
-    def end_init(self):
-        self.header_row.sort(key=lambda element: element[0])
-        names_row = [""]
-        for sensor_info in self.header_row:
-            object_id, sensor_name, sensor, data_names = sensor_info
-
-            self.sensor_indices[object_id] = len(self.current_row) + 2
-
-            names_row.append(sensor_name)
-            names_row += [""] * (len(data_names) + 1)
-            self.current_row += data_names
-            self.current_row += ["new", "dt"]
-        self.writer.writerow(names_row)
-        self.writer.writerow(self.current_row)
-
-    def add_data(self, serial_object, new_data_received=None):
-        if self.supply_flags is True and new_data_received is None:
-            raise ValueError("If supply_flags is enabled for this logger, "
-                             "please supply a new_data_received flag")
-        if self.enable_record:
-            start_index = self.sensor_indices[serial_object.object_id]
-            index = 0
-            print(self.current_row, len(self.current_row))
-            for index, key in enumerate(serial_object._properties):
-                self.current_row[index + start_index] = \
-                    serial_object._properties[key]
-            print(start_index, index)
-            self.current_row[index + start_index] = \
-                "T" if new_data_received else "F"
-            self.current_row[index + start_index + 1] = serial_object.sleep_time
-
-    def end_row(self):
-        if self.enable_record:
-            self.current_row[0] = time.time() - self.log_init_time
-            self.writer.writerow(self.current_row)
-            self.enable_record = False
-
+    def add_row(self, *data):
         if (self.frequency is None) or (
-            time.time() - self.time0) > self.frequency:
+                time.time() - self.time0) > self.frequency:
             self.time0 = time.time()
             self.enable_record = True
+        if self.enable_record:
+            assert len(data) == self.row_length
+            self.current_row += list(data)
 
     def close(self):
         self.csv_file.close()
@@ -141,9 +103,9 @@ def parse(file_dir, np_array=True, omit_header_rows=True,
                     parsed_row.append(float(datum))
                 elif datum.isdigit():
                     parsed_row.append(int(datum))
-                elif datum == "T":
+                elif datum == "True":
                     parsed_row.append(True)
-                elif datum == "F":
+                elif datum == "False":
                     parsed_row.append(False)
                 else:
                     parsed_row.append(datum)

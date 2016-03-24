@@ -41,6 +41,7 @@ def get_plottable_data(file_name, sensors):
 
 def plot_gps(file_name):
     timestamps, sensor_data = get_plottable_data(file_name, ["lat", "long"])
+    print(sensor_data)
 
     plt.plot(sensor_data[0], sensor_data[1])
 
@@ -145,12 +146,12 @@ if __name__ == '__main__':
     # plot_all(plot_angles, source="yaw", directory="Test Day 4", density=50)
     # plot_angles("Test Day 4/Sat Mar 12 22;27;45 2016.csv", source="yaw",
     #             density=100, shift_angle=np.pi / 2, swap_angle=True)
-    plot_angles("Test Day 4/Sat Mar 12 22;27;45 2016.csv", source="atan",
-                density=100)
+    # plot_angles("Autonomous Test Day 2/parsed2.csv", source="atan",
+                # density=100)
 
     # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
-    # plot_gps("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
+    plot_gps("Autonomous Test Day 2/parsed2.csv")
 
-    plot_map("Track Field Map Trimmed.csv")
+    # plot_map("Track Field Map Trimmed.csv")
 
     plt.show()

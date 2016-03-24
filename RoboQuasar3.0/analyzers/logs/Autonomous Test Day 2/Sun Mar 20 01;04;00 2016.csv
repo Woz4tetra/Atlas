@@ -1,2 +1,0 @@
-,servo_steering,,,gps,,,,,,encoder,,,imu,,,,,
-timestamp,position,new,dt,lat,long,heading,found,new,dt,counts,new,dt,accel_x,accel_y,yaw,compass,new,dt
