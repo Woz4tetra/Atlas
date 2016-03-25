@@ -39,6 +39,7 @@ class Capture:
         self.frame = None
 
         self.capture = None
+        self.video = None
 
         self.recorder_output_dir = None
         self.recorder_width = None

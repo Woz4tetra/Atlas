@@ -41,7 +41,7 @@ from vision import cv_pid
 def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
     camera1 = Video(
         'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
-        start_frame=1500
+        start_frame=1500,
     )
 
     current_frame = camera1.current_pos()
