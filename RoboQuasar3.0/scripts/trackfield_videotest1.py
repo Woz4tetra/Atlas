@@ -19,8 +19,8 @@ import time
 
 sys.path.insert(0, '../')
 
-from camera import capture
-from camera import analyzers
+from vision import capture
+from vision import analyzers
 
 
 def run():

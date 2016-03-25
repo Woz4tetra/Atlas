@@ -13,11 +13,11 @@ import sys
 sys.path.insert(0, '../')
 
 import config
-from camera import capture
+from vision.camera import Camera
 
 
 def run():
-    camera1 = capture.Capture(window_name="camera", cam_source=0)
+    camera1 = Camera(480, 360, window_name="camera")
     while True:
         frame1 = camera1.get_frame()
         camera1.show_frame(frame1)

@@ -1,5 +1,5 @@
 import time
-import numpy as np
+
 
 class PID:
     def __init__(self, current_x, kp, kd, ki):
@@ -7,7 +7,6 @@ class PID:
 
         :param current_x: Assumes constant since forward velocity isn't used
           for this PID, only angle
-        :param current_y: Same as x
         :param kp:
         :param kd:
         :param ki:
@@ -23,7 +22,6 @@ class PID:
     def update(self, goal_x):
         """
         Returns goal angle of the servo in radians
-
         """
         dt = time.time() - self.time0
 

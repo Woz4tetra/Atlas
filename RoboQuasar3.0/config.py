@@ -26,9 +26,9 @@ directories = {
     'logs': CONFIGDIR + "/analyzers/logs/",
     'maps': CONFIGDIR + "/analyzers/maps/",
     'gpx': CONFIGDIR + "/analyzers/maps/gpx/",
-    'camera': CONFIGDIR + "/camera/",
-    'videos': CONFIGDIR + "/camera/Videos/",
-    'images': CONFIGDIR + "/camera/Images/",
+    'vision': CONFIGDIR + "/vision/",
+    'videos': CONFIGDIR + "/vision/Videos/",
+    'images': CONFIGDIR + "/vision/Images/",
     'controllers': CONFIGDIR + "/controllers/",
     'scripts': CONFIGDIR + "/scripts/",
     'test': CONFIGDIR + "/tests/",
@@ -36,6 +36,7 @@ directories = {
     'tunes': CONFIGDIR + "/sound/tunes/",
     'project': CONFIGDIR + "/",
 }
+
 
 def get_platform():
     if sys.platform.startswith('darwin'):  # OS X
@@ -47,6 +48,7 @@ def get_platform():
         return "win"
     else:
         return None
+
 
 def get_dir(directory=""):
     if len(directory) > 0 and directory[0] == ':':

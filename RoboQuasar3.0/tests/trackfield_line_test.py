@@ -33,34 +33,30 @@ import numpy as np
 
 sys.path.insert(0, '../')
 
-from camera import capture
-from camera import analyzers
-from camera import cv_pid
+from vision.video import Video
+from vision import analyzers
+from vision import cv_pid
+
 
 def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
-    camera1 = capture.Capture(
-        window_name="line follow test",
-        cam_source='Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
-        loop_video=False,
-        start_frame=1500,
-        # width=480,
-        # height=270,
-        crop=[None, 135, None, None],
+    camera1 = Video(
+        'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
+        start_frame=1500
     )
 
     current_frame = camera1.current_pos()
 
-    frame1 = camera1.get_frame(readNextFrame=False)
+    frame1 = camera1.get_frame()
     height, width = frame1.shape[0:2]
 
     time_start = time.time()
 
     if write_video:
-        camera1.start_video(width=width, height=height * 2, format='avi')
+        camera1.start_recording(width=width, height=height * 2, format='avi')
 
     pid = cv_pid.PID(width / 2, 0.1, 0, 0)
 
-    while camera1.isRunning:
+    while camera1.is_running:
         if not paused or current_frame != camera1.current_pos():
             frame1 = camera1.get_frame()
 
@@ -70,6 +66,7 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
             current_frame = camera1.current_pos()
 
             if apply_filters:
+                frame1 = frame1[135:]
                 lines, detected = analyzers.detect_lines(frame1)
                 if enable_draw:
                     analyzers.draw_lines(frame1, lines)
@@ -84,12 +81,12 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
                 camera1.show_frame(frame1)
 
             if write_video:
-                camera1.write_to_video(frame1)
+                camera1.record_frame(frame1)
 
         if enable_draw:
             key = camera1.key_pressed()
             if key == 'q' or key == "esc":
-                camera1.stop_camera()
+                camera1.stop()
             elif key == ' ':
                 if paused:
                     print("%0.4fs, %i: ...Video unpaused" % (
@@ -101,7 +98,7 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
             elif key == 'o':
                 apply_filters = not apply_filters
                 print(("Applying filters is " + str(apply_filters)))
-                frame1 = camera1.get_frame(False)
+                frame1 = camera1.get_frame()
             elif key == "right":
                 camera1.increment_frame()
             elif key == "left":
@@ -111,7 +108,7 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
 
             elif key == 'v':
                 if not write_video:
-                    camera1.start_video()
+                    camera1.start_recording()
                 else:
                     camera1.stop_video()
                 write_video = not write_video
