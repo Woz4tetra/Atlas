@@ -179,4 +179,4 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
 if __name__ == '__main__':
     print(__doc__)
-    main(log_data=True, manual_mode=False, print_data=True)
+    main()
