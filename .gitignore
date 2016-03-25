@@ -110,8 +110,8 @@ Thumbs.db
 .git/
 .pioenvs/
 .sconsign.dblite/
-/RoboQuasar/RoboQuasar2.0/camera/Images
-/RoboQuasar/RoboQuasar2.0/camera/Videos
+Images/
+Videos/
 __pycache__/
 
 # Xcode Project Files #
