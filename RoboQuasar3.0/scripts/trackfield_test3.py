@@ -81,8 +81,8 @@ try:
             # servo_steering["position"] = int(
             #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
             servo_steering["position"] = \
-                servo_value([0, 0, 0],
-                            [1, 5.34 / 90 * joystick.mainStick.x])
+                state_to_servo([0, 0, 0],
+                               [1, 5.34 / 90 * joystick.mainStick.x])
 
         if script_options['log_data']:
             log.add_data(imu)

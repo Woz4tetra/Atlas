@@ -150,13 +150,13 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
             if manual_mode:
                 servo_steering["position"] = \
-                    servo_value([0, 0, 0],
-                                [1, 5.34 / 90 * joystick.mainStick.x])
+                    state_to_servo([0, 0, 0],
+                                   [1, 5.34 / 90 * joystick.mainStick.x])
                 print(time.time() - prev_time, servo_steering["position"])
             else:
                 servo_steering["position"] = \
-                    servo_value((kalman_x, kalman_y, kalman_heading),
-                                (goal_x, goal_y))
+                    state_to_servo((kalman_x, kalman_y, kalman_heading),
+                                   (goal_x, goal_y))
 
             if log_data:
                 log.add_row(gps['lat'], gps['long'], gps['heading'],

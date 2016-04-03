@@ -135,7 +135,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
         #         % (gps_x,gps_y,x,y,vx,vy,ax,ay))
         goal_x, goal_y = binder.bind((x, y))# find_nearest(map, (x, y))
         servo_steering["position"] = \
-            servo_value((x, y, yaw), (goal_x, goal_y))
+            state_to_servo((x, y, yaw), (goal_x, goal_y))
         print("%0.4f, (%0.4f, %0.4f), (%0.4f, %0.4f), %i" % (timestamp, x, y, goal_x, goal_y, servo_steering["position"]))
 
         # time.sleep(0.005)

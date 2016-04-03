@@ -139,8 +139,8 @@ def main(log_data=False, manual_mode=False, print_data=True):
                 # servo_steering["position"] = int(
                 #     50 * (joystick.triggers.L - joystick.triggers.R)) - 23
                 servo_steering["position"] = \
-                    servo_value([0, 0, 0],
-                                [1, 5.34 / 90 * joystick.mainStick.x])
+                    state_to_servo([0, 0, 0],
+                                   [1, 5.34 / 90 * joystick.mainStick.x])
                 print(time.time() - prev_time, servo_steering["position"])
             else:
                 current_time = time.time()
@@ -164,7 +164,7 @@ def main(log_data=False, manual_mode=False, print_data=True):
                 goal_x, goal_y = binder.bind((x, y))
 
                 servo_steering["position"] = \
-                    servo_value((x, y, kalman_heading), (goal_x, goal_y))
+                    state_to_servo((x, y, kalman_heading), (goal_x, goal_y))
 
                 print(goal_x, goal_y, x, y, heading, kalman_heading,
                       servo_steering["position"])

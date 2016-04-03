@@ -34,10 +34,12 @@ for index in range(len(lookup_table)):
 for index in range(len(lookup_table)):
     lookup_table[index][1] = math.asin(lookup_table[index][1] / hypotenuse)
 
+
 def py27_round(x):
     return int(x + math.copysign(0.5, x))
 
-def map_servo(angle):
+
+def angle_to_servo(angle):
     if angle < lookup_table[0][1]:
         return lookup_table[0][0]
 
@@ -51,12 +53,17 @@ def map_servo(angle):
                 break
         # linearize between table_index and table_index + 1
 
-        slope = (lookup_table[table_index+1][0] - lookup_table[table_index][0])/(
-            lookup_table[table_index+1][1]-lookup_table[table_index][1])
-        servo_angle = lookup_table[table_index][0] + slope * (angle - lookup_table[table_index][1])
-        return int(py27_round(servo_angle))
+        servo_val0 = lookup_table[table_index][0]
+        servo_val1 = lookup_table[table_index + 1][0]
+        angle_val0 = lookup_table[table_index][1]
+        angle_val1 = lookup_table[table_index + 1][1]
 
-def servo_value(current_state, goal_position):
+        slope = (servo_val1 - servo_val0) / (angle_val1 - angle_val0)
+        servo_angle = servo_val0 + slope * (angle - angle_val0)
+        return py27_round(servo_angle)
+
+
+def state_to_servo(current_state, goal_position):
     x, y, heading = current_state
     goal_x, goal_y = goal_position
     angle = math.atan2(goal_y - y, goal_x - x)
@@ -65,24 +72,27 @@ def servo_value(current_state, goal_position):
     angle = (angle - heading) % (2 * math.pi)
     if math.pi < angle:  # TODO: Fix wrap around problem
         angle -= 2 * math.pi
-    return map_servo(-angle)
+    return angle_to_servo(-angle)
+
 
 if __name__ == '__main__':
-    def almost_equal(val1, val2, epsilon = .001):
-        return abs(val1-val2) <= epsilon
-    assert(map_servo(0.0) == -25)
-    assert(map_servo(-0.09712231328780105) == -75)
-    assert(map_servo(0.1072763485867491) == 35)
-    assert(map_servo(2.0) == 35)
-    assert(map_servo(-1.0) == -75)
-    assert(almost_equal(map_servo(0.057608353410290123), 3))
-    assert(almost_equal(map_servo(.00987), -21))
-    assert(almost_equal(map_servo(.1045), 32))
-    assert(servo_value([0, 0, 0], [10, 0]) == -25)
-    assert(servo_value([0, 0, 0], [0, 10]) == 35)
-    assert(servo_value([0, 0, 0], [10, 10]) == 35)
-    assert(servo_value([0, 0, 0], [0, -10]) == -75)
-    assert(servo_value([0, 0, 0], [-10, 0]) == 35)
-    assert(servo_value([4, 3, math.pi/4], [10, 5]) == -75)
-    assert(servo_value([4, 3, math.pi/6], [5.67639042166, 4]) == -19)
-    assert(servo_value([1, 2, math.pi/8], [3, 3.0046132804729282]) == 13)
+    def almost_equal(val1, val2, epsilon=.001):
+        return abs(val1 - val2) <= epsilon
+
+
+    assert (angle_to_servo(0.0) == -25)
+    assert (angle_to_servo(-0.09712231328780105) == -75)
+    assert (angle_to_servo(0.1072763485867491) == 35)
+    assert (angle_to_servo(2.0) == 35)
+    assert (angle_to_servo(-1.0) == -75)
+    assert (almost_equal(angle_to_servo(0.057608353410290123), 3))
+    assert (almost_equal(angle_to_servo(.00987), -21))
+    assert (almost_equal(angle_to_servo(.1045), 32))
+    assert (state_to_servo([0, 0, 0], [10, 0]) == -25)
+    assert (state_to_servo([0, 0, 0], [0, 10]) == 35)
+    assert (state_to_servo([0, 0, 0], [10, 10]) == 35)
+    assert (state_to_servo([0, 0, 0], [0, -10]) == -75)
+    assert (state_to_servo([0, 0, 0], [-10, 0]) == 35)
+    assert (state_to_servo([4, 3, math.pi / 4], [10, 5]) == -75)
+    assert (state_to_servo([4, 3, math.pi / 6], [5.67639042166, 4]) == -19)
+    assert (state_to_servo([1, 2, math.pi / 8], [3, 3.0046132804729282]) == 13)
