@@ -23,7 +23,8 @@ class HeadingFilter:
 
         self.filter = pykalman.KalmanFilter(
                 observation_covariance = self.obs_cov,
-                transition_covariance  = self.trans_cov)
+                transition_covariance  = self.trans_cov
+        )
 
         self.filt_state_mean = np.array([0.0,0.0])
         self.covariance = np.identity(2)
@@ -34,8 +35,7 @@ class HeadingFilter:
 
         delta_heading = imu_heading - self.prev_imu
 
-        observation = np.array([gps_heading, bind_heading,
-                                delta_heading])
+        observation = np.array([gps_heading, bind_heading, delta_heading])
 
         observation = np.ma.asarray(observation)
 
@@ -51,22 +51,24 @@ class HeadingFilter:
         else:
             self.prev_imu = imu_heading
 
-        obs_matrix = np.array( \
-                [[1,0],
-                 [1,0],
-                 [0,1]])
+        obs_matrix = np.array(
+            [[1,0],
+             [1,0],
+             [0,1]]
+        )
 
-        trans_matrix = np.array( \
-                [[1,1],
-                 [0,1]])
+        trans_matrix = np.array(
+            [[1,1],
+             [0,1]]
+        )
 
-        self.filt_state_mean, self.covariance = \
-                self.filter.filter_update( \
+        self.filt_state_mean, self.covariance = self.filter.filter_update(
                     filtered_state_mean = self.filt_state_mean,
                     filtered_state_covariance = self.covariance,
                     observation = observation,
                     transition_matrix = trans_matrix,
-                    observation_matrix = obs_matrix)
+                    observation_matrix = obs_matrix
+        )
 
         return self.filt_state_mean[0]
 
@@ -86,5 +88,3 @@ thing = filt.update(1,1,1,1,0,1)
 thing = filt.update(1,1,1,1,0,1)
 thing = filt.update(1,1,1,1,0,1)
 print(thing)
-
-

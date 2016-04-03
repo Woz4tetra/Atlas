@@ -12,20 +12,17 @@ class Interpreter():
         self.wheel_radius = 0.1778  # wheel radius in meters
         self.deg_to_m = 111226.343  # convert gps degrees to meters
 
-    def convert(self, latitude, longitude, accel_x, accel_y, enc_counts, yaw,
-                kalman_heading):
+    def convert(self, latitude, longitude, accel_x, accel_y, enc_counts,
+            kalman_heading):
         x, y = self.convert_gps(latitude, longitude)
-        enc_counts = self.convert_encoder(enc_counts)
-        yaw = (yaw + kalman_heading) % (2 * math.pi)
-        if math.pi < yaw:
-            yaw -= 2 * math.pi
+        enc_dist = self.convert_encoder(enc_counts)
 
         shifted_accel_x = accel_x * math.cos(
             kalman_heading) - accel_y * math.sin(kalman_heading)
         shifted_accel_y = accel_x * math.sin(
             kalman_heading) + accel_y * math.cos(kalman_heading)
 
-        return x, y, shifted_accel_x, shifted_accel_y, enc_counts, yaw
+        return x, y, shifted_accel_x, shifted_accel_y, enc_dist
 
     def convert_encoder(self, counts):
         delta_counts = counts - self.prev_encoder
