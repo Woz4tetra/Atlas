@@ -29,8 +29,7 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, *column_names, frequency=None, file_name=None,
-                 directory=None):
+    def __init__(self, frequency=None, file_name=None, directory=None):
         if directory is None:
             self.directory = config.get_dir(":logs")
         else:
@@ -62,10 +61,12 @@ class Recorder(object):
         self.frequency = frequency
         self.enable_record = True
 
-        self.row_length = len(column_names)
-        self.writer.writerow(("time",) + column_names)
+        self.row_length = None
 
-    def add_row(self, *data):
+    def add_row(self, **data):
+        if self.row_length is None:
+            self.writer.writerow(["time"] + data.keys())
+            self.row_length = len(data)
         if (self.frequency is None) or (
                 time.time() - self.time0) > self.frequency:
             self.time0 = time.time()

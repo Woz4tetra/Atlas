@@ -149,8 +149,9 @@ if __name__ == '__main__':
     # plot_angles("Autonomous Test Day 2/parsed2.csv", source="atan",
                 # density=100)
 
-    # plot_encoder("Test Day 4/Sat Mar 12 23;06;53 2016.csv")
-    plot_gps("Autonomous Test Day 2/parsed2.csv")
+    # plot_encoder("Test Day 4/Sat Mar 12 22;38;45 2016.csv")
+    plot_angles("Test Day 4/Sat Mar 12 22;38;45 2016.csv", source="atan")
+    # plot_gps("Autonomous Test Day 2/parsed2.csv")
 
     # plot_map("Track Field Map Trimmed.csv")
 

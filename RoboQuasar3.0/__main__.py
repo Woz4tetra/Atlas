@@ -44,12 +44,12 @@ def main(log_data=True, manual_mode=False, print_data=True):
     print("Wait for the GPS to lock on, then press A")
 
     while not gps['found']:
-        joystick.update()
         time.sleep(0.005)
     print(gps['lat'], gps['long'])
     notifier.play("bloop")
     while not joystick.buttons.A:
         joystick.update()
+        time.sleep(0.005)
 
     reset()
 

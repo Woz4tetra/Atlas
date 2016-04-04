@@ -72,19 +72,3 @@ class HeadingFilter:
 
         return self.filt_state_mean[0]
 
-filt = HeadingFilter()
-thing = filt.update(0,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,0,1,0,1)
-thing = filt.update(1,1,1,1,0,1)
-thing = filt.update(1,1,1,1,0,1)
-thing = filt.update(1,1,1,1,0,1)
-thing = filt.update(1,1,1,1,0,1)
-print(thing)

@@ -41,12 +41,12 @@ def main(log_data=True, manual_mode=False, print_data=True):
     print("Wait for the GPS to lock on, then press A")
 
     while not gps['found']:
-        joystick.update()
         time.sleep(0.005)
     print(gps['lat'], gps['long'])
     notifier.play("bloop")
     while not joystick.buttons.A:
         joystick.update()
+        time.sleep(0.005)
 
     reset()
 
@@ -66,15 +66,7 @@ def main(log_data=True, manual_mode=False, print_data=True):
     prev_time = time.time()
 
     if log_data:
-        log = Recorder(
-            'gps lat', 'gps long', 'gps heading', 'gps found', 'gps flag',
-            'gps sleep time',
-            'encoder counts', 'encoder flag', 'encoder sleep time',
-            'imu accel x', 'imu accel y', 'imu yaw', 'imu flag',
-            'imu sleep time',
-            'kalman x', 'kalman y', 'kalman heading', 'goal x', 'goal y',
-            'servo',
-            directory="Autonomous Test Day 3", frequency=0.01)
+        log = Recorder(directory="Autonomous Test Day 3", frequency=0.01)
 
     bound_x, bound_y = 0, 0
     bind_flag = False
@@ -135,13 +127,18 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
             if log_data:
                 log.add_row(
-                    gps['lat'], gps['long'], gps['heading'],
-                    gps['found'], gps_flag, gps.sleep_time,
-                    encoder['counts'], enc_flag, encoder.sleep_time,
-                    imu['accel_x'], imu['accel_y'], imu['yaw'], imu_flag,
-                    imu.sleep_time,
-                    x, y, heading, bound_x, bound_y,
-                    servo_steering["position"]
+                    gps_lat=gps['lat'], gps_long=gps['long'],
+                    gps_heading=gps['heading'],
+                    gps_found=gps['found'],
+                    gps_flag=gps_flag, gps_sleep=gps.sleep_time,
+                    encoder=encoder['counts'], enc_flag=enc_flag,
+                    enc_sleep=encoder.sleep_time,
+                    accel_x=imu['accel_x'], accel_y=imu['accel_y'],
+                    yaw=imu['yaw'], imu_flag=imu_flag,
+                    imu_sleep=imu.sleep_time,
+                    kalman_x=x, kalman_y=y, kalman_heading=heading,
+                    bound_x=bound_x, bound_y=bound_y,
+                    servo_steering=servo_steering["position"]
                 )
             bind_flag = True
 
