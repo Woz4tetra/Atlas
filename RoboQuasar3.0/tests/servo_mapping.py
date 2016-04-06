@@ -8,7 +8,7 @@ sys.path.insert(0, '../')
 from microcontroller.data import Sensor
 from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
-from controllers.gcjoystick import joystick_init
+from controllers.joystick import joystick_init
 from controllers.servo_map import *
 
 

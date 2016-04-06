@@ -30,7 +30,7 @@ from analyzers.map import Map
 from analyzers.binder import Binder
 from analyzers.logger import parse
 
-from controllers.gcjoystick import joystick_init
+from controllers.joystick import joystick_init
 from controllers.servo_map import *
 
 from sound.player import TunePlayer

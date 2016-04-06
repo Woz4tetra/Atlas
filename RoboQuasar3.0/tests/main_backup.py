@@ -19,7 +19,7 @@ from analyzers.binder import Binder
 from analyzers.interpreter import Interpreter
 from analyzers.kalman_filter import PositionFilter, HeadingFilter
 from analyzers.logger import Recorder
-from controllers.gcjoystick import joystick_init
+from controllers.joystick import joystick_init
 from controllers.servo_map import *
 from microcontroller.data import Command
 from microcontroller.data import Sensor

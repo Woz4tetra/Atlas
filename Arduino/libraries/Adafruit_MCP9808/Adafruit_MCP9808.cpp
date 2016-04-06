@@ -1,16 +1,16 @@
 /**************************************************************************/
-/*! 
+/*!
     @file     Adafruit_MCP9808.cpp
     @author   K.Townsend (Adafruit Industries)
 	@license  BSD (see license.txt)
-	
+
 	I2C Driver for Microchip's MCP9808 I2C Temp sensor
 
 	This is a library for the Adafruit MCP9808 breakout
 	----> http://www.adafruit.com/products/1782
-		
-	Adafruit invests time and resources providing this open source code, 
-	please support Adafruit and open-source hardware by purchasing 
+
+	Adafruit invests time and resources providing this open source code,
+	please support Adafruit and open-source hardware by purchasing
 	products from Adafruit!
 
 	@section  HISTORY
@@ -34,7 +34,7 @@
 #include "Adafruit_MCP9808.h"
 
 /**************************************************************************/
-/*! 
+/*!
     @brief  Instantiates a new MCP9808 class
 */
 /**************************************************************************/
@@ -42,7 +42,7 @@ Adafruit_MCP9808::Adafruit_MCP9808() {
 }
 
 /**************************************************************************/
-/*! 
+/*!
     @brief  Setups the HW
 */
 /**************************************************************************/
@@ -55,9 +55,9 @@ boolean Adafruit_MCP9808::begin(uint8_t addr) {
 
   return true;
 }
- 
+
 /**************************************************************************/
-/*! 
+/*!
     @brief  Reads the 16-bit temperature register and returns the Centigrade
             temperature as a float.
 
@@ -104,7 +104,7 @@ int Adafruit_MCP9808::shutdown_wake( uint8_t sw_ID )
 
 
 /**************************************************************************/
-/*! 
+/*!
     @brief  Low level 16 bit read and write procedures!
 */
 /**************************************************************************/
@@ -123,10 +123,10 @@ uint16_t Adafruit_MCP9808::read16(uint8_t reg) {
   Wire.beginTransmission(_i2caddr);
   Wire.write((uint8_t)reg);
   Wire.endTransmission();
-  
+
   Wire.requestFrom((uint8_t)_i2caddr, (uint8_t)2);
   val = Wire.read();
   val <<= 8;
-  val |= Wire.read();  
-  return val;  
+  val |= Wire.read();
+  return val;
 }

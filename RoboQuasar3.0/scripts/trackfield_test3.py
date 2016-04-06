@@ -20,7 +20,7 @@ from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 from analyzers.logger import Recorder
 
-from controllers.gcjoystick import joystick_init
+from controllers.joystick import joystick_init
 from controllers.servo_map import *
 
 script_options = dict(

@@ -1,31 +1,24 @@
 """
 Written by Ben Warwick
 
-gcjoystick.py, written for RoboQuasar3.0
-Version 3/10/2015
+joystick.py, written for RoboQuasar3.0
+Version 4/5/2015
 =========
 
-Allows for out-of-the-box interface with a gamecube controller (connected with
-the mayflash gc adapter)
+Allows for out-of-the-box interface with a Wii U Pro or gamecube controller
+(connected with the corresponding mayflash adapter)
 
-mainStick.x: -0.85...0.81 (left is negative)
-mainStick.y: -0.82...0.80 (up is negative)
-
-cStick.x: -0.76...0.70
-cStick.y: -0.70...0.796
-
-L: -0.777...0.84 (negative is up)
-R: -0.809...0.809
 """
 
-import pygame
 import sys
-from dotable import Dotable
 import threading
-import time
+
+import pygame
+from dotable import Dotable
 
 sys.path.insert(0, "../")
 import config
+
 
 class BuggyJoystick(threading.Thread):
     exit_flag = False
@@ -63,7 +56,8 @@ class BuggyJoystick(threading.Thread):
             self.update()
             time.sleep(0.001)
 
-    def stop(self):
+    @staticmethod
+    def stop():
         BuggyJoystick.exit_flag = True
 
     def update_mac(self):
@@ -74,6 +68,7 @@ class BuggyJoystick(threading.Thread):
 
     def updateButtons(self, event, value):
         pass
+
 
 class GCJoystick(BuggyJoystick):
     def __init__(self):
@@ -223,6 +218,7 @@ class GCJoystick(BuggyJoystick):
                    self.dpad.down,
                    self.triggers.L, self.triggers.R)
 
+
 class WiiUJoystick(BuggyJoystick):
     def __init__(self):
         super(WiiUJoystick, self).__init__()
@@ -279,11 +275,11 @@ class WiiUJoystick(BuggyJoystick):
                 self.rightStick.x = event.value
 
             if (abs(self.leftStick.x) < self.deadzoneStick and
-                    abs(self.leftStick.y) < self.deadzoneStick):
+                        abs(self.leftStick.y) < self.deadzoneStick):
                 self.leftStick.x = 0
                 self.leftStick.y = 0
             if (abs(self.rightStick.x) < self.deadzoneStick and
-                    abs(self.rightStick.y) < self.deadzoneStick):
+                        abs(self.rightStick.y) < self.deadzoneStick):
                 self.rightStick.x = 0
                 self.rightStick.y = 0
 
@@ -340,8 +336,8 @@ class WiiUJoystick(BuggyJoystick):
         elif event.type == pygame.JOYBUTTONUP:
             self.updateButtons(event, False)
 
-        # if event.type != pygame.NOEVENT:
-        #     print(event)
+            # if event.type != pygame.NOEVENT:
+            #     print(event)
 
     def updateButtons(self, event, value):
         if event.button == 0:
@@ -418,11 +414,13 @@ if __name__ == '__main__':
     import sys
 
     if len(sys.argv) > 0:
-        joy_type = sys.argv[1]
+        joystick_type = sys.argv[1]
+    else:
+        joystick_type = "gc"
 
-    joystick = joystick_init(joy_type=joy_type)
+    joystick = joystick_init(joy_type=joystick_type)
     try:
-        while joystick.done == False:
+        while not joystick.done:
             print(joystick)
 
             time.sleep(0.005)

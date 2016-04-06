@@ -11,13 +11,17 @@ python trackfield_test4.py
 
 """
 
+import time
+import sys
+
+sys.path.insert(0, "../")
+
 from analyzers.binder import Binder
 from analyzers.interpreter import Interpreter
 from analyzers.logger import Recorder
 from analyzers.fancy_kalman import KalmanFilter
-from analyzers.heading_filter import HeadingFilter
-from controllers.gcjoystick import joystick_init
-from controllers.servo_map import *
+from analyzers.heading_kalman import HeadingFilter
+from controllers.joystick import joystick_init
 from microcontroller.data import Command
 from microcontroller.data import Sensor
 from microcontroller.dashboard import start, stop, is_running, reset
@@ -68,9 +72,6 @@ def main(log_data=True, manual_mode=False, print_data=True):
     if log_data:
         log = Recorder(directory="Autonomous Test Day 3", frequency=0.01)
 
-    bound_x, bound_y = 0, 0
-    bind_flag = False
-
     try:
         while True:
             joystick.update()
@@ -100,30 +101,6 @@ def main(log_data=True, manual_mode=False, print_data=True):
                     notifier.play("broken")
                 prev_status = is_running()
 
-            heading = heading_filter.update(
-                gps["heading"], gps_flag,
-                (bound_x, bound_y), bind_flag,
-                imu["yaw"], imu_flag
-            )
-
-            gps_x, gps_y, accel_x, accel_y, change_dist = \
-                interpreter.convert(
-                    gps["lat"], gps["long"], imu["accel_x"], imu["accel_y"],
-                    encoder["counts"], imu["yaw"], heading
-                )
-
-            current_time = time.time()  # TODO: is this the correct place for this?
-
-            x, y = position_filter.update(
-                gps_x, gps_y, gps_flag, gps.sleep_time,
-                accel_x, accel_y, imu_flag, imu.sleep_time,
-                change_dist, enc_flag, encoder.sleep_time,
-                current_time - prev_time, heading
-            )
-
-            prev_time = current_time   # TODO: is this the correct place for this?
-
-            bound_x, bound_y = binder.bind((x, y))
 
             if log_data:
                 log.add_row(

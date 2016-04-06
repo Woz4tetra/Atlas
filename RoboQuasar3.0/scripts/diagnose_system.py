@@ -17,7 +17,7 @@ from microcontroller.data import Sensor
 from microcontroller.data import Command
 from microcontroller.data import start, stop, is_running
 
-from controllers.gcjoystick import joystick_init
+from controllers.joystick import joystick_init
 
 gps = Sensor(1, ['lat','long', 'heading'])
 encoder = Sensor(2, 'counts')
