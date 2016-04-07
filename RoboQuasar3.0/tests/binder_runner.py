@@ -5,7 +5,7 @@ sys.path.insert(0, "../")
 
 from analyzers.logger import parse
 from analyzers.binder import Binder
-from analyzers.interpreter import Interpreter
+from analyzers.converter import Interpreter
 
 sensor_data = parse("Test Day 4/Sat Mar 12 22;38;45 2016.csv")
 

@@ -11,25 +11,27 @@ python trackfield_test4.py
 
 """
 
-import time
 import sys
+import time
+import traceback
 
 sys.path.insert(0, "../")
 
 from analyzers.binder import Binder
-from analyzers.interpreter import Interpreter
+from analyzers.converter import HeadingConverter, PositionConverter
 from analyzers.logger import Recorder
-from analyzers.fancy_kalman import KalmanFilter
-from analyzers.heading_kalman import HeadingFilter
+from analyzers.kalman_filter import HeadingFilter, PositionFilter
 from controllers.joystick import joystick_init
 from microcontroller.data import Command
 from microcontroller.data import Sensor
 from microcontroller.dashboard import start, stop, is_running, reset
+from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
+
 
 def main(log_data=True, manual_mode=False, print_data=True):
     print("log_data = %s, manual_mode = %s, print_data = %s" %
-        (log_data, manual_mode, print_data))
+          (log_data, manual_mode, print_data))
 
     gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
     encoder = Sensor(2, 'counts')
@@ -56,8 +58,10 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
     notifier.play("ding")
     binder = Binder("Track Field Map Trimmed.csv")
-    interpreter = Interpreter(0, gps["lat"], gps["long"])
-    position_filter = KalmanFilter()
+    heading_converter = HeadingConverter(gps["lat"], gps["long"])
+    position_converter = PositionConverter(
+        encoder["counts"], gps["lat"], gps["long"])
+    position_filter = PositionFilter()
     heading_filter = HeadingFilter()
 
     log = None
@@ -69,8 +73,11 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
     prev_time = time.time()
 
+    bind_x, bind_y = 0, 0
+    bind_flag = False
+
     if log_data:
-        log = Recorder(directory="Autonomous Test Day 3", frequency=0.01)
+        log = Recorder(directory="Autonomous Test Day 5", frequency=0.01)
 
     try:
         while True:
@@ -101,6 +108,36 @@ def main(log_data=True, manual_mode=False, print_data=True):
                     notifier.play("broken")
                 prev_status = is_running()
 
+            gps_heading, bind_heading = heading_converter.convert(
+                gps['long'], gps['lat'], bind_x, bind_y
+            )
+
+            kalman_heading = heading_filter.update(
+                gps_heading, gps_flag, bind_heading, bind_flag,
+                imu["yaw"], imu_flag
+            )
+            if not bind_flag:
+                bind_flag = True
+
+            gps_x, gps_y, shifted_ax, shifted_ay, enc_dist = \
+                position_converter.convert(
+                    gps["long"], gps["lat"], imu["accel_x"], imu["accel_y"],
+                    encoder["counts"], kalman_heading
+                )
+
+            kalman_x, kalman_y = position_filter.update(
+                gps_x, gps_y, gps_flag, gps.sleep_time,
+                shifted_ax, shifted_ay, imu_flag, imu.sleep_time,
+                enc_dist, enc_flag, encoder.sleep_time, time.time() - prev_time,
+                kalman_heading
+            )
+            prev_time = time.time()
+
+            bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+
+            servo_steering["position"] = \
+                state_to_servo([0, 0, 0],
+                               [1, 5.34 / 90 * joystick.mainStick.x])
 
             if log_data:
                 log.add_row(
@@ -113,11 +150,19 @@ def main(log_data=True, manual_mode=False, print_data=True):
                     accel_x=imu['accel_x'], accel_y=imu['accel_y'],
                     yaw=imu['yaw'], imu_flag=imu_flag,
                     imu_sleep=imu.sleep_time,
-                    kalman_x=x, kalman_y=y, kalman_heading=heading,
-                    bound_x=bound_x, bound_y=bound_y,
+                    kalman_x=kalman_x, kalman_y=kalman_y,
+                    kalman_heading=kalman_heading,
+                    bound_x=bind_x, bound_y=bind_y,
                     servo_steering=servo_steering["position"]
                 )
-            bind_flag = True
+    except KeyboardInterrupt:
+        traceback.print_exc()
+    finally:
+        stop()
+        joystick.stop()
+        notifier.play("PuzzleDone")
+        time.sleep(1)
+
 
 if __name__ == '__main__':
     print(__doc__)

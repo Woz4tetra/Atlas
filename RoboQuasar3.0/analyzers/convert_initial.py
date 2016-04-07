@@ -14,7 +14,7 @@ import math
 
 class Converter_heading():
 
-    def __init__(self, initial_lng, inital_lat):
+    def __init__(self, initial_lng, initial_lat):
         self.prev_lat = initial_lat
         self.prev_lng = initial_lng
         self.prev_bind_x  = 0

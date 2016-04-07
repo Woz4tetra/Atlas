@@ -16,7 +16,7 @@ import time
 import traceback
 
 from analyzers.binder import Binder
-from analyzers.interpreter import Interpreter
+from analyzers.converter import Interpreter
 from analyzers.kalman_filter import PositionFilter, HeadingFilter
 from analyzers.logger import Recorder
 from controllers.joystick import joystick_init

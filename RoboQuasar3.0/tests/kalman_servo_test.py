@@ -25,7 +25,7 @@ from microcontroller.data import start, stop, is_running
 
 from analyzers.logger import Recorder
 from analyzers.kalman_filter import PositionFilter
-from analyzers.interpreter import Interpreter
+from analyzers.converter import Interpreter
 from analyzers.map import Map
 from analyzers.binder import Binder
 from analyzers.logger import parse

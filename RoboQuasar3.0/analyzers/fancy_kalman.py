@@ -22,11 +22,11 @@ class KalmanFilter:
         self.trans_cov = np.identity(6)
 
         self.filter = pykalman.KalmanFilter(
-                observation_covariance = self.obs_cov,
-                transition_covariance  = self.trans_cov)
+            observation_covariance=self.obs_cov,
+            transition_covariance=self.trans_cov)
 
-        self.filt_state_mean = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
-        self.covariance      = np.identity(6)
+        self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.covariance = np.identity(6)
 
     def update(self, gps_x, gps_y, gps_flag, gps_dt,
                accel_x, accel_y, acc_flag, acc_dt,
@@ -63,34 +63,35 @@ class KalmanFilter:
             observation[6] = np.ma.masked
             observation[7] = np.ma.masked
 
-        obs_matrix = np.array( \
-                [[1, 0,      0,      0, 0, 0],
-                 [0, 1,      0,      0, 0, 0],
-                 [0, 0, gps_dt,      0, 0, 0],
-                 [0, 0,      0, gps_dt, 0, 0],
-                 [0, 0, enc_dt,      0, 0, 0],
-                 [0, 0,      0, enc_dt, 0, 0],
-                 [0, 0,      0,      0, 1, 0],
-                 [0, 0,      0,      0, 0, 1]])
+        obs_matrix = np.array(
+            [[1, 0, 0, 0, 0, 0],
+             [0, 1, 0, 0, 0, 0],
+             [0, 0, gps_dt, 0, 0, 0],
+             [0, 0, 0, gps_dt, 0, 0],
+             [0, 0, enc_dt, 0, 0, 0],
+             [0, 0, 0, enc_dt, 0, 0],
+             [0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 1]])
 
-        transition_matrix = np.array( \
-                [[1, 0, upd_dt,      0,      0,      0],
-                 [0, 1,      0, upd_dt,      0,      0],
-                 [0, 0,      1,      0, upd_dt,      0],
-                 [0, 0,      0,      1,      0, upd_dt],
-                 [0, 0,      0,      0,      1,      0],
-                 [0, 0,      0,      0,      0,      1]])
-
+        transition_matrix = np.array(
+            [[1, 0, upd_dt, 0, 0, 0],
+             [0, 1, 0, upd_dt, 0, 0],
+             [0, 0, 1, 0, upd_dt, 0],
+             [0, 0, 0, 1, 0, upd_dt],
+             [0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 1]])
 
         self.filt_state_mean, self.covariance = \
-                self.filter.filter_update( \
-                    filtered_state_mean = self.filt_state_mean,
-                    filtered_state_covariance = self.covariance,
-                    observation = observation,
-                    transition_matrix = transition_matrix,
-                    observation_matrix = obs_matrix)
+            self.filter.filter_update(
+                filtered_state_mean=self.filt_state_mean,
+                filtered_state_covariance=self.covariance,
+                observation=observation,
+                transition_matrix=transition_matrix,
+                observation_matrix=obs_matrix)
 
         return self.filt_state_mean[0:2]
-filt = KalmanFilter()
-thing = filt.update(0,0,0,0,0,0,0,0,0,0,0,0,0)
-print( thing)
+
+
+# filt = KalmanFilter()
+# thing = filt.update(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+# print(thing)
