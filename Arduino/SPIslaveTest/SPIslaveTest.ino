@@ -3,6 +3,7 @@ volatile byte command = 0;
 
 void setup (void)
   {
+    Serial.begin(9600);
 
   // have to send on master in, *slave out*
   pinMode(MISO, OUTPUT);
@@ -31,11 +32,15 @@ ISR (SPI_STC_vect)
 
     // add to incoming byte, return result
     case 'a':
+      Serial.print("a: ");
+      Serial.println(c);
       SPDR = c + 15;  // add 15
       break;
 
     // subtract from incoming byte, return result
     case 's':
+      Serial.print("s: ");
+      Serial.println(c);
       SPDR = c - 8;  // subtract 8
       break;
 
