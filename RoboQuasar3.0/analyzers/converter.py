@@ -82,3 +82,10 @@ class PositionConverter:
         delta_counts = counts - self.prev_encoder
         self.prev_encoder = counts
         return delta_counts * self.wheel_diameter * math.pi
+
+if __name__ == '__main__':
+    position_converter1 = PositionConverter(0, 0, 0)
+    heading_converter1 = HeadingConverter(0, 0)
+
+
+    position_converter1.convert()

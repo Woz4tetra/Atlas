@@ -108,14 +108,14 @@ class PositionFilter:
 
 class HeadingFilter:
     """
-    Takes in 3 observationss:
+    Takes in 3 observations:
         gps_heading, imu_heading, bind_heading
 
     imu_heading is relative, so will be used as a differential
 
     gps and bind headings are absolute
 
-    Keepes track of heading and delta heading
+    Keeps track of heading and delta heading
     """
 
     def __init__(self):
@@ -140,7 +140,7 @@ class HeadingFilter:
 
         observation = np.array([gps_heading, bind_heading, delta_heading])
 
-        observation = np.ma.asarray(observation)
+        observation = np.ma.array(observation)
 
         if not gps_flag:
             observation[0] = np.ma.masked
@@ -174,6 +174,3 @@ class HeadingFilter:
 
         return self.filt_state_mean[0]
 
-# filt = PositionFilter()
-# thing = filt.update(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-# print(thing)
