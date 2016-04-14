@@ -192,7 +192,8 @@ def main(log_data=False, use_kalman=False, print_data=True):
     finally:
         stop()
         joystick.stop()
-        log.close()
+        if log_data:
+            log.close()
         # notifier.play("PuzzleDone")
         time.sleep(1)
 
