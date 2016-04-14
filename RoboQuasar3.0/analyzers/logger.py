@@ -29,7 +29,7 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, frequency=None, file_name=None, directory=None):
+    def __init__(self, headers, frequency=None, file_name=None, directory=None):
         if directory is None:
             self.directory = config.get_dir(":logs")
         else:
@@ -58,22 +58,29 @@ class Recorder(object):
         self.current_row = []
 
         self.time0 = time.time()
+        self.log_start = self.time0
         self.frequency = frequency
         self.enable_record = True
 
-        self.row_length = None
+        # self.row_length = None
+        self.writer.writerow(["time"] + headers)
+        self.row_length = len(headers)
 
-    def add_row(self, **data):
-        if self.row_length is None:
-            self.writer.writerow(["time"] + data.keys())
-            self.row_length = len(data)
+    def add_row(self, data):
+        # if self.row_length is None:
+        #     self.writer.writerow(["time"] + list(data.keys()))
+        #     self.row_length = len(data)
         if (self.frequency is None) or (
                 time.time() - self.time0) > self.frequency:
             self.time0 = time.time()
             self.enable_record = True
         if self.enable_record:
             assert len(data) == self.row_length
-            self.current_row += list(data)
+            self.writer.writerow([time.time() - self.log_start] + data)#list(data.values()))
+            self.enable_record = False
+            # print(data)
+
+        # return not self.enable_record
 
     def close(self):
         self.csv_file.close()

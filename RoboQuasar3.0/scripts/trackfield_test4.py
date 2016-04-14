@@ -29,7 +29,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=False, print_data=True):
+def main(log_data=True, manual_mode=True, print_data=True):
     print("log_data = %s, manual_mode = %s, print_data = %s" %
           (log_data, manual_mode, print_data))
 
@@ -46,10 +46,12 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
     print("Wait for the GPS to lock on, then press A")
 
-    while not gps['found']:
+    while not gps['found'] and not joystick.buttons.A:
+        joystick.update()
         time.sleep(0.005)
     print(gps['lat'], gps['long'])
     notifier.play("bloop")
+    time.sleep(0.05)
     while not joystick.buttons.A:
         joystick.update()
         time.sleep(0.005)
@@ -66,8 +68,8 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
     log = None
 
-    prev_status = not is_running()
-    prev_gps_status = not gps['found']
+    prev_status = is_running()
+    prev_gps_status = gps['found']
 
     time.sleep(0.5)
 
@@ -76,8 +78,23 @@ def main(log_data=True, manual_mode=False, print_data=True):
     bind_x, bind_y = 0, 0
     bind_flag = False
 
+    imu_flag = False
+    gps_flag = False
+    enc_flag = False
+
     if log_data:
-        log = Recorder(directory="Autonomous Test Day 5", frequency=0.01)
+        log = Recorder(directory="Test Day 5", headers=["gps_lat", "gps_long",
+        "gps_heading",
+        "gps_found",
+        "gps_flag", "gps_sleep",
+        "encoder", "enc_flag",
+        "enc_sleep",
+        "accel_x", "accel_y",
+        'yaw', "imu_flag",
+        "imu_sleep",
+        "kalman_x", "kalman_y",
+        "kalman_heading",
+        "bind_x", "bind_y", "servo_steering"])#, frequency=0.01)
 
     try:
         while True:
@@ -85,11 +102,18 @@ def main(log_data=True, manual_mode=False, print_data=True):
             if joystick.buttons.B:
                 break
 
-            imu_flag = imu.received()
-            gps_flag = gps.received()
-            enc_flag = encoder.received()
+            imu_flag_temp = imu.received()
+            gps_flag_temp = gps.received()
+            enc_flag_temp = encoder.received()
 
-            if gps_flag:
+            if imu_flag_temp is True:
+                imu_flag = imu_flag_temp
+            if gps_flag_temp is True:
+                gps_flag = gps_flag_temp
+            if enc_flag_temp is True:
+                enc_flag = enc_flag_temp
+
+            if gps_flag_temp:
                 notifier.play("click")
 
             if prev_gps_status != gps['found']:
@@ -131,6 +155,7 @@ def main(log_data=True, manual_mode=False, print_data=True):
                 enc_dist, enc_flag, encoder.sleep_time, time.time() - prev_time,
                 kalman_heading
             )
+
             prev_time = time.time()
 
             bind_x, bind_y = binder.bind((kalman_x, kalman_y))
@@ -139,28 +164,46 @@ def main(log_data=True, manual_mode=False, print_data=True):
                 state_to_servo([0, 0, 0],
                                [1, 5.34 / 90 * joystick.mainStick.x])
 
+            if imu_flag == gps_flag == enc_flag == True:
+                imu_flag = gps_flag = enc_flag = False
             if log_data:
+                # log.add_row(OrderedDict(
+                #     gps_lat=gps['lat'], gps_long=gps['long'],
+                #     gps_heading=gps['heading'],
+                #     gps_found=gps['found'],
+                #     gps_flag=gps_flag, gps_sleep=gps.sleep_time,
+                #     encoder=encoder['counts'], enc_flag=enc_flag,
+                #     enc_sleep=encoder.sleep_time,
+                #     accel_x=imu['accel_x'], accel_y=imu['accel_y'],
+                #     yaw=imu['yaw'], imu_flag=imu_flag,
+                #     imu_sleep=imu.sleep_time,
+                #     kalman_x=kalman_x, kalman_y=kalman_y,
+                #     kalman_heading=kalman_heading,
+                #     bind_x=bind_x, bind_y=bind_y,
+                #     servo_steering=servo_steering["position"]
+                # ))
                 log.add_row(
-                    gps_lat=gps['lat'], gps_long=gps['long'],
-                    gps_heading=gps['heading'],
-                    gps_found=gps['found'],
-                    gps_flag=gps_flag, gps_sleep=gps.sleep_time,
-                    encoder=encoder['counts'], enc_flag=enc_flag,
-                    enc_sleep=encoder.sleep_time,
-                    accel_x=imu['accel_x'], accel_y=imu['accel_y'],
-                    yaw=imu['yaw'], imu_flag=imu_flag,
-                    imu_sleep=imu.sleep_time,
-                    kalman_x=kalman_x, kalman_y=kalman_y,
-                    kalman_heading=kalman_heading,
-                    bound_x=bind_x, bound_y=bind_y,
-                    servo_steering=servo_steering["position"]
+                    [gps['lat'], gps['long'],
+                    gps['heading'],
+                    gps['found'],
+                    gps_flag, gps.sleep_time,
+                    encoder['counts'], enc_flag,
+                    encoder.sleep_time,
+                    imu['accel_x'], imu['accel_y'],
+                    imu['yaw'], imu_flag,
+                    imu.sleep_time,
+                    kalman_x, kalman_y,
+                    kalman_heading,
+                    bind_x, bind_y,
+                    servo_steering["position"]]
                 )
     except KeyboardInterrupt:
         traceback.print_exc()
     finally:
         stop()
         joystick.stop()
-        notifier.play("PuzzleDone")
+        log.close()
+        # notifier.play("PuzzleDone")
         time.sleep(1)
 
 

@@ -28,6 +28,10 @@ class KalmanFilter:
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(6)
 
+        self.found_gps = False
+        self.found_acc = False
+        self.found_enc = False
+
     def update(self, gps_x, gps_y, gps_flag, gps_dt,
                accel_x, accel_y, acc_flag, acc_dt,
                change_dist, enc_flag, enc_dt,
@@ -54,14 +58,28 @@ class KalmanFilter:
         else:
             self.prev_gps_x = gps_dx
             self.prev_gps_y = gps_dy
+            self.found_gps = True
 
         if not enc_flag:
             observation[4] = np.ma.masked
             observation[5] = np.ma.masked
 
+        else:
+            self.found_enc = True
+
         if not acc_flag:
             observation[6] = np.ma.masked
             observation[7] = np.ma.masked
+
+        else:
+            self.found_acc = True
+
+        if (self.found_gps == self.found_enc == self.found_acc == True):
+            observation = np.array([gps_x, gps_y, gps_dx, gps_dy,
+                                    enc_dx, enc_dy, accel_x, accel_y])
+            self.found_gps = False
+            self.found_enc = False
+            self.found_acc = False
 
         obs_matrix = np.array(
             [[1, 0, 0, 0, 0, 0],
@@ -92,6 +110,3 @@ class KalmanFilter:
         return self.filt_state_mean[0:2]
 
 
-# filt = KalmanFilter()
-# thing = filt.update(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-# print(thing)

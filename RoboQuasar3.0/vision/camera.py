@@ -7,25 +7,28 @@ from vision.capture import Capture
 
 
 class Camera(Capture):
-    def __init__(self, width, height, cam_source=None, window_name="",
-                 enable_draw=True, search_for_camera=True):
+    def __init__(self, width, height, window_name=None, enable_draw=True, cam_source=None):
         time0 = time.time()
 
         super(Camera, self).__init__(window_name, width, height, enable_draw)
         self.cam_source = cam_source
 
+        if window_name is None:
+            window_name = "camera " + str(Camera.capture_num)
+
         if self.enable_draw:
+            print(window_name)
             cv2.namedWindow(window_name)
+
+        if cam_source is not None:
+            self.capture = self.load_capture(cam_source)
+        else:
+            self.capture = self.camera_selector()
 
         time1 = time.time()
         print((str(self.cam_source) + " loaded in " + str(
             time1 - time0) + " seconds. Capture size is " +
                str(int(self.width)) + "x" + str(int(self.height))))
-
-        if cam_source is not None:
-            self.capture = self.load_capture(cam_source)
-        elif search_for_camera:
-            self.capture = self.camera_selector()
 
     def get_frame(self):
         if not self.is_running:
@@ -119,5 +122,3 @@ class Camera(Capture):
                 shape = frame.shape
             else:
                 cv2.imshow(window_name + str(capture_num), np.zeros(shape))
-
-

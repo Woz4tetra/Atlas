@@ -70,8 +70,9 @@ class Capture:
                 corresponding text. Type help(Capture.mac_keys) for details.
         """
         key = cv2.waitKey(delay)
-        if key != -1 and self.platform == "linux":
-            key -= 0x100000
+        # if key != -1 and self.platform == "linux":
+        #     key -= 0x100000
+        #     print(key)
         if key in self.key_codes:
             return self.key_codes[key]
         elif key > -1:
@@ -132,7 +133,8 @@ class Capture:
             cv2.imshow(self.window_name, self.frame)
 
     def start_recording(self, fps=30, video_name=None, add_timestamp=True,
-                        format=None, output_dir=None, width=None, height=None):
+                        format=None, output_dir=None, width=None, height=None,
+                        with_frame=None):
         """
             Initialize the Capture's video writer.
 
@@ -194,16 +196,23 @@ class Capture:
         if self.platform == 'linux':
             output_dir = video_name
 
-        if width is None:
+        if width is None and with_frame is None:
             self.recorder_width = self.width
         else:
-            self.recorder_width = width
+            if width is not None:
+                self.recorder_width = width
+            elif with_frame is not None:
+                self.recorder_width = with_frame.shape[1]
 
-        if height is None:
+        if height is None and with_frame is None:
             self.recorder_height = self.height
         else:
-            self.recorder_height = height
+            if height is not None:
+                self.recorder_height = height
+            elif with_frame is not None:
+                self.recorder_height = with_frame.shape[0]
 
+        print(self.recorder_width, self.recorder_height)
         self.video.open(output_dir, fourcc, fps,
                         (self.recorder_width, self.recorder_height), True)
 

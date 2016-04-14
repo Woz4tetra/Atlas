@@ -1,54 +1,39 @@
 import pyb
 
+class HallEncoder(object):
+    def __init__(self, analog_pin):
+        self.pin_ref = (
+            pyb.ADC(pyb.Pin(analog_pin, pyb.Pin.ANALOG)))
 
+        self.in_range = False
+        self.enc_dist = 0
+        self.timer1 = pyb.Timer(4, freq=50)
+        self.timer1.callback(lambda t: self.on_interrupt())
 
-#set up variables
-num_rotations = 0
-in_range = False
-hall_value = 0
-count = 0
+        # need to be calibrated to real life values
+        self.upper_threshold = 3900
+        self.lower_threshold = 3600
 
-#constants
-upper_threshold = 3900
-lower_threshold = 3100
-pin_ref = pyb.ADC(pyb.Pin('X7', pyb.Pin.ANALOG))
+        self.data_recved = False
 
-#make interrupt function
+	def recved_data(self):
+	    if self.data_recved == True:
+	        self.data_recved = False
+	        return True
+	    else:
+	        return False
 
-def update():
-	global pin_ref
-	global in_range
-	global upper_threshold
-	global num_rotations
-	global lower_threshold
-	global hall_value
-	global count
+    def on_interrupt(self):
+        self.hall_value = self.pin_ref.read()
 
-	hall_value = pin_ref.read()
+        if (self.in_range and (self.hall_value > self.upper_threshold)):
+            self.in_range = False
+            self.enc_dist += 1
+            self.data_recved = True
+        elif (not self.in_range and (self.hall_value <= self.lower_threshold)):
+            self.in_range = True
 
-	#this allows for the hall effect vlue to be visually tested 
-	#every 0.5 seconds for finding thresholds
-	count += 1
-	if (count % 100 == 0):
-		print (hall_value, count)
-
-	#this prevents multiple readings of the same rotation
-	if (in_range and (hall_value > upper_threshold)):
-	    in_range = False
-	    num_rotations += 1
-	elif (not(in_range) and (hall_value <= lower_threshold)):
-	    in_range = True
-
-
-#set up timer for interrupt
-timer1 = pyb.Timer(4, freq = 200)
-timer1.callback(lambda t: update())
-
-#loop
-print("starting the loop")
+encoder = HallEncoder("X7")
 while True:
-	print(num_rotations, 'number of rotation')
-	pyb.delay(1000)
-
-
-
+	# if encoder.data_recved:
+		print(encoder.enc_dist)

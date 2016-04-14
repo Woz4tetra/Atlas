@@ -2,6 +2,7 @@ import pyb
 import struct
 import math
 
+
 class BNO055():
     reg = dict(
         VECTOR_ACCELEROMETER = 0x08,
@@ -117,6 +118,7 @@ class BNO055():
 
     def get_euler(self):
         x, y, z = self.get_vector('VECTOR_EULER')
+        # return x, y, z
         return x / 16.0, y / 16.0, z / 16.0
 
 
