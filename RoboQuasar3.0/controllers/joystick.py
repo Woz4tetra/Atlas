@@ -12,6 +12,7 @@ Allows for out-of-the-box interface with a Wii U Pro or gamecube controller
 
 import sys
 import threading
+import time
 
 import pygame
 from dotable import Dotable
@@ -410,9 +411,6 @@ def joystick_init(joy_type="gc"):
 
 
 if __name__ == '__main__':
-    import time
-    import sys
-
     if len(sys.argv) > 0:
         joystick_type = sys.argv[1]
     else:

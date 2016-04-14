@@ -39,8 +39,6 @@ class SensorPool(object):
         :return: SensorPool object
         """
 
-
-
         self.sensors = {}
 
     def add_sensor(self, sensor):

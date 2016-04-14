@@ -6,7 +6,7 @@ from microcontroller.comm import Communicator
 
 
 def reset():
-    communicator.serial_ref.write(struct.pack("B", 4))
+    data.communicator.serial_ref.write(struct.pack("B", 4))
     data.Command(255, 'reset', (False, True))['reset'] = True
 
 
@@ -29,8 +29,7 @@ def start(baud=115200, use_handshake=True, check_status=False):
 
 
 def stop():
-    global communicator
-    communicator.stop()
+    data.communicator.stop()
     time.sleep(0.005)
 
 

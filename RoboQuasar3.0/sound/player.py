@@ -13,7 +13,8 @@ class TunePlayer():
         self.tunes = {}
         tunes_dir = config.get_dir(":tunes")
         for tune_name in os.listdir(tunes_dir):
-            self.tunes[tune_name] = pygame.mixer.Sound(tunes_dir + tune_name)
+            if tune_name.endswith(".wav"):
+                self.tunes[tune_name] = pygame.mixer.Sound(tunes_dir + tune_name)
 
 
     def play(self, tune_name):

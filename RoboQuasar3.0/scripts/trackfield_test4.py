@@ -29,9 +29,9 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=False, print_data=True):
-    print("log_data = %s, manual_mode = %s, print_data = %s" %
-          (log_data, manual_mode, print_data))
+def main(log_data=False, use_kalman=False, print_data=True):
+    print("log_data = %s, use_kalman = %s, print_data = %s" %
+          (log_data, use_kalman, print_data))
 
     gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
     encoder = Sensor(2, 'counts')
@@ -46,13 +46,14 @@ def main(log_data=True, manual_mode=False, print_data=True):
 
     print("Wait for the GPS to lock on, then press A")
 
-    while not gps['found']:
+    while not gps['found'] and not joystick.buttons.A:
         time.sleep(0.005)
+        joystick.update()
     print(gps['lat'], gps['long'])
     notifier.play("bloop")
     while not joystick.buttons.A:
-        joystick.update()
         time.sleep(0.005)
+        joystick.update()
 
     reset()
 
@@ -92,6 +93,9 @@ def main(log_data=True, manual_mode=False, print_data=True):
             if gps_flag:
                 notifier.play("click")
 
+            if enc_flag:
+                print(encoder["counts"])
+
             if prev_gps_status != gps['found']:
                 if gps['found']:
                     notifier.play("short victory")
@@ -108,32 +112,35 @@ def main(log_data=True, manual_mode=False, print_data=True):
                     notifier.play("broken")
                 prev_status = is_running()
 
-            gps_heading, bind_heading = heading_converter.convert(
-                gps['long'], gps['lat'], bind_x, bind_y
-            )
-
-            kalman_heading = heading_filter.update(
-                gps_heading, gps_flag, bind_heading, bind_flag,
-                imu["yaw"], imu_flag
-            )
-            if not bind_flag:
-                bind_flag = True
-
-            gps_x, gps_y, shifted_ax, shifted_ay, enc_dist = \
-                position_converter.convert(
-                    gps["long"], gps["lat"], imu["accel_x"], imu["accel_y"],
-                    encoder["counts"], kalman_heading
+            if use_kalman:
+                gps_heading, bind_heading = heading_converter.convert(
+                    gps['long'], gps['lat'], bind_x, bind_y
                 )
 
-            kalman_x, kalman_y = position_filter.update(
-                gps_x, gps_y, gps_flag, gps.sleep_time,
-                shifted_ax, shifted_ay, imu_flag, imu.sleep_time,
-                enc_dist, enc_flag, encoder.sleep_time, time.time() - prev_time,
-                kalman_heading
-            )
-            prev_time = time.time()
+                kalman_heading = heading_filter.update(
+                    gps_heading, gps_flag, bind_heading, bind_flag,
+                    imu["yaw"], imu_flag
+                )
+                if not bind_flag:
+                    bind_flag = True
 
-            bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+                gps_x, gps_y, shifted_ax, shifted_ay, enc_dist = \
+                    position_converter.convert(
+                        gps["long"], gps["lat"], imu["accel_x"], imu["accel_y"],
+                        encoder["counts"], kalman_heading
+                    )
+
+                kalman_x, kalman_y = position_filter.update(
+                    gps_x, gps_y, gps_flag, gps.sleep_time,
+                    shifted_ax, shifted_ay, imu_flag, imu.sleep_time,
+                    enc_dist, enc_flag, encoder.sleep_time, time.time() - prev_time,
+                    kalman_heading
+                )
+                prev_time = time.time()
+
+                bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+            else:
+                time.sleep(0.005)
 
             servo_steering["position"] = \
                 state_to_servo([0, 0, 0],
