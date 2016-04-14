@@ -22,6 +22,8 @@ class HeadingConverter:
         self.prev_lng = initial_lng
         self.prev_bind_x = 0
         self.prev_bind_y = 0
+        self.prev_gps_heading = 0
+        self.prev_bind_heading = 0
 
     def convert(self, longitude, latitude, bind_x, bind_y):
         dlong = longitude - self.prev_lng
@@ -29,10 +31,22 @@ class HeadingConverter:
 
         gps_heading = math.atan2(dlat, dlong)
 
+        if (dlong == 0 and dlat == 0):
+            gps_heading = self.prev_gps_heading
+
+        else:
+            self.prev_gps_heading = gps_heading
+
         dx = bind_x - self.prev_bind_x
         dy = bind_y - self.prev_bind_y
 
         bind_heading = math.atan2(dy, dx)
+
+        if (dx == 0 and dy == 0):
+            bind_heading = self.prev_bind_heading
+
+        else:
+            self.prev_bind_heading = bind_heading
 
         self.prev_lat = latitude
         self.prev_lng = longitude

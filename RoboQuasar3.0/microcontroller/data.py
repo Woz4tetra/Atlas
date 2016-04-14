@@ -92,6 +92,7 @@ class SensorPool(object):
         """
 
         packet = packet.decode('ascii')
+        # print(self.is_packet(packet), packet)
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
             if sensor_id in list(self.sensors.keys()):
@@ -103,6 +104,7 @@ class SensorPool(object):
 
                 sensor.parse(data)
                 sensor.current_packet = packet
+
         else:
             print("Invalid packet: " + repr(packet))
 

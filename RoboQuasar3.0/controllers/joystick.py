@@ -11,6 +11,7 @@ Allows for out-of-the-box interface with a Wii U Pro or gamecube controller
 """
 
 import sys
+import time
 import threading
 import time
 
@@ -19,7 +20,6 @@ from dotable import Dotable
 
 sys.path.insert(0, "../")
 import config
-
 
 class BuggyJoystick(threading.Thread):
     exit_flag = False
@@ -420,7 +420,6 @@ if __name__ == '__main__':
     try:
         while not joystick.done:
             print(joystick)
-
             time.sleep(0.005)
     except KeyboardInterrupt:
         joystick.stop()

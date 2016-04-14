@@ -160,7 +160,7 @@ def test_time_step_n_perfect_data():
 
 
 def test_all():
-    # test_initial()
+    test_initial()
     test_time_step_n_perfect_data()
 
 

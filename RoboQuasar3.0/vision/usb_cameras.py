@@ -1,7 +1,7 @@
 from vision.camera import Camera
 
 class Logitech(Camera):
-    def __init__(self, fps_size=None):
+    def __init__(self, window_name="camera", width=None, height=None, fps_size=None, enable_draw=True, cam_source=None):
         resolutions = {
             8: (1920, 1080),
             12: (1440, 810),
@@ -10,6 +10,14 @@ class Logitech(Camera):
             # 31: (240, 135),
             None: 30
         }
+
+        if width is None and height is None:
+            if fps_size in resolutions.keys():
+                width, height = resolutions[fps_size]
+            else:
+                width, height = resolutions[None]
+
+        super(Logitech, self).__init__(width, height, window_name, enable_draw, cam_source)
 
 class ELP(Camera):
     def __init__(self, fps_size=None):

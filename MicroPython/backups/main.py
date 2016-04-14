@@ -84,13 +84,17 @@ while True:
     if new_data:
         while uart.any():
             gps.update(chr(uart.readchar()))
+        communicator.write_packet(gps)
+
+    communicator.write_packet(imu)
+    if encoder.recved_data():
+        communicator.write_packet(encoder)
 
     if pyb.Switch()():
         toggle_log()
 
     new_data = False
 
-    communicator.write_packet()
     communicator.read_command()
 
     if increase:

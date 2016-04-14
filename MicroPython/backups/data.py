@@ -1,6 +1,5 @@
-import struct
 import array
-from sys import maxsize as MAXINT
+import struct
 
 
 class SensorQueue(object):
@@ -11,7 +10,7 @@ class SensorQueue(object):
         for sensor in sensors:
             if sensor.object_id in list(self.sensors.keys()):
                 raise Exception(
-                        "Sensor ID already taken: " + str(sensor.object_id))
+                    "Sensor ID already taken: " + str(sensor.object_id))
             else:
                 self.sensors[sensor.object_id] = sensor
 
@@ -33,7 +32,7 @@ class CommandPool(object):
         for command in commands:
             if command.object_id in list(self.commands.keys()):
                 raise Exception(
-                        "Command ID already taken: " + str(command.object_id))
+                    "Command ID already taken: " + str(command.object_id))
             else:
                 self.commands[command.object_id] = command
 
@@ -108,6 +107,9 @@ class SerialObject(object):
     def update_log(self):
         return []
 
+    def reset(self):
+        pass
+
 
 class Sensor(SerialObject):
     def __init__(self, sensor_id, formats, log_names=None):
@@ -124,7 +126,8 @@ class Sensor(SerialObject):
         else:
             raise Exception("Data not int type")
 
-    def float_to_hex(self, data):
+    @staticmethod
+    def float_to_hex(data):
         return "%0.8x" % (struct.unpack('<I', bytes(array.array('f', [data]))))
 
     def format_data(self):
@@ -133,7 +136,9 @@ class Sensor(SerialObject):
         for index in range(len(self.formats)):
             hex_string += self.formats[index][0]
             if self.formats[index][0] == 'f' or self.formats[index][0] == 'd':
-                hex_string += self.float_to_hex(self.data[index])
+                hex_string += Sensor.float_to_hex(self.data[index])
+            elif self.formats[index][0] == 'b':
+                hex_string += "1" if bool(self.data[index]) else "0"
             else:
                 hex_string += self.to_hex(self.data[index],
                                           self.format_len[index])
@@ -147,13 +152,16 @@ class Sensor(SerialObject):
     def get_packet(self):
         self.data = self.update_data()
         try:
-           _ = (e for e in self.data)
+            _ = (e for e in self.data)
         except TypeError:
-           # print(self.data, 'is not iterable')
-           self.data = [self.data]
-        self.current_packet =  "%s\t%s\r" % (self.to_hex(self.object_id, 2),
-                                             self.format_data())
+            # print(self.data, 'is not iterable')
+            self.data = [self.data]
+        self.current_packet = "%s\t%s\r" % (self.to_hex(self.object_id, 2),
+                                            self.format_data())
         return self.current_packet
+
+    def recved_data(self):
+        pass
 
 
 class Command(SerialObject):
@@ -178,12 +186,23 @@ class Command(SerialObject):
             # assure length of 8
             input_str = "0" * (8 - len(hex_string)) + hex_string
 
-            return struct.unpack('!f', input_str.decode('hex'))[0]
+            return struct.unpack('!f', bytes.fromhex(hex_string))[0]
         elif self.formats[0][0] == 'd':
             # assure length of 16
             input_str = "0" * (16 - len(hex_string)) + hex_string
 
-            return struct.unpack('!d', input_str.decode('hex'))[0]
+            return struct.unpack('!d', bytes.fromhex(hex_string))[0]
 
     def callback(self, data):
         pass
+
+
+class Reset(Command):
+    def __init__(self, *objects):
+        super().__init__(255, 'b')
+        self.objects = objects
+
+    def callback(self, value):
+        if value is True:
+            for obj in self.objects:
+                obj.reset()

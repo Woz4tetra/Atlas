@@ -9,17 +9,23 @@ class Communicator(object):
         self.sensor_queue = sensor_queue
         self.command_pool = command_pool
 
-    def write_packet(self):
+        self.packet = ""
+
+    def write_packet(self, sensor=None):
         # packet = self.sensor_queue.get()
         # self.serial_ref.write(packet)
         # print("\r\npacket:", packet)
-        self.serial_ref.write(self.sensor_queue.get())
+
+        if sensor is None:
+            self.serial_ref.write(self.sensor_queue.get())
+        else:
+            self.serial_ref.write(sensor.get_packet())
 
     def read_command(self):
         if self.serial_ref.any():
             packet = self.serial_ref.readline().decode("ascii")
 
-            if type(packet) == str:
+            if type(self.packet) == str:
                 self.command_pool.update(packet)
 
             del packet

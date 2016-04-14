@@ -144,6 +144,7 @@ def get_pid_goal(lines, offset_x, reference_height, frame=None):
                 slope_hough = (y1 - y0) / (x1 - x0)
                 offset_hough = y0 - (y1 - y0) / (x1 - x0) * x0
 
+            if x1 - x0 != 0 and abs(slope_hough) < 1000:
                 intersect_y = slope_hough * offset_x + offset_hough
                 distance = reference_height - intersect_y
 

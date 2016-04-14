@@ -11,9 +11,9 @@ pyb.LED(3).off()                # indicate that we finished waiting for the swit
 pyb.LED(4).on()                 # indicate that we are selecting the mode
 
 if switch_value:
-    pyb.usb_mode('CDC+MSC')
-else:
     pyb.usb_mode('CDC+HID')
+else:
+    pyb.usb_mode('CDC+MSC')
 
 pyb.LED(4).off()
 time0 = pyb.millis()
@@ -22,3 +22,4 @@ while (pyb.millis() - time0) < 500:
     pyb.delay(50)
 
 pyb.main('main.py') # main script to run after this on
+# pyb.main("tests/hall_encoder_test.py")
