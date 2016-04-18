@@ -74,8 +74,6 @@ def main(log_data=False):
                 break
 
             # ----- status notifiers -----
-            if gps.received():
-                notifier.play("click")
             if encoder.received():
                 print(encoder["counts"])
             if prev_gps_status != gps['found']:
@@ -94,25 +92,27 @@ def main(log_data=False):
                 prev_status = is_running()
 
             # ----- filter data -----
-            gps_heading, bind_heading = converter.convert_heading(
-                gps["long"], gps["lat"], bind_x, bind_y)
-            gps_x, gps_y, enc_dist = \
-                converter.convert_position(
-                    gps["long"], gps["lat"], encoder["counts"])
+            if gps.received():
+                notifier.play("click")
+                gps_heading, bind_heading = converter.convert_heading(
+                    gps["long"], gps["lat"], bind_x, bind_y
+                )
+                gps_x, gps_y, enc_dist = converter.convert_position(
+                    gps["long"], gps["lat"], encoder["counts"]
+                )
 
-            kalman_heading = heading_filter.update(
-                gps_heading, bind_heading, imu["yaw"]
-            )
+                kalman_heading = heading_filter.update(
+                    gps_heading, bind_heading, imu["yaw"]
+                )
+                kalman_x, kalman_y = position_filter.update(
+                    gps_x, gps_y, gps.sleep_time,
+                    enc_dist, encoder.sleep_time,
+                    time.time() - prev_time,
+                    kalman_heading
+                )
+                prev_time = time.time()
 
-            kalman_x, kalman_y = position_filter.update(
-                gps_x, gps_y, gps.sleep_time,
-                enc_dist, encoder.sleep_time,
-                time.time() - prev_time,
-                kalman_heading
-            )
-            prev_time = time.time()
-
-            bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+                bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
             servo_steering["position"] = \
                 state_to_servo([0, 0, 0],
@@ -144,6 +144,8 @@ def main(log_data=False):
                 log["kalman heading"] = kalman_heading
 
                 log["servo"] = servo_steering["position"]
+
+                log.add_row()
     except KeyboardInterrupt:
         traceback.print_exc()
     finally:
