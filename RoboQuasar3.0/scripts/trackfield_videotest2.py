@@ -33,10 +33,16 @@ import numpy as np
 
 sys.path.insert(0, '../')
 
+from microcontroller.data import *
+from microcontroller.dashboard import *
+
+from controllers.servo_map import angle_to_servo
+
 from vision.usb_cameras import Logitech
 from vision import analyzers
 from vision import cv_pid
 
+from sound.player import TunePlayer
 
 def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
         night_mode=False, crop=(135, 350)):
@@ -51,6 +57,15 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
         camera1.start_recording(width=width, height=height, format='avi')
 
     pid = cv_pid.PID(width / 2, 0.1, 0, 0)
+
+    servo_steering = Command(0, 'position', (-90, 90))
+
+    start(use_handshake=False)
+    reset()
+
+    notifier.play("ding")
+
+    prev_status = is_running()
 
     while camera1.is_running:
         if not paused:
@@ -69,6 +84,8 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
                 servo_angle = pid.update(
                     analyzers.get_pid_goal(lines, width // 2, height, frame1))
                 print(servo_angle)
+
+                servo_steering["position"] = angle_to_servo(servo_angle)
 
                 frame1 = np.concatenate((detected, frame1))
 
