@@ -29,7 +29,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=False, use_kalman=False, print_data=True):
+def main(log_data=False, use_kalman=False, print_data=False):
     print("log_data = %s, use_kalman = %s, print_data = %s" %
           (log_data, use_kalman, print_data))
     gps = Sensor(1, ['lat', 'long', 'heading', 'found'])
@@ -113,9 +113,11 @@ def main(log_data=False, use_kalman=False, print_data=True):
                 enc_flag = enc_flag_temp
 
             if gps_flag_temp:
+                if print_data:
+                    print(gps['lat'], gps['long'])
                 notifier.play("click")
 
-            if enc_flag:
+            if enc_flag and print_data:
                 print(encoder["counts"])
 
             if prev_gps_status != gps['found']:
@@ -161,6 +163,9 @@ def main(log_data=False, use_kalman=False, print_data=True):
                 prev_time = time.time()
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+
+                if print_data:
+                    print(kalman_x, kalman_y, kalman_heading, bind_x, bind_y)
             else:
                 time.sleep(0.005)
 
@@ -195,7 +200,7 @@ def main(log_data=False, use_kalman=False, print_data=True):
         if log_data:
             log.close()
         # notifier.play("PuzzleDone")
-        time.sleep(1)
+        # time.sleep(1)
 
 
 if __name__ == '__main__':
