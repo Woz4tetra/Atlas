@@ -10,15 +10,16 @@ the RoboQuasar system. This module will determine RoboQuasar's most likely
 position on the provided gps map
 """
 
-import numpy as np
-from scipy.ndimage import filters
 import math
 import sys
-import pprint
+
+import numpy as np
+from scipy.ndimage import filters
 
 sys.path.insert(0, "../")
 
 from analyzers.map import Map
+
 
 def old_round(number, decimal=0):
     place = 10 ** decimal

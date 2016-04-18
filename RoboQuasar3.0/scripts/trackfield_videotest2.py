@@ -38,7 +38,8 @@ from vision import analyzers
 from vision import cv_pid
 
 
-def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
+def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
+        night_mode=False, crop=(135, 350)):
     camera1 = Logitech(fps_size=30, cam_source=1)
 
     frame1 = camera1.get_frame()
@@ -52,20 +53,21 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
     pid = cv_pid.PID(width / 2, 0.1, 0, 0)
 
     while camera1.is_running:
-        if not paused or current_frame != camera1.current_pos():
+        if not paused:
             frame1 = camera1.get_frame()
 
             if frame1 is None:
                 continue
 
             if apply_filters:
+                frame1 = frame1[crop[0]: crop[1]]
                 frame1 = frame1[135:]
-                lines, detected = analyzers.detect_lines(frame1)
+                lines, detected = analyzers.detect_lines(frame1, night_mode)
                 if enable_draw:
                     analyzers.draw_lines(frame1, lines)
 
                 servo_angle = pid.update(
-                    analyzers.get_pid_goal(lines, 240, 480, frame1))
+                    analyzers.get_pid_goal(lines, width // 2, height, frame1))
                 print(servo_angle)
 
                 frame1 = np.concatenate((detected, frame1))
@@ -82,20 +84,16 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
                 camera1.stop()
             elif key == ' ':
                 if paused:
-                    print("%0.4fs, %i: ...Video unpaused" % (
-                        time.time() - time_start, camera1.current_pos()))
+                    print("%0.4fs: ...Video unpaused" % (
+                        time.time() - time_start))
                 else:
-                    print("%0.4fs, %i: Video paused..." % (
-                        time.time() - time_start, camera1.current_pos()))
+                    print("%0.4fs: Video paused..." % (
+                        time.time() - time_start))
                 paused = not paused
             elif key == 'o':
                 apply_filters = not apply_filters
                 print(("Applying filters is " + str(apply_filters)))
                 frame1 = camera1.get_frame()
-            elif key == "right":
-                camera1.increment_frame()
-            elif key == "left":
-                camera1.decrement_frame()
             elif key == 's':
                 camera1.save_frame(frame1)
 
@@ -106,8 +104,6 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
                 else:
                     camera1.stop_video()
                 write_video = not write_video
-            elif key == 'p':  # debug print
-                print("Frame #:", current_frame)
 
 
 if __name__ == '__main__':

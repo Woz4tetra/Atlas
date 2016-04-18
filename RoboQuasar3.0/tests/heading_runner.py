@@ -1,11 +1,9 @@
 import sys
-import math
 
 sys.path.insert(0, "../")
 
 from analyzers.logger import parse
 from analyzers.heading_kalman import HeadingFilter
-from analyzers.converter import Interpreter
 
 sensor_data = parse("Test Day 4/Sat Mar 12 22;38;45 2016.csv")
 
@@ -16,7 +14,7 @@ prev_gps_heading = sensor_data[0][4]
 
 for row in sensor_data[1:]:
 
-    if len(row) == 23 :
+    if len(row) == 23:
         timestamp, servo, lat_deg, lat_min, lon_deg, lon_min, gps_speed, \
         gps_heading, gps_hdop, encoder_counts, accel_x, accel_y, accel_z, \
         gyro_x, gyro_y, gyro_z, yaw, pitch, roll, quat_w, quat_x, quat_y, \
@@ -42,4 +40,4 @@ for row in sensor_data[1:]:
     [filtered_heading] = \
         kfilter.update(compass, compass, imu_flag, imu_flag)
 
-    print ("%9.8f\t%9.8f" %(filtered_heading, compass))
+    print("%9.8f\t%9.8f" % (filtered_heading, compass))

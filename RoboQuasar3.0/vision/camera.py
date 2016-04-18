@@ -7,8 +7,23 @@ from vision.capture import Capture
 
 
 class Camera(Capture):
-    def __init__(self, width, height, window_name=None, enable_draw=True, cam_source=None):
+    def __init__(self, width=None, height=None, window_name=None,
+                 enable_draw=True, cam_source=None, fps_size=None,
+                 resolutions=None):
         time0 = time.time()
+
+        if width is None and height is None and resolutions is None:
+            raise ValueError("Please provide a width and height specification "
+                             "with either fps_size and resolutions dictionary "
+                             "or with a width and height value.")
+
+        self.resolutions = resolutions
+
+        if width is None and height is None:
+            if fps_size in self.resolutions.keys():
+                width, height = self.resolutions[fps_size]
+            else:
+                width, height = self.resolutions[None]
 
         super(Camera, self).__init__(window_name, width, height, enable_draw)
         self.cam_source = cam_source
@@ -70,45 +85,43 @@ class Camera(Capture):
         window_name = "Camera Selector: camera #"
         capture_num = 0
 
-        def update_capture(window_name, video, capture_num, delta=None,
-                           new_capture=None):
-            video.release()
-
-            cv2.destroyWindow(window_name + str(capture_num))
-            if delta is not None:
-                capture_num += delta
-            elif new_capture is not None:
-                capture_num = new_capture
-            print(capture_num)
-
-            video = cv2.VideoCapture(capture_num)
-
-            video.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
-            video.set(cv2.CAP_PROP_FRAME_HEIGHT, 450)
-
-            return video, capture_num
-
         temp_capture = cv2.VideoCapture(capture_num)
 
         temp_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
-        temp_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 450)
+        temp_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+        def update_capture(wind_name, video, cap_num, delta=None,
+                           new_capture=None):
+            video.release()
+
+            cv2.destroyWindow(wind_name + str(cap_num))
+            if delta is not None:
+                cap_num += delta
+            elif new_capture is not None:
+                cap_num = new_capture
+            print(cap_num)
+
+            video = cv2.VideoCapture(cap_num)
+
+            video.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
+            video.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+            return video, cap_num
 
         while True:
             key = self.key_pressed(1)
             if key == "left":
                 print("Loading camera. Please wait...")
-                temp_capture, capture_num = update_capture(window_name,
-                                                       temp_capture, capture_num,
-                                                       delta=-1)
+                temp_capture, capture_num = update_capture(
+                    window_name, temp_capture, capture_num, delta=-1)
             elif key == "right":
                 print("Loading camera. Please wait...")
-                temp_capture, capture_num = update_capture(window_name,
-                                                       temp_capture, capture_num,
-                                                       delta=+1)
+                temp_capture, capture_num = update_capture(
+                    window_name, temp_capture, capture_num, delta=+1)
             elif type(key) == str and key.isdigit():
-                temp_capture, capture_num = update_capture(window_name,
-                                                           temp_capture, capture_num,
-                                                           new_capture=int(key))
+                temp_capture, capture_num = update_capture(
+                    window_name, temp_capture, capture_num,
+                    new_capture=int(key))
             elif key == "enter":
                 cv2.destroyWindow(window_name + str(capture_num))
                 return temp_capture

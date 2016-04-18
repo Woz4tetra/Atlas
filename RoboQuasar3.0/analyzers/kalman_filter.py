@@ -43,7 +43,6 @@ class PositionFilter:
         self.covariance = np.identity(6)
 
     def update(self, gps_x, gps_y, gps_flag, gps_dt,
-               accel_x, accel_y, acc_flag, acc_dt,
                change_dist, enc_flag, enc_dt,
                upd_dt, heading):
 
@@ -132,25 +131,13 @@ class HeadingFilter:
         self.filt_state_mean = np.array([0.0, 0.0])
         self.covariance = np.identity(2)
 
-    def update(self, gps_heading, gps_flag,
-               bind_heading, bind_flag,
-               imu_heading, imu_flag):
+    def update(self, gps_heading, bind_heading, imu_heading):
 
         delta_heading = imu_heading - self.prev_imu
 
         observation = np.array([gps_heading, bind_heading, delta_heading])
 
-        observation = np.ma.array(observation)
-
-        if not gps_flag:
-            observation[0] = np.ma.masked
-
-        if not bind_flag:
-            observation[1] = np.ma.masked
-
-        if not imu_flag:
-            observation[2] = np.ma.masked
-        else:
+        if imu_heading != self.prev_imu:
             self.prev_imu = imu_heading
 
         obs_matrix = np.array(

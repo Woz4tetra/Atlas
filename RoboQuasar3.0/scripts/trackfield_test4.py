@@ -82,18 +82,20 @@ def main(log_data=False, use_kalman=False, print_data=True):
     enc_flag = False
 
     if log_data:
-        log = Recorder(directory="Test Day 5", headers=["gps_lat", "gps_long",
-        "gps_heading",
-        "gps_found",
-        "gps_flag", "gps_sleep",
-        "encoder", "enc_flag",
-        "enc_sleep",
-        "accel_x", "accel_y",
-        'yaw', "imu_flag",
-        "imu_sleep",
-        "kalman_x", "kalman_y",
-        "kalman_heading",
-        "bind_x", "bind_y", "servo_steering"])#, frequency=0.01)
+        log = Recorder(directory="Test Day 5",
+                       headers=["gps_lat", "gps_long",
+                                "gps_heading",
+                                "gps_found",
+                                "gps_flag", "gps_sleep",
+                                "encoder", "enc_flag",
+                                "enc_sleep",
+                                "accel_x", "accel_y",
+                                'yaw', "imu_flag",
+                                "imu_sleep",
+                                "kalman_x", "kalman_y",
+                                "kalman_heading",
+                                "bind_x", "bind_y",
+                                "servo_steering"])  # , frequency=0.01)
 
     try:
         while True:
@@ -155,7 +157,8 @@ def main(log_data=False, use_kalman=False, print_data=True):
                 kalman_x, kalman_y = position_filter.update(
                     gps_x, gps_y, gps_flag, gps.sleep_time,
                     shifted_ax, shifted_ay, imu_flag, imu.sleep_time,
-                    enc_dist, enc_flag, encoder.sleep_time, time.time() - prev_time,
+                    enc_dist, enc_flag, encoder.sleep_time,
+                    time.time() - prev_time,
                     kalman_heading
                 )
                 prev_time = time.time()
@@ -174,19 +177,20 @@ def main(log_data=False, use_kalman=False, print_data=True):
             if log_data:
                 log.add_row(
                     [gps['lat'], gps['long'],
-                    gps['heading'],
-                    gps['found'],
-                    gps_flag, gps.sleep_time,
-                    encoder['counts'], enc_flag,
-                    encoder.sleep_time,
-                    imu['accel_x'], imu['accel_y'],
-                    imu['yaw'], imu_flag,
-                    imu.sleep_time,
-                    kalman_x, kalman_y,
-                    kalman_heading,
-                    bind_x, bind_y,
-                    servo_steering["position"]]
+                     gps['heading'],
+                     gps['found'],
+                     gps_flag, gps.sleep_time,
+                     encoder['counts'], enc_flag,
+                     encoder.sleep_time,
+                     imu['accel_x'], imu['accel_y'],
+                     imu['yaw'], imu_flag,
+                     imu.sleep_time,
+                     kalman_x, kalman_y,
+                     kalman_heading,
+                     bind_x, bind_y,
+                     servo_steering["position"]]
                 )
+
     except KeyboardInterrupt:
         traceback.print_exc()
     finally:

@@ -47,5 +47,5 @@ for row in sensor_data[1:]:
         latitude, longitude, accel_x, accel_y,
         encoder_counts, yaw)
 
-    bind_x = binder.bind([gps_x, gps_y)
+    bind_x = binder.bind([gps_x, gps_y])
 
