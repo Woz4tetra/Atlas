@@ -50,7 +50,7 @@ class RoadWarper:
         self.M = None
 
 
-def detect_lines(frame, max_lines=None):
+def detect_lines(frame, night_mode, max_lines=None):
     detected = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     # detected = cv2.medianBlur(detected, 5)
     # detected = cv2.GaussianBlur(detected, (3, 3), 0)
@@ -59,11 +59,19 @@ def detect_lines(frame, max_lines=None):
     # detected = np.absolute(detected)
     # detected = np.uint8(detected)
 
-    detected = cv2.Canny(detected, 1, 100)
-    lines = cv2.HoughLines(detected, rho=1.2, theta=np.pi / 180,
-                           threshold=100,
-                           min_theta=-70 * np.pi / 180,
-                           max_theta=70 * np.pi / 180)
+    if night_mode:
+        detected = cv2.Canny(detected, 1, 100)
+        lines = cv2.HoughLines(detected, rho=1.2, theta=np.pi / 180,
+                               threshold=100,
+                               min_theta=-70 * np.pi / 180,
+                               max_theta=70 * np.pi / 180)
+    else:
+        detected = cv2.GaussianBlur(detected, (7, 7), 0)
+        detected = cv2.Canny(detected, 1, 100)
+        lines = cv2.HoughLines(detected, rho=1, theta=np.pi / 180,
+                               threshold=100,
+                               min_theta=-70 * np.pi / 180,
+                               max_theta=70 * np.pi / 180)
 
     if max_lines is not None and lines is not None:
         lines = lines[0:max_lines]

@@ -7,12 +7,6 @@ Version 3/10/2015
 
 A test of the line following portion of the Self-Driving Buggy project.
 
-Usage
------
-python __main__.py
-- or - (in folder directory):
-python Self-Driving\ Buggy\ Rev.\ 6
-
 Keys
 ----
     q, ESC - exit
@@ -38,10 +32,14 @@ from vision import analyzers
 from vision import cv_pid
 
 
-def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
+def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
+        night_mode=False, crop=(135, 350)):
     camera1 = Video(
-        'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
-        start_frame=1500,
+        # 'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
+        "Sun 10 Apr 2016 06;21;17 PM EDT-1.avi",
+        start_frame=1300,
+        # "trackFieldVid1.MOV",
+        width=480,
     )
 
     current_frame = camera1.current_pos()
@@ -66,13 +64,14 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
             current_frame = camera1.current_pos()
 
             if apply_filters:
-                frame1 = frame1[135:]
-                lines, detected = analyzers.detect_lines(frame1)
+                # print(crop)
+                frame1 = frame1[crop[0]: crop[1]]
+                lines, detected = analyzers.detect_lines(frame1, night_mode)
                 if enable_draw:
                     analyzers.draw_lines(frame1, lines)
 
                 servo_angle = pid.update(
-                    analyzers.get_pid_goal(lines, 240, 480, frame1))
+                    analyzers.get_pid_goal(lines, width // 2, height, frame1))
                 print(servo_angle)
 
                 frame1 = np.concatenate((detected, frame1))
@@ -108,7 +107,8 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False):
 
             elif key == 'v':
                 if not write_video:
-                    camera1.start_recording()
+                    # camera1.start_recording()
+                    camera1.start_recording(with_frame=frame1, format='avi')
                 else:
                     camera1.stop_video()
                 write_video = not write_video

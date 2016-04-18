@@ -18,19 +18,26 @@ class Video(Capture):
         self.resize_width = width
         self.resize_height = height
 
-        if (self.resize_width is not None and self.resize_height is not None and
+        if (self.resize_width is not None or self.resize_height is not None and
                 (self.width, self.height) != (
                     self.resize_width, self.resize_height)):
             self.resize_frame = True
         else:
             self.resize_frame = False
 
-        self.width, self.height = capture.get(
-            cv2.CAP_PROP_FRAME_WIDTH), capture.get(
-            cv2.CAP_PROP_FRAME_HEIGHT)
+        self.width, self.height = int(capture.get(
+            cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(
+            cv2.CAP_PROP_FRAME_HEIGHT))
+
+        if self.resize_height is None and width is not None:
+            self.resize_height = int(width * self.height / self.width)
+        if self.resize_width is None and height is not None:
+            self.resize_width = int(height * self.width / self.height)
 
         self.frame_skip = frame_skip
         self.loop_video = loop_video
+
+        video_name = video_name.lower()
 
         self.capture = capture
         if video_name.endswith('avi'):

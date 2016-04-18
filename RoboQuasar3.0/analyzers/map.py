@@ -8,11 +8,13 @@ Version 3/10/2015
 Handles map reading and parsing
 """
 
-import time
 import csv
-import sys
-import numpy as np
 import pprint
+import sys
+import time
+
+import math
+import numpy as np
 
 sys.path.insert(0, '../')
 
@@ -20,16 +22,47 @@ import config
 
 
 class Map():
-    def __init__(self, map_name=None, directory=None, origin_lat=None, origin_long=None):
+    def __init__(self, map_name=None, directory=None, origin_long=None,
+                 origin_lat=None):
         if map_name is None:
             self.data = []
         else:
             self.data = self.get_map(map_name, directory)
-            self.deg_to_m = 111226.343
+            self.earth_radius = 6371000
             self.origin_lat = origin_lat
             self.origin_long = origin_long
             if origin_lat is not None and origin_long is not None:
                 self.shift_data()
+
+    def convert_gps(self, prev_long, prev_lat, longitude, latitude):
+        # lat_mean = (latitude + prev_lat) / 2
+        # dlng = longitude - prev_long
+        # dlat = latitude - prev_lat
+        # x = dlng * math.cos(lat_mean) * self.deg_to_m
+        # y = dlat * self.deg_to_m
+
+        phi1 = math.radians(prev_lat)
+        phi2 = math.radians(latitude)
+
+        lam1 = math.radians(prev_long)
+        lam2 = math.radians(longitude)
+
+        dphi = math.radians(latitude - prev_lat)
+        dlam = math.radians(longitude - prev_long)
+
+        a = math.sin(dphi / 2) ** 2 + \
+            math.cos(phi1) * math.cos(phi2) * \
+            math.sin(dlam / 2) * math.sin(dlam / 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        dist = self.earth_radius * c
+
+        y = math.sin(lam2 - lam1) * math.cos(phi2)
+        x = math.cos(phi1) * math.sin(phi2) - \
+            math.sin(phi1) * math.cos(phi2) * math.cos(lam2 - lam1)
+        bearing = math.atan2(y, x)
+
+        return dist * math.cos(bearing), dist * math.sin(bearing), bearing
 
     def shift_data(self):
         """
@@ -39,13 +72,10 @@ class Map():
         :return: None
         """
         for i in range(len(self.data)):
-            point_lat  = self.data[i][0]
-            point_long = self.data[i][1]
-            lat_mean = (point_lat + self.origin_lat) / 2
-            x = (point_long - self.origin_long) * np.cos(lat_mean)
-            y = (point_lat - self.origin_lat)
-            self.data[i][0] = x * self.deg_to_m
-            self.data[i][1] = y * self.deg_to_m
+            x, y, bearing = self.convert_gps(self.origin_long, self.origin_lat,
+                                             self.data[i][0], self.data[i][1])
+            self.data[i][0] = x
+            self.data[i][1] = y
 
     def __getitem__(self, item):
         return self.data[item]
@@ -157,9 +187,11 @@ def edit_map():
     test_map.data = test_map.data[1:-1:10]
     test_map.write_map()
 
+
 def make_map(log_file, map_name):
     import plotter
-    timestamps, sensor_data = plotter.get_plottable_data(log_file, ["lat", "long"])
+    timestamps, sensor_data = plotter.get_plottable_data(log_file,
+                                                         ["lat", "long"])
     map_data = []
     for index in range(len(sensor_data[0])):
         map_data.append([sensor_data[0][index], sensor_data[1][index]])
@@ -167,8 +199,12 @@ def make_map(log_file, map_name):
     map.data = map_data
     map.remove_duplicates(map_name=map_name)
 
+
 def shift_map(map_name, new_name, origin_lat, origin_long):
-    Map(map_name, origin_lat=origin_lat, origin_long=origin_long).remove_duplicates(map_name=new_name)
+    Map(map_name, origin_lat=origin_lat,
+        origin_long=origin_long).remove_duplicates(map_name=new_name)
+
 
 if __name__ == '__main__':
-    shift_map("raw map.csv", "shifted map.csv", 40.44363784790039, 79.9408187866211)
+    shift_map("raw map.csv", "shifted map.csv", 40.44363784790039,
+              79.9408187866211)

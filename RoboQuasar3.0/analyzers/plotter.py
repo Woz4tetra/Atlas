@@ -17,30 +17,11 @@ from matplotlib import pyplot as plt
 sys.path.insert(0, "../")
 
 import config
-from analyzers.logger import parse
-
-
-def get_plottable_data(file_name, sensors):
-    data = parse(file_name, np_array=False, omit_header_rows=False)
-
-    columns = []
-    for sensor_name in sensors:
-        columns.append(data[1].index(sensor_name))
-    data.pop(0)
-    data.pop(0)
-
-    data = np.array(data)
-
-    timestamps = data[:, 0]
-    sensor_data = []
-    for column in columns:
-        sensor_data.append(data[:, column])
-
-    return timestamps, sensor_data
+from analyzers.logger import get_data, parse
 
 
 def plot_gps(file_name):
-    timestamps, sensor_data = get_plottable_data(file_name, ["lat", "long"])
+    timestamps, sensor_data = get_data(file_name, ["gps_lat", "gps_long"])
     print(sensor_data)
 
     plt.plot(sensor_data[0], sensor_data[1])
@@ -51,13 +32,13 @@ def plot_gps(file_name):
 
 
 def plot_heading(file_name):
-    timestamps, sensor_data = get_plottable_data(file_name, ["yaw", "compass"])
+    timestamps, sensor_data = get_data(file_name, ["yaw", "compass"])
 
     plt.plot(timestamps, sensor_data[0], timestamps, sensor_data[1])
 
 
 def plot_encoder(file_name):
-    timestamps, sensor_data = get_plottable_data(file_name, ["counts"])
+    timestamps, sensor_data = get_data(file_name, ["counts"])
 
     plt.plot(timestamps, sensor_data[0])
 
@@ -66,12 +47,12 @@ def plot_angles(file_name, density=100, source="yaw", set_limits=True,
                 data_range=None, shift_angle=0.0, swap_angle=False,
                 rainbow_colors=False):
     if source == "atan":
-        timestamps, sensor_data = get_plottable_data(file_name,
-                                                     ["lat", "long"])
+        timestamps, sensor_data = get_data(file_name,
+                                           ["gps_lat", "gps_long"])
     else:
         # lat: x, long: y, source: angle
-        timestamps, sensor_data = get_plottable_data(file_name,
-                                                     ["lat", "long", source])
+        timestamps, sensor_data = get_data(file_name,
+                                           ["gps_lat", "gps_long", source])
     if data_range is None:
         data_range = (0, len(sensor_data[0]) - density)
     else:
@@ -138,21 +119,12 @@ def plot_all(plot_func, directory=None, **params):
 
 
 def plot_map(map_name):
-    data = parse(config.get_dir(":maps") + map_name, omit_header_rows=False)
+    data = parse(config.get_dir(":maps") + map_name, omit_header_row=False)
     plt.plot(data[:, 0], data[:, 1])
 
 
 if __name__ == '__main__':
-    # plot_all(plot_angles, source="yaw", directory="Test Day 4", density=50)
-    # plot_angles("Test Day 4/Sat Mar 12 22;27;45 2016.csv", source="yaw",
-    #             density=100, shift_angle=np.pi / 2, swap_angle=True)
-    # plot_angles("Autonomous Test Day 2/parsed2.csv", source="atan",
-                # density=100)
-
-    # plot_encoder("Test Day 4/Sat Mar 12 22;38;45 2016.csv")
-    plot_angles("Test Day 4/Sat Mar 12 22;38;45 2016.csv", source="atan")
-    # plot_gps("Autonomous Test Day 2/parsed2.csv")
-
-    # plot_map("Track Field Map Trimmed.csv")
+    plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",
+                density=1000)
 
     plt.show()
