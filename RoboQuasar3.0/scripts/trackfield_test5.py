@@ -31,7 +31,7 @@ def main(log_data=True, manual_mode=True):
 
     log = None
 
-    start(use_handshake=False)
+    start()
 
     print("Wait for the GPS to lock on, then press A")
     try:

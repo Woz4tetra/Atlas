@@ -91,15 +91,18 @@ class Communicator(threading.Thread):
 
         :return: None
         """
-        read_flag = self.serial_ref.read()
-
         print("Waiting for ready flag...")
-        time.sleep(0.5)
-        while read_flag != 'R':
-            print(read_flag, end="")
-            read_flag = self.serial_ref.read()
 
-        self.serial_ref.write("\r")
+        read_flag = None
+
+        while read_flag != "R":
+            self.serial_ref.write(bytearray("H", 'ascii'))
+            time.sleep(0.01)
+            read_flag = self.serial_ref.read()
+            print(read_flag, end="")
+            time.sleep(0.01)
+
+        # self.serial_ref.write("\r")
         self.serial_ref.flushInput()
         self.serial_ref.flushOutput()
         print("Board initialized!")

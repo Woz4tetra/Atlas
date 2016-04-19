@@ -196,14 +196,3 @@ class Command(SerialObject):
 
     def callback(self, data):
         pass
-
-
-class Reset(Command):
-    def __init__(self, *objects):
-        super().__init__(255, 'b')
-        self.objects = objects
-
-    def callback(self, value):
-        if value is True:
-            for obj in self.objects:
-                obj.reset()
