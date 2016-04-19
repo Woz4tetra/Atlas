@@ -29,53 +29,57 @@ def main(log_data=True, manual_mode=True):
     joystick = joystick_init()
     notifier = TunePlayer()
 
+    log = None
+
     start(use_handshake=False)
 
     print("Wait for the GPS to lock on, then press A")
-
-    while not gps['found'] and not joystick.buttons.A:
-        time.sleep(0.005)
-        joystick.update()
-    print(gps['lat'], gps['long'])
-    notifier.play("bloop")
-    time.sleep(0.05)
-    while not joystick.buttons.A:
-        time.sleep(0.005)
-        joystick.update()
-
-    reset()
-
-    prev_status = is_running()
-    prev_gps_status = gps['found']
-
-    prev_time = time.time()
-
-    # ----- initialize converters and filters -----
-
-    converter = Converter(gps['long'], gps['lat'], 0.000003, encoder["counts"])
-    heading_filter = HeadingFilter()
-    position_filter = PositionFilter()
-
-    binder = Binder("Track Field Map.csv", gps['long'], gps['lat'])
-    bind_x, bind_y = 0, 0
-
-    if log_data:
-        log = Recorder(directory="Test Day 6")
-    else:
-        log = None
-
-    notifier.play("ding")
-
-    # ----- main loop -----
     try:
+        while not gps['found'] and not joystick.buttons.A:
+            time.sleep(0.005)
+        print(gps['lat'], gps['long'])
+        notifier.play("bloop")
+        time.sleep(0.05)
+        while not joystick.buttons.A:
+            time.sleep(0.005)
+
+        reset()
+
+        prev_status = is_running()
+        prev_gps_status = gps['found']
+
+        prev_time = time.time()
+
+        # ----- initialize converters and filters -----
+
+        converter = Converter(gps['long'], gps['lat'], 0.000003,
+                              encoder["counts"])
+        heading_filter = HeadingFilter()
+        position_filter = PositionFilter()
+
+        binder = Binder("Track Field Map.csv", gps['long'], gps['lat'])
+        bind_x, bind_y = 0, 0
+        bind_heading = 0
+
+        gps_x, gps_y = 0, 0
+        gps_heading = 0
+
+        enc_dist = 0
+
+        if log_data:
+            log = Recorder(directory="Test Day 6")
+
+        notifier.play("ding")
+
+        # ----- main loop -----
         while True:
-            joystick.update()
             if joystick.buttons.B:
                 break
 
             if joystick.buttons.X:
-                manual_mode = not manual_mode
                 while joystick.buttons.X: pass
+                notifier.play("ba ding")
+                manual_mode = not manual_mode
 
             # ----- status notifiers -----
             if encoder.received():
@@ -164,6 +168,7 @@ def main(log_data=True, manual_mode=True):
         joystick.stop()
         if log_data:
             log.close()
+
 
 if __name__ == '__main__':
     print(__doc__)

@@ -11,7 +11,6 @@ Allows for out-of-the-box interface with a Wii U Pro or gamecube controller
 """
 
 import sys
-import time
 import threading
 import time
 
@@ -20,6 +19,7 @@ from dotable import Dotable
 
 sys.path.insert(0, "../")
 import config
+
 
 class BuggyJoystick(threading.Thread):
     exit_flag = False
@@ -401,13 +401,13 @@ def joystick_init(joy_type="gc"):
     pygame.joystick.init()
 
     if joy_type == "gc":
-        joystick = GCJoystick()
+        joystick_ref = GCJoystick()
     elif joy_type == "wiiu":
-        joystick = WiiUJoystick()
+        joystick_ref = WiiUJoystick()
     else:
         raise ValueError("Please supply valid joystick type: " + str(joy_type))
-    joystick.start()
-    return joystick
+    joystick_ref.start()
+    return joystick_ref
 
 
 if __name__ == '__main__':

@@ -7,7 +7,11 @@ from microcontroller.comm import Communicator
 
 def reset():
     data.communicator.serial_ref.write(struct.pack("B", 4))
+    data.communicator.serial_ref.write("\r")
+    time.sleep(0.005)
     data.Command(255, 'reset', (False, True))['reset'] = True
+    time.sleep(0.005)
+
 
 def start(baud=115200, use_handshake=True, check_status=False):
     data.communicator = Communicator(baud, data.sensor_pool, use_handshake)
