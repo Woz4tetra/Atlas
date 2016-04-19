@@ -18,6 +18,7 @@ sys.path.insert(0, "../")
 
 import config
 from analyzers.logger import get_data, parse
+from analyzers.binder import Binder
 
 
 def plot_gps(file_name):
@@ -122,6 +123,38 @@ def plot_map(map_name):
     data = parse(config.get_dir(":maps") + map_name, omit_header_row=False)
     plt.plot(data[:, 0], data[:, 1])
 
+
+def plot_kalman(file_name, map_name, directory=None):
+    if not os.path.isdir(directory):
+        directory = config.get_dir(":logs") + directory
+
+    if directory[-1] != "/":
+        directory += "/"
+
+    timestamps, data = get_data(directory + file_name,
+        ["kalman x", "kalman y", "kalman heading", "gps x", "gps y", "gps long", "gps lat"])
+
+    kalman_x, kalman_y, kalman_heading, gps_x, gps_y, gps_long, gps_lat = data
+
+    binder = Binder(map_name, gps_long[0], gps_lat[0])
+
+    x, y = [], []
+    for index in range(len(binder.map.data)):
+        x.append(binder.map.data[index][0])
+        y.append(binder.map.data[index][1])
+    plt.plot(x, y)
+
+    x, y = [], []
+    for index in range(len(binder.map.data)):
+        x.append(gps_x[index])
+        y.append(gps_y[index])
+    plt.plot(x, y)
+
+    lines = []
+    for index in range(1, length):
+        lines.append((kalman_x[index], kalman_x[index] + 10 * np.cos(kalman_heading[index])))
+        lines.append((kalman_y[index], kalman_y[index] + 10 * np.sin(kalman_heading[index])))
+        lines.append('r')
 
 if __name__ == '__main__':
     plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",

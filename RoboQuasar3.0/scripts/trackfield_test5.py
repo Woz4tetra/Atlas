@@ -17,7 +17,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=False):
+def main(log_data=False, manual_mode=True):
     if log_data:
         log = Recorder(directory="Test Day 6")
     else:
@@ -114,9 +114,14 @@ def main(log_data=False):
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
-            servo_steering["position"] = \
-                state_to_servo([0, 0, 0],
-                               [1, 5.34 / 90 * joystick.mainStick.x])
+            if manual_mode:
+                servo_steering["position"] = \
+                    state_to_servo([0, 0, 0],
+                                   [1, 5.34 / 90 * joystick.mainStick.x])
+            else:
+                servo_steering["position"] = \
+                    state_to_servo([kalman_x, kalman_y, kalman_heading],
+                                   [bind_x, bind_y])
 
             if log_data:
                 log["gps long"] = gps["long"]
