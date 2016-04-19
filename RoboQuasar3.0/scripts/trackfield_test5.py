@@ -17,12 +17,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=False, manual_mode=True):
-    if log_data:
-        log = Recorder(directory="Test Day 6")
-    else:
-        log = None
-
+def main(log_data=True, manual_mode=True):
     # ----- initialize runner -----
 
     gps = Sensor(1, ['lat', 'long', 'found'])
@@ -50,8 +45,6 @@ def main(log_data=False, manual_mode=True):
 
     reset()
 
-    notifier.play("ding")
-
     prev_status = is_running()
     prev_gps_status = gps['found']
 
@@ -59,12 +52,19 @@ def main(log_data=False, manual_mode=True):
 
     # ----- initialize converters and filters -----
 
-    converter = Converter(gps['long'], gps['lat'], 0.000003)
+    converter = Converter(gps['long'], gps['lat'], 0.000003, encoder["counts"])
     heading_filter = HeadingFilter()
     position_filter = PositionFilter()
 
     binder = Binder("Track Field Map.csv", gps['long'], gps['lat'])
     bind_x, bind_y = 0, 0
+
+    if log_data:
+        log = Recorder(directory="Test Day 6")
+    else:
+        log = None
+
+    notifier.play("ding")
 
     # ----- main loop -----
     try:
@@ -73,14 +73,20 @@ def main(log_data=False, manual_mode=True):
             if joystick.buttons.B:
                 break
 
+            if joystick.buttons.X:
+                manual_mode = not manual_mode
+                while joystick.buttons.X: pass
+
             # ----- status notifiers -----
             if encoder.received():
                 print(encoder["counts"])
             if prev_gps_status != gps['found']:
                 if gps['found']:
                     notifier.play("short victory")
+                    print("gps found")
                 else:
                     notifier.play("saved")
+                    print("gps lost")
                 prev_gps_status = gps['found']
             if is_running() != prev_status:
                 if is_running():
@@ -105,8 +111,7 @@ def main(log_data=False, manual_mode=True):
                     gps_heading, bind_heading, imu["yaw"]
                 )
                 kalman_x, kalman_y = position_filter.update(
-                    gps_x, gps_y, gps.sleep_time,
-                    enc_dist, encoder.sleep_time,
+                    gps_x, gps_y, enc_dist,
                     time.time() - prev_time,
                     kalman_heading
                 )
@@ -117,11 +122,12 @@ def main(log_data=False, manual_mode=True):
             if manual_mode:
                 servo_steering["position"] = \
                     state_to_servo([0, 0, 0],
-                                   [1, 5.34 / 90 * joystick.mainStick.x])
+                                   [1, -5.34 / 90 * joystick.mainStick.x])
             else:
                 servo_steering["position"] = \
                     state_to_servo([kalman_x, kalman_y, kalman_heading],
                                    [bind_x, bind_y])
+            time.sleep(0.005)
 
             if log_data:
                 log["gps long"] = gps["long"]
@@ -158,3 +164,7 @@ def main(log_data=False, manual_mode=True):
         joystick.stop()
         if log_data:
             log.close()
+
+if __name__ == '__main__':
+    print(__doc__)
+    main()

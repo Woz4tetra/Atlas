@@ -124,17 +124,17 @@ def plot_map(map_name):
     plt.plot(data[:, 0], data[:, 1])
 
 
-def plot_kalman(file_name, map_name, directory=None):
+def plot_kalman(file_name, map_name, directory=""):
     if not os.path.isdir(directory):
         directory = config.get_dir(":logs") + directory
 
     if directory[-1] != "/":
         directory += "/"
 
-    timestamps, data = get_data(directory + file_name,
-        ["kalman x", "kalman y", "kalman heading", "gps x", "gps y", "gps long", "gps lat"])
-
-    kalman_x, kalman_y, kalman_heading, gps_x, gps_y, gps_long, gps_lat = data
+    timestamps, data, length = get_data(directory + file_name,
+        ["kalman x", "kalman y", "kalman heading", "bind x", "bind y", "gps long", "gps lat"],
+        density=100)
+    kalman_x, kalman_y, kalman_heading, bind_x, bind_y, gps_long, gps_lat = data
 
     binder = Binder(map_name, gps_long[0], gps_lat[0])
 
@@ -145,19 +145,28 @@ def plot_kalman(file_name, map_name, directory=None):
     plt.plot(x, y)
 
     x, y = [], []
-    for index in range(len(binder.map.data)):
-        x.append(gps_x[index])
-        y.append(gps_y[index])
+    for index in range(length):
+        x.append(kalman_x[index])
+        y.append(kalman_y[index])
     plt.plot(x, y)
 
     lines = []
-    for index in range(1, length):
+    for index in range(length):
         lines.append((kalman_x[index], kalman_x[index] + 10 * np.cos(kalman_heading[index])))
         lines.append((kalman_y[index], kalman_y[index] + 10 * np.sin(kalman_heading[index])))
         lines.append('r')
+    plt.plot(*lines)
+
+    lines2 = []
+    for index in range(length):
+        lines2.append((kalman_x[index], bind_x[index]))
+        lines2.append((kalman_y[index], bind_y[index]))
+        lines2.append('b')
+    plt.plot(*lines2)
 
 if __name__ == '__main__':
-    plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",
-                density=1000)
+    # plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",
+    #             density=1000)
+    plot_kalman("Test Day 6/Mon Apr 18 22;42;19 2016.csv", "Track Field Map.csv")
 
     plt.show()

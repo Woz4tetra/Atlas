@@ -9,7 +9,7 @@ def almost_equal(value1, value2, epsilon):
 
 
 class Converter:
-    def __init__(self, origin_lng, origin_lat, gps_epsilon,
+    def __init__(self, origin_lng, origin_lat, gps_epsilon, initial_enc,
                  wheel_diameter=0.271):
         self.origin_lng = origin_lng
         self.origin_lat = origin_lat
@@ -20,7 +20,7 @@ class Converter:
         self.prev_bind_x = 0
         self.prev_bind_y = 0
 
-        self.prev_encoder = 0
+        self.prev_encoder = initial_enc
         self.prev_gps_heading = 0
         self.prev_bind_heading = 0
 

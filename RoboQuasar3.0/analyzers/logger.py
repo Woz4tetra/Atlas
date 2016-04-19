@@ -63,7 +63,7 @@ class Recorder(object):
         self.log_start = self.time0
         self.frequency = frequency
         self.enable_record = True
-        self.row_length = 0
+        self.row_length = None
 
         self.data = OrderedDict()
 

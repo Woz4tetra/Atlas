@@ -72,7 +72,7 @@ def state_to_servo(current_state, goal_position):
     angle = (angle - heading) % (2 * math.pi)
     if math.pi < angle:  # TODO: Fix wrap around problem
         angle -= 2 * math.pi
-    return angle_to_servo(-angle)
+    return angle_to_servo(angle)
 
 
 if __name__ == '__main__':
