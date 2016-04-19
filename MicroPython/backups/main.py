@@ -21,6 +21,7 @@ imu = IMU(3, 2)
 
 servo_steering = Servo(0, 1, 0)
 # motor_a = Motor(1, 'X2', 'X3')
+reset = Reset(gps, encoder, imu)
 
 gps_indicator = pyb.LED(3)
 
@@ -47,6 +48,7 @@ sensor_queue = SensorQueue(
         imu
 )
 command_pool = CommandPool(
+        reset,
         servo_steering,
         # servo_brakes
 )
@@ -85,33 +87,33 @@ while True:
         while uart.any():
             gps.update(chr(uart.readchar()))
         communicator.write_packet(gps)
+    new_data = False
 
     communicator.write_packet(imu)
     if encoder.recved_data():
         communicator.write_packet(encoder)
 
-    if pyb.Switch()():
-        toggle_log()
+    # if pyb.Switch()():
+    #     toggle_log()
 
-    new_data = False
 
     communicator.read_command()
 
-    if increase:
-        indicator.intensity(indicator.intensity() + 5)
-    else:
-        indicator.intensity(indicator.intensity() - 5)
-
-    if indicator.intensity() <= 0:
-        increase = True
-    elif indicator.intensity() >= 255:
-        increase = False
-
-    if log_data:
-        log.add_data(gps)
-        log.add_data(encoder)
-        log.add_data(imu)
-        log.add_data(servo_steering)
-        log.end_row()
-    else:
-        pyb.delay(5)
+    # if increase:
+    #     indicator.intensity(indicator.intensity() + 5)
+    # else:
+    #     indicator.intensity(indicator.intensity() - 5)
+    #
+    # if indicator.intensity() <= 0:
+    #     increase = True
+    # elif indicator.intensity() >= 255:
+    #     increase = False
+    #
+    # if log_data:
+    #     log.add_data(gps)
+    #     log.add_data(encoder)
+    #     log.add_data(imu)
+    #     log.add_data(servo_steering)
+    #     log.end_row()
+    # else:
+    pyb.delay(5)

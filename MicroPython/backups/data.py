@@ -45,8 +45,9 @@ class CommandPool(object):
     @staticmethod
     def is_packet(packet):
         if len(packet) < 7: return False
-        for index in [0, 1, 3, 4] + list(range(6, len(packet) - 1)):
-            if not CommandPool.is_hex(packet[index]):
+        # for index in [0, 1, 3, 4] + list(range(6, len(packet) - 1)):
+        for index in range(len(packet) - 1):
+            if packet[index] != '\t' and not CommandPool.is_hex(packet[index]):
                 return False
         return True
 

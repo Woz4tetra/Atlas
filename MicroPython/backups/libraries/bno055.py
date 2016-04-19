@@ -78,7 +78,7 @@ class BNO055():
         self.set_mode(self.modes['NDOF'])
         pyb.delay(20)
 
-        pyb.delay(1000)
+        pyb.delay(100)
 
         self.set_ext_crystal_use()
 
