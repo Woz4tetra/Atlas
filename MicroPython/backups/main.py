@@ -49,20 +49,21 @@ while True:
 
     communicator.read_command()
 
-    if communicator.should_reset:
+    if communicator.reset_code:
         gps.reset()
         imu.reset()
         encoder.reset()
         servo_steering.reset()
 
-        communicator.write_packet(gps)
-        pyb.delay(1)
+        if communicator.reset_code == "R":
+            communicator.write_packet(gps)
+            pyb.delay(1)
 
-        communicator.write_packet(imu)
-        pyb.delay(1)
+            communicator.write_packet(imu)
+            pyb.delay(1)
 
-        communicator.write_packet(encoder)
+            communicator.write_packet(encoder)
 
-        communicator.should_reset = False
+        communicator.reset_code = None
 
     pyb.delay(1)

@@ -15,7 +15,6 @@ import serial
 
 class Communicator():
     def __init__(self, baud_rate, handshake=True, address=None):
-        print("something 1")
         if address is not None:
             self.serialRef = serial.Serial(port=address)
         else:
@@ -33,7 +32,7 @@ class Communicator():
             print(read_flag, end="")
             read_flag = self.serialRef.read()
 
-        self.serialRef.write("\n")
+        self.serialRef.write("\r")
         self.serialRef.flushInput()
         self.serialRef.flushOutput()
         print("Arduino initialized!")
@@ -41,14 +40,11 @@ class Communicator():
     def _findPort(self, baud_rate):
         address = None
         serial_ref = None
-        print("something 2")
         for possible_address in self._possibleAddresses():
             try:
                 print(possible_address)
-                print("something 3")
                 serial_ref = serial.Serial(port=possible_address,
                                            baudrate=baud_rate)
-                print("something 4")
                 address = possible_address
             except:
                 pass
@@ -105,12 +101,12 @@ class Communicator():
 
 import time
 
-comm = Communicator(115200, handshake=False)
+comm = Communicator(115200, handshake=False, address="/dev/ttyACM0")
 # print(comm)
 
 # servo_val = "00"
 # led_val = True
-
+# comm.serialRef.write(b"\r")
 while True:
     # packet = "00\t02\t" + servo_val + "\n"
     # comm.serialRef.write(packet)
@@ -122,8 +118,10 @@ while True:
     # comm.serialRef.write(packet)
     # time.sleep(0.25)
     # print("sent:", repr(packet))
+
+    # time.sleep(0.001)
     print(str(comm.serialRef.read(), encoding='ascii'), end="")
-    time.sleep(0.01)
+    time.sleep(0.001)
 
     # if servo_val == "00":
     #     servo_val = "9c"

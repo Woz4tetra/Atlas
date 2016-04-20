@@ -17,9 +17,8 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=True):
+def main(log_data=False, manual_mode=True):
     # ----- initialize runner -----
-
     gps = Sensor(1, ['lat', 'long', 'found'])
     encoder = Sensor(2, 'counts')
     imu = Sensor(3, 'yaw')
@@ -37,7 +36,7 @@ def main(log_data=True, manual_mode=True):
     try:
         while not gps['found'] and not joystick.buttons.A:
             time.sleep(0.005)
-        print(gps['lat'], gps['long'])
+        print("gps:", gps['lat'], gps['long'])
         notifier.play("bloop")
         time.sleep(0.05)
         while not joystick.buttons.A:
@@ -52,8 +51,14 @@ def main(log_data=True, manual_mode=True):
 
         # ----- initialize converters and filters -----
 
+        print("Encoder resetting")
+        while encoder['counts'] != 0:
+            reset()
+            time.sleep(0.01)
+
         converter = Converter(gps['long'], gps['lat'], 0.000003,
                               encoder["counts"])
+        print("converter:", encoder['counts'])
         heading_filter = HeadingFilter()
         position_filter = PositionFilter()
 
@@ -63,6 +68,9 @@ def main(log_data=True, manual_mode=True):
 
         gps_x, gps_y = 0, 0
         gps_heading = 0
+
+        kalman_x, kalman_y = 0, 0
+        kalman_heading = 0
 
         enc_dist = 0
 
@@ -74,6 +82,7 @@ def main(log_data=True, manual_mode=True):
         # ----- main loop -----
         while True:
             if joystick.buttons.B:
+                print("Aborted by user")
                 break
 
             if joystick.buttons.X:
@@ -83,7 +92,7 @@ def main(log_data=True, manual_mode=True):
 
             # ----- status notifiers -----
             if encoder.received():
-                print(encoder["counts"])
+                print("encoder:", encoder["counts"])
             if prev_gps_status != gps['found']:
                 if gps['found']:
                     notifier.play("short victory")

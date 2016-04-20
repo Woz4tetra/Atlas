@@ -8,10 +8,11 @@ from microcontroller.comm import Communicator
 def reset():
     # reset the pyboard if it is in the REPL
     data.communicator.serial_ref.write(struct.pack("B", 4))
+    time.sleep(0.01)
 
     # sets all sensor values to initial conditions (if they have any) and
     # requests data from all sensors
-    data.communicator.serial_ref.write("R")
+    data.communicator.serial_ref.write(b"R")
     time.sleep(0.01)
 
 

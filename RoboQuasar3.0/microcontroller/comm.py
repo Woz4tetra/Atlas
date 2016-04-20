@@ -21,6 +21,7 @@ import os
 import sys
 import glob
 import threading
+import struct
 
 
 class Communicator(threading.Thread):
@@ -41,8 +42,6 @@ class Communicator(threading.Thread):
         :return: Communicator object
         """
         self.serial_ref = self.find_port(baud_rate)
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
 
         if use_handshake:
             self.handshake()
@@ -61,6 +60,7 @@ class Communicator(threading.Thread):
         :return: None
         """
 
+        invalid_packets = 0
         while not Communicator.exit_flag:
             self.thread_time = round(time.time() - self.time0)
             if self.serial_ref.inWaiting() > 0:
@@ -71,7 +71,10 @@ class Communicator(threading.Thread):
                         packet += incoming
                     incoming = self.serial_ref.read()
                 if len(packet) > 0:
-                    self.sensor_pool.update(packet)
+                    invalid_packets = self.sensor_pool.update(packet)
+
+                    if invalid_packets > 512:
+                        Communicator.exit_flag = True
 
     def put(self, packet):
         """
@@ -95,17 +98,33 @@ class Communicator(threading.Thread):
 
         read_flag = None
 
+        self.serial_ref.reset_input_buffer()
+        self.serial_ref.reset_output_buffer()
+
+        def write_resets():
+            self.serial_ref.write(struct.pack("B", 4))
+            self.serial_ref.write(b"\r")
+
+            self.serial_ref.write(b"H")
+            self.serial_ref.write(b"\r")
+
+        for _ in range(5):
+            write_resets()
+            time.sleep(0.05)
+
+        print("\n---------")
         while read_flag != "R":
-            self.serial_ref.write(bytearray("H", 'ascii'))
-            time.sleep(0.01)
-            read_flag = self.serial_ref.read()
+            time.sleep(0.001)
+            read_flag = self.serial_ref.read().decode("ascii")
             print(read_flag, end="")
-            time.sleep(0.01)
+            time.sleep(0.001)
+
+        print("\n---------")
 
         # self.serial_ref.write("\r")
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
-        print("Board initialized!")
+        self.serial_ref.reset_input_buffer()
+        self.serial_ref.reset_output_buffer()
+        print("\nBoard initialized!")
 
     def find_port(self, baud_rate):
         """

@@ -39,6 +39,8 @@ class SensorPool(object):
         :return: SensorPool object
         """
 
+        self.invalid_packets = 0
+
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -107,6 +109,8 @@ class SensorPool(object):
 
         else:
             print("Invalid packet: " + repr(packet))
+            self.invalid_packets += 1
+        return self.invalid_packets
 
 
 sensor_pool = SensorPool()
