@@ -62,7 +62,8 @@ def main(log_data=True, manual_mode=True):
         heading_filter = HeadingFilter()
         position_filter = PositionFilter()
 
-        binder = Binder("Tue Apr 19 22;47;21 2016 GPS Map.csv", gps['long'], gps['lat'])
+        binder = Binder("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+                        gps['long'], gps['lat'])
         bind_x, bind_y = 0, 0
         bind_heading = 0
 
@@ -122,7 +123,7 @@ def main(log_data=True, manual_mode=True):
                 )
 
                 kalman_heading = heading_filter.update(
-                    gps_heading, bind_heading, imu["yaw"]
+                    gps_heading, bind_heading, -imu["yaw"]
                 )
                 kalman_x, kalman_y = position_filter.update(
                     gps_x, gps_y, enc_dist,
@@ -133,10 +134,12 @@ def main(log_data=True, manual_mode=True):
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
-                print("(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" %(
-                    kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
-                    math.atan2(bind_y - kalman_y, bind_x - kalman_x),
-                    math.atan2(bind_y - kalman_y, bind_x - kalman_x) - kalman_heading))
+                print(
+                    "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
+                        kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
+                        math.atan2(bind_y - kalman_y, bind_x - kalman_x),
+                        math.atan2(bind_y - kalman_y,
+                                   bind_x - kalman_x) - kalman_heading))
 
             if manual_mode:
                 servo_steering["position"] = \

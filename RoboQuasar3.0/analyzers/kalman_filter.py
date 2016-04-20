@@ -30,14 +30,14 @@ class PositionFilter:
 
     def __init__(self):
 
-        self.obs_cov = [[1000, 0, 0, 0],  # gps_x
-                        [0, 1000, 0, 0],  # gps_y
+        self.obs_cov = [[100, 0, 0, 0],  # gps_x
+                        [0, 100, 0, 0],  # gps_y
                         [0, 0, 1, 0],  # enc_dx
                         [0, 0, 0, 1]]  # enc_dy
         self.trans_cov = [[1, 0, 0, 0],  # x
                           [0, 1, 0, 0],  # y
-                          [0, 0, 1000, 0],  # vx
-                          [0, 0, 0, 1000]]  # vy
+                          [0, 0, 50, 0],  # vx
+                          [0, 0, 0, 50]]  # vy
 
         self.filter = pykalman.KalmanFilter(
             observation_covariance=self.obs_cov,
@@ -46,20 +46,14 @@ class PositionFilter:
         self.filt_state_mean = np.array([0.0, 0.0, 0.0, 0.0])
         self.covariance = np.identity(4)
 
-    def update(self, gps_x, gps_y,
-               change_dist,
-               upd_dt, heading):
+    def update(self, gps_x, gps_y, change_dist, upd_dt, heading):
 
         # need to convert inputs into needed form
 
         enc_dx = change_dist * math.cos(heading)
         enc_dy = change_dist * math.sin(heading)
 
-        observation = np.array([gps_x, gps_y,
-                                enc_dx, enc_dy])
-
-        observation = np.ma.asarray(observation)
-
+        observation = np.array([gps_x, gps_y, enc_dx, enc_dy])
 
         obs_matrix = np.array(
             [[1, 0, 0, 0],
@@ -99,8 +93,11 @@ class HeadingFilter:
     def __init__(self):
         self.prev_imu = 0.0
 
-        self.obs_cov = np.identity(3)
-        self.trans_cov = np.identity(2)
+        self.obs_cov = [[500, 0, 0],
+                        [0, 10, 0],
+                        [0, 0, 1]]
+        self.trans_cov = [[1, 0],
+                          [0, 1]]
 
         self.filter = pykalman.KalmanFilter(
             observation_covariance=self.obs_cov,

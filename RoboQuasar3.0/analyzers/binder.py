@@ -8,6 +8,7 @@ Version 3/10/2015
 Finds goal position based on a supplied current position
 """
 
+import math
 from analyzers.map import Map
 
 
@@ -17,27 +18,16 @@ class Binder:
         # set to None so that it will be able to start at any point on the track
         self.prev_bind = None
 
+        self.map_dists = [0] * len(self.map.data)
+
     def bind(self, position):
-        if (self.prev_bind is None or self.prev_bind >= (len(self.map.data) - 1)
-                or self.prev_bind < 0):
-            # finds the smallest distance between the point and the map
-            self.prev_bind = self.find_nearest(position)
-            return self.map.data[(self.prev_bind + 1) % len(self.map)]
+        for index in range(len(self.map_dists)):
+            dx = self.map.data[index][0] - position[0]
+            dy = self.map.data[index][1] - position[1]
+            self.map_dists[index] = math.sqrt(dx * dx + dy * dy)
+        index = self.map_dists.index(min(self.map_dists))  # index of shortest distance
 
-        for index in range(self.prev_bind, len(self.map.data)):
-            if self.is_near(index, position):
-                self.prev_bind = index
-                index = (index + 1) % len(self.map)
-                return self.map.data[index]
-
-        for index in range(self.prev_bind):
-            if self.is_near(index, position):
-                self.prev_bind = index
-                index = (index + 1) % len(self.map)
-                return self.map.data[index]
-
-        self.prev_bind = self.find_nearest(position)
-        return self.map.data[(self.prev_bind + 1) % len(self.map)]
+        return self.map[(index + 1) % len(self.map)]
 
     def find_nearest(self, position):
         map_dist = [0] * len(self.map.data)

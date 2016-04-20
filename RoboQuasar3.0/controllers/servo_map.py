@@ -2,7 +2,7 @@ import math
 
 lookup_table = [
     # servo, distance from centerline in inches
-    [-73, -4.55],
+    [-73, -4.55],  # 0.09075 radians
     [-63, -3.95],
     [-53, -3.15],
     [-43, -2.25],
@@ -12,9 +12,8 @@ lookup_table = [
     [3, 2.65],
     [13, 3.25],
     [23, 4.45],
-    [33, 4.75],
+    [33, 4.75],  # -0.094715 radians
 ]
-
 
 adjacent = 50  # distance from turning point on steering
 zero_index = 0
@@ -24,8 +23,8 @@ for index in range(len(lookup_table)):
         break
 
 for index in range(len(lookup_table)):
-    lookup_table[index][1] *= -1
-    lookup_table[index][1] = math.atan2(lookup_table[index][1], adjacent)
+    lookup_table[index][1] = math.asin(-lookup_table[index][1] / adjacent)
+
 
 def angle_to_servo(angle):
     if angle > lookup_table[0][1]:
@@ -35,10 +34,10 @@ def angle_to_servo(angle):
 
     table_index = 0
     for index in range(len(lookup_table) - 1):
-        if (angle == lookup_table[index][1]):
+        if angle == lookup_table[index][1]:
             return lookup_table[index][0]
         if ((angle < lookup_table[index][1]) and
-            (angle > lookup_table[index+1][1])):
+                (angle > lookup_table[index + 1][1])):
             table_index = index
 
     servo_val0 = lookup_table[table_index][0]
@@ -55,12 +54,11 @@ def state_to_servo(current_state, goal_state):
     x, y, yaw = current_state
     goal_x, goal_y = goal_state
 
-    goal_angle = math.atan2(goal_y-y, goal_x-x)
+    relative_goal = math.atan2(goal_y - y, goal_x - x) - yaw
 
-    if goal_angle < 0:
-        goal_angle += 2 * math.pi
-    dtheta = (goal_angle - yaw) % (2 * math.pi)
-    if math.pi < dtheta:  # TODO: Fix wrap around problem
-        dtheta -= 2 * math.pi
+    if relative_goal > math.pi:
+        relative_goal -= 2 * math.pi
+    if relative_goal < -math.pi:
+        relative_goal += 2 * math.pi
 
-    return int(angle_to_servo(dtheta))
+    return int(angle_to_servo(relative_goal))

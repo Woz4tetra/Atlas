@@ -82,11 +82,11 @@ class Converter:
 
         # gps_heading = math.atan2(dy, dx)
 
-        if (almost_equal(self.prev_lng, longitude, self.gps_epsilon) and
-                almost_equal(self.prev_lat, latitude, self.gps_epsilon)):
-            gps_heading = self.prev_gps_heading
-        else:
-            self.prev_gps_heading = gps_heading
+        # if (almost_equal(self.prev_lng, longitude, self.gps_epsilon) and
+        #         almost_equal(self.prev_lat, latitude, self.gps_epsilon)):
+        #     gps_heading = self.prev_gps_heading
+        # else:
+        #     self.prev_gps_heading = gps_heading
 
         dx = bind_x - self.prev_bind_x
         dy = bind_y - self.prev_bind_y
