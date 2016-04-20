@@ -11,7 +11,7 @@ Converts the robot's current heading and a goal heading to a servo position.
 import math
 
 lookup_table = [
-    # servo, distance from centerline in inches
+    # servo, distance from centerline in inches#TODO CHECK THIS SHIT
     [-73, -4.55],
     [-63, -3.95],
     [-53, -3.15],
@@ -24,7 +24,7 @@ lookup_table = [
     [23, 4.45],
     [33, 4.75],
 ]
-hypotenuse = 50  # distance from turning point on steering
+adjacent = 50  # distance from turning point on steering
 zero_index = 0
 for index in range(len(lookup_table)):
     if lookup_table[index][1] == 0.0:
@@ -32,7 +32,9 @@ for index in range(len(lookup_table)):
         break
 
 for index in range(len(lookup_table)):
-    lookup_table[index][1] = math.asin(lookup_table[index][1] / hypotenuse)
+    lookup_table[index][1] = math.atan2(lookup_table[index][1], adjacent)
+
+print(lookup_table)
 
 
 def py27_round(x):
