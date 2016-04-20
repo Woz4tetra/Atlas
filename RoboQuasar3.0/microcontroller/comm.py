@@ -108,9 +108,8 @@ class Communicator(threading.Thread):
             self.serial_ref.write(b"H")
             self.serial_ref.write(b"\r")
 
-        for _ in range(5):
-            write_resets()
-            time.sleep(0.05)
+        counter = 0
+        write_resets()
 
         print("\n---------")
         while read_flag != "R":
@@ -118,6 +117,11 @@ class Communicator(threading.Thread):
             read_flag = self.serial_ref.read().decode("ascii")
             print(read_flag, end="")
             time.sleep(0.001)
+
+            counter += 1
+            if counter % 50 == 0:
+                write_resets()
+                
 
         print("\n---------")
 

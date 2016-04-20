@@ -9,7 +9,7 @@ from libraries.micro_gps import MicropyGPS
 
 class GPS(Sensor):
     def __init__(self, sensor_id):
-        super().__init__(sensor_id, ['f', 'f', 'f', 'b'],
+        super().__init__(sensor_id, ['f', 'f', 'b'],
                          ["lat deg", "lat min", "long deg", "long min",
                           "speed x", "speed y", "speed z",
                           "heading", "altitude",
@@ -43,7 +43,6 @@ class GPS(Sensor):
         return (
             self.lat,
             self.long,
-            self.heading(),
             self.gps_ref.satellites_in_view > 0
         )
 
@@ -65,7 +64,7 @@ class GPS(Sensor):
 class IMU(Sensor):
     def __init__(self, sensor_id, bus):
         super().__init__(sensor_id,
-                         ['f', 'f', 'f', 'f'],
+                         'f',
                          ["accel x", "accel y", "accel z",
                           "gyro x", "gyro y", "gyro z",
                           "euler x", "euler y", "euler z",
@@ -97,10 +96,11 @@ class IMU(Sensor):
             )
 
     def update_data(self):
-        self.update_all()
+        # self.update_all()
         # return (self.mass_data[0], self.mass_data[1], self.mass_data[5],
         #         self.mass_data[8], self.mass_data[20])
-        return self.mass_data
+        # return self.mass_data
+        return self.bno.get_euler()[0] * math.pi / 180
 
     def update_log(self):
         return self.mass_data

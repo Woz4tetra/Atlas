@@ -161,12 +161,12 @@ def plot_kalman(file_name, map_name, directory=""):
     for index in range(length):
         lines2.append((kalman_x[index], bind_x[index]))
         lines2.append((kalman_y[index], bind_y[index]))
-        lines2.append('b')
+        lines2.append('g')
     plt.plot(*lines2)
 
 if __name__ == '__main__':
     # plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",
     #             density=1000)
-    plot_kalman("Test Day 6/Mon Apr 18 22;42;19 2016.csv", "Track Field Map.csv")
+    plot_kalman("Test Day 7/Tue Apr 19 22;58;26 2016.csv", "Tue Apr 19 22;47;21 2016 GPS Map.csv")
 
     plt.show()

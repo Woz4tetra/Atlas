@@ -17,7 +17,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=False, manual_mode=True):
+def main(log_data=True, manual_mode=True):
     # ----- initialize runner -----
     gps = Sensor(1, ['lat', 'long', 'found'])
     encoder = Sensor(2, 'counts')
@@ -62,7 +62,7 @@ def main(log_data=False, manual_mode=True):
         heading_filter = HeadingFilter()
         position_filter = PositionFilter()
 
-        binder = Binder("Track Field Map.csv", gps['long'], gps['lat'])
+        binder = Binder("Tue Apr 19 22;47;21 2016 GPS Map.csv", gps['long'], gps['lat'])
         bind_x, bind_y = 0, 0
         bind_heading = 0
 
@@ -75,7 +75,7 @@ def main(log_data=False, manual_mode=True):
         enc_dist = 0
 
         if log_data:
-            log = Recorder(directory="Test Day 6")
+            log = Recorder(directory="Test Day 7")
 
         notifier.play("ding")
 
@@ -112,6 +112,7 @@ def main(log_data=False, manual_mode=True):
 
             # ----- filter data -----
             if gps.received():
+                print("gps:", gps["long"], gps["lat"], gps["found"])
                 notifier.play("click")
                 gps_heading, bind_heading = converter.convert_heading(
                     gps["long"], gps["lat"], bind_x, bind_y
@@ -132,10 +133,15 @@ def main(log_data=False, manual_mode=True):
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
+                print("(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" %(
+                    kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
+                    math.atan2(bind_y - kalman_y, bind_x - kalman_x),
+                    math.atan2(bind_y - kalman_y, bind_x - kalman_x) - kalman_heading))
+
             if manual_mode:
                 servo_steering["position"] = \
                     state_to_servo([0, 0, 0],
-                                   [1, -5.34 / 90 * joystick.mainStick.x])
+                                   [1, 5.34 / 90 * joystick.mainStick.x])
             else:
                 servo_steering["position"] = \
                     state_to_servo([kalman_x, kalman_y, kalman_heading],
@@ -175,7 +181,7 @@ def main(log_data=False, manual_mode=True):
     finally:
         stop()
         joystick.stop()
-        if log_data:
+        if log_data and log is not None:
             log.close()
 
 

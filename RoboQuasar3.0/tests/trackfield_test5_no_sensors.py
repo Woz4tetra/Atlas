@@ -11,7 +11,7 @@ from analyzers.kalman_filter import HeadingFilter, PositionFilter
 from analyzers.binder import Binder
 
 
-def main(log_data=False):
+def test_kalman(log_data=False):
     if log_data:
         log = Recorder(directory="Test Day 6")
 
@@ -21,7 +21,7 @@ def main(log_data=False):
         density=1)
     gps_long, gps_lat, gps_sleep, gps_flag, encoder, yaw = data
 
-    converter = Converter(gps_long[0], gps_lat[0], 0.000003)  # long, lat
+    converter = Converter(gps_long[0], gps_lat[0], 0.000003, 0)  # long, lat
     #0.000003 is an epsilon
 
     heading_filter = HeadingFilter()
@@ -79,7 +79,51 @@ def main(log_data=False):
 
     plt.show()
 
+def test_binder():
+    timestamps, data, length = get_data(
+        "Test Day 7/Tue Apr 19 22;58;26 2016.csv",
+        ["kalman x", "kalman y", "kalman heading", "gps sleep", "gps long", "gps lat"],
+        density=1)
+    kalman_x, kalman_y, kalman_heading, gps_sleep, gps_long, gps_lat = data
+
+    binder = Binder("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv", gps_long[0], gps_lat[0])
+    x, y = [], []
+    for index in range(len(binder.map.data)):
+        x.append(binder.map.data[index][0])
+        y.append(binder.map.data[index][1])
+    plt.plot(x, y)
+
+    prev_bound_x, prev_bound_y = None, None
+
+    lines1 = []
+    lines2 = []
+    hypotenuse = 10
+    value = 50
+    for index in range(1, length):
+        if gps_sleep[index] != gps_sleep[index - 1]:
+            lines1.append((kalman_x[index], kalman_x[index] + hypotenuse * np.cos(kalman_heading[index])))
+            lines1.append((kalman_y[index], kalman_y[index] + hypotenuse * np.sin(kalman_heading[index])))
+            lines1.append('r')
+            print(kalman_x[index], kalman_y[index])
+
+            bound_x, bound_y = binder.bind((kalman_x[index], kalman_y[index]))
+            if bound_x != prev_bound_x or bound_y != prev_bound_y:
+                lines2.append((kalman_x[index], bound_x))
+                lines2.append((kalman_y[index], bound_y))
+                value += 10
+                if value >= 255:
+                    value = 0
+                lines2.append("#%0.2x%0.2x%0.2x" % (0, value, value))
+                prev_bound_x, prev_bound_y = bound_x, bound_y
+
+    from pprint import pprint
+    # pprint(lines2)
+    plt.plot(*lines1)
+    plt.plot(*lines2)
+    plt.plot(kalman_x, kalman_y)
+
+    plt.show()
 
 if __name__ == '__main__':
     print(__doc__)
-    main()
+    test_binder()
