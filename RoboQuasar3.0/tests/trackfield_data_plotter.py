@@ -187,25 +187,51 @@ def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
     if plot_kalman:
         plt.plot(kalman_x, kalman_y, 'b')
 
-    plt.show()
 
+def plot_all(data_sets, map_name, plot_type, x_lim=None, y_lim=None,
+             plot_map=True, plot_gps=True, plot_kalman=True,
+             plot_heading=True, plot_binds=True, plot_goals=True):
+    for data_set in data_sets:
+        test_system(data_set, map_name, plot_type, x_lim, y_lim,
+                    plot_map, plot_gps, plot_kalman,
+                    plot_heading, plot_binds, plot_goals)
+
+
+def plot_gps(data_set):
+    timestamps, data, length = get_data(data_set, ["gps long", "gps lat"])
+
+    plt.plot(data[0], data[1])
 
 if __name__ == '__main__':
     print(__doc__)
-    test_system(
-        # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # great run
-        # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
-        # "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
-        "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
-        # "random",
+    # test_system(
+    #     # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # good run
+    #     # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
+    #     "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
+    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
+    #     # "random",
+    #
+    #     "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+    #     # "Trimmed Minimalist Map.csv",
+    #
+    #     "binder",
+    #
+    #     # x_lim=(),
+    #     # y_lim=(),
+    #
+    #     plot_map=False, plot_gps=False, plot_kalman=False,
+    #     plot_heading=True, plot_binds=True, plot_goals=True)
+    # plot_all(
+    #     ["Test Day 7/Tue Apr 19 22;31;53 2016.csv",
+    #      "Test Day 7/Tue Apr 19 22;47;21 2016.csv",
+    #      "Test Day 7/Tue Apr 19 22;58;26 2016.csv"],
+    #     "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+    #     "kalman",
+    #     plot_map=False, plot_gps=True, plot_kalman=False, plot_heading=True,
+    #     plot_binds=True, plot_goals=True
+    # )
+    plot_gps("Test Day 7/Tue Apr 19 22;31;53 2016.csv")
+    plot_gps("Test Day 7/Tue Apr 19 22;47;21 2016.csv")
+    plot_gps("Test Day 7/Tue Apr 19 22;58;26 2016.csv")
 
-        "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
-        # "Trimmed Minimalist Map.csv",
-
-        "binder",
-
-        # x_lim=(),
-        # y_lim=(),
-
-        plot_map=False, plot_gps=False, plot_kalman=False,
-        plot_heading=True, plot_binds=True, plot_goals=True)
+    plt.show()

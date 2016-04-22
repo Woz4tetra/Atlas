@@ -203,9 +203,8 @@ def edit_map():
 
 
 def make_map(log_file, map_name):
-    import plotter
-    timestamps, sensor_data = plotter.get_plottable_data(log_file,
-                                                         ["lat", "long"])
+    from analyzers.logger import get_data
+    timestamps, sensor_data = get_data(log_file, ["gps long", "gps lat"])
     map_data = []
     for index in range(len(sensor_data[0])):
         map_data.append([sensor_data[0][index], sensor_data[1][index]])
