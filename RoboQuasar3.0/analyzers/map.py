@@ -204,9 +204,9 @@ def edit_map():
 
 def make_map(log_file, map_name):
     from analyzers.logger import get_data
-    timestamps, sensor_data = get_data(log_file, ["gps long", "gps lat"])
+    timestamps, sensor_data, length = get_data(log_file, ["gps long", "gps lat"])
     map_data = []
-    for index in range(len(sensor_data[0])):
+    for index in range(length):
         map_data.append([sensor_data[0][index], sensor_data[1][index]])
     map = Map()
     map.raw_data = map_data
@@ -219,6 +219,5 @@ def shift_map(map_name, new_name, origin_lat, origin_long):
 
 
 if __name__ == '__main__':
-    # shift_map("raw map.csv", "shifted map.csv", 40.44363784790039,
-    #           79.9408187866211)
-    Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
+    # Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
+    make_map("Test Day 8/Wed Apr 20 21;51;46 2016.csv", "Map from Wed Apr 20 21;51;46 2016.csv")

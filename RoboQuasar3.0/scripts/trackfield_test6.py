@@ -10,6 +10,7 @@ from analyzers.logger import Recorder
 from analyzers.converter import Converter
 from analyzers.kalman_filter import HeadingFilter, PositionFilter
 from analyzers.binder import Binder
+from analyzers.map import Map
 
 from controllers.joystick import joystick_init
 from controllers.servo_map import angle_to_servo, state_to_servo
@@ -18,14 +19,19 @@ from sound.player import TunePlayer
 
 
 class System:
-    def __init__(self, log_data, log_dir, map_name):
+    def __init__(self, log_data, log_dir, map_name, initial_gps=0):
         self.log_data, = log_data,
         self.log_dir = log_dir
         self.map_name = map_name
 
+        self.reference_map = Map("Trimmed Minimalist Map.csv")
+        self.initial_gps = initial_gps
+
         self.binder = None
 
-    def init_state_trackers(self, initial_long, initial_lat, initial_enc):
+    def init_state_trackers(self, initial_enc):
+        initial_long, initial_lat = self.reference_map[self.initial_gps]
+
         self.converter = Converter(initial_long, initial_lat, 0.000003,
                                    initial_enc)
 
@@ -145,7 +151,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
             reset()
             time.sleep(0.01)
 
-        system.init_state_trackers(gps['long'], gps['lat'], encoder["counts"])
+        system.init_state_trackers(encoder["counts"])
         system.start_logging()
 
         notifier.play("ding")
@@ -174,8 +180,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
                     reset()
                     time.sleep(0.01)
 
-                system.init_state_trackers(gps['long'], gps['lat'],
-                                           encoder["counts"])
+                system.init_state_trackers(encoder["counts"])
                 system.start_logging()
 
                 notifier.play("ding")
