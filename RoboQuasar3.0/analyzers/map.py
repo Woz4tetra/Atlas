@@ -208,4 +208,4 @@ def shift_map(map_name, new_name, origin_lat, origin_long):
 if __name__ == '__main__':
     # shift_map("raw map.csv", "shifted map.csv", 40.44363784790039,
     #           79.9408187866211)
-    Map("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
+    Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()

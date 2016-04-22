@@ -17,7 +17,7 @@ from controllers.servo_map import state_to_servo
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=True):
+def main(log_data=True, manual_mode=True, print_data=False):
     # ----- initialize runner -----
     gps = Sensor(1, ['lat', 'long', 'found'])
     encoder = Sensor(2, 'counts')
@@ -62,7 +62,8 @@ def main(log_data=True, manual_mode=True):
         heading_filter = HeadingFilter()
         position_filter = PositionFilter()
 
-        binder = Binder("Tue Apr 19 22;47;21 2016 GPS Map.csv", gps['long'], gps['lat'])
+        binder = Binder("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+                        gps['long'], gps['lat'])
         bind_x, bind_y = 0, 0
         bind_heading = 0
 
@@ -75,7 +76,7 @@ def main(log_data=True, manual_mode=True):
         enc_dist = 0
 
         if log_data:
-            log = Recorder(directory="Test Day 7")
+            log = Recorder(directory="Test Day 9")
 
         notifier.play("ding")
 
@@ -91,7 +92,7 @@ def main(log_data=True, manual_mode=True):
                 manual_mode = not manual_mode
 
             # ----- status notifiers -----
-            if encoder.received():
+            if encoder.received() and print_data:
                 print("encoder:", encoder["counts"])
             if prev_gps_status != gps['found']:
                 if gps['found']:
@@ -112,7 +113,8 @@ def main(log_data=True, manual_mode=True):
 
             # ----- filter data -----
             if gps.received():
-                print("gps:", gps["long"], gps["lat"], gps["found"])
+                if print_data:
+                    print("gps:", gps["long"], gps["lat"], gps["found"])
                 notifier.play("click")
                 gps_heading, bind_heading = converter.convert_heading(
                     gps["long"], gps["lat"], bind_x, bind_y
@@ -122,7 +124,7 @@ def main(log_data=True, manual_mode=True):
                 )
 
                 kalman_heading = heading_filter.update(
-                    gps_heading, bind_heading, imu["yaw"]
+                    gps_heading, bind_heading, -imu["yaw"]
                 )
                 kalman_x, kalman_y = position_filter.update(
                     gps_x, gps_y, enc_dist,
@@ -133,10 +135,13 @@ def main(log_data=True, manual_mode=True):
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
-                print("(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" %(
-                    kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
-                    math.atan2(bind_y - kalman_y, bind_x - kalman_x),
-                    math.atan2(bind_y - kalman_y, bind_x - kalman_x) - kalman_heading))
+                if print_data:
+                    print(
+                        "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
+                            kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
+                            math.atan2(bind_y - kalman_y, bind_x - kalman_x),
+                            math.atan2(bind_y - kalman_y,
+                                       bind_x - kalman_x) - kalman_heading))
 
             if manual_mode:
                 servo_steering["position"] = \
