@@ -1,1 +1,0 @@
-time,kalman_y,kalman_x,gps_flag,encoder,bind_y,gps_long,kalman_heading,gps_heading,imu_flag,servo_steering,gps_found,yaw,imu_sleep,bind_x,accel_y,gps_lat,accel_x,gps_sleep,enc_sleep,enc_flag

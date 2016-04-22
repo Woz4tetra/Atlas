@@ -31,7 +31,7 @@ import config
 
 
 class Recorder(object):
-    def __init__(self, frequency=None, file_name=None, directory=None):
+    def __init__(self, frequency=None, file_name=None, directory=None, map_name=None):
         if directory is None:
             self.directory = config.get_dir(":logs")
         else:
@@ -64,6 +64,7 @@ class Recorder(object):
         self.frequency = frequency
         self.enable_record = True
         self.row_length = None
+        self.map_name = map_name
 
         self.data = OrderedDict()
 
@@ -72,6 +73,8 @@ class Recorder(object):
 
     def add_row(self):
         if self.row_length is None:
+            if self.map_name is not None:
+                self.writer.writerow(["map", self.map_name])
             self.writer.writerow(["time"] + list(self.data.keys()))
             self.row_length = len(self.data)
         if (self.frequency is None) or (
@@ -98,8 +101,11 @@ def is_float(string):
 
 def parse(file_dir, np_array=True, omit_header_row=True,
           remove_timestamps=False, start=0, stop=None, density=1):
+    input_dir = file_dir
     if not os.path.isdir(file_dir) and not os.path.isfile(file_dir):
         file_dir = config.get_dir(":logs") + file_dir
+    if not os.path.isfile(file_dir):
+        raise FileNotFoundError("File could not be found:", input_dir)
 
     with open(file_dir, 'r') as csv_file:
         data = []
@@ -137,13 +143,18 @@ def parse(file_dir, np_array=True, omit_header_row=True,
     return data
 
 
-def get_data(file_name, sensors, start=0, stop=None, density=1):
+def get_data(file_name, sensors, start=0, stop=None, density=1,
+             underscores_as_spaces=True):
     data = parse(file_name, np_array=False, omit_header_row=False,
                  start=start, stop=stop, density=density)
 
+    # all possible sensor names
     columns = []
     for sensor_name in sensors:
-        columns.append(data[0].index(sensor_name))
+        if underscores_as_spaces and sensor_name not in data[0]:
+            columns.append(data[0].index(sensor_name.replace(" ", "_")))
+        else:
+            columns.append(data[0].index(sensor_name))
     data.pop(0)
 
     data = np.array(data)
@@ -153,4 +164,8 @@ def get_data(file_name, sensors, start=0, stop=None, density=1):
     for column in columns:
         sensor_data.append(data[:, column])
 
-    return timestamps, sensor_data, len(sensor_data[0])
+    if len(sensor_data) > 0:
+        length = len(sensor_data[0])
+    else:
+        length = 0
+    return timestamps, sensor_data, length

@@ -12,7 +12,6 @@ import csv
 import pprint
 import sys
 import time
-
 import math
 import numpy as np
 
@@ -25,14 +24,18 @@ class Map():
     def __init__(self, map_name=None, directory=None, origin_long=None,
                  origin_lat=None):
         if map_name is None:
+            self.raw_data = []
             self.data = []
         else:
-            self.data = self.get_map(map_name, directory)
+            self.raw_data = np.array(self.get_map(map_name, directory))
             self.earth_radius = 6371000
             self.origin_lat = origin_lat
             self.origin_long = origin_long
             if origin_lat is not None and origin_long is not None:
-                self.shift_data()
+                self.data = np.array(self.shift_data())
+            else:
+                self.data = self.raw_data
+
 
     def convert_gps(self, prev_long, prev_lat, longitude, latitude):
         # lat_mean = (latitude + prev_lat) / 2
@@ -71,11 +74,20 @@ class Map():
 
         :return: None
         """
-        for i in range(len(self.data)):
+
+        data = []
+
+        for i in range(len(self.raw_data)):
             x, y, bearing = self.convert_gps(self.origin_long, self.origin_lat,
-                                             self.data[i][0], self.data[i][1])
-            self.data[i][0] = x
-            self.data[i][1] = y
+                                             self.raw_data[i][0], self.raw_data[i][1])
+            data.append([x, y])
+
+        return data
+
+    def reshift_map(self, new_long, new_lat):
+        self.origin_long = new_long
+        self.origin_lat = new_lat
+        self.data = np.array(self.shift_data())
 
     def __getitem__(self, item):
         return self.data[item]
@@ -88,17 +100,6 @@ class Map():
 
     def __str__(self):
         return pprint.pformat(self.data)
-
-    def find_nearest(self, position):
-        map_dist = [0] * len(self.data)
-        for index in range(len(map_dist)):
-            dlat = abs(float(self.data[index][0] - position[0]))
-            dlong = abs(float(self.data[index][1] - position[1]))
-            dist = ((dlat ** 2) + (dlong ** 2)) ** 0.5
-            map_dist[index] = dist
-        smallest_value = min(map_dist)
-        index = map_dist.index(smallest_value)
-        return index
 
     @staticmethod
     def get_map(map_name, directory=None):
@@ -113,7 +114,7 @@ class Map():
                 parsed.append([float(row[0]), float(row[1])])
             return parsed
 
-    def write_map(self, directory=None, file_name=None):
+    def write_map(self, directory=None, file_name=None, use_xy=False):
         if directory is None:
             directory = config.get_dir(":maps")
         if file_name is None:
@@ -122,22 +123,35 @@ class Map():
             file_name += ".csv"
         print("Writing to: " + directory)
         print("File name to: " + file_name)
+
+        if use_xy:
+            map_data = self.data
+        else:
+            map_data = self.raw_data
+
         with open(directory + file_name, 'w') as csv_file:
             map_writer = csv.writer(csv_file, delimiter=',',
                                     quotechar='|',
                                     quoting=csv.QUOTE_MINIMAL)
-            for row in self.data:
+            for row in map_data:
                 assert len(row) == 2
                 map_writer.writerow(row)
 
     def remove_duplicates(self, write_output=True, directory=None,
-                          map_name=None):
-        data = np.array(self.data)
+                          map_name=None, use_xy=False):
+        if use_xy:
+            map_data = self.data
+        else:
+            map_data = self.raw_data
+        data = np.array(map_data)
 
         duplicates = np.where(np.diff(data, axis=0) == 0)
 
         data = np.delete(data, duplicates[0], 0)
-        self.data = data.tolist()
+        if use_xy:
+            self.data = data.tolist()
+        else:
+            self.raw_data = data.tolist()
         if write_output:
             self.write_map(directory, map_name)
         return data
@@ -178,13 +192,13 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
             dir_index = file_name.find("/")
             file_name = file_name[dir_index:]
         map = Map()
-        map.data = data
+        map.raw_data = data
         map.write_map(out_directory, file_name)
 
 
 def edit_map():
     test_map = Map("Thu Mar 17 17;53;53 2016.csv")
-    test_map.data = test_map.data[1:-1:10]
+    test_map.raw_data = test_map.raw_data[1:-1:10]
     test_map.write_map()
 
 
@@ -196,7 +210,7 @@ def make_map(log_file, map_name):
     for index in range(len(sensor_data[0])):
         map_data.append([sensor_data[0][index], sensor_data[1][index]])
     map = Map()
-    map.data = map_data
+    map.raw_data = map_data
     map.remove_duplicates(map_name=map_name)
 
 
