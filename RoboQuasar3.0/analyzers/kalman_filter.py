@@ -29,7 +29,6 @@ class PositionFilter:
     """
 
     def __init__(self):
-
         self.obs_cov = [[40, 0, 0, 0],  # gps_x
                         [0, 40, 0, 0],  # gps_y
                         [0, 0, 1, 0],  # enc_dx
@@ -38,7 +37,6 @@ class PositionFilter:
                           [0, .1, 0, 0],  # y
                           [0, 0, 10, 0],  # vx
                           [0, 0, 0, 10]]  # vy
-
 
         self.filter = pykalman.KalmanFilter(
             observation_covariance=self.obs_cov,
@@ -93,7 +91,6 @@ class HeadingFilter:
 
     def __init__(self):
         self.prev_imu = 0.0
-
         self.obs_cov = [[50, 0, 0],
                         [0, 1, 0],
                         [0, 0, 1]]

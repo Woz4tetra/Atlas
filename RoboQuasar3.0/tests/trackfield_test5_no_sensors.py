@@ -123,7 +123,6 @@ def test_binder():
 
     binder = Binder("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv", gps_long[0],
                     gps_lat[0])
-
     #first plot the map
     x, y = [], []
     for index in range(len(binder.map.data)):

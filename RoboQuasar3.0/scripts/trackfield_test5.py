@@ -135,6 +135,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
 
                 bind_x, bind_y = binder.bind((kalman_x, kalman_y))
 
+<<<<<<< HEAD
                 if print_data:
                     print(
                         "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
@@ -142,6 +143,14 @@ def main(log_data=True, manual_mode=True, print_data=False):
                             math.atan2(bind_y - kalman_y, bind_x - kalman_x),
                             math.atan2(bind_y - kalman_y,
                                        bind_x - kalman_x) - kalman_heading))
+=======
+                print(
+                    "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
+                        kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
+                        math.atan2(bind_y - kalman_y, bind_x - kalman_x),
+                        math.atan2(bind_y - kalman_y,
+                                   bind_x - kalman_x) - kalman_heading))
+>>>>>>> 22e27adfcf4e06a23f0d4445d7ce82c90bd20cb4
 
             if manual_mode:
                 servo_steering["position"] = \
