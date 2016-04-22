@@ -92,9 +92,9 @@ class HeadingFilter:
     def __init__(self):
         self.prev_imu = 0.0
         self.obs_cov = [[5000, 0, 0],
-                        [0, 1000, 0],
+                        [0, 100, 0],
                         [0, 0, 1]]
-        self.trans_cov = [[500, 0],
+        self.trans_cov = [[10, 0],
                           [0, 1]]
 
         self.filter = pykalman.KalmanFilter(

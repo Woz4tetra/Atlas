@@ -181,7 +181,7 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
 
             if len(longitude) > 0 and longitude[0] == '-':
                 longitude = longitude[1:]
-            data.append([latitude, longitude])
+            data.append([longitude, latitude])
 
             contents = contents[lon_index_end:]
         data.pop(-1)
@@ -220,4 +220,5 @@ def shift_map(map_name, new_name, origin_lat, origin_long):
 
 if __name__ == '__main__':
     # Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
-    make_map("Test Day 8/Wed Apr 20 21;51;46 2016.csv", "Map from Wed Apr 20 21;51;46 2016.csv")
+    # make_map("Test Day 8/Wed Apr 20 21;51;46 2016.csv", "Map from Wed Apr 20 21;51;46 2016.csv")
+    convert_gpx("Buggy Course/wtracks map.gpx")

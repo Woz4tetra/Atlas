@@ -19,18 +19,25 @@ from sound.player import TunePlayer
 
 
 class System:
-    def __init__(self, log_data, log_dir, map_name, initial_gps=0):
+    def __init__(self, log_data, log_dir, map_name, initial_gps_index=None,
+                 initial_gps=None):
         self.log_data, = log_data,
         self.log_dir = log_dir
         self.map_name = map_name
 
         self.reference_map = Map("Trimmed Minimalist Map.csv")
+        self.initial_gps_index = initial_gps_index
         self.initial_gps = initial_gps
 
         self.binder = None
 
     def init_state_trackers(self, initial_enc):
-        initial_long, initial_lat = self.reference_map[self.initial_gps]
+        if self.initial_gps_index is not None:
+            initial_long, initial_lat = self.reference_map[self.initial_gps]
+        elif self.initial_gps is not None:
+            initial_long, initial_lat = self.initial_gps
+        else:
+            initial_long, initial_lat = self.reference_map[0]
 
         self.converter = Converter(initial_long, initial_lat, 0.000003,
                                    initial_enc)
@@ -127,7 +134,8 @@ def main(log_data=True, manual_mode=True, print_data=True):
 
     start()
 
-    system = System(log_data, "Test Day 10", "Trimmed Minimalist Map.csv")
+    system = System(log_data, "Test Day 10", "Trimmed Minimalist Map.csv",
+                    initial_gps=(gps["long"], gps["lat"]))
 
     print("Wait for the GPS to lock on, then press A")
     try:
@@ -230,11 +238,11 @@ def main(log_data=True, manual_mode=True, print_data=True):
                     state_to_servo([0, 0, 0],
                                    [1, 5.34 / 90 * joystick.mainStick.x])
             else:
-                # servo_steering["position"] = \
-                #     state_to_servo([bind_x, bind_y, kalman_heading],
-                #                    [goal_x, goal_y])
                 servo_steering["position"] = \
-                    angle_to_servo(math.atan2(goal_y - bind_y, goal_x - bind_x))
+                    state_to_servo([bind_x, bind_y, kalman_heading],
+                                   [goal_x, goal_y])
+                # servo_steering["position"] = \
+                #     angle_to_servo(math.atan2(goal_y - bind_y, goal_x - bind_x))
             time.sleep(0.005)
 
             system.log_state(gps, encoder, imu, servo_steering)

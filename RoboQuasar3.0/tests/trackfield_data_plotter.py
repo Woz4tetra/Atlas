@@ -32,19 +32,12 @@ from analyzers.logger import get_data
 
 def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
                    heading_lines, bind_lines, goal_lines,
-                   plot_heading, plot_binds, plot_goals, line_length=10,
+                   plot_heading, plot_binds, plot_goals, plot_kalman,
+                   line_length=10,
                    bind_x0=None, bind_y0=None,
                    goal_x0=None, goal_y0=None):
-    if plot_heading:
-        heading_lines.append((kalman_x,
-                              kalman_x + line_length * math.cos(
-                                  kalman_heading)))
-        heading_lines.append((kalman_y,
-                              kalman_y + line_length * math.sin(
-                                  kalman_heading)))
-        heading_lines.append('r')
 
-    if plot_binds or plot_goals:
+    if plot_binds or plot_goals or plot_heading or plot_kalman:
         bind_x, bind_y, goal_x, goal_y = \
             binder.bind((kalman_x, kalman_y))
         if bind_x0 is not None:
@@ -71,12 +64,32 @@ def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
             goal_lines.append((kalman_y, goal_y))
             goal_lines.append('goldenrod')
 
+        if plot_heading:
+            if plot_kalman:
+                heading_lines.append((kalman_x,
+                                      kalman_x + line_length * math.cos(
+                                          kalman_heading)))
+                heading_lines.append((kalman_y,
+                                      kalman_y + line_length * math.sin(
+                                          kalman_heading)))
+                heading_lines.append('r')
+            elif not plot_kalman and (plot_binds or plot_goals):
+                heading_lines.append((bind_x,
+                                      bind_x + line_length * math.cos(
+                                          kalman_heading)))
+                heading_lines.append((bind_y,
+                                      bind_y + line_length * math.sin(
+                                          kalman_heading)))
+                heading_lines.append('r')
+
         return bind_x, bind_y
+
     else:
         return 0, 0
 
 
 reference_map = Map("Map from Wed Apr 20 21;51;46 2016.csv")
+
 
 def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
                 plot_map=True, plot_gps=True, plot_kalman=True,
@@ -173,7 +186,7 @@ def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
                     bind_x, bind_y = populate_lines(
                         kalman_x0, kalman_y0, kalman_heading, binder, axes,
                         heading_lines, bind_lines, goal_lines, plot_heading,
-                        plot_binds, plot_goals)
+                        plot_binds, plot_goals, plot_kalman)
 
     elif plot_type == "display":
         gps_long, gps_lat, gps_sleep, gps_x, gps_y, kalman_x, kalman_y, kalman_heading, bind_x, bind_y, goal_x, goal_y = data
@@ -186,6 +199,7 @@ def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
                                    kalman_heading[index], binder,
                                    axes, heading_lines, bind_lines, goal_lines,
                                    plot_heading, plot_binds, plot_goals,
+                                   plot_kalman,
                                    bind_x0=bind_x[index], bind_y0=bind_y[index],
                                    goal_x0=goal_x[index], goal_y0=goal_y[index])
 
@@ -198,7 +212,8 @@ def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
                     populate_lines(kalman_x[index], kalman_y[index],
                                    kalman_heading[index], binder,
                                    axes, heading_lines, bind_lines, goal_lines,
-                                   plot_heading, plot_binds, plot_goals)
+                                   plot_heading, plot_binds, plot_goals,
+                                   plot_kalman)
 
     if x_lim is not None:
         axes.set_xlim([x_lim[0], x_lim[1]])
@@ -235,55 +250,54 @@ def plot_gps(data_set):
 
     plt.plot(data[0], data[1])
 
+
+def plot_map(map_name):
+    map = Map(map_name)
+
+    plt.plot(map[:, 0], map[:, 1], 'p')
+
 if __name__ == '__main__':
     print(__doc__)
     test_system(
         # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # good run
         # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
-        "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
+        # "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
         # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
         # "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
         # "random",
+        "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
 
         # "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
-        "Map from Wed Apr 20 21;51;46 2016.csv",
+        # "Map from Wed Apr 20 21;51;46 2016.csv",
+        "wtracks map converted.csv",
         # "Trimmed Minimalist Map.csv",
 
-        "binder",
+        "kalman",
 
         # x_lim=(),
         # y_lim=(),
 
-        plot_map=True, plot_gps=True, plot_kalman=True,
-        plot_heading=True, plot_binds=True, plot_goals=True,
-        initial_gps=0
+        plot_map=False, plot_gps=False, plot_kalman=False,
+        plot_heading=True, plot_binds=True, plot_goals=False,
+        # initial_gps=0
     )
 
     # plot_all(
-    #     # ["Test Day 7/Tue Apr 19 22;47;21 2016.csv",
-    #     #  "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
-    #     #  "Test Day 6/Mon Apr 18 22;42;19 2016.csv",
-    #     #  "Test Day 5/Sun Apr 10 18;12;50 2016.csv",
-    #     #  "Test Day 8/Wed Apr 20 21;40;03 2016.csv",
-    #     #  "Test Day 7/Tue Apr 19 22;31;53 2016.csv",
-    #     #  "Test Day 9/Thu Apr 21 22;00;34 2016.csv"
-    #     #  ],
-    #
     #     # ["random"] * 10,
     #
     #     ["Test Day 9/Thu Apr 21 22;34;11 2016.csv",
-    #      "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
+    #      # "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
     #      "Test Day 6/Mon Apr 18 21;50;17 2016.csv",
     #      "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
     #      "Test Day 8/Wed Apr 20 22;06;01 2016.csv",
     #      "Test Day 6/Mon Apr 18 22;19;40 2016.csv",
-    #      "Test Day 5/Sun Apr 10 18;30;08 2016.csv",
-    #      "Test Day 9/Thu Apr 21 22;14;05 2016.csv",
-    #      "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
+    #      # "Test Day 5/Sun Apr 10 18;30;08 2016.csv",
+    #      # "Test Day 9/Thu Apr 21 22;14;05 2016.csv",
+    #      # "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
     #      ],
     #     "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
     #     "kalman",
-    #     plot_map=True, plot_gps=False, plot_kalman=True, plot_heading=False,
+    #     plot_map=False, plot_gps=False, plot_kalman=True, plot_heading=True,
     #     plot_binds=False, plot_goals=False,
     #     initial_gps=0
     # )
@@ -291,5 +305,12 @@ if __name__ == '__main__':
     # plot_gps("Test Day 7/Tue Apr 19 22;31;53 2016.csv")
     # plot_gps("Test Day 7/Tue Apr 19 22;47;21 2016.csv")
     # plot_gps("Test Day 9/Thu Apr 21 23;04;06 2016.csv")
+    # plot_gps("Test Day 6/Mon Apr 18 22;19;40 2016.csv")
+    # plot_gps("Test Day 6/Mon Apr 18 21;50;17 2016.csv")
+
+    # plot_map("Sat Feb 27 21;46;23 2016 Track Field Map.csv")
+    # plot_map("Trimmed Minimalist Map.csv")
+    # plot_map("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv")
+    # plot_map("wtracks map converted.csv")
 
     plt.show()
