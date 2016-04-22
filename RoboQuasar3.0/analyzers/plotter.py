@@ -167,6 +167,7 @@ def plot_kalman(file_name, map_name, directory=""):
 if __name__ == '__main__':
     # plot_angles("Test Day 5/Sun Apr 10 18;30;08 2016.csv", source="yaw",
     #             density=1000)
-    plot_kalman("Test Day 7/Tue Apr 19 22;58;26 2016.csv", "Tue Apr 19 22;47;21 2016 GPS Map.csv")
+    # plot_kalman("Test Day 7/Tue Apr 19 22;58;26 2016.csv", "Tue Apr 19 22;47;21 2016 GPS Map.csv")
+    plot_map("Tue Apr 19 22;47;21 2016 GPS Map.csv")
 
     plt.show()
