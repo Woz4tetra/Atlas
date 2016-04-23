@@ -452,7 +452,7 @@ if __name__ == '__main__':
         # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",
         "Test Day 10/Fri Apr 22 22;18;29 2016.csv",
         "wtracks map converted.csv",
-        plot_map=True, plot_kalman=True,
+        plot_map=True, plot_kalman=False,
         plot_heading=True, plot_binds=True, plot_goals=False,
         enable_servo=True
     )
