@@ -11,7 +11,7 @@ gps = GPS(1)
 encoder = HallEncoder(2, "X7")
 imu = IMU(3, 2)
 
-servo_steering = Servo(0, 1, 0)
+servo_steering = Servo(0, 1, start_pos=-23)
 
 gps_indicator = pyb.LED(3)
 pyb.LED(1).on()

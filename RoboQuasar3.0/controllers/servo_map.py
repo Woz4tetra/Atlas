@@ -61,4 +61,5 @@ def state_to_servo(current_state, goal_state):
     if relative_goal < -math.pi:
         relative_goal += 2 * math.pi
 
-    return int(angle_to_servo(relative_goal))
+    print(-relative_goal)
+    return int(angle_to_servo(-relative_goal))

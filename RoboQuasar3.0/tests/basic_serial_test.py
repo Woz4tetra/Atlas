@@ -101,7 +101,7 @@ class Communicator():
 
 import time
 
-comm = Communicator(115200, handshake=False, address="/dev/ttyACM0")
+comm = Communicator(115200, handshake=True, address="/dev/cu.usbmodem1422")
 # print(comm)
 
 # servo_val = "00"

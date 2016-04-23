@@ -8,16 +8,13 @@ Version 4/22/2016
 A test file meant to make data analysis visual and easy. Hopefully this file
 will allow for insights into what's wrong with the system.
 
-Discoveries:
-- servo position should only use bind point and next bind point
-- initial gps point matters. It can vary quite a lot between files
 """
 
-import math
 import os
-import random
 import sys
+import traceback
 
+import numpy as np
 from matplotlib import pyplot as plt
 
 sys.path.insert(0, "../")
@@ -29,6 +26,10 @@ from analyzers.binder import Binder
 from analyzers.map import Map
 from analyzers.logger import get_data
 
+from microcontroller.data import *
+from microcontroller.dashboard import *
+from controllers.servo_map import state_to_servo
+
 
 def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
                    heading_lines, bind_lines, goal_lines,
@@ -36,7 +37,6 @@ def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
                    line_length=10,
                    bind_x0=None, bind_y0=None,
                    goal_x0=None, goal_y0=None):
-
     if plot_binds or plot_goals or plot_heading or plot_kalman:
         bind_x, bind_y, goal_x, goal_y = \
             binder.bind((kalman_x, kalman_y))
@@ -89,6 +89,170 @@ def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
 
 
 reference_map = Map("Map from Wed Apr 20 21;51;46 2016.csv")
+
+
+def test_with_servo(data_set, map_name,
+                    plot_map=True, plot_kalman=True,
+                    plot_heading=True, plot_binds=True, plot_goals=True,
+                    initial_gps=None, enable_servo=True):
+    if data_set == 'random':
+        data_sets = []
+        for root, dirs, files in os.walk(config.get_dir(":logs"),
+                                         topdown=False):
+            for name in files:
+                if name.endswith(".csv"):
+                    data_sets.append(root + "/" + name)
+
+        data_set = random.choice(data_sets)
+        print("picked:", data_set)
+        log_index = data_set.find("logs")
+        data_set = data_set[log_index + len("logs") + 1:]
+
+    timestamps, data, length = get_data(
+        data_set, ["gps long", "gps lat", "gps sleep", "encoder", "imu yaw"],
+        density=1)
+
+    gps_long, gps_lat, gps_sleep, encoder, yaw = data
+
+    heading_filter = HeadingFilter()
+    position_filter = PositionFilter()
+
+    if initial_gps is None:
+        initial_gps = gps_long[0], gps_lat[0]
+    elif type(initial_gps) == int:
+        initial_gps = reference_map[initial_gps]
+
+    converter = Converter(initial_gps[0], initial_gps[1], 0.000003, 0)
+    binder = Binder(map_name, initial_gps[0], initial_gps[1])
+
+    bind_x, bind_y = 0, 0
+
+    if enable_servo:
+        servo_steering = Command(0, 'position', (-90, 90))
+
+        start()
+    else:
+        servo_steering = None
+
+    plt.ion()
+
+    if plot_map:
+        plt.plot(binder.map[:, 0], binder.map[:, 1], 'c')
+    kalman_graph = plt.plot(np.zeros_like(binder.map))[0]
+    axes = plt.axes()
+
+    ymin = float(min(binder.map[:, 1])) - 10
+    ymax = float(max(binder.map[:, 1])) + 10
+    plt.ylim([ymin, ymax])
+
+    xmin = float(min(binder.map[:, 0])) - 10
+    xmax = float(max(binder.map[:, 0])) + 10
+    plt.xlim([xmin, xmax])
+
+    arrow_color = 0
+
+    line_length = 10
+
+    kalman_data = [[], []]
+
+    try:
+        if plot_heading or plot_binds or plot_goals or plot_kalman:
+            for index in range(1, length):
+                if gps_sleep[index] != gps_sleep[index - 1]:
+                    gps_heading, bind_heading = converter.convert_heading(
+                        gps_long[index], gps_lat[index], bind_x, bind_y)
+
+                    gps_x0, gps_y0, enc_dist = \
+                        converter.convert_position(
+                            gps_long[index], gps_lat[index], encoder[index])
+
+                    kalman_heading = heading_filter.update(
+                        gps_heading, bind_heading, -yaw[index])
+                    kalman_x0, kalman_y0 = position_filter.update(
+                        gps_x0, gps_y0, enc_dist, gps_sleep[index],
+                        kalman_heading)
+
+                    prev_bind_x = bind_x
+                    prev_bind_y = bind_y
+                    bind_x, bind_y, goal_x, goal_y = \
+                        binder.bind((kalman_x0, kalman_y0))
+
+                    if plot_binds:
+                        if bind_x == prev_bind_x and bind_y == prev_bind_y:
+                            arrow_color += 40
+                            if arrow_color > 255:
+                                arrow_color = 0
+                        else:
+                            arrow_color = 0
+
+                        axes.arrow(bind_x, bind_y,
+                                   goal_x - bind_x, goal_y - bind_y,
+                                   color="#%0.2x%0.2x%0.2x" % (
+                                       0, arrow_color, arrow_color
+                                   ),
+                                   head_width=2)
+                        plt.plot([kalman_x0, bind_x], [kalman_y0, bind_y],
+                                 'brown')
+
+                    if plot_kalman:
+                        kalman_data[0].append(kalman_x0)
+                        kalman_data[1].append(kalman_y0)
+
+                        kalman_graph.set_data(kalman_data)
+
+                    if plot_heading:
+                        if plot_kalman:
+                            plt.plot([kalman_x0,
+                                      kalman_x0 + line_length * math.cos(
+                                          kalman_heading)],
+                                     [kalman_y0,
+                                      kalman_y0 + line_length * math.sin(
+                                          kalman_heading)],
+                                     'r')
+                        elif plot_binds:
+                            plt.plot([bind_x,
+                                      bind_x + line_length * math.cos(
+                                          kalman_heading)],
+                                     [bind_y,
+                                      bind_y + line_length * math.sin(
+                                          kalman_heading)],
+                                     'r')
+                    if plot_kalman:
+                        if kalman_x0 < xmin:
+                            xmin = kalman_x0 - 10
+                            plt.xlim([xmin, xmax])
+                        if kalman_x0 > xmax:
+                            xmax = kalman_x0 + 10
+                            plt.xlim([xmin, xmax])
+
+                        if kalman_y0 < ymin:
+                            ymin = kalman_y0 - 10
+                            plt.ylim([ymin, ymax])
+                        if kalman_y0 > ymax:
+                            ymax = kalman_y0 + 10
+                            plt.ylim([ymin, ymax])
+
+                    plt.draw()
+                    plt.pause(0.01)
+
+                    if enable_servo:
+                        # input()
+                        servo_steering["position"] = state_to_servo(
+                            [bind_x, bind_y, kalman_heading],
+                            [goal_x, goal_y]
+                        )
+                        print(servo_steering["position"],
+                              "right" if servo_steering[
+                                             "position"] < -23 else "left")
+
+    except KeyboardInterrupt:
+        traceback.print_exc()
+
+    finally:
+        plt.ioff()
+        if enable_servo:
+            reset()
+            stop()
 
 
 def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
@@ -256,30 +420,41 @@ def plot_map(map_name):
 
     plt.plot(map[:, 0], map[:, 1], 'p')
 
+
 if __name__ == '__main__':
     print(__doc__)
-    test_system(
-        # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # good run
-        # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
-        # "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
-        # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
-        # "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
-        # "random",
-        "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
-
-        # "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
-        # "Map from Wed Apr 20 21;51;46 2016.csv",
+    # test_system(
+    #     # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # good run
+    #     # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
+    #     # "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
+    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
+    #     # "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
+    #     # "random",
+    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
+    #     "Test Day 10/Fri Apr 22 22;18;29 2016.csv",
+    #
+    #     # "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+    #     # "Map from Wed Apr 20 21;51;46 2016.csv",
+    #     "wtracks map converted.csv",
+    #     # "Trimmed Minimalist Map.csv",
+    #
+    #     "kalman",
+    #
+    #     # x_lim=(),
+    #     # y_lim=(),
+    #
+    #     plot_map=True, plot_gps=True, plot_kalman=True,
+    #     plot_heading=True, plot_binds=True, plot_goals=False,
+    #     # initial_gps=0
+    # )
+    test_with_servo(
+        # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
+        # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",
+        "Test Day 10/Fri Apr 22 22;18;29 2016.csv",
         "wtracks map converted.csv",
-        # "Trimmed Minimalist Map.csv",
-
-        "kalman",
-
-        # x_lim=(),
-        # y_lim=(),
-
-        plot_map=False, plot_gps=False, plot_kalman=False,
+        plot_map=True, plot_kalman=True,
         plot_heading=True, plot_binds=True, plot_goals=False,
-        # initial_gps=0
+        enable_servo=True
     )
 
     # plot_all(

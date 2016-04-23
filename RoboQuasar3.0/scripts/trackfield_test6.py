@@ -10,42 +10,29 @@ from analyzers.logger import Recorder
 from analyzers.converter import Converter
 from analyzers.kalman_filter import HeadingFilter, PositionFilter
 from analyzers.binder import Binder
-from analyzers.map import Map
 
 from controllers.joystick import joystick_init
-from controllers.servo_map import angle_to_servo, state_to_servo
+from controllers.servo_map import state_to_servo
 
 from sound.player import TunePlayer
 
 
 class System:
-    def __init__(self, log_data, log_dir, map_name, initial_gps_index=None,
-                 initial_gps=None):
+    def __init__(self, log_data, log_dir, map_name):
         self.log_data, = log_data,
         self.log_dir = log_dir
         self.map_name = map_name
 
-        self.reference_map = Map("Trimmed Minimalist Map.csv")
-        self.initial_gps_index = initial_gps_index
-        self.initial_gps = initial_gps
-
         self.binder = None
 
-    def init_state_trackers(self, initial_enc):
-        if self.initial_gps_index is not None:
-            initial_long, initial_lat = self.reference_map[self.initial_gps]
-        elif self.initial_gps is not None:
-            initial_long, initial_lat = self.initial_gps
-        else:
-            initial_long, initial_lat = self.reference_map[0]
-
+    def init_state_trackers(self, initial_long, initial_lat, initial_enc):
         self.converter = Converter(initial_long, initial_lat, 0.000003,
                                    initial_enc)
 
         self.heading_filter = HeadingFilter()
         self.position_filter = PositionFilter()
 
-        if self.binder == None:
+        if self.binder is None:
             self.binder = Binder(self.map_name, initial_long, initial_lat)
         else:
             self.binder.reshift(initial_long, initial_lat)
@@ -134,8 +121,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
 
     start()
 
-    system = System(log_data, "Test Day 10", "Trimmed Minimalist Map.csv",
-                    initial_gps=(gps["long"], gps["lat"]))
+    system = System(log_data, "Test Day 11", "wtracks map converted.csv")
 
     print("Wait for the GPS to lock on, then press A")
     try:
@@ -159,7 +145,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
             reset()
             time.sleep(0.01)
 
-        system.init_state_trackers(encoder["counts"])
+        system.init_state_trackers(gps["long"], gps["lat"], encoder["counts"])
         system.start_logging()
 
         notifier.play("ding")
@@ -188,7 +174,7 @@ def main(log_data=True, manual_mode=True, print_data=True):
                     reset()
                     time.sleep(0.01)
 
-                system.init_state_trackers(encoder["counts"])
+                system.init_state_trackers(gps["long"], gps["lat"], encoder["counts"])
                 system.start_logging()
 
                 notifier.play("ding")

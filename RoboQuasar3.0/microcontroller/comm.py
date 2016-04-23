@@ -15,13 +15,14 @@ This library follows a home-baked serial packet protocol. data.py handles
 all data conversion.
 """
 
-import serial
-import time
-import os
-import sys
 import glob
-import threading
+import os
 import struct
+import sys
+import threading
+import time
+
+import serial
 
 
 class Communicator(threading.Thread):
@@ -41,7 +42,7 @@ class Communicator(threading.Thread):
             reboots when a program connects over serial.
         :return: Communicator object
         """
-        self.serial_ref = self.find_port(baud_rate)
+        self.serial_ref, self.address = self.find_port(baud_rate)
 
         if use_handshake:
             self.handshake()
@@ -60,7 +61,6 @@ class Communicator(threading.Thread):
         :return: None
         """
 
-        invalid_packets = 0
         while not Communicator.exit_flag:
             self.thread_time = round(time.time() - self.time0)
             if self.serial_ref.inWaiting() > 0:
@@ -75,6 +75,7 @@ class Communicator(threading.Thread):
 
                     if invalid_packets > 512:
                         Communicator.exit_flag = True
+        self.serial_ref.close()
 
     def put(self, packet):
         """
@@ -94,12 +95,12 @@ class Communicator(threading.Thread):
 
         :return: None
         """
-        print("Waiting for ready flag...")
+        print("Waiting for ready flag from %s..." % self.address)
 
         read_flag = None
 
-        self.serial_ref.reset_input_buffer()
-        self.serial_ref.reset_output_buffer()
+        self.serial_ref.flushInput()
+        self.serial_ref.flushOutput()
 
         def write_resets():
             self.serial_ref.write(struct.pack("B", 4))
@@ -121,13 +122,12 @@ class Communicator(threading.Thread):
             counter += 1
             if counter % 50 == 0:
                 write_resets()
-                
 
         print("\n---------")
 
         # self.serial_ref.write("\r")
-        self.serial_ref.reset_input_buffer()
-        self.serial_ref.reset_output_buffer()
+        self.serial_ref.flushInput()
+        self.serial_ref.flushOutput()
         print("\nBoard initialized!")
 
     def find_port(self, baud_rate):
@@ -146,14 +146,15 @@ class Communicator(threading.Thread):
                                            baudrate=baud_rate,
                                            timeout=0.005)
                 address = possible_address
-            except:
+                break
+            except serial.SerialException:
                 pass
         if address is None:
             raise Exception(
-                    "No boards could be found! Did you plug it in? Try "
-                    "entering the address manually.")
+                "No boards could be found! Did you plug it in? Try "
+                "entering the address manually.")
         else:
-            return serial_ref
+            return serial_ref, address
 
     @staticmethod
     def possible_addrs():
@@ -164,13 +165,8 @@ class Communicator(threading.Thread):
         :return: A list of strings containing all likely addresses
         """
         if sys.platform.startswith('darwin'):  # OS X
-            devices = os.listdir("/dev/")
-            arduino_devices = []
-            for device in devices:
-                if device.find("cu.usbmodem") > -1 or \
-                        device.find("tty.usbmodem") > -1:
-                    arduino_devices.append("/dev/" + device)
-            return arduino_devices
+            return glob.glob('/dev/tty.usbmodem[0-9]*') + \
+                   glob.glob('/dev/cu.usbmodem[0-9]*')
 
         elif (sys.platform.startswith('linux') or
                   sys.platform.startswith('cygwin')):  # linux

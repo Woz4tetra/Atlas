@@ -151,8 +151,9 @@ class HallEncoder(Sensor):
 
 
 class Servo(Command):
-    def __init__(self, command_id, pin_num, start_pos=None):
+    def __init__(self, command_id, pin_num, start_pos=0):
         super().__init__(command_id, 'i8', 'angle')
+        self.start_pos = start_pos
         self.servo_ref = pyb.Servo(pin_num)
         if start_pos is not None:
             self.servo_ref.angle(start_pos)
@@ -166,5 +167,5 @@ class Servo(Command):
         return self.angle
 
     def reset(self):
-        self.angle = 0
+        self.angle = self.start_pos
         self.servo_ref.angle(self.angle)
