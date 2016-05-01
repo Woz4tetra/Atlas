@@ -1,6 +1,7 @@
 import sys
 import traceback
 from matplotlib import pyplot as plt
+import numpy as np
 
 sys.path.insert(0, "../")
 
@@ -20,7 +21,7 @@ from sound.player import TunePlayer
 
 class System:
     def __init__(self, log_data, log_dir, map_name, live_plot=True):
-        self.log_data, = log_data,
+        self.log_data = log_data,
         self.log_dir = log_dir
         self.map_name = map_name
 
@@ -40,6 +41,10 @@ class System:
         else:
             self.binder.reshift(initial_long, initial_lat)
 
+        plt.clf()
+
+        self.bind_x, self.bind_y = 0, 0
+
         self.prev_time = time.time()
 
     def start_logging(self):
@@ -55,7 +60,7 @@ class System:
 
             plt.plot(self.binder.map[:, 0], self.binder.map[:, 1], 'c')
 
-            self.kalman_graph = plt.plot(np.zeros_like(binder.map))[0]
+            self.kalman_graph = plt.plot(np.zeros_like(self.binder.map))[0]
             self.axes = plt.axes()
 
             self.ymin = float(min(self.binder.map[:, 1])) - 10
@@ -87,7 +92,7 @@ class System:
         )
 
         self.kalman_heading = self.heading_filter.update(
-            self.gps_heading, self.bind_heading, -imu_yaw
+            self.gps_heading, self.bind_heading, imu_yaw, time.time() - self.prev_time
         )
         self.kalman_x, self.kalman_y = self.position_filter.update(
             self.gps_x, self.gps_y, self.enc_dist,
@@ -159,11 +164,11 @@ class System:
 
             self.kalman_graph.set_data(self.kalman_data)
 
-            plt.plot([self.kalman_x,
-                      self.kalman_x + self.line_length * math.cos(
+            plt.plot([self.bind_x,
+                      self.bind_x + self.line_length * math.cos(
                           self.kalman_heading)],
-                     [self.kalman_y,
-                      self.kalman_y + self.line_length * math.sin(
+                     [self.bind_y,
+                      self.bind_y + self.line_length * math.sin(
                           self.kalman_heading)],
                      'r')
 
@@ -182,7 +187,7 @@ class System:
                 plt.ylim([self.ymin, self.ymax])
 
             plt.draw()
-            plt.pause(0.005)
+            plt.pause(0.001)
 
 
 def main(log_data=True, manual_mode=True, print_data=True):
@@ -261,10 +266,14 @@ def main(log_data=True, manual_mode=True, print_data=True):
                 while joystick.buttons.X: pass
                 notifier.play("ba ding")
                 manual_mode = not manual_mode
+                if manual_mode:
+                    print("Switching to manual")
+                else:
+                    print("Switching to autonomous")
 
             # ----- status notifiers -----
-            if encoder.received() and print_data:
-                print("encoder:", encoder["counts"])
+            # if encoder.received() and print_data:
+            #     print("encoder:", encoder["counts"])
             if prev_gps_status != gps['found']:
                 if gps['found']:
                     notifier.play("short victory")
@@ -284,23 +293,35 @@ def main(log_data=True, manual_mode=True, print_data=True):
 
             # ----- filter data -----
             if gps.received():
-                if print_data:
-                    print("gps:", gps["long"], gps["lat"], gps["found"])
+                # if print_data:
+                #     print("gps:", gps["long"], gps["lat"], gps["found"])
                 notifier.play("click")
 
                 bind_x, bind_y, goal_x, goal_y, kalman_heading = \
                     system.update_state(gps["long"], gps["lat"],
                                         encoder["counts"],
-                                        -imu["yaw"])
+                                        imu["yaw"])
 
                 if print_data:
-                    print("(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f)" % (
-                        bind_x, bind_y, kalman_heading, goal_x, goal_y))
+                    relative_goal = math.atan2(goal_y - bind_y, goal_x - bind_x) - kalman_heading
+
+                    if relative_goal > math.pi:
+                        relative_goal -= 2 * math.pi
+                    if relative_goal < -math.pi:
+                        relative_goal += 2 * math.pi
+
+                    # print("(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f)" % (
+                    #     bind_x, bind_y, kalman_heading, goal_x, goal_y))
+                    print("%0.4f, %0.4f, %0.4f" % (
+                        state_to_servo([bind_x, bind_y, kalman_heading],
+                                       [goal_x, goal_y]),
+                        kalman_heading,
+                        relative_goal))
 
             if manual_mode:
                 servo_steering["position"] = \
                     state_to_servo([0, 0, 0],
-                                   [1, 5.34 / 90 * joystick.mainStick.x])
+                                   [1, -5.34 / 90 * joystick.mainStick.x])
             else:
                 servo_steering["position"] = \
                     state_to_servo([bind_x, bind_y, kalman_heading],

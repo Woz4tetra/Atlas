@@ -91,9 +91,9 @@ class HeadingFilter:
 
     def __init__(self):
         self.prev_imu = 0.0
-        self.obs_cov = [[5000, 0, 0],
-                        [0, 100, 0],
-                        [0, 0, 1]]
+        self.obs_cov = [[1000, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 10]]
         self.trans_cov = [[10, 0],
                           [0, 1]]
 
@@ -105,7 +105,7 @@ class HeadingFilter:
         self.filt_state_mean = np.array([0.0, 0.0])
         self.covariance = np.identity(2)
 
-    def update(self, gps_heading, bind_heading, imu_heading):
+    def update(self, gps_heading, bind_heading, imu_heading, dt):
 
         delta_heading = imu_heading - self.prev_imu
         observation = np.array([gps_heading, bind_heading, delta_heading])
@@ -116,11 +116,11 @@ class HeadingFilter:
         obs_matrix = np.array(
             [[1, 0],
              [1, 0],
-             [0, 1]]
+             [0, 1/dt]]
         )
 
         trans_matrix = np.array(
-            [[1, 1],
+            [[1, dt],
              [0, 1]]
         )
 

@@ -2,17 +2,17 @@ import math
 
 lookup_table = [
     # servo, distance from centerline in inches
-    [-73, -4.55],  # 0.09075 radians
+    [-73, -4.55],  # 0.09075 radians, right
     [-63, -3.95],
     [-53, -3.15],
     [-43, -2.25],
     [-33, -1.25],
-    [-23, 0.0],
+    [-23, 0.0],   # straight
     [-13, 0.9],
     [3, 2.65],
     [13, 3.25],
     [23, 4.45],
-    [33, 4.75],  # -0.094715 radians
+    [33, 4.75],  # -0.094715 radians, left
 ]
 
 adjacent = 50  # distance from turning point on steering
@@ -47,10 +47,9 @@ def angle_to_servo(angle):
 
     slope = (servo_val1 - servo_val0) / (angle_val1 - angle_val0)
     servo_angle = servo_val0 + slope * (angle - angle_val0)
-    return round(servo_angle)
+    return int(round(servo_angle))
 
-
-def state_to_servo(current_state, goal_state):
+def state_to_angle(current_state, goal_state):
     x, y, yaw = current_state
     goal_x, goal_y = goal_state
 
@@ -61,5 +60,13 @@ def state_to_servo(current_state, goal_state):
     if relative_goal < -math.pi:
         relative_goal += 2 * math.pi
 
-    print(-relative_goal)
-    return int(angle_to_servo(-relative_goal))
+    # if relative_goal > 0:
+    #     relative_goal -= math.pi
+    # elif relative_goal < 0:
+    #     relative_goal+= math.pi
+    return relative_goal
+
+def state_to_servo(current_state, goal_state):
+    relative_goal = state_to_angle(current_state, goal_state)
+
+    return angle_to_servo(-relative_goal)
