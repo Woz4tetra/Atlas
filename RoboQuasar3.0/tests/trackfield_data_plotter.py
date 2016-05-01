@@ -445,27 +445,25 @@ def plot_map(map_name):
 
 if __name__ == '__main__':
     print(__doc__)
-    test_system(
-        "Test Day 11/Sat Apr 23 17;42;47 2016.csv",
-        # "random",
-        "wtracks map converted.csv",
-
-        "kalman",
-
-        plot_map=False, plot_gps=True, plot_kalman=True,
-        plot_heading=False, plot_binds=True, plot_goals=False,
-        # initial_gps=0
-    )
-
-    # test_with_servo(
-    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
-    #     # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",
-    #     "Test Day 11/Sat Apr 23 15;41;11 2016.csv",
+    # test_system(
+    #     "Test Day 11/Sat Apr 23 17;04;44 2016.csv",
+    #     # "random",
     #     "wtracks map converted.csv",
-    #     plot_map=True, plot_kalman=False,
-    #     plot_heading=True, plot_binds=True, plot_goals=False,
-    #     enable_servo=True
+    #
+    #     "kalman",
+    #
+    #     plot_map=False, plot_gps=True, plot_kalman=True,
+    #     plot_heading=False, plot_binds=True, plot_goals=False,
+    #     # initial_gps=0
     # )
+
+    test_with_servo(
+        "Test Day 11/Sat Apr 23 17;42;47 2016.csv",
+        "wtracks map converted.csv",
+        plot_map=True, plot_kalman=False,
+        plot_heading=True, plot_binds=True, plot_goals=False,
+        enable_servo=False
+    )
 
     # plot_all(
     #     # ["random"] * 10,
