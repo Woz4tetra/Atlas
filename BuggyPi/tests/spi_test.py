@@ -1,20 +1,13 @@
-import spi
+import spidev
 import time
-import RPi.GPIO as GPIO
 
-GPIO.cleanup()
-GPIO.setmode(GPIO.BCM)
-print(spi.openSPI())
-
-ce0 = 20
-GPIO.setup(ce0, GPIO.OUT)
-GPIO.output(ce0, 0)
+spi = spidev.SpiDev()
+spi.open(0,0)
 
 try:
     while True:
-        data = tuple([int(datum) for datum in input("> ").split(",")])
-        GPIO.output(ce0, 1)
-        print("response:", spi.transfer(data))
-        GPIO.output(ce0, 0)
+        data = bytes(input("> "), encoding='ascii') #tuple([int(datum) for datum in input("> ").split(",")])
+        print("response:", [chr(int(x)) for x in spi.xfer2(data)])
+
 except KeyboardInterrupt:
-    spi.closeSPI()
+    spi.close()
