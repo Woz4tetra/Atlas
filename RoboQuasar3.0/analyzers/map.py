@@ -9,10 +9,11 @@ Handles map reading and parsing
 """
 
 import csv
+import math
 import pprint
 import sys
 import time
-import math
+
 import numpy as np
 
 sys.path.insert(0, '../')
@@ -38,17 +39,7 @@ class Map():
                 self.origin_lat = self.raw_data[0][1]
             self.data = np.array(self.shift_data())
 
-                # else:
-            #     self.data = self.raw_data
-
-
     def convert_gps(self, prev_long, prev_lat, longitude, latitude):
-        # lat_mean = (latitude + prev_lat) / 2
-        # dlng = longitude - prev_long
-        # dlat = latitude - prev_lat
-        # x = dlng * math.cos(lat_mean) * self.deg_to_m
-        # y = dlat * self.deg_to_m
-
         phi1 = math.radians(prev_lat)
         phi2 = math.radians(latitude)
 
@@ -84,7 +75,8 @@ class Map():
 
         for i in range(len(self.raw_data)):
             x, y, bearing = self.convert_gps(self.origin_long, self.origin_lat,
-                                             self.raw_data[i][0], self.raw_data[i][1])
+                                             self.raw_data[i][0],
+                                             self.raw_data[i][1])
             data.append([x, y])
 
         return data
@@ -215,7 +207,6 @@ def make_map(log_file, map_name, sensors=("gps long", "gps lat")):
 def shift_map(map_name, new_name, origin_lat, origin_long):
     Map(map_name, origin_lat=origin_lat,
         origin_long=origin_long).remove_duplicates(map_name=new_name)
-
 
 # if __name__ == '__main__':
 #     Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()

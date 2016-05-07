@@ -19,7 +19,8 @@ from scipy.misc import imread
 sys.path.insert(0, "../")
 
 import config
-from analyzers.kalman_filter import HeadingFilter, PositionFilter
+from analyzers import kalman_filter
+from analyzers import bayes_filter
 from analyzers.converter import Converter
 from analyzers.binder import Binder
 from analyzers.logger import get_data
@@ -31,7 +32,7 @@ from controllers.servo_map import *
 class Plotter:
     def __init__(self, plot_type, data_set_name, map_name, sensors,
                  plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-                 plot_kalman, x_lim, y_lim):
+                 plot_filtered, x_lim, y_lim):
         if data_set_name is None:
             data_sets = []
             for root, dirs, files in os.walk(config.get_dir(":logs"),
@@ -41,9 +42,9 @@ class Plotter:
                         data_sets.append(root + "/" + name)
 
             data_set_name = random.choice(data_sets)
-            print("picked:", data_set_name)
             log_index = data_set_name.find("logs")
             self.data_set_name = data_set_name[log_index + len("logs") + 1:]
+            print("picked:", self.data_set_name)
         else:
             self.data_set_name = data_set_name
 
@@ -77,17 +78,17 @@ class Plotter:
 
         self.converter = Converter(initial_gps[0], initial_gps[1], 0.000003, 0)
 
-        self.heading_filter = HeadingFilter()
-        self.position_filter = PositionFilter()
+        self.heading_filter = kalman_filter.HeadingFilter()
+        self.position_filter = kalman_filter.PositionFilter()
 
         if plot_map:
             plt.plot(self.binder.map[:, 0], self.binder.map[:, 1], 'c')
-        self.plot_gps, self.plot_goals, self.plot_heading, self.plot_bind, self.plot_kalman = \
-            plot_gps, plot_goals, plot_heading, plot_bind, plot_kalman
+        self.plot_gps, self.plot_goals, self.plot_heading, self.plot_bind, self.plot_filtered = \
+            plot_gps, plot_goals, plot_heading, plot_bind, plot_filtered
 
         self.plot_type = plot_type
 
-        plt.title(self.plot_type + ": " + data_set_name)
+        plt.title(self.plot_type + ": " + self.data_set_name)
         self.axes = plt.gca()
         self.x_lim = x_lim
         self.y_lim = y_lim
@@ -146,16 +147,16 @@ class Plotter:
 class StaticPlotter(Plotter):
     def __init__(self, plot_type, data_set_name, map_name, sensors,
                  plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-                 plot_kalman, x_lim, y_lim):
+                 plot_filtered, x_lim, y_lim):
         self.heading_lines = []
         self.bind_lines = []
         self.gps_xs, self.gps_ys = [], []
-        self.kalman_xs, self.kalman_ys = [], []
+        self.filtered_xs, self.filtered_ys = [], []
 
         super(StaticPlotter, self).__init__(
             plot_type, data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-            plot_kalman, x_lim, y_lim)
+            plot_filtered, x_lim, y_lim)
 
     def run_plot(self):
         for index in range(0, self.data_length):
@@ -164,8 +165,17 @@ class StaticPlotter(Plotter):
 
         if self.x_lim is not None:
             self.axes.set_xlim([self.x_lim[0], self.x_lim[1]])
+        else:
+            min_x = min(min(self.filtered_xs), min(self.gps_xs))
+            max_x = max(max(self.filtered_xs), max(self.gps_xs))
+
+            self.axes.set_xlim([min_x - 10, max_x + 10])
+
         if self.y_lim is not None:
-            self.axes.set_ylim([self.y_lim[0], self.y_lim[1]])
+            min_y = min(min(self.filtered_ys), min(self.gps_ys))
+            max_y = max(max(self.filtered_ys), max(self.gps_ys))
+
+            self.axes.set_ylim([min_y - 10, max_y + 10])
 
         if self.plot_heading:
             plt.plot(*self.heading_lines)
@@ -173,8 +183,8 @@ class StaticPlotter(Plotter):
             plt.plot(*self.bind_lines)
         if self.plot_gps:
             plt.plot(self.gps_xs, self.gps_ys, 'g')
-        if self.plot_kalman:
-            plt.plot(self.kalman_xs, self.kalman_ys, 'b')
+        if self.plot_filtered:
+            plt.plot(self.filtered_xs, self.filtered_ys, 'r')
 
         print(self.data_set_name, end="\t")
         print(str(self.error_sum_dist / self.data_length) + "\t" + str(
@@ -197,13 +207,13 @@ class StaticPlotter(Plotter):
 class KalmanPlotter(StaticPlotter):
     def __init__(self, data_set_name, map_name,
                  plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-                 plot_kalman, x_lim=None, y_lim=None):
+                 plot_filtered, x_lim=None, y_lim=None):
         sensors = ["encoder", "imu yaw"]
 
         super(KalmanPlotter, self).__init__(
             "kalman plotter", data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-            plot_kalman, x_lim, y_lim
+            plot_filtered, x_lim, y_lim
         )
 
         self.encoder, self.yaw = self.data
@@ -236,9 +246,47 @@ class KalmanPlotter(StaticPlotter):
             self.update_binds(kalman_x, kalman_y, self.bind_x, self.bind_y)
         if self.plot_goals:
             self.plot_bind_arrow(self.bind_x, self.bind_y, goal_x, goal_y)
-        if self.plot_kalman:
-            self.kalman_xs.append(kalman_x)
-            self.kalman_ys.append(kalman_y)
+        if self.plot_filtered:
+            self.filtered_xs.append(kalman_x)
+            self.filtered_ys.append(kalman_y)
+        if self.plot_gps:
+            self.gps_xs.append(gps_x)
+            self.gps_ys.append(gps_y)
+
+
+class BayesPlotter(StaticPlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
+
+        super(BayesPlotter, self).__init__(
+            "bayes plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
+
+        self.encoder, self.yaw = self.data
+        self.bind_x, self.bind_y = 0, 0
+
+        self.bayes_filter = bayes_filter.PositionFilter(self.binder)
+
+    def update_plot(self, index):
+        # gps_heading, bind_heading = self.converter.convert_heading(
+        #     self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x, gps_y, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        locations = self.bayes_filter.take_measurement(gps_x, gps_y)
+        self.bayes_filter.transition(enc_dist)
+
+        print(locations)
+
+        if self.plot_filtered:
+            self.filtered_xs.append(locations[0][0])
+            self.filtered_ys.append(locations[0][1])
         if self.plot_gps:
             self.gps_xs.append(gps_x)
             self.gps_ys.append(gps_y)
@@ -247,7 +295,7 @@ class KalmanPlotter(StaticPlotter):
 class DataRunPlotter(StaticPlotter):
     def __init__(self, data_set_name, map_name,
                  plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-                 plot_kalman, x_lim=None, y_lim=None):
+                 plot_filtered, x_lim=None, y_lim=None):
         sensors = ["encoder", "imu yaw",
                    "bind x", "bind y", "bind heading", "goal x", "goal y",
                    "kalman x", "kalman y", "kalman heading"]
@@ -255,13 +303,12 @@ class DataRunPlotter(StaticPlotter):
         super(DataRunPlotter, self).__init__(
             "data run plotter", data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
-            plot_kalman, x_lim, y_lim
+            plot_filtered, x_lim, y_lim
         )
 
         (self.encoder, self.yaw, self.bind_x, self.bind_y, self.bind_heading,
          self.goal_x, self.goal_y, self.kalman_x, self.kalman_y,
          self.kalman_heading) = self.data
-
 
     def update_plot(self, index):
         gps_x, gps_y, _ = self.converter.convert_position(
@@ -293,9 +340,9 @@ class DataRunPlotter(StaticPlotter):
         if self.plot_goals:
             self.plot_bind_arrow(self.bind_x[index], self.bind_y[index], goal_x,
                                  goal_y)
-        if self.plot_kalman:
-            self.kalman_xs.append(self.kalman_x[index])
-            self.kalman_ys.append(self.kalman_y[index])
+        if self.plot_filtered:
+            self.filtered_xs.append(self.kalman_x[index])
+            self.filtered_ys.append(self.kalman_y[index])
         if self.plot_gps:
             self.gps_xs.append(gps_x)
             self.gps_ys.append(gps_y)
@@ -305,12 +352,12 @@ class LivePlotter(Plotter):
     def __init__(self, plot_type, data_set_name, map_name, sensors,
                  plot_gps, plot_map, plot_goals, plot_heading,
                  plot_bind,
-                 plot_kalman, x_lim=None, y_lim=None):
+                 plot_filtered, x_lim=None, y_lim=None):
         super(LivePlotter, self).__init__(
             plot_type, data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading,
             plot_bind,
-            plot_kalman, x_lim, y_lim)
+            plot_filtered, x_lim, y_lim)
 
         plt.ion()
 
@@ -339,18 +386,21 @@ class LivePlotter(Plotter):
     def plot_binds(self, x0, y0, x1, y1, color='brown'):
         plt.plot([x0, x1], [y0, y1], color)
 
+    def plot_xy(self, x, y, prev_x, prev_y, color='lightgreen'):
+        plt.plot([x, prev_x], [y, prev_y], color)
+
 
 class LiveKalmanPlotter(LivePlotter):
     def __init__(self, data_set_name, map_name,
                  plot_gps, plot_map, plot_goals, plot_heading,
                  plot_bind,
-                 plot_kalman, x_lim=None, y_lim=None):
+                 plot_filtered, x_lim=None, y_lim=None):
         sensors = ["encoder", "imu yaw"]
         super(LiveKalmanPlotter, self).__init__(
             "live kalman plot", data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading,
             plot_bind,
-            plot_kalman, x_lim=x_lim, y_lim=y_lim
+            plot_filtered, x_lim=x_lim, y_lim=y_lim
         )
 
         self.prev_bind_x = 0
@@ -362,8 +412,6 @@ class LiveKalmanPlotter(LivePlotter):
         self.arrow_color = 0
 
         self.encoder, self.yaw = self.data
-
-        self.kalman_data = [[], []]
 
     def update_plot(self, index):
         gps_heading, bind_heading = self.converter.convert_heading(
@@ -411,28 +459,103 @@ class LiveKalmanPlotter(LivePlotter):
         if self.plot_heading:
             self.plot_headings(kalman_x, kalman_y, kalman_heading)
 
-            if kalman_x < self.xmin:
-                self.xmin = kalman_x - 10
-                plt.xlim([self.xmin, self.xmax])
-            if kalman_x > self.xmax:
-                self.xmax = kalman_x + 10
-                plt.xlim([self.xmin, self.xmax])
-
-            if kalman_y < self.ymin:
-                self.ymin = kalman_y - 10
-                plt.ylim([self.ymin, self.ymax])
-            if kalman_y > self.ymax:
-                self.ymax = kalman_y + 10
-                plt.ylim([self.ymin, self.ymax])
         if self.plot_bind:
             self.plot_binds(kalman_x, kalman_y, self.bind_x, self.bind_y)
+
+        if kalman_x < self.xmin:
+            self.xmin = kalman_x - 10
+            plt.xlim([self.xmin, self.xmax])
+        if kalman_x > self.xmax:
+            self.xmax = kalman_x + 10
+            plt.xlim([self.xmin, self.xmax])
+
+        if kalman_y < self.ymin:
+            self.ymin = kalman_y - 10
+            plt.ylim([self.ymin, self.ymax])
+        if kalman_y > self.ymax:
+            self.ymax = kalman_y + 10
+            plt.ylim([self.ymin, self.ymax])
+
+
+class LiveBayesPlotter(LivePlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
+
+        super(LiveBayesPlotter, self).__init__(
+            "bayes plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
+
+        self.encoder, self.yaw = self.data
+        self.prev_x, self.prev_y = 0, 0
+        self.prev_gps_x, self.prev_gps_y = 0, 0
+
+        self.bind_x, self.prev_bind_x = 0, 0
+        self.bind_y, self.prev_bind_y = 0, 0
+
+        self.position_filter = bayes_filter.PositionFilter(self.binder)
+
+    def update_plot(self, index):
+        gps_heading, bind_heading = self.converter.convert_heading(
+            self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x, gps_y, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        locations = self.position_filter.take_measurement(gps_x, gps_y)
+        self.position_filter.transition(enc_dist)
+
+        x, y = locations[0][0], locations[0][1]
+
+        kalman_heading = self.heading_filter.update(
+            gps_heading, bind_heading, -self.yaw[index],
+            self.gps_sleep[index])
+
+        self.prev_bind_x = self.bind_x
+        self.prev_bind_y = self.bind_y
+        self.bind_x, self.bind_y, goal_x, goal_y = self.binder.bind((x, y))
+
+        print(locations)
+
+        if self.plot_filtered:
+            # self.filtered_xs.append(locations[0][0])
+            # self.filtered_ys.append(locations[0][1])
+            self.plot_xy(locations[0][0], locations[0][1],
+                         self.prev_x, self.prev_y)
+            self.prev_x, self.prev_y = locations[0][0], locations[0][1]
+
+        if self.plot_gps:
+            self.plot_xy(gps_x, gps_y,
+                         self.prev_gps_x, self.prev_gps_y, color="darkred")
+            self.prev_gps_x, self.prev_gps_y = gps_x, gps_y
+
+        if self.plot_goals:
+            if self.bind_x == self.prev_bind_x and self.bind_y == self.prev_bind_y:
+                self.arrow_color += 40
+                if self.arrow_color > 255:
+                    self.arrow_color = 0
+            else:
+                self.arrow_color = 0
+            self.plot_bind_arrow(self.bind_x, self.bind_y, goal_x, goal_y,
+                                 color="#%0.2x%0.2x%0.2x" % (
+                                     0, self.arrow_color, self.arrow_color
+                                 ))
+        if self.plot_heading:
+            self.plot_headings(x, y, kalman_heading)
+
+        if self.plot_bind:
+            self.plot_binds(x, y, self.bind_x, self.bind_y)
 
 
 class LiveDataRunPlotter(LivePlotter):
     def __init__(self, data_set_name, map_name,
                  plot_gps, plot_map, plot_goals, plot_heading,
                  plot_bind,
-                 plot_kalman, x_lim=None, y_lim=None):
+                 plot_filtered, x_lim=None, y_lim=None):
 
         sensors = ["encoder", "imu yaw",
                    "bind x", "bind y", "bind heading", "goal x", "goal y",
@@ -441,7 +564,7 @@ class LiveDataRunPlotter(LivePlotter):
             "live data run plot", data_set_name, map_name, sensors,
             plot_gps, plot_map, plot_goals, plot_heading,
             plot_bind,
-            plot_kalman, x_lim=x_lim, y_lim=y_lim
+            plot_filtered, x_lim=x_lim, y_lim=y_lim
         )
 
         self.prev_bind_x = 0
@@ -513,13 +636,13 @@ class LiveDataRunPlotter(LivePlotter):
 
 if __name__ == '__main__':
     print(__doc__)
-    LiveKalmanPlotter(
+    LiveBayesPlotter(
         "Test Day 11/Sat Apr 23 17;42;47 2016.csv",
+        # "Test Day 8/Wed Apr 20 22;06;01 2016.csv",
         # None,
-        # "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
         "wtracks map converted.csv",
         plot_gps=True, plot_map=True, plot_goals=True, plot_heading=True,
-        plot_bind=True, plot_kalman=True
+        plot_bind=True, plot_filtered=True
     ).run_plot()
 
     # trackfield = imread(

@@ -92,7 +92,7 @@ class HeadingFilter:
     def __init__(self):
         self.prev_imu = 0.0
         self.obs_cov = [[1000, 0, 0],
-                        [0, 1, 0],
+                        [0, 10, 0],
                         [0, 0, 10]]
         self.trans_cov = [[10, 0],
                           [0, 1]]
