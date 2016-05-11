@@ -24,4 +24,4 @@ import pyb
 pyb.usb_mode('CDC+MSC')
 
 # pyb.main('main.py') # main script to run after this on
-pyb.main("tests/spi_test.py")
+pyb.main("tests/spi_interrupt_test.py")

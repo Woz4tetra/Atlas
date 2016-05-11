@@ -17,9 +17,11 @@ while True:
     data_recved = False
     data = b'0' * data_len
     print("data length:", data_len)
+    pyb.LED(1).toggle()
 
     try:
         data = spi.send_recv(data, timeout=50000)
+        pyb.LED(2).toggle()
     except OSError:
         pyb.delay(1000)
     print("data:", data)

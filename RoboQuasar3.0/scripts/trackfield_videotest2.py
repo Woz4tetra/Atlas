@@ -53,6 +53,8 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
 
     time_start = time.time()
 
+    notifier = TunePlayer()
+
     if write_video:
         camera1.start_recording(width=width, height=height, format='avi')
 
@@ -64,8 +66,6 @@ def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
     reset()
 
     notifier.play("ding")
-
-    prev_status = is_running()
 
     while camera1.is_running:
         if not paused:
