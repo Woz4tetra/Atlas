@@ -23,5 +23,7 @@ import pyb
 
 pyb.usb_mode('CDC+MSC')
 
-# pyb.main('main.py') # main script to run after this on
-pyb.main("tests/spi_interrupt_test.py")
+pyb.main('pi_main.py') # main script to run after this on
+# pyb.main('quasar_main.py')
+# pyb.main("tests/i2c_test.py")
+# pyb.main("tests/rc_car_test.py")

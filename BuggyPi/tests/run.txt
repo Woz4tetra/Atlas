@@ -1,0 +1,1 @@
+gcc -o spi spi_test.c -l bcm2835 && sudo ./spi

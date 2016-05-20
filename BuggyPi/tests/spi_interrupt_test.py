@@ -1,27 +1,59 @@
 import spidev
 import time
+from RPi import GPIO
+import random
 
-data = b''
+pin = 27
 
-def receive(channel):
-    global data
-    print("receiving...")
-    data_length = ord(self.spi.xfer2(b'0'))
-    data = self.spi.xfer2(b'0' * data_length)
-    print(data)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(pin, GPIO.OUT)
 
 spi = spidev.SpiDev()
 spi.open(0, 0)
 
-GPIO.setmode(GPIO.BCM)
+GPIO.output(pin, False)
 
-GPIO.add_event_detect(8, GPIO.RISING, callback=receive,
-                      bouncetime=300)
+def command(*data):
+    try:
+        assert(len(data) == 5 or len(data) == 0)
+    except AssertionError:
+        print("data must be length 5")
+        GPIO.cleanup()
+    GPIO.output(pin, True)
+    if len(data) == 0:
+        start = random.randint(0, 250)
+        data = [start + x for x in range(5)]
+        print(data)
+    spi.xfer2([1] + list(data))
+    GPIO.output(pin, False)
 
-try:
-    while True:
-        data = bytes(input("> "), encoding='ascii') #tuple([int(datum) for datum in input("> ").split(",")])
-        print("response:", [ord(x) for x in spi.xfer2(data)])
+def sensors():
+    GPIO.output(pin, True)
+    print(spi.writebytes([2, 0, 0, 0, 0, 0]))
+    print(spi.readbytes(6))
+    GPIO.output(pin, False)
 
-except KeyboardInterrupt:
+def end():
+    GPIO.output(pin, False)
     spi.close()
+    GPIO.cleanup()
+##try:
+##    while True:
+##        GPIO.output(pin, True)
+##        packet_type = [int(datum) for datum in input("> ").split(",")]
+##        print("packet_type:", packet_type)
+##        spi.xfer2(packet_type)
+##        
+##        if packet_type == [2]:
+##            data_len = spi.xfer2([0])
+##            print("data_len:", data_len)
+##            data_len = data_len[0]
+##            response = spi.xfer2([0] * data_len)
+##            print(response)
+##        else:
+##            data = [int(datum) for datum in input("> ").split(",")]
+##            print("response:", [chr(x) for x in spi.xfer2(data)])
+##        GPIO.output(pin, False)
+##
+##except KeyboardInterrupt:
+##    spi.close()
