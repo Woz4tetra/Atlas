@@ -30,11 +30,7 @@ pps_pin = pyb.Pin.board.X8
 extint = pyb.ExtInt(pps_pin, pyb.ExtInt.IRQ_FALLING,
                     pyb.Pin.PULL_UP, pps_callback)
 
-command_pool = CommandPool(
-    servo_steering,
-)
-
-communicator = Communicator(command_pool)
+communicator = Communicator(servo_steering)
 
 while True:
     if new_data:

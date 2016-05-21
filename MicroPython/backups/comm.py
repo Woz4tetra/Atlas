@@ -3,10 +3,10 @@ import pyb
 from objects import *
 
 class Communicator(object):
-    def __init__(self, command_pool):
+    def __init__(self, *commands):
         self.serial_ref = pyb.USB_VCP()
 
-        self.command_pool = command_pool
+        self.command_pool = CommandPool(commands)
 
         self.packet = ""
         self.reset_code = None
