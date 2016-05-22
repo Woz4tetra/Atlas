@@ -335,11 +335,17 @@ class Command(SerialObject):
         :param value: A number to send via the command object
         :return: None
         """
+
         global communicator
         self.property_set(value)
-        self.sleep_time = time.time() - self.prev_time
-        self.prev_time = time.time()
+
+        current_time = time.time()
+        print(current_time - self.prev_time)
+
         communicator.put(self.get_packet())
+        time.sleep(0.0004)
+
+        self.prev_time = current_time
 
     @staticmethod
     def wrap(num, lower, upper):

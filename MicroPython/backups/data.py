@@ -100,6 +100,10 @@ class SerialObject(object):
     def reset(self):
         pass
 
+    def __repr__(self):
+        print("something")
+        return "%s(%i, %s): %s" % (self.__class__.__name__, self.object_id, str(self.formats))
+
 
 class Sensor(SerialObject):
     def __init__(self, sensor_id, formats):

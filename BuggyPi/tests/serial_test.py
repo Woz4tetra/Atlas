@@ -5,7 +5,8 @@ sys.path.insert(0, "../")
 from microcontroller.data import *
 from microcontroller.dashboard import *
 
-from controllers.joystick import joystick_init
+from manual.buggy_joystick import joystick_init
+from manual.joysticks import WiiUJoystick
 
 
 def angle_to_servo(angle):
@@ -16,7 +17,7 @@ def main():
     leds = [Command(command_id, (0, 2)) for command_id in range(4)]
     servo = Command(0, (-90, 90))
 
-    joystick = joystick_init()
+    joystick = joystick_init(WiiUJoystick)
 
     start()
 
@@ -42,3 +43,6 @@ def main():
     except KeyboardInterrupt:
         stop()
         joystick.stop()
+
+if __name__ == '__main__':
+    main()
