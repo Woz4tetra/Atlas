@@ -1,6 +1,9 @@
 
-from manual.buggy_joystick import *
+import sys
 
+sys.path.insert(0, "../")
+
+from manual.buggy_joystick import *
 
 class GCJoystick(BuggyJoystick):
     def __init__(self):

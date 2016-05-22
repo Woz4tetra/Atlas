@@ -75,6 +75,7 @@ class Communicator(threading.Thread):
 
                     if invalid_packets > 512:
                         Communicator.exit_flag = True
+            time.sleep(0.0005)
         self.serial_ref.close()
 
     def put(self, packet):
@@ -86,8 +87,10 @@ class Communicator(threading.Thread):
         :param packet: A string formed by a Command object
         :return: None
         """
+        time0 = time.time()
         self.serial_ref.write(bytearray(packet, 'ascii'))
-
+        print(time.time() - time0)
+    
     def handshake(self):
         """
         Ensures communication between serial and Arduino (or any

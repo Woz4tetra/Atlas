@@ -299,6 +299,7 @@ class Sensor(SerialObject):
 
 
 class Command(SerialObject):
+    used_ids = []
     def __init__(self, command_id, data_range, bound=False, initial=None):
         """
         Constructor for Command. Inherits from SerialObject.
@@ -324,6 +325,11 @@ class Command(SerialObject):
 
         self.value = initial
 
+        if command_id in Command.used_ids:
+            raise ValueError("Command ID already in use:", command_id)
+        else:
+            Command.used_ids.append(command_id)
+    
     def get(self):
         return self.value
 
@@ -343,7 +349,7 @@ class Command(SerialObject):
         print(current_time - self.prev_time)
 
         communicator.put(self.get_packet())
-        time.sleep(0.0004)
+        time.sleep(0.004)
 
         self.prev_time = current_time
 

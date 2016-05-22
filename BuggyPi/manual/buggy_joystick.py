@@ -18,7 +18,6 @@ import pygame
 
 sys.path.insert(0, "../")
 
-
 class BuggyJoystick(threading.Thread):
     exit_flag = False
 
