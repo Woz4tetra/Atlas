@@ -9,10 +9,11 @@ Handles map reading and parsing
 """
 
 import csv
+import math
 import pprint
 import sys
 import time
-import math
+
 import numpy as np
 
 sys.path.insert(0, '../')
@@ -29,21 +30,16 @@ class Map():
         else:
             self.raw_data = np.array(self.get_map(map_name, directory))
             self.earth_radius = 6371000
-            self.origin_lat = origin_lat
-            self.origin_long = origin_long
-            if origin_lat is not None and origin_long is not None:
-                self.data = np.array(self.shift_data())
-            else:
-                self.data = self.raw_data
 
+            if origin_lat is not None and origin_long is not None:
+                self.origin_long = origin_long
+                self.origin_lat = origin_lat
+            else:
+                self.origin_long = self.raw_data[0][0]
+                self.origin_lat = self.raw_data[0][1]
+            self.data = np.array(self.shift_data())
 
     def convert_gps(self, prev_long, prev_lat, longitude, latitude):
-        # lat_mean = (latitude + prev_lat) / 2
-        # dlng = longitude - prev_long
-        # dlat = latitude - prev_lat
-        # x = dlng * math.cos(lat_mean) * self.deg_to_m
-        # y = dlat * self.deg_to_m
-
         phi1 = math.radians(prev_lat)
         phi2 = math.radians(latitude)
 
@@ -79,7 +75,8 @@ class Map():
 
         for i in range(len(self.raw_data)):
             x, y, bearing = self.convert_gps(self.origin_long, self.origin_lat,
-                                             self.raw_data[i][0], self.raw_data[i][1])
+                                             self.raw_data[i][0],
+                                             self.raw_data[i][1])
             data.append([x, y])
 
         return data
@@ -196,15 +193,9 @@ def convert_gpx(file_name, in_directory=None, out_directory=None):
         map.write_map(out_directory, file_name)
 
 
-def edit_map():
-    test_map = Map("Thu Mar 17 17;53;53 2016.csv")
-    test_map.raw_data = test_map.raw_data[1:-1:10]
-    test_map.write_map()
-
-
-def make_map(log_file, map_name):
+def make_map(log_file, map_name, sensors=("gps long", "gps lat")):
     from analyzers.logger import get_data
-    timestamps, sensor_data, length = get_data(log_file, ["gps long", "gps lat"])
+    timestamps, sensor_data, length = get_data(log_file, sensors)
     map_data = []
     for index in range(length):
         map_data.append([sensor_data[0][index], sensor_data[1][index]])
@@ -217,8 +208,7 @@ def shift_map(map_name, new_name, origin_lat, origin_long):
     Map(map_name, origin_lat=origin_lat,
         origin_long=origin_long).remove_duplicates(map_name=new_name)
 
-
-if __name__ == '__main__':
-    # Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
-    # make_map("Test Day 8/Wed Apr 20 21;51;46 2016.csv", "Map from Wed Apr 20 21;51;46 2016.csv")
-    convert_gpx("Buggy Course/wtracks map.gpx")
+# if __name__ == '__main__':
+#     Map("Tue Apr 19 22;47;21 2016 GPS Map.csv").remove_duplicates()
+#     make_map("Test Day 8/Wed Apr 20 21;51;46 2016.csv", "Map from Wed Apr 20 21;51;46 2016.csv")
+#     convert_gpx("Buggy Course/wtracks map.gpx")

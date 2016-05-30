@@ -12,480 +12,642 @@ will allow for insights into what's wrong with the system.
 
 import os
 import sys
-import traceback
 
-import numpy as np
 from matplotlib import pyplot as plt
+from scipy.misc import imread
 
 sys.path.insert(0, "../")
 
 import config
-from analyzers.kalman_filter import HeadingFilter, PositionFilter
+from analyzers import kalman_filter
+from analyzers import bayes_filter
 from analyzers.converter import Converter
 from analyzers.binder import Binder
-from analyzers.map import Map
 from analyzers.logger import get_data
 
 from microcontroller.data import *
-from microcontroller.dashboard import *
-from controllers.servo_map import state_to_servo
+from controllers.servo_map import *
 
 
-def populate_lines(kalman_x, kalman_y, kalman_heading, binder, axes,
-                   heading_lines, bind_lines, goal_lines,
-                   plot_heading, plot_binds, plot_goals, plot_kalman,
-                   line_length=10,
-                   bind_x0=None, bind_y0=None,
-                   goal_x0=None, goal_y0=None):
-    if plot_binds or plot_goals or plot_heading or plot_kalman:
-        bind_x, bind_y, goal_x, goal_y = \
-            binder.bind((kalman_x, kalman_y))
-        if bind_x0 is not None:
-            bind_x = bind_x0
-        if bind_y0 is not None:
-            bind_y = bind_y0
-        if goal_x0 is not None:
-            goal_x = goal_x0
-        if goal_y0 is not None:
-            goal_y = goal_y0
+class Plotter:
+    def __init__(self, plot_type, data_set_name, map_name, sensors,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim, y_lim):
+        if data_set_name is None:
+            data_sets = []
+            for root, dirs, files in os.walk(config.get_dir(":logs"),
+                                             topdown=False):
+                for name in files:
+                    if name.endswith(".csv"):
+                        data_sets.append(root + "/" + name)
 
-        if plot_binds:
-            bind_lines.append((kalman_x, bind_x))
-            bind_lines.append((kalman_y, bind_y))
-            bind_lines.append('brown')
+            data_set_name = random.choice(data_sets)
+            log_index = data_set_name.find("logs")
+            self.data_set_name = data_set_name[log_index + len("logs") + 1:]
+            print("picked:", self.data_set_name)
+        else:
+            self.data_set_name = data_set_name
 
-            axes.arrow(bind_x, bind_y,
-                       goal_x - bind_x, goal_y - bind_y,
-                       color='midnightblue',
-                       head_width=3)
+        if sensors[0] != "gps long":
+            if "gps long" in sensors:
+                sensors.remove("gps long")
+            sensors.insert(0, "gps long")
 
-        if plot_goals:
-            goal_lines.append((kalman_x, goal_x))
-            goal_lines.append((kalman_y, goal_y))
-            goal_lines.append('goldenrod')
+        if sensors[1] != "gps lat":
+            if "gps lat" in sensors:
+                sensors.remove("gps lat")
+            sensors.insert(1, "gps lat")
 
-        if plot_heading:
-            if plot_kalman:
-                heading_lines.append((kalman_x,
-                                      kalman_x + line_length * math.cos(
-                                          kalman_heading)))
-                heading_lines.append((kalman_y,
-                                      kalman_y + line_length * math.sin(
-                                          kalman_heading)))
-                heading_lines.append('r')
-            elif not plot_kalman and (plot_binds or plot_goals):
-                heading_lines.append((bind_x,
-                                      bind_x + line_length * math.cos(
-                                          kalman_heading)))
-                heading_lines.append((bind_y,
-                                      bind_y + line_length * math.sin(
-                                          kalman_heading)))
-                heading_lines.append('r')
+        if sensors[2] != "gps sleep":
+            if "gps sleep" in sensors:
+                sensors.remove("gps sleep")
+            sensors.insert(2, "gps sleep")
 
-        return bind_x, bind_y
+        self.timestamps, self.data, self.data_length = get_data(
+            self.data_set_name, sensors, density=1)
 
-    else:
-        return 0, 0
+        self.gps_long = self.data[0]
+        self.gps_lat = self.data[1]
+        self.gps_sleep = self.data[2]
+        for _ in range(3):
+            self.data.pop(0)
 
+        # initial_gps = self.gps_long[0], self.gps_lat[0]
+        self.binder = Binder(map_name)
+        initial_gps = self.binder.map.raw_data[0]
 
-reference_map = Map("Map from Wed Apr 20 21;51;46 2016.csv")
+        self.converter = Converter(initial_gps[0], initial_gps[1], 0.000003, 0)
 
+        self.heading_filter = kalman_filter.HeadingFilter()
+        self.position_filter = kalman_filter.PositionFilter()
 
-def test_with_servo(data_set, map_name,
-                    plot_map=True, plot_kalman=True,
-                    plot_heading=True, plot_binds=True, plot_goals=True,
-                    initial_gps=None, enable_servo=True):
-    if data_set == 'random':
-        data_sets = []
-        for root, dirs, files in os.walk(config.get_dir(":logs"),
-                                         topdown=False):
-            for name in files:
-                if name.endswith(".csv"):
-                    data_sets.append(root + "/" + name)
+        if plot_map:
+            plt.plot(self.binder.map[:, 0], self.binder.map[:, 1], 'c')
+        self.plot_gps, self.plot_goals, self.plot_heading, self.plot_bind, self.plot_filtered = \
+            plot_gps, plot_goals, plot_heading, plot_bind, plot_filtered
 
-        data_set = random.choice(data_sets)
-        print("picked:", data_set)
-        log_index = data_set.find("logs")
-        data_set = data_set[log_index + len("logs") + 1:]
+        self.plot_type = plot_type
 
-    timestamps, data, length = get_data(
-        data_set, ["gps long", "gps lat", "gps sleep", "encoder", "imu yaw"],
-        density=1)
+        plt.title(self.plot_type + ": " + self.data_set_name)
+        self.axes = plt.gca()
+        self.x_lim = x_lim
+        self.y_lim = y_lim
 
-    gps_long, gps_lat, gps_sleep, encoder, yaw = data
+        self.error_sum_dist = 0
+        self.error_sum_heading = 0
 
-    heading_filter = HeadingFilter()
-    position_filter = PositionFilter()
+        if y_lim is None:
+            self.ymin = float(min(self.binder.map[:, 1])) - 10
+            self.ymax = float(max(self.binder.map[:, 1])) + 10
+        else:
+            self.ymin, self.ymax = y_lim
+        plt.ylim([self.ymin, self.ymax])
 
-    if initial_gps is None:
-        initial_gps = gps_long[0], gps_lat[0]
-    elif type(initial_gps) == int:
-        initial_gps = reference_map[initial_gps]
+        if y_lim is None:
+            self.xmin = float(min(self.binder.map[:, 0])) - 10
+            self.xmax = float(max(self.binder.map[:, 0])) + 10
+        else:
+            self.xmin, self.xmax = x_lim
+        plt.xlim([self.xmin, self.xmax])
 
-    converter = Converter(initial_gps[0], initial_gps[1], 0.000003, 0)
-    binder = Binder(map_name, initial_gps[0], initial_gps[1])
+        self.trackfield = imread(
+            config.get_dir(":logs") + "map background.png")
+        height, width = self.trackfield.shape[0:2]
 
-    bind_x, bind_y = 0, 0
+        straight_len_m = 100  # meters
+        straight_len_px = 1061.908  # pixels
 
-    if enable_servo:
-        servo_steering = Command(0, 'position', (-90, 90))
+        px_to_m = straight_len_m / straight_len_px
+        start_x = 1157.9  # pixels
+        start_y = 1359.54  # pixels
+        # check_pt_x = 1300
+        # check_pt_y = height - 1400
 
-        start()
-    else:
-        servo_steering = None
+        plt.imshow(self.trackfield,
+                   zorder=0, origin=(0, 0), extent=
+                   [-start_x * px_to_m, -start_x * px_to_m + width * px_to_m,
+                    -start_y * px_to_m, -start_y * px_to_m + height * px_to_m])
 
-    plt.ion()
+    def update_plot(self, index):
+        pass
 
-    if plot_map:
-        plt.plot(binder.map[:, 0], binder.map[:, 1], 'c')
-    kalman_graph = plt.plot(np.zeros_like(binder.map))[0]
-    axes = plt.axes()
+    def run_plot(self):
+        pass
 
-    ymin = float(min(binder.map[:, 1])) - 10
-    ymax = float(max(binder.map[:, 1])) + 10
-    plt.ylim([ymin, ymax])
+    def distance(self, x0, y0, x1, y1):
+        return ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
 
-    xmin = float(min(binder.map[:, 0])) - 10
-    xmax = float(max(binder.map[:, 0])) + 10
-    plt.xlim([xmin, xmax])
-
-    arrow_color = 0
-
-    line_length = 10
-
-    kalman_data = [[], []]
-
-    try:
-        if plot_heading or plot_binds or plot_goals or plot_kalman:
-            for index in range(1, length):
-                if gps_sleep[index] != gps_sleep[index - 1]:
-                    gps_heading, bind_heading = converter.convert_heading(
-                        gps_long[index], gps_lat[index], bind_x, bind_y)
-
-                    gps_x0, gps_y0, enc_dist = \
-                        converter.convert_position(
-                            gps_long[index], gps_lat[index], encoder[index])
-
-                    kalman_heading = heading_filter.update(
-                        gps_heading, bind_heading, -yaw[index])
-                    kalman_x0, kalman_y0 = position_filter.update(
-                        gps_x0, gps_y0, enc_dist, gps_sleep[index],
-                        kalman_heading)
-
-                    prev_bind_x = bind_x
-                    prev_bind_y = bind_y
-                    bind_x, bind_y, goal_x, goal_y = \
-                        binder.bind((kalman_x0, kalman_y0))
-
-                    if plot_binds:
-                        if bind_x == prev_bind_x and bind_y == prev_bind_y:
-                            arrow_color += 40
-                            if arrow_color > 255:
-                                arrow_color = 0
-                        else:
-                            arrow_color = 0
-
-                        axes.arrow(bind_x, bind_y,
-                                   goal_x - bind_x, goal_y - bind_y,
-                                   color="#%0.2x%0.2x%0.2x" % (
-                                       0, arrow_color, arrow_color
-                                   ),
-                                   head_width=2)
-                        plt.plot([kalman_x0, bind_x], [kalman_y0, bind_y],
-                                 'brown')
-
-                    if plot_kalman:
-                        kalman_data[0].append(kalman_x0)
-                        kalman_data[1].append(kalman_y0)
-
-                        kalman_graph.set_data(kalman_data)
-
-                    if plot_heading:
-                        if plot_kalman:
-                            plt.plot([kalman_x0,
-                                      kalman_x0 + line_length * math.cos(
-                                          kalman_heading)],
-                                     [kalman_y0,
-                                      kalman_y0 + line_length * math.sin(
-                                          kalman_heading)],
-                                     'r')
-                        elif plot_binds:
-                            plt.plot([bind_x,
-                                      bind_x + line_length * math.cos(
-                                          kalman_heading)],
-                                     [bind_y,
-                                      bind_y + line_length * math.sin(
-                                          kalman_heading)],
-                                     'r')
-                    if plot_kalman:
-                        if kalman_x0 < xmin:
-                            xmin = kalman_x0 - 10
-                            plt.xlim([xmin, xmax])
-                        if kalman_x0 > xmax:
-                            xmax = kalman_x0 + 10
-                            plt.xlim([xmin, xmax])
-
-                        if kalman_y0 < ymin:
-                            ymin = kalman_y0 - 10
-                            plt.ylim([ymin, ymax])
-                        if kalman_y0 > ymax:
-                            ymax = kalman_y0 + 10
-                            plt.ylim([ymin, ymax])
-
-                    plt.draw()
-                    plt.pause(0.01)
-
-                    if enable_servo:
-                        # input()
-                        servo_steering["position"] = state_to_servo(
-                            [bind_x, bind_y, kalman_heading],
-                            [goal_x, goal_y]
-                        )
-                        print(servo_steering["position"],
-                              "right" if servo_steering[
-                                             "position"] < -23 else "left")
-
-    except KeyboardInterrupt:
-        traceback.print_exc()
-
-    finally:
-        plt.ioff()
-        if enable_servo:
-            reset()
-            stop()
+    def plot_bind_arrow(self, x0, y0, x1, y1,
+                        color='midnightblue', head_width=3):
+        self.axes.arrow(x0, y0,
+                        x1 - x0, y1 - y0,
+                        color=color, head_width=head_width)
 
 
-def test_system(data_set, map_name, plot_type, x_lim=None, y_lim=None,
-                plot_map=True, plot_gps=True, plot_kalman=True,
-                plot_heading=True, plot_binds=True, plot_goals=True,
-                initial_gps=None):
-    if plot_type == "kalman":  # recalculate kalman filter, binder, and goal
-        sensors = ["gps long", "gps lat", "gps sleep", "encoder", "imu yaw"]
-    elif plot_type == "goal":  # recalculate goal only
-        sensors = ["gps long", "gps lat", "gps sleep", "gps x", "gps y",
-                   "kalman x", "kalman y", "kalman heading",
-                   "bind x", "bind y"]
-    elif plot_type == "display":  # recalculate nothing
-        sensors = ["gps long", "gps lat", "gps sleep", "gps x", "gps y",
-                   "kalman x", "kalman y", "kalman heading",
-                   "bind x", "bind y", "goal x", "goal y"]
-    elif plot_type == "binder":  # recalculate binder and goal
-        sensors = ["gps long", "gps lat", "gps sleep", "gps x", "gps y",
+class StaticPlotter(Plotter):
+    def __init__(self, plot_type, data_set_name, map_name, sensors,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim, y_lim):
+        self.heading_lines = []
+        self.bind_lines = []
+        self.gps_xs, self.gps_ys = [], []
+        self.filtered_xs, self.filtered_ys = [], []
+
+        super(StaticPlotter, self).__init__(
+            plot_type, data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim)
+
+    def run_plot(self):
+        for index in range(0, self.data_length):
+            if self.gps_sleep[index] != self.gps_sleep[index - 1]:
+                self.update_plot(index)
+
+        if self.x_lim is not None:
+            self.axes.set_xlim([self.x_lim[0], self.x_lim[1]])
+        else:
+            min_x = min(min(self.filtered_xs), min(self.gps_xs))
+            max_x = max(max(self.filtered_xs), max(self.gps_xs))
+
+            self.axes.set_xlim([min_x - 10, max_x + 10])
+
+        if self.y_lim is not None:
+            min_y = min(min(self.filtered_ys), min(self.gps_ys))
+            max_y = max(max(self.filtered_ys), max(self.gps_ys))
+
+            self.axes.set_ylim([min_y - 10, max_y + 10])
+
+        if self.plot_heading:
+            plt.plot(*self.heading_lines)
+        if self.plot_bind:
+            plt.plot(*self.bind_lines)
+        if self.plot_gps:
+            plt.plot(self.gps_xs, self.gps_ys, 'g')
+        if self.plot_filtered:
+            plt.plot(self.filtered_xs, self.filtered_ys, 'r')
+
+        print(self.data_set_name, end="\t")
+        print(str(self.error_sum_dist / self.data_length) + "\t" + str(
+            abs(self.error_sum_heading / self.data_length)))
+
+        plt.show()
+
+    def update_headings(self, x, y, heading, color='r', line_length=10):
+        self.heading_lines.append((x, x + line_length * math.cos(heading)))
+
+        self.heading_lines.append((y, y + line_length * math.sin(heading)))
+        self.heading_lines.append(color)
+
+    def update_binds(self, x0, y0, x1, y1, color='brown'):
+        self.bind_lines.append((x0, x1))
+        self.bind_lines.append((y0, y1))
+        self.bind_lines.append(color)
+
+
+class KalmanPlotter(StaticPlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
+
+        super(KalmanPlotter, self).__init__(
+            "kalman plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
+
+        self.encoder, self.yaw = self.data
+        self.bind_x, self.bind_y = 0, 0
+
+    def update_plot(self, index):
+        gps_heading, bind_heading = self.converter.convert_heading(
+            self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x, gps_y, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        kalman_heading = self.heading_filter.update(
+            gps_heading, bind_heading, -self.yaw[index],
+            self.gps_sleep[index])
+        kalman_x, kalman_y = self.position_filter.update(
+            gps_x, gps_y, enc_dist, self.gps_sleep[index],
+            kalman_heading)
+
+        self.bind_x, self.bind_y, goal_x, goal_y = self.binder.bind(
+            (kalman_x, kalman_y))
+
+        self.error_sum_dist += self.distance(kalman_x, goal_x, kalman_y, goal_y)
+        self.error_sum_heading += bind_heading - kalman_heading
+
+        if self.plot_heading:
+            self.update_headings(kalman_x, kalman_y, kalman_heading)
+        if self.plot_bind:
+            self.update_binds(kalman_x, kalman_y, self.bind_x, self.bind_y)
+        if self.plot_goals:
+            self.plot_bind_arrow(self.bind_x, self.bind_y, goal_x, goal_y)
+        if self.plot_filtered:
+            self.filtered_xs.append(kalman_x)
+            self.filtered_ys.append(kalman_y)
+        if self.plot_gps:
+            self.gps_xs.append(gps_x)
+            self.gps_ys.append(gps_y)
+
+
+class BayesPlotter(StaticPlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
+
+        super(BayesPlotter, self).__init__(
+            "bayes plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
+
+        self.encoder, self.yaw = self.data
+        self.bind_x, self.bind_y = 0, 0
+
+        self.bayes_filter = bayes_filter.PositionFilter(self.binder)
+
+    def update_plot(self, index):
+        # gps_heading, bind_heading = self.converter.convert_heading(
+        #     self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x, gps_y, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        locations = self.bayes_filter.take_measurement(gps_x, gps_y)
+        self.bayes_filter.transition(enc_dist)
+
+        print(locations)
+
+        if self.plot_filtered:
+            self.filtered_xs.append(locations[0][0])
+            self.filtered_ys.append(locations[0][1])
+        if self.plot_gps:
+            self.gps_xs.append(gps_x)
+            self.gps_ys.append(gps_y)
+
+
+class DataRunPlotter(StaticPlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw",
+                   "bind x", "bind y", "bind heading", "goal x", "goal y",
                    "kalman x", "kalman y", "kalman heading"]
-    elif plot_type == "map":  # just draw the map
-        sensors = ["gps long", "gps lat"]
-    else:
-        raise ValueError("Please provide valid plot type: ", plot_type)
 
-    if data_set == 'random':
-        data_sets = []
-        for root, dirs, files in os.walk(config.get_dir(":logs"),
-                                         topdown=False):
-            for name in files:
-                if name.endswith(".csv"):
-                    data_sets.append(root + "/" + name)
+        super(DataRunPlotter, self).__init__(
+            "data run plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
 
-        data_set = random.choice(data_sets)
-        print("picked:", data_set)
-        log_index = data_set.find("logs")
-        data_set = data_set[log_index + len("logs") + 1:]
+        (self.encoder, self.yaw, self.bind_x, self.bind_y, self.bind_heading,
+         self.goal_x, self.goal_y, self.kalman_x, self.kalman_y,
+         self.kalman_heading) = self.data
 
-    timestamps, data, length = get_data(
-        data_set, sensors, density=1)
+    def update_plot(self, index):
+        gps_x, gps_y, _ = self.converter.convert_position(
+            self.gps_long[index], self.gps_lat[index], 0)
 
-    # if (initial_gps is None or ((initial_gps[0] - data[0][0]) > 0.000003 and (
-    #         initial_gps[1] - data[0][1]) > 0.000003)):
-    #     initial_gps = data[0][0], data[1][0]
-    if initial_gps is None:
-        initial_gps = data[0][0], data[1][0]
-    elif type(initial_gps) == int:
-        initial_gps = reference_map[initial_gps]
+        if self.goal_x is None and self.goal_y is None:
+            _, _, goal_x, goal_y = self.binder.bind(
+                (self.kalman_x[index], self.kalman_y[index]))
+        else:
+            goal_x, goal_y = self.goal_x[index], self.goal_y[index]
 
-    binder = Binder(map_name, initial_gps[0], initial_gps[1])
+        if self.bind_heading is None:
+            _, bind_heading = self.converter.convert_heading(
+                0, 0, self.bind_x[index], self.bind_y[index])
+        else:
+            bind_heading = self.bind_heading[index]
 
-    if plot_map:
-        plt.plot(binder.map[:, 0], binder.map[:, 1], 'c')
+        self.error_sum_dist += self.distance(
+            self.kalman_x[index], goal_x, self.kalman_y[index], goal_y)
+        self.error_sum_heading += bind_heading - \
+                                  self.kalman_heading[index]
 
-    plt.title(plot_type + ": " + data_set)
-    axes = plt.gca()
-
-    heading_lines = []
-    bind_lines = []
-    goal_lines = []
-
-    if plot_type == "kalman":
-        gps_long, gps_lat, gps_sleep, encoder, yaw = data
-
-        heading_filter = HeadingFilter()
-        position_filter = PositionFilter()
-
-        converter = Converter(initial_gps[0], initial_gps[1], 0.000003, 0)
-
-        bind_x, bind_y = 0, 0
-        gps_x, gps_y = [], []
-        kalman_x, kalman_y = [], []
-
-        if plot_heading or plot_binds or plot_goals or plot_kalman:
-            for index in range(1, length):
-                if gps_sleep[index] != gps_sleep[index - 1]:
-                    gps_heading, bind_heading = converter.convert_heading(
-                        gps_long[index], gps_lat[index], bind_x, bind_y)
-
-                    gps_x0, gps_y0, enc_dist = \
-                        converter.convert_position(
-                            gps_long[index], gps_lat[index], encoder[index])
-
-                    kalman_heading = heading_filter.update(
-                        gps_heading, bind_heading, -yaw[index])
-                    kalman_x0, kalman_y0 = position_filter.update(
-                        gps_x0, gps_y0, enc_dist, gps_sleep[index],
-                        kalman_heading)
-
-                    gps_x.append(gps_x0)
-                    gps_y.append(gps_y0)
-
-                    kalman_x.append(kalman_x0)
-                    kalman_y.append(kalman_y0)
-
-                    bind_x, bind_y = populate_lines(
-                        kalman_x0, kalman_y0, kalman_heading, binder, axes,
-                        heading_lines, bind_lines, goal_lines, plot_heading,
-                        plot_binds, plot_goals, plot_kalman)
-
-    elif plot_type == "display":
-        gps_long, gps_lat, gps_sleep, gps_x, gps_y, kalman_x, kalman_y, kalman_heading, bind_x, bind_y, goal_x, goal_y = data
-        axes = plt.gca()
-
-        if plot_heading or plot_binds or plot_goals or plot_kalman:
-            for index in range(1, length):
-                if gps_sleep[index] != gps_sleep[index - 1]:
-                    populate_lines(kalman_x[index], kalman_y[index],
-                                   kalman_heading[index], binder,
-                                   axes, heading_lines, bind_lines, goal_lines,
-                                   plot_heading, plot_binds, plot_goals,
-                                   plot_kalman,
-                                   bind_x0=bind_x[index], bind_y0=bind_y[index],
-                                   goal_x0=goal_x[index], goal_y0=goal_y[index])
-
-    elif plot_type == "binder":
-        gps_long, gps_lat, gps_sleep, gps_x, gps_y, kalman_x, kalman_y, kalman_heading = data
-
-        if plot_heading or plot_binds or plot_goals or plot_kalman:
-            for index in range(1, length):
-                if gps_sleep[index] != gps_sleep[index - 1]:
-                    populate_lines(kalman_x[index], kalman_y[index],
-                                   kalman_heading[index], binder,
-                                   axes, heading_lines, bind_lines, goal_lines,
-                                   plot_heading, plot_binds, plot_goals,
-                                   plot_kalman)
-
-    if x_lim is not None:
-        axes.set_xlim([x_lim[0], x_lim[1]])
-    if y_lim is not None:
-        axes.set_ylim([y_lim[0], y_lim[1]])
-
-    if plot_goals:
-        plt.plot(*goal_lines)
-    if plot_heading:
-        plt.plot(*heading_lines)
-    if plot_binds:
-        plt.plot(*bind_lines)
-    if plot_gps:
-        plt.plot(gps_x, gps_y, 'g')
-    if plot_kalman:
-        plt.plot(kalman_x, kalman_y, 'b')
+        if self.plot_heading:
+            self.update_headings(self.kalman_x[index], self.kalman_y[index],
+                                 self.kalman_heading[index])
+        if self.plot_bind:
+            self.update_binds(self.kalman_x[index], self.kalman_y[index],
+                              self.bind_x[index], self.bind_y[index])
+        if self.plot_goals:
+            self.plot_bind_arrow(self.bind_x[index], self.bind_y[index], goal_x,
+                                 goal_y)
+        if self.plot_filtered:
+            self.filtered_xs.append(self.kalman_x[index])
+            self.filtered_ys.append(self.kalman_y[index])
+        if self.plot_gps:
+            self.gps_xs.append(gps_x)
+            self.gps_ys.append(gps_y)
 
 
-def plot_all(data_sets, map_name, plot_type, x_lim=None, y_lim=None,
-             plot_map=True, plot_gps=True, plot_kalman=True,
-             plot_heading=True, plot_binds=True, plot_goals=True,
-             initial_gps=None):
-    for data_set in data_sets:
-        test_system(data_set, map_name, plot_type, x_lim, y_lim,
-                    plot_map, plot_gps, plot_kalman,
-                    plot_heading, plot_binds, plot_goals,
-                    initial_gps)
-        print(data_set + " finished")
-    print("Done!")
+class LivePlotter(Plotter):
+    def __init__(self, plot_type, data_set_name, map_name, sensors,
+                 plot_gps, plot_map, plot_goals, plot_heading,
+                 plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        super(LivePlotter, self).__init__(
+            plot_type, data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading,
+            plot_bind,
+            plot_filtered, x_lim, y_lim)
+
+        plt.ion()
+
+    def run_plot(self):
+        for index in range(0, self.data_length):
+            if self.gps_sleep[index] != self.gps_sleep[
+                        index - 1]:
+                self.update_plot(index)
+
+                plt.draw()
+                plt.pause(0.001)
+
+        print(self.data_set_name, end="\t")
+        print(str(
+            self.error_sum_dist / self.data_length) + "\t" + str(
+            abs(self.error_sum_heading / self.data_length)))
+
+        plt.ioff()
+        plt.show()
+
+    def plot_headings(self, x, y, heading, color='r', line_length=10):
+        plt.plot([x, x + line_length * math.cos(heading)],
+                 [y, y + line_length * math.sin(heading)],
+                 color)
+
+    def plot_binds(self, x0, y0, x1, y1, color='brown'):
+        plt.plot([x0, x1], [y0, y1], color)
+
+    def plot_xy(self, x, y, prev_x, prev_y, color='lightgreen'):
+        plt.plot([x, prev_x], [y, prev_y], color)
 
 
-def plot_gps(data_set):
-    timestamps, data, length = get_data(data_set, ["gps long", "gps lat"])
+class LiveKalmanPlotter(LivePlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading,
+                 plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
+        super(LiveKalmanPlotter, self).__init__(
+            "live kalman plot", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading,
+            plot_bind,
+            plot_filtered, x_lim=x_lim, y_lim=y_lim
+        )
 
-    plt.plot(data[0], data[1])
+        self.prev_bind_x = 0
+        self.prev_bind_y = 0
+
+        self.bind_x = 0
+        self.bind_y = 0
+
+        self.arrow_color = 0
+
+        self.encoder, self.yaw = self.data
+
+    def update_plot(self, index):
+        gps_heading, bind_heading = self.converter.convert_heading(
+            self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x0, gps_y0, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        kalman_heading = self.heading_filter.update(
+            gps_heading, bind_heading, -self.yaw[index],
+            self.gps_sleep[index])
+        kalman_x, kalman_y = self.position_filter.update(
+            gps_x0, gps_y0, enc_dist, self.gps_sleep[index],
+            kalman_heading)
+
+        self.prev_bind_x = self.bind_x
+        self.prev_bind_y = self.bind_y
+        self.bind_x, self.bind_y, goal_x, goal_y = self.binder.bind(
+            (kalman_x, kalman_y))
+
+        # current_state = [self.bind_x, self.bind_y, bind_heading]
+        # goal_state = [goal_x, goal_y]
+        #
+        # print(state_to_angle(current_state, goal_state),
+        #       state_to_servo(current_state, goal_state),
+        #       bind_heading, kalman_heading)
+        #
+        # input()
+
+        self.error_sum_dist += self.distance(kalman_x, goal_x, kalman_y, goal_y)
+        self.error_sum_heading += bind_heading - kalman_heading
+
+        if self.plot_goals:
+            if self.bind_x == self.prev_bind_x and self.bind_y == self.prev_bind_y:
+                self.arrow_color += 40
+                if self.arrow_color > 255:
+                    self.arrow_color = 0
+            else:
+                self.arrow_color = 0
+            self.plot_bind_arrow(self.bind_x, self.bind_y, goal_x, goal_y,
+                                 color="#%0.2x%0.2x%0.2x" % (
+                                     0, self.arrow_color, self.arrow_color
+                                 ))
+        if self.plot_heading:
+            self.plot_headings(kalman_x, kalman_y, kalman_heading)
+
+        if self.plot_bind:
+            self.plot_binds(kalman_x, kalman_y, self.bind_x, self.bind_y)
+
+        if kalman_x < self.xmin:
+            self.xmin = kalman_x - 10
+            plt.xlim([self.xmin, self.xmax])
+        if kalman_x > self.xmax:
+            self.xmax = kalman_x + 10
+            plt.xlim([self.xmin, self.xmax])
+
+        if kalman_y < self.ymin:
+            self.ymin = kalman_y - 10
+            plt.ylim([self.ymin, self.ymax])
+        if kalman_y > self.ymax:
+            self.ymax = kalman_y + 10
+            plt.ylim([self.ymin, self.ymax])
 
 
-def plot_map(map_name):
-    map = Map(map_name)
+class LiveBayesPlotter(LivePlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+        sensors = ["encoder", "imu yaw"]
 
-    plt.plot(map[:, 0], map[:, 1], 'p')
+        super(LiveBayesPlotter, self).__init__(
+            "bayes plotter", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading, plot_bind,
+            plot_filtered, x_lim, y_lim
+        )
+
+        self.encoder, self.yaw = self.data
+        self.prev_x, self.prev_y = 0, 0
+        self.prev_gps_x, self.prev_gps_y = 0, 0
+
+        self.bind_x, self.prev_bind_x = 0, 0
+        self.bind_y, self.prev_bind_y = 0, 0
+
+        self.position_filter = bayes_filter.PositionFilter(self.binder)
+
+    def update_plot(self, index):
+        gps_heading, bind_heading = self.converter.convert_heading(
+            self.gps_long[index], self.gps_lat[index], self.bind_x, self.bind_y)
+
+        gps_x, gps_y, enc_dist = \
+            self.converter.convert_position(
+                self.gps_long[index], self.gps_lat[index], self.encoder[index])
+
+        locations = self.position_filter.take_measurement(gps_x, gps_y)
+        self.position_filter.transition(enc_dist)
+
+        x, y = locations[0][0], locations[0][1]
+
+        kalman_heading = self.heading_filter.update(
+            gps_heading, bind_heading, -self.yaw[index],
+            self.gps_sleep[index])
+
+        self.prev_bind_x = self.bind_x
+        self.prev_bind_y = self.bind_y
+        self.bind_x, self.bind_y, goal_x, goal_y = self.binder.bind((x, y))
+
+        print(locations)
+
+        if self.plot_filtered:
+            # self.filtered_xs.append(locations[0][0])
+            # self.filtered_ys.append(locations[0][1])
+            self.plot_xy(locations[0][0], locations[0][1],
+                         self.prev_x, self.prev_y)
+            self.prev_x, self.prev_y = locations[0][0], locations[0][1]
+
+        if self.plot_gps:
+            self.plot_xy(gps_x, gps_y,
+                         self.prev_gps_x, self.prev_gps_y, color="darkred")
+            self.prev_gps_x, self.prev_gps_y = gps_x, gps_y
+
+        if self.plot_goals:
+            if self.bind_x == self.prev_bind_x and self.bind_y == self.prev_bind_y:
+                self.arrow_color += 40
+                if self.arrow_color > 255:
+                    self.arrow_color = 0
+            else:
+                self.arrow_color = 0
+            self.plot_bind_arrow(self.bind_x, self.bind_y, goal_x, goal_y,
+                                 color="#%0.2x%0.2x%0.2x" % (
+                                     0, self.arrow_color, self.arrow_color
+                                 ))
+        if self.plot_heading:
+            self.plot_headings(x, y, kalman_heading)
+
+        if self.plot_bind:
+            self.plot_binds(x, y, self.bind_x, self.bind_y)
+
+
+class LiveDataRunPlotter(LivePlotter):
+    def __init__(self, data_set_name, map_name,
+                 plot_gps, plot_map, plot_goals, plot_heading,
+                 plot_bind,
+                 plot_filtered, x_lim=None, y_lim=None):
+
+        sensors = ["encoder", "imu yaw",
+                   "bind x", "bind y", "bind heading", "goal x", "goal y",
+                   "kalman x", "kalman y", "kalman heading"]
+        super(LiveDataRunPlotter, self).__init__(
+            "live data run plot", data_set_name, map_name, sensors,
+            plot_gps, plot_map, plot_goals, plot_heading,
+            plot_bind,
+            plot_filtered, x_lim=x_lim, y_lim=y_lim
+        )
+
+        self.prev_bind_x = 0
+        self.prev_bind_y = 0
+
+        self.bind_x = 0
+        self.bind_y = 0
+
+        self.arrow_color = 0
+
+        (self.encoder, self.yaw, self.bind_x, self.bind_y, self.bind_heading,
+         self.goal_x, self.goal_y, self.kalman_x, self.kalman_y,
+         self.kalman_heading) = self.data
+
+        self.kalman_data = [[], []]
+
+    def update_plot(self, index):
+        self.prev_bind_x = self.bind_x[index]
+        self.prev_bind_y = self.bind_y[index]
+
+        gps_x, gps_y, _ = self.converter.convert_position(
+            self.gps_long[index], self.gps_lat[index], 0)
+
+        if self.goal_x is None and self.goal_y is None:
+            _, _, goal_x, goal_y = self.binder.bind(
+                (self.kalman_x[index], self.kalman_y[index]))
+        else:
+            goal_x, goal_y = self.goal_x[index], self.goal_y[index]
+
+        self.error_sum_dist += self.distance(self.kalman_x[index], goal_x,
+                                             self.kalman_y[index], goal_y)
+        self.error_sum_heading += self.bind_heading[index] - \
+                                  self.kalman_heading[index]
+
+        if self.plot_goals:
+            if self.bind_x[index] == self.prev_bind_x and self.bind_y[
+                index] == self.prev_bind_y:
+                self.arrow_color += 40
+                if self.arrow_color > 255:
+                    self.arrow_color = 0
+            else:
+                self.arrow_color = 0
+            self.plot_bind_arrow(self.bind_x[index], self.bind_y[index], goal_x,
+                                 goal_y,
+                                 color="#%0.2x%0.2x%0.2x" % (
+                                     0, self.arrow_color, self.arrow_color
+                                 ))
+        if self.plot_heading:
+            self.plot_headings(self.kalman_x[index], self.kalman_y[index],
+                               self.kalman_heading[index])
+
+            if self.kalman_x[index] < self.xmin:
+                self.xmin = self.kalman_x[index] - 10
+                plt.xlim([self.xmin, self.xmax])
+            if self.kalman_x[index] > self.xmax:
+                self.xmax = self.kalman_x[index] + 10
+                plt.xlim([self.xmin, self.xmax])
+
+            if self.kalman_y[index] < self.ymin:
+                self.ymin = self.kalman_y[index] - 10
+                plt.ylim([self.ymin, self.ymax])
+            if self.kalman_y[index] > self.ymax:
+                self.ymax = self.kalman_y[index] + 10
+                plt.ylim([self.ymin, self.ymax])
+        if self.plot_bind:
+            self.plot_binds(self.kalman_x[index], self.kalman_y[index],
+                            self.bind_x[index], self.bind_y[index])
 
 
 if __name__ == '__main__':
     print(__doc__)
-    # test_system(
-    #     # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",  # good run
-    #     # "Test Day 6/Mon Apr 18 21;50;17 2016.csv",  # short run
-    #     # "Test Day 7/Tue Apr 19 22;47;21 2016.csv",  # data set used for map
-    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",  # recent
-    #     # "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
-    #     # "random",
-    #     # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
-    #     "Test Day 10/Fri Apr 22 22;18;29 2016.csv",
-    #
-    #     # "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
-    #     # "Map from Wed Apr 20 21;51;46 2016.csv",
-    #     "wtracks map converted.csv",
-    #     # "Trimmed Minimalist Map.csv",
-    #
-    #     "kalman",
-    #
-    #     # x_lim=(),
-    #     # y_lim=(),
-    #
-    #     plot_map=True, plot_gps=True, plot_kalman=True,
-    #     plot_heading=True, plot_binds=True, plot_goals=False,
-    #     # initial_gps=0
-    # )
-    test_with_servo(
-        # "Test Day 9/Thu Apr 21 22;45;05 2016.csv",
-        # "Test Day 7/Tue Apr 19 22;58;26 2016.csv",
-        "Test Day 10/Fri Apr 22 22;18;29 2016.csv",
+    LiveBayesPlotter(
+        "Test Day 11/Sat Apr 23 17;42;47 2016.csv",
+        # "Test Day 8/Wed Apr 20 22;06;01 2016.csv",
+        # None,
         "wtracks map converted.csv",
-        plot_map=True, plot_kalman=False,
-        plot_heading=True, plot_binds=True, plot_goals=False,
-        enable_servo=True
-    )
+        plot_gps=True, plot_map=True, plot_goals=True, plot_heading=True,
+        plot_bind=True, plot_filtered=True
+    ).run_plot()
 
-    # plot_all(
-    #     # ["random"] * 10,
+    # trackfield = imread(
+    #     "/Users/Woz4tetra/Desktop/Screen Shot 2016-05-04 at 12.20.56 AM.png")
     #
-    #     ["Test Day 9/Thu Apr 21 22;34;11 2016.csv",
-    #      # "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
-    #      "Test Day 6/Mon Apr 18 21;50;17 2016.csv",
-    #      "Test Day 8/Wed Apr 20 21;51;46 2016.csv",
-    #      "Test Day 8/Wed Apr 20 22;06;01 2016.csv",
-    #      "Test Day 6/Mon Apr 18 22;19;40 2016.csv",
-    #      # "Test Day 5/Sun Apr 10 18;30;08 2016.csv",
-    #      # "Test Day 9/Thu Apr 21 22;14;05 2016.csv",
-    #      # "Test Day 5/Sun Apr 10 18;21;57 2016.csv",
-    #      ],
-    #     "Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
-    #     "kalman",
-    #     plot_map=False, plot_gps=False, plot_kalman=True, plot_heading=True,
-    #     plot_binds=False, plot_goals=False,
-    #     initial_gps=0
-    # )
-
-    # plot_gps("Test Day 7/Tue Apr 19 22;31;53 2016.csv")
-    # plot_gps("Test Day 7/Tue Apr 19 22;47;21 2016.csv")
-    # plot_gps("Test Day 9/Thu Apr 21 23;04;06 2016.csv")
-    # plot_gps("Test Day 6/Mon Apr 18 22;19;40 2016.csv")
-    # plot_gps("Test Day 6/Mon Apr 18 21;50;17 2016.csv")
-
-    # plot_map("Sat Feb 27 21;46;23 2016 Track Field Map.csv")
-    # plot_map("Trimmed Minimalist Map.csv")
-    # plot_map("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv")
-    # plot_map("wtracks map converted.csv")
+    # plt.imshow(trackfield, origin=(0, 0), extent=[-1600, 1600, -500, 500])
 
     plt.show()

@@ -21,13 +21,16 @@ class Binder:
 
         self.map_dists = [0] * len(self.map)
 
-    def bind(self, position):
+    def nearest_index(self, position):
         for index in range(len(self.map_dists)):
             dx = self.map[index][0] - position[0]
             dy = self.map[index][1] - position[1]
             self.map_dists[index] = math.sqrt(dx * dx + dy * dy)
-        index = self.map_dists.index(
+        return self.map_dists.index(
             min(self.map_dists))  # index of shortest distance
+
+    def bind(self, position):
+        index = self.nearest_index(position)
 
         bind_x, bind_y = self.map[index]
         goal_x, goal_y = self.map[(index + 1) % len(self.map)]

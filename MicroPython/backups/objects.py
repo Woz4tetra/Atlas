@@ -9,12 +9,7 @@ from libraries.micro_gps import MicropyGPS
 
 class GPS(Sensor):
     def __init__(self, sensor_id):
-        super().__init__(sensor_id, ['f', 'f', 'b'],
-                         ["lat deg", "lat min", "long deg", "long min",
-                          "speed x", "speed y", "speed z",
-                          "heading", "altitude",
-                          "satellites in view", "satellites in use",
-                          "hdop", "pdop", "vdop"])
+        super().__init__(sensor_id, ['f', 'f', 'b'])
 
         self.gps_ref = MicropyGPS()
 
@@ -46,69 +41,20 @@ class GPS(Sensor):
             self.gps_ref.satellites_in_view > 0
         )
 
-    def update_log(self):
-        return (
-            self.gps_ref.latitude[0:2] +
-            self.gps_ref.longitude[0:2] +
-            self.gps_ref.speed +
-            (self.gps_ref.course,
-             self.gps_ref.altitude,
-             self.gps_ref.satellites_in_view,
-             self.gps_ref.satellites_in_use,
-             self.gps_ref.hdop,
-             self.gps_ref.pdop,
-             self.gps_ref.vdop)
-        )
-
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus):
-        super().__init__(sensor_id,
-                         'f',
-                         ["accel x", "accel y", "accel z",
-                          "gyro x", "gyro y", "gyro z",
-                          "euler x", "euler y", "euler z",
-                          "quat w", "quat x", "quat y", "quat z",
-                          "temperature",
-                          "grav x", "grav y", "grav z",
-                          "mag x", "mag y", "mag z",
-                          "compass"])
+        super().__init__(sensor_id, 'f')
         self.bus = bus
         self.bno = BNO055(self.bus)
-        self.mass_data = tuple()
-        self.update_all()
-
-    def update_all(self):
-        # self.mass_data = (
-        #     self.bno.get_lin_accel() +  # 0: x, 1: y, 2: z
-        #     self.bno.get_gyro() +  # 3: x, 4: y, 5: z
-        #     self.bno.get_euler() +  # 6: z, 7: y, 8: x
-        #     self.bno.get_quat() +  # 9: w, 10: x, 11: y, 12: z
-        #     (self.bno.get_temp(),) +  # 13
-        #     self.bno.get_grav() +   # 14: x, 15: y, 16: z
-        #     self.bno.get_mag() +   # 17: x, 18: y, 19: z
-        #     (self.bno.get_heading(),)  # 20
-        # )
-        self.mass_data = \
-            self.bno.get_lin_accel()[0:2] + (
-                self.bno.get_euler()[0] * math.pi / 180,
-                self.bno.get_heading(),
-            )
 
     def update_data(self):
-        # self.update_all()
-        # return (self.mass_data[0], self.mass_data[1], self.mass_data[5],
-        #         self.mass_data[8], self.mass_data[20])
-        # return self.mass_data
         return self.bno.get_euler()[0] * math.pi / 180
-
-    def update_log(self):
-        return self.mass_data
 
 
 class HallEncoder(Sensor):
     def __init__(self, sensor_id, analog_pin):
-        super(HallEncoder, self).__init__(sensor_id, 'u64', 'counts')
+        super(HallEncoder, self).__init__(sensor_id, 'u64')
 
         self.pin_ref = pyb.ADC(pyb.Pin(analog_pin, pyb.Pin.ANALOG))
 
@@ -136,9 +82,6 @@ class HallEncoder(Sensor):
     def update_data(self):
         return self.enc_dist
 
-    def update_log(self):
-        return self.enc_dist
-
     def reset(self):
         self.enc_dist = 0
 
@@ -152,7 +95,7 @@ class HallEncoder(Sensor):
 
 class Servo(Command):
     def __init__(self, command_id, pin_num, start_pos=0):
-        super().__init__(command_id, 'i8', 'angle')
+        super().__init__(command_id, 'i8')
         self.start_pos = start_pos
         self.servo_ref = pyb.Servo(pin_num)
         if start_pos is not None:
@@ -163,9 +106,27 @@ class Servo(Command):
         self.angle = angle
         self.servo_ref.angle(self.angle)
 
-    def update_log(self):
-        return self.angle
-
     def reset(self):
         self.angle = self.start_pos
         self.servo_ref.angle(self.angle)
+
+
+class CommandLED(Command):
+    def __init__(self, command_id, led_num, initial_state=0):
+        super().__init__(command_id, 'u4')
+        self.led = LED(led_num)
+        self.set_state(initial_state)
+
+    def set_state(self, state):
+        if state == 0:
+            self.led.off()
+        elif state == 1:
+            self.led.on()
+        elif state == 2:
+            self.led.toggle()
+
+    def callback(self, state):
+        self.set_state(state)
+
+    def reset(self):
+        self.set_state(0)

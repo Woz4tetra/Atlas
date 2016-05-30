@@ -26,7 +26,7 @@ class SensorQueue(object):
 
 
 class CommandPool(object):
-    def __init__(self, *commands):
+    def __init__(self, commands):
         self.commands = {}
 
         for command in commands:
@@ -64,7 +64,7 @@ class CommandPool(object):
 
 
 class SerialObject(object):
-    def __init__(self, object_id, formats, log_names=None):
+    def __init__(self, object_id, formats):
         if isinstance(formats, list) or isinstance(formats, tuple):
             self.formats = formats
         else:
@@ -73,14 +73,6 @@ class SerialObject(object):
         self.object_id = object_id
 
         self.current_packet = ""
-
-        if log_names is None:
-            self.log_names = []
-        else:
-            if isinstance(log_names, list) or isinstance(log_names, tuple):
-                self.log_names = log_names
-            else:
-                self.log_names = [log_names]
 
         self.data = []
         self.data_len = 0
@@ -105,16 +97,17 @@ class SerialObject(object):
             else:
                 raise ValueError("Invalid format: %s", str(data_format))
 
-    def update_log(self):
-        return []
-
     def reset(self):
         pass
 
+    def __repr__(self):
+        print("something")
+        return "%s(%i, %s): %s" % (self.__class__.__name__, self.object_id, str(self.formats))
+
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, formats, log_names=None):
-        super().__init__(sensor_id, formats, log_names)
+    def __init__(self, sensor_id, formats):
+        super().__init__(sensor_id, formats)
 
     def to_hex(self, data, length=0):
         if type(data) == int:
@@ -166,8 +159,8 @@ class Sensor(SerialObject):
 
 
 class Command(SerialObject):
-    def __init__(self, command_id, format, log_names=None):
-        super().__init__(command_id, [format], log_names)
+    def __init__(self, command_id, format):
+        super().__init__(command_id, [format])
 
     def format_data(self, hex_string):
         if self.formats[0] == 'b':

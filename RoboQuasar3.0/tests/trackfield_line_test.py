@@ -33,11 +33,11 @@ from vision import cv_pid
 
 
 def run(paused=False, apply_filters=True, enable_draw=True, write_video=False,
-        night_mode=False, crop=(135, 350)):
+        night_mode=True, crop=(135, 350)):
     camera1 = Video(
-        # 'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
-        "Sun 10 Apr 2016 06;21;17 PM EDT-1.avi",
-        start_frame=1300,
+        'Sat 27 Feb 2016 10;05;07 PM EST-1.avi',
+        # "Sun 10 Apr 2016 06;21;17 PM EDT-1.avi",
+        start_frame=0,
         # "trackFieldVid1.MOV",
         width=480,
     )

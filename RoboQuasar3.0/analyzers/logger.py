@@ -151,10 +151,13 @@ def get_data(file_name, sensors, start=0, stop=None, density=1,
     # all possible sensor names
     columns = []
     for sensor_name in sensors:
-        if underscores_as_spaces and sensor_name not in data[0]:
-            columns.append(data[0].index(sensor_name.replace(" ", "_")))
-        else:
-            columns.append(data[0].index(sensor_name))
+        try:
+            if underscores_as_spaces and sensor_name not in data[0]:
+                columns.append(data[0].index(sensor_name.replace(" ", "_")))
+            else:
+                columns.append(data[0].index(sensor_name))
+        except ValueError:
+            columns.append(None)
     data.pop(0)
 
     data = np.array(data)
@@ -162,7 +165,10 @@ def get_data(file_name, sensors, start=0, stop=None, density=1,
     timestamps = data[:, 0]
     sensor_data = []
     for column in columns:
-        sensor_data.append(data[:, column])
+        if column is not None:
+            sensor_data.append(data[:, column])
+        else:
+            sensor_data.append(None)
 
     if len(sensor_data) > 0:
         length = len(sensor_data[0])

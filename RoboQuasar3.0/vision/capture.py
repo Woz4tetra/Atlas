@@ -100,10 +100,17 @@ class Capture:
 
         if add_timestamp:
             image_name += time.strftime("%c").replace(":", ";")
-            print("Frame saved as " + str(image_name))
+
+        if not image_name.endswith(".png"):
+            image_name += ".png"
+
+        print("Frame saved as " + str(image_name))
 
         if frame is None:
             frame = self.frame
+
+        if len(frame.shape) == 2:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
         if directory is None:
             directory = config.get_dir(":images")
@@ -246,6 +253,8 @@ class Capture:
         if self.video is not None:
             self.video.release()
             print("Video written to:\n" + self.recorder_output_dir)
+
+            self.video = None
 
     def stop(self):
         self.is_running = False

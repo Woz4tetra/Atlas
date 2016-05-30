@@ -165,23 +165,26 @@ def get_pid_goal(lines, offset_x, reference_height, frame=None):
                     closest_line = (slope_hough, offset_hough)
                     shortest_dist = distance
                     # intersect_angle = angle
-                    if frame is not None:
-                        draw_pts = ((int(offset_x), int(reference_height)),
-                                    (int(offset_x), int(intersect_y)))
+                    # if frame is not None:
+                    #     draw_pts = ((int(offset_x), int(reference_height)),
+                    #                 (int(offset_x), int(intersect_y)))
             else:
                 distance = reference_height
                 if shortest_dist is None or distance < shortest_dist:
                     closest_line = None
                     shortest_dist = distance
                     # intersect_angle = 0.0
-                    if frame is not None:
-                        draw_pts = ((int(offset_x), 0),
-                                    (int(offset_x), int(reference_height)))
+                    # if frame is not None:
+                    #     draw_pts = ((int(offset_x), 0),
+                    #                 (int(offset_x), int(reference_height)))
         if frame is not None:
-            if draw_pts is not None:
-                cv2.line(frame, draw_pts[0], draw_pts[1], (0, 0, 255), 2)
+            # if draw_pts is not None:
+            #     cv2.line(frame, draw_pts[0], draw_pts[1], (0, 0, 255), 2)
             if closest_line is not None:
-                cv2.circle(frame, (int(-closest_line[1] / closest_line[0]), 0), 3, (200, 200, 0), 2)
+                cv2.circle(frame, (int(-closest_line[1] / closest_line[0]), 0),
+                           20, (50, 205, 0), 5)
+        cv2.circle(frame, (int(-closest_line[1] / closest_line[0]), 0), 10,
+                   (50, 205, 0), 3)
 
         if closest_line is not None:
             return -closest_line[1] / closest_line[0]
@@ -201,7 +204,7 @@ def draw_lines(frame, lines):
             y1 = int(y0 + 1000 * a)
             x2 = int(x0 - 1000 * -b)
             y2 = int(y0 - 1000 * a)
-            cv2.line(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 0), 2)
 
 # class LineFollower():
 #     def __init__(self):

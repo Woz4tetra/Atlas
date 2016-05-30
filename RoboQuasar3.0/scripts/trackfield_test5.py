@@ -12,12 +12,12 @@ from analyzers.kalman_filter import HeadingFilter, PositionFilter
 from analyzers.binder import Binder
 
 from controllers.joystick import joystick_init
-from controllers.servo_map import state_to_servo
+from controllers.servo_map import *
 
 from sound.player import TunePlayer
 
 
-def main(log_data=True, manual_mode=True, print_data=False):
+def main(log_data=True, manual_mode=True, print_data=True):
     # ----- initialize runner -----
     gps = Sensor(1, ['lat', 'long', 'found'])
     encoder = Sensor(2, 'counts')
@@ -62,7 +62,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
         heading_filter = HeadingFilter()
         position_filter = PositionFilter()
 
-        binder = Binder("Trimmed Tue Apr 19 22;47;21 2016 GPS Map.csv",
+        binder = Binder("wtracks map converted.csv",
                         gps['long'], gps['lat'])
         bind_x, bind_y = 0, 0
         bind_heading = 0
@@ -76,7 +76,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
         enc_dist = 0
 
         if log_data:
-            log = Recorder(directory="Test Day 9")
+            log = Recorder(directory="Test Day 11")
 
         notifier.play("ding")
 
@@ -84,6 +84,8 @@ def main(log_data=True, manual_mode=True, print_data=False):
         while True:
             if joystick.buttons.B:
                 print("Aborted by user")
+                notifier.play("ring")
+                time.sleep(0.5)
                 break
 
             if joystick.buttons.X:
@@ -124,7 +126,7 @@ def main(log_data=True, manual_mode=True, print_data=False):
                 )
 
                 kalman_heading = heading_filter.update(
-                    gps_heading, bind_heading, -imu["yaw"]
+                    gps_heading, bind_heading, -imu["yaw"], time.time() - prev_time
                 )
                 kalman_x, kalman_y = position_filter.update(
                     gps_x, gps_y, enc_dist,
@@ -133,24 +135,33 @@ def main(log_data=True, manual_mode=True, print_data=False):
                 )
                 prev_time = time.time()
 
-                bind_x, bind_y = binder.bind((kalman_x, kalman_y))
+                bind_x, bind_y, goal_x, goal_y = binder.bind((kalman_x, kalman_y))
 
                 if print_data:
-                    print(
-                        "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
-                            kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
-                            math.atan2(bind_y - kalman_y, bind_x - kalman_x),
-                            math.atan2(bind_y - kalman_y,
-                                       bind_x - kalman_x) - kalman_heading))
+                    # print(
+                    #     "(%0.4f, %0.4f) @ %0.4f -> (%0.4f, %0.4f), %0.4f, %0.4f" % (
+                    #         kalman_x, kalman_y, kalman_heading, bind_x, bind_y,
+                    #         math.atan2(bind_y - kalman_y, bind_x - kalman_x),
+                    #         math.atan2(bind_y - kalman_y,
+                    #                    bind_x - kalman_x) - kalman_heading))
+                    print("%0.4f, %0.4f, %0.4f" % (
+                        state_to_servo([bind_x, bind_y, kalman_heading],
+                                       [goal_x, goal_y]),
+                        kalman_heading,
+                        state_to_angle([bind_x, bind_y, kalman_heading],
+                                       [goal_x, goal_y])))
 
             if manual_mode:
                 servo_steering["position"] = \
                     state_to_servo([0, 0, 0],
-                                   [1, 5.34 / 90 * joystick.mainStick.x])
+                                   [1, -5.34 / 90 * joystick.mainStick.x])
             else:
+                # servo_steering["position"] = \
+                #     state_to_servo([bind_x, bind_y, kalman_heading],
+                #                    [goal_x, goal_y])
                 servo_steering["position"] = \
-                    state_to_servo([kalman_x, kalman_y, kalman_heading],
-                                   [bind_x, bind_y])
+                    angle_to_servo(-state_to_angle([kalman_x, kalman_y, kalman_heading],
+                                   [goal_x, goal_y]))
             time.sleep(0.005)
 
             if log_data:
@@ -173,6 +184,9 @@ def main(log_data=True, manual_mode=True, print_data=False):
                 log["bind x"] = bind_x
                 log["bind y"] = bind_y
                 log["bind heading"] = bind_heading
+
+                log["goal x"] = goal_x
+                log["goal y"] = goal_y
 
                 log["kalman x"] = kalman_x
                 log["kalman y"] = kalman_y
