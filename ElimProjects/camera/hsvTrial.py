@@ -30,7 +30,7 @@ cv2.namedWindow('segmented')
 cv2.createTrackbar('H_low','segmented',0, 180, nothing) # hmax = 180
 cv2.createTrackbar('S_low','segmented', 0, 255, nothing)
 cv2.createTrackbar('V_low','segmented', 0, 255, nothing)
-
+ 
 cv2.createTrackbar('H_high','segmented',0, 180, nothing) # hmax = 180
 cv2.createTrackbar('S_high','segmented', 0, 255, nothing)
 cv2.createTrackbar('V_high','segmented', 0, 255, nothing)
@@ -40,7 +40,7 @@ switch = "0 : OFF \n1 : ON"
 cv2.createTrackbar(switch, "segmented", 0, 1, nothing)
 
 # cap = cv2.VideoCapture(0) # web cam as video source
-cap = cv2.VideoCapture("Videos/Orca 10-10 roll 4.mov")
+cap = cv2.VideoCapture("../Videos/buggy_videos/Orca 10-10 roll 4.mov")
 
 while(1):
     ret, original = cap.read()
