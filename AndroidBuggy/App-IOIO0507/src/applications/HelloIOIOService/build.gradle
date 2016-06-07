@@ -1,0 +1,28 @@
+apply plugin: 'com.android.application'
+
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath 'com.android.tools.build:gradle:1.5.0'
+  }
+}
+
+android {
+  buildToolsVersion "23.0.2"
+  compileSdkVersion 19
+}
+
+dependencies {
+  compile 'com.github.ytai.ioio:IOIOLibAndroid:5.07'
+  compile 'com.github.ytai.ioio:IOIOLibAndroidBluetooth:5.07'
+  compile 'com.github.ytai.ioio:IOIOLibAndroidAccessory:5.07'
+  compile 'com.github.ytai.ioio:IOIOLibAndroidDevice:5.07'
+}
+
+repositories {
+  mavenCentral()
+}
+
