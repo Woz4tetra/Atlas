@@ -16,24 +16,6 @@ class Communicator(object):
 
     def read_command(self):
         if self.serial_ref.any():
-            # character = self.serial_ref.read()
-            # if character is not None:
-            #     character = character.decode("ascii")
-            #
-            # while character != '\r':
-            #     if character == "R" or character == "H":
-            #         pyb.LED(4).toggle()
-            #         self.should_reset = True
-            #         if character == "H":
-            #             self.serial_ref.write("R")
-            #         return
-            #     if character is not None:
-            #         self.packet += character
-            #     character = self.serial_ref.read()
-            #     if character is not None:
-            #         character = character.decode("ascii")
-            #
-            # del character
             self.packet = self.serial_ref.readline().decode("ascii")
             if "R" in self.packet or "H" in self.packet:
                 pyb.LED(2).toggle()

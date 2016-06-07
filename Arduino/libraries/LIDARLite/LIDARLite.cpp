@@ -654,53 +654,53 @@ unsigned char LIDARLite::changeAddress(char newI2cAddress,  bool disablePrimaryA
 /* =============================================================================
   =========================================================================== */
 void LIDARLite::read(char myAddress, int numOfBytes, byte arrayToSave[2], bool monitorBusyFlag, char LidarLiteI2cAddress){
-  int busyFlag = 0;
-  if(monitorBusyFlag){
-    busyFlag = 1;
-  }
-  int busyCounter = 0;
-  while(busyFlag != 0){
-    Wire.beginTransmission((int)LidarLiteI2cAddress);
-    Wire.write(0x01);
-    int nackCatcher = Wire.endTransmission();
-    if(nackCatcher != 0){Serial.println("> nack");}
-    Wire.requestFrom((int)LidarLiteI2cAddress,1);
-    busyFlag = bitRead(Wire.read(),0);
-
-    busyCounter++;
-    if(busyCounter > 9999){
-      if(errorReporting){
-        int errorExists = 0;
-        Wire.beginTransmission((int)LidarLiteI2cAddress);
-        Wire.write(0x01);
-        int nackCatcher = Wire.endTransmission();
-        if(nackCatcher != 0){Serial.println("> nack");}
-        Wire.requestFrom((int)LidarLiteI2cAddress,1);
-        errorExists = bitRead(Wire.read(),0);
-        if(errorExists){
-          unsigned char errorCode[] = {0x00};
-          Wire.beginTransmission((int)LidarLiteI2cAddress);    // Get the slave's attention, tell it we're sending a command byte
-          Wire.write(0x40);
-          delay(20);
-          int nackCatcher = Wire.endTransmission();                  // "Hang up the line" so others can use it (can have multiple slaves & masters connected)
-          if(nackCatcher != 0){Serial.println("> nack");}
-          Wire.requestFrom((int)LidarLiteI2cAddress,1);
-          errorCode[0] = Wire.read();
-          delay(10);
-          Serial.print("> Error Code from Register 0x40: ");
-          Serial.println(errorCode[0]);
-          delay(20);
-          Wire.beginTransmission((int)LidarLiteI2cAddress);
-          Wire.write((int)0x00);
-          Wire.write((int)0x00);
-          nackCatcher = Wire.endTransmission();
-          if(nackCatcher != 0){Serial.println("> nack");}
-        }
-       }
-      goto bailout;
-    }
-  }
-  if(busyFlag == 0){
+  // int busyFlag = 0;
+  // if(monitorBusyFlag){
+  //   busyFlag = 1;
+  // }
+  // int busyCounter = 0;
+  // while(busyFlag != 0){
+  //   Wire.beginTransmission((int)LidarLiteI2cAddress);
+  //   Wire.write(0x01);
+  //   int nackCatcher = Wire.endTransmission();
+  //   if(nackCatcher != 0){Serial.println("> nack");}
+  //   Wire.requestFrom((int)LidarLiteI2cAddress,1);
+  //   busyFlag = bitRead(Wire.read(),0);
+  //
+  //   busyCounter++;
+  //   if(busyCounter > 9999){
+  //     if(errorReporting){
+  //       int errorExists = 0;
+  //       Wire.beginTransmission((int)LidarLiteI2cAddress);
+  //       Wire.write(0x01);
+  //       int nackCatcher = Wire.endTransmission();
+  //       if(nackCatcher != 0){Serial.println("> nack");}
+  //       Wire.requestFrom((int)LidarLiteI2cAddress,1);
+  //       errorExists = bitRead(Wire.read(),0);
+  //       if(errorExists){
+  //         unsigned char errorCode[] = {0x00};
+  //         Wire.beginTransmission((int)LidarLiteI2cAddress);    // Get the slave's attention, tell it we're sending a command byte
+  //         Wire.write(0x40);
+  //         delay(20);
+  //         int nackCatcher = Wire.endTransmission();                  // "Hang up the line" so others can use it (can have multiple slaves & masters connected)
+  //         if(nackCatcher != 0){Serial.println("> nack");}
+  //         Wire.requestFrom((int)LidarLiteI2cAddress,1);
+  //         errorCode[0] = Wire.read();
+  //         delay(10);
+  //         Serial.print("> Error Code from Register 0x40: ");
+  //         Serial.println(errorCode[0]);
+  //         delay(20);
+  //         Wire.beginTransmission((int)LidarLiteI2cAddress);
+  //         Wire.write((int)0x00);
+  //         Wire.write((int)0x00);
+  //         nackCatcher = Wire.endTransmission();
+  //         if(nackCatcher != 0){Serial.println("> nack");}
+  //       }
+  //      }
+  //     goto bailout;
+  //   }
+  // }
+  // if(busyFlag == 0){
     Wire.beginTransmission((int)LidarLiteI2cAddress);
     Wire.write((int)myAddress);
     int nackCatcher = Wire.endTransmission();
@@ -713,10 +713,10 @@ void LIDARLite::read(char myAddress, int numOfBytes, byte arrayToSave[2], bool m
         i++;
       }
     }
-  }
-  if(busyCounter > 9999){
-    bailout:
-      busyCounter = 0;
-      Serial.println("> Bailout");
-  }
+  // }
+  // if(busyCounter > 9999){
+  //   bailout:
+  //     busyCounter = 0;
+  //     Serial.println("> Bailout");
+  // }
 }
