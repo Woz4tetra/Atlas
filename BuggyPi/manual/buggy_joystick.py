@@ -25,8 +25,6 @@ class BuggyJoystick(threading.Thread):
     def __init__(self):
         self.deadzoneStick = 0.0
 
-        self.done = False
-
         self.values_changed = False
 
         joysticks = [pygame.joystick.Joystick(x) for x in
@@ -55,6 +53,22 @@ class BuggyJoystick(threading.Thread):
         pass
 
 
+class TestJoystick(BuggyJoystick):
+    def __init__(self):
+        super(TestJoystick, self).__init__()
+        self.prev_event = None
+        self.event = None
+        
+    def update(self):
+        event = pygame.event.poll()
+        if event.type != pygame.NOEVENT:
+            self.prev_event = self.event
+            if event.type != pygame.JOYAXISMOTION:
+                self.event = event
+            
+        elif event.type == pygame.QUIT:
+            self.stop()
+
 def joystick_init(joy_class):
     pygame.init()
     pygame.display.init()
@@ -64,3 +78,16 @@ def joystick_init(joy_class):
     joystick_ref = joy_class()
     joystick_ref.start()
     return joystick_ref
+
+if __name__ == '__main__':
+    pygame.init()
+    pygame.display.init()
+    pygame.joystick.init()
+    
+    joystick = TestJoystick()
+    while True:
+        joystick.update()
+        if joystick.prev_event is not None:# and joystick.prev_event.button != joystick.event.button: #not almost_equal(joystick.prev_event.value, joystick.event.value):
+            print(joystick.event)
+
+        time.sleep(0.01)
