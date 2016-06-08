@@ -47,7 +47,7 @@ class GCJoystick(BuggyJoystick):
         # if event.type != pygame.NOEVENT:
         #     print(event)
         if event.type == pygame.QUIT:
-            self.done = True
+            self.stop()
 
         if event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
@@ -161,7 +161,7 @@ class WiiUJoystick(BuggyJoystick):
     def update(self):
         event = pygame.event.poll()
         if event.type == pygame.QUIT:
-            self.done = True
+            self.stop()
 
         if event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
@@ -272,6 +272,7 @@ class WiiUJoystick(BuggyJoystick):
         elif event.button == 15:
             self.dpad.left = value
 
+    
     def __str__(self):
         return "rx: %s, ry: %s\n" \
                "lx: %s, ly: %s\n" \
@@ -292,8 +293,180 @@ class WiiUJoystick(BuggyJoystick):
                    self.dpad['down'])
 
 
+class XBoxJoystick(BuggyJoystick):
+    def __init__(self):
+        super(XBoxJoystick, self).__init__()
+
+        self.deadzoneStick = 0.15
+
+        self.left_stick = {
+            'x': 0,
+            'y': 0
+        }
+        self.right_stick = {
+            'x': 0,
+            'y': 0
+        }
+        self.triggers = {
+            'L': 0,
+            'R': 0
+        }
+
+        self.buttons = {
+            "A": False,
+            "B": False,
+            "X": False,
+            "Y": False,
+            "Z": False,
+            "L": False,
+            "R": False,
+            "center": False,
+            "back": False,
+            "start": False,
+            "Ljoy": False,
+            "Rjoy": False
+        }
+
+        self.dpad = {
+            "left": False,
+            "right": False,
+            "up": False,
+            "down": False,
+        }
+
+    def update(self):
+        event = pygame.event.poll()
+        if event.type != pygame.NOEVENT:
+            print(event)
+        if event.type == pygame.QUIT:
+            self.stop()
+
+        if event.type == pygame.JOYAXISMOTION:
+            if event.axis == 0:
+                self.left_stick['x'] = event.value
+            elif event.axis == 1:
+                self.left_stick['y'] = event.value
+            elif event.axis == 2:
+                self.right_stick['x'] = event.value
+            elif event.axis == 3:
+                self.right_stick['y'] = event.value
+            elif event.axis == 4:
+                self.triggers.L = event.value
+            elif event.axis == 5:
+                self.triggers.R = event.value
+
+            if (abs(self.left_stick['x']) < self.deadzoneStick and
+                        abs(self.left_stick['y']) < self.deadzoneStick):
+                self.left_stick['x'] = 0
+                self.left_stick['y'] = 0
+            if (abs(self.right_stick['x']) < self.deadzoneStick and
+                        abs(self.right_stick['y']) < self.deadzoneStick):
+                self.right_stick['x'] = 0
+                self.right_stick['y'] = 0
+                
+        elif event.type == pygame.JOYHATMOTION:
+            self.update_dpad(event)
+
+        elif event.type == pygame.JOYBUTTONDOWN:
+            self.update_buttons(event, True)
+
+        elif event.type == pygame.JOYBUTTONUP:
+            self.update_buttons(event, False)
+
+    def update_buttons(self, event, value):
+        if event.button == 0:
+            self.buttons['A'] = value
+        elif event.button == 1:
+            self.buttons['B'] = value
+        elif event.button == 2:
+            self.buttons['X'] = value
+        elif event.button == 3:
+            self.buttons['Y'] = value
+        elif event.button == 4:
+            self.buttons['L'] = value
+        elif event.button == 5:
+            self.buttons['R'] = value
+        elif event.button == 6:
+            self.buttons['back'] = value
+        elif event.button == 7:
+            self.buttons['start'] = value
+        elif event.button == 8:
+            self.buttons['center'] = value
+        elif event.button == 9:
+            self.buttons['Ljoy'] = value
+        elif event.button == 10:
+            self.buttons['Rjoy'] = value
+    
+    def update_dpad(self, event):
+        if event.value[0] == 1 and event.value[1] == 0:
+            self.dpad.left = False
+            self.dpad.right = True
+            self.dpad.up = False
+            self.dpad.down = False
+        elif event.value[0] == 1 and event.value[1] == 1:
+            self.dpad.left = False
+            self.dpad.right = True
+            self.dpad.up = True
+            self.dpad.down = False
+        elif event.value[0] == 0 and event.value[1] == 1:
+            self.dpad.left = False
+            self.dpad.right = False
+            self.dpad.up = True
+            self.dpad.down = False
+        elif event.value[0] == -1 and event.value[1] == 1:
+            self.dpad.left = True
+            self.dpad.right = False
+            self.dpad.up = True
+            self.dpad.down = False
+        elif event.value[0] == -1 and event.value[1] == 0:
+            self.dpad.left = True
+            self.dpad.right = False
+            self.dpad.up = False
+            self.dpad.down = False
+        elif event.value[0] == -1 and event.value[1] == -1:
+            self.dpad.left = True
+            self.dpad.right = False
+            self.dpad.up = False
+            self.dpad.down = True
+        elif event.value[0] == 0 and event.value[1] == -1:
+            self.dpad.left = False
+            self.dpad.right = False
+            self.dpad.up = False
+            self.dpad.down = True
+        elif event.value[0] == 1 and event.value[1] == -1:
+            self.dpad.left = False
+            self.dpad.right = True
+            self.dpad.up = False
+            self.dpad.down = True
+        else:
+            self.dpad.left = False
+            self.dpad.right = False
+            self.dpad.up = False
+            self.dpad.down = False
+            
+    def __str__(self):
+        return "lx: %s, ly: %s\n" \
+               "rx: %s, ry: %s\n" \
+               "A: %s, B: %s, X: %s, Y: %s\n" \
+               "back: %s, start: %s\n" \
+               "center: %s, Ljoy: %s\n, Rjoy: %s\n" \
+               "L t: %s, R t: %s\n" \
+               "left: %s, right: %s, up: %s, down: %s\n" \
+               "L: %s, R: %s" % (
+                   self.left_stick['x'], self.left_stick['y'],
+                   self.right_stick['x'], self.right_stick['y'],
+                   self.buttons['A'], self.buttons['B'], self.buttons['X'],
+                   self.buttons['Y'], self.buttons['back'], self.buttons['start'],
+                   self.buttons['center'], self.buttons['Ljoy'], self.buttons['Rjoy'],
+                   self.buttons['L'], self.buttons['R'],
+                   self.dpad['left'], self.dpad['right'], self.dpad['up'],
+                   self.dpad['down'],
+                   self.triggers['L'], self.triggers['R'])
+
+
+
 if __name__ == '__main__':
-    if len(sys.argv) > 0:
+    if len(sys.argv) > 1:
         joystick_type = sys.argv[1]
     else:
         joystick_type = "gc"
@@ -302,11 +475,13 @@ if __name__ == '__main__':
         joystick = joystick_init(GCJoystick)
     elif joystick_type == "wiiu":
         joystick = joystick_init(WiiUJoystick)
+    elif joystick_type == "xbox":
+        joystick = joystick_init(XBoxJoystick)
     else:
         raise ValueError("Invalid joystick type:", joystick_type)
     try:
-        while not joystick.done:
+        while not joystick.exit_flag:
             print(joystick)
-            time.sleep(0.005)
+            time.sleep(0.05)
     except KeyboardInterrupt:
         joystick.stop()
