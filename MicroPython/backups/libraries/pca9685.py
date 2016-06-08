@@ -1,9 +1,32 @@
+"""
+Written by Ben Warwick
+
+pca9685.py
+Version 6/7/2016
+=========
+
+A MicroPython library for the PCA9685 I2C servo controller. This library was
+adapted from Adafruit's Arduino library and contains only the essential features
+of the sensor.
+(buy it here: https://www.adafruit.com/products/815)
+
+Usage
+-----
+import pyb
+from libraries.pca9685 import PCA9685
+
+servos = PCA9685(2)  # imu on I2C bus 2
+
+for position range(-90, 91):  # servos have a range of -90 to 90
+    servos.set_servo(position)  # 0...15 (16 available servos)
+    pyb.delay(50)
+"""
 
 import pyb
 import struct
 from math import floor
 
-class PCA9685():
+class PCA9685:
     register = dict(
         LED0=0x06,
         MODE1=0x00,

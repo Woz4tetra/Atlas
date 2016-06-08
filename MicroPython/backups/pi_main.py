@@ -5,30 +5,36 @@ from pyb import UART
 from objects import *
 from data import *
 from comm import Communicator
-from logger import Recorder
 
 leds = [CommandLED(index, index + 1) for index in range(4)]
-servo_steering = Servo(4, 1, start_pos=0)
+servo = Servo(4, 1, start_pos=0)
+motors = RCmotors(5)
 
-communicator = Communicator(servo_steering)
+imu = IMU(2, 1)
+
+communicator = Communicator(*leds, servo, motors)
 
 while True:
+    communicator.write_packet(imu)
+
     communicator.read_command()
 
     if communicator.reset_code:
-        gps.reset()
+        # gps.reset()
         imu.reset()
-        encoder.reset()
-        servo_steering.reset()
+        # encoder.reset()
+
+        servo.reset()
+        motors.reset()
 
         if communicator.reset_code == "R":
-            communicator.write_packet(gps)
-            pyb.delay(1)
+            # communicator.write_packet(gps)
+            # pyb.delay(1)
 
             communicator.write_packet(imu)
             pyb.delay(1)
 
-            communicator.write_packet(encoder)
+            # communicator.write_packet(encoder)
 
         communicator.reset_code = None
 

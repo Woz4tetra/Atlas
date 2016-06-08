@@ -114,7 +114,7 @@ class Servo(Command):
 class CommandLED(Command):
     def __init__(self, command_id, led_num, initial_state=0):
         super().__init__(command_id, 'u4')
-        self.led = LED(led_num)
+        self.led = pyb.LED(led_num)
         self.set_state(initial_state)
 
     def set_state(self, state):
@@ -130,3 +130,33 @@ class CommandLED(Command):
 
     def reset(self):
         self.set_state(0)
+
+class RCmotors(Command):
+    def __init__(self, command_id):
+        super().__init__(command_id, 'i8')
+        timer = pyb.Timer(2, freq=1000)
+        self.motor_speed = 0
+        self.ch2 = timer.channel(2, pyb.Timer.PWM, pin=pyb.Pin.board.X2, pulse_width=16000)
+        self.ch3 = timer.channel(3, pyb.Timer.PWM, pin=pyb.Pin.board.X3, pulse_width=16000)
+
+    def speed(self, speed=None):
+        if speed is None:
+            return self.motor_speed
+        else:
+            self.motor_speed = speed
+            if speed > 0:
+                self.ch2.pulse_width_percent(self.motor_speed)
+                self.ch3.pulse_width_percent(0)
+            elif speed < 0:
+                self.ch2.pulse_width_percent(0)
+                self.ch3.pulse_width_percent(abs(self.motor_speed))
+            else:
+                self.ch2.pulse_width_percent(0)
+                self.ch3.pulse_width_percent(0)
+
+
+    def callback(self, speed):
+        self.speed(speed)
+
+    def reset(self):
+        self.speed(0)
