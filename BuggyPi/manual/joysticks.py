@@ -51,30 +51,29 @@ class GCJoystick(BuggyJoystick):
 
         if event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
-                self.main_stick['x']= event.value
+                self.main_stick['x'] = event.value
             elif event.axis == 1:
-                self.main_stick['y']= event.value
+                self.main_stick['y'] = event.value
             elif event.axis == 2:
-                self.c_stick['x']= event.value
+                self.c_stick['x'] = event.value
             elif event.axis == 3:
-                self.c_stick['y']= event.value
+                self.c_stick['y'] = event.value
             elif event.axis == 4:
-                self.triggers['L']= event.value
+                self.triggers['L'] = event.value
             elif event.axis == 5:
-                self.triggers['R']= event.value
+                self.triggers['R'] = event.value
 
             if (abs(self.main_stick['x']) < self.deadzoneStick and
                         abs(self.main_stick['y']) < self.deadzoneStick):
-                self.main_stick['x']= 0
-                self.main_stick['y']= 0
+                self.main_stick['x'] = 0
+                self.main_stick['y'] = 0
             if (abs(self.c_stick['x']) < self.deadzoneStick and
                         abs(self.c_stick['y']) < self.deadzoneStick):
-                self.c_stick['x']= 0
-                self.c_stick['y']= 0
+                self.c_stick['x'] = 0
+                self.c_stick['y'] = 0
         elif event.type == pygame.JOYBUTTONDOWN:
-            self.update_buttons(event, True)
-
-        elif event.type == pygame.JOYBUTTONUP:
+            self.update_buttons(event, True)['']
+']        elif event.type == pygame.JOYBUTTONUP:
             self.update_buttons(event, False)
 
     def update_buttons(self, event, value):
@@ -165,22 +164,22 @@ class WiiUJoystick(BuggyJoystick):
 
         if event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
-                self.leftStick.x = event.value
+                self.leftStick['x'] = event.value
             elif event.axis == 1:
-                self.leftStick.y = -event.value
+                self.leftStick['y'] = -event.value
             elif event.axis == 2:
-                self.rightStick.y = event.value
+                self.rightStick['y'] = event.value
             elif event.axis == 3:
-                self.rightStick.x = event.value
+                self.rightStick['x'] = event.value
 
-            if (abs(self.leftStick.x) < self.deadzoneStick and
-                        abs(self.leftStick.y) < self.deadzoneStick):
-                self.leftStick.x = 0
-                self.leftStick.y = 0
-            if (abs(self.rightStick.x) < self.deadzoneStick and
-                        abs(self.rightStick.y) < self.deadzoneStick):
-                self.rightStick.x = 0
-                self.rightStick.y = 0
+            if (abs(self.leftStick['x']) < self.deadzoneStick and
+                        abs(self.leftStick['y']) < self.deadzoneStick):
+                self.leftStick['x'] = 0
+                self.leftStick['y'] = 0
+            if (abs(self.rightStick['x']) < self.deadzoneStick and
+                        abs(self.rightStick['y']) < self.deadzoneStick):
+                self.rightStick['x'] = 0
+                self.rightStick['y'] = 0
 
         if event.type == pygame.JOYHATMOTION:
             self.update_dpad(event)
@@ -193,50 +192,50 @@ class WiiUJoystick(BuggyJoystick):
 
     def update_dpad(self, event):
         if event.value[0] == 1 and event.value[1] == 0:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = False
+            self.dpad['down'] = False
         elif event.value[0] == 1 and event.value[1] == 1:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == 0 and event.value[1] == 1:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == 1:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == 0:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == -1:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         elif event.value[0] == 0 and event.value[1] == -1:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         elif event.value[0] == 1 and event.value[1] == -1:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         else:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = False
 
     def update_buttons(self, event, value):
         if event.button == 0:
@@ -399,50 +398,50 @@ class XBoxJoystick(BuggyJoystick):
     
     def update_dpad(self, event):
         if event.value[0] == 1 and event.value[1] == 0:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = False
+            self.dpad['down'] = False
         elif event.value[0] == 1 and event.value[1] == 1:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == 0 and event.value[1] == 1:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == 1:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = True
-            self.dpad.down = False
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = True
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == 0:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = False
         elif event.value[0] == -1 and event.value[1] == -1:
-            self.dpad.left = True
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = True
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         elif event.value[0] == 0 and event.value[1] == -1:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         elif event.value[0] == 1 and event.value[1] == -1:
-            self.dpad.left = False
-            self.dpad.right = True
-            self.dpad.up = False
-            self.dpad.down = True
+            self.dpad['left'] = False
+            self.dpad['right'] = True
+            self.dpad['up'] = False
+            self.dpad['down'] = True
         else:
-            self.dpad.left = False
-            self.dpad.right = False
-            self.dpad.up = False
-            self.dpad.down = False
+            self.dpad['left'] = False
+            self.dpad['right'] = False
+            self.dpad['up'] = False
+            self.dpad['down'] = False
             
     def __str__(self):
         return "lx: %s, ly: %s\n" \
