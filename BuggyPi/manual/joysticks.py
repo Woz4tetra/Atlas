@@ -482,6 +482,6 @@ if __name__ == '__main__':
     try:
         while not joystick.exit_flag:
             print(joystick)
-            time.sleep(0.05)
+            time.sleep(0.5)
     except KeyboardInterrupt:
         joystick.stop()
