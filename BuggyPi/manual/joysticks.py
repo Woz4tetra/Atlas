@@ -51,26 +51,26 @@ class GCJoystick(BuggyJoystick):
 
         if event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
-                self.main_stick.x = event.value
+                self.main_stick['x']= event.value
             elif event.axis == 1:
-                self.main_stick.y = event.value
+                self.main_stick['y']= event.value
             elif event.axis == 2:
-                self.c_stick.x = event.value
+                self.c_stick['x']= event.value
             elif event.axis == 3:
-                self.c_stick.y = event.value
+                self.c_stick['y']= event.value
             elif event.axis == 4:
-                self.triggers.L = event.value
+                self.triggers['L']= event.value
             elif event.axis == 5:
-                self.triggers.R = event.value
+                self.triggers['R']= event.value
 
-            if (abs(self.main_stick.x) < self.deadzoneStick and
-                        abs(self.main_stick.y) < self.deadzoneStick):
-                self.main_stick.x = 0
-                self.main_stick.y = 0
-            if (abs(self.c_stick.x) < self.deadzoneStick and
-                        abs(self.c_stick.y) < self.deadzoneStick):
-                self.c_stick.x = 0
-                self.c_stick.y = 0
+            if (abs(self.main_stick['x']) < self.deadzoneStick and
+                        abs(self.main_stick['y']) < self.deadzoneStick):
+                self.main_stick['x']= 0
+                self.main_stick['y']= 0
+            if (abs(self.c_stick['x']) < self.deadzoneStick and
+                        abs(self.c_stick['y']) < self.deadzoneStick):
+                self.c_stick['x']= 0
+                self.c_stick['y']= 0
         elif event.type == pygame.JOYBUTTONDOWN:
             self.update_buttons(event, True)
 
@@ -79,29 +79,29 @@ class GCJoystick(BuggyJoystick):
 
     def update_buttons(self, event, value):
         if event.button == 0:
-            self.buttons.X = value
+            self.buttons['X']= value
         elif event.button == 1:
-            self.buttons.A = value
+            self.buttons['A']= value
         elif event.button == 2:
-            self.buttons.B = value
+            self.buttons['B']= value
         elif event.button == 3:
-            self.buttons.Y = value
+            self.buttons['Y']= value
         elif event.button == 4:
-            self.buttons.L = value
+            self.buttons['L']= value
         elif event.button == 5:
-            self.buttons.R = value
+            self.buttons['R']= value
         elif event.button == 7:
-            self.buttons.Z = value
+            self.buttons['Z']= value
         elif event.button == 9:
-            self.buttons.start = value
+            self.buttons['start']= value
         elif event.button == 12:
-            self.dpad.up = value
+            self.dpad['up']= value
         elif event.button == 13:
-            self.dpad.right = value
+            self.dpad['right']= value
         elif event.button == 14:
-            self.dpad.down = value
+            self.dpad['down']= value
         elif event.button == 15:
-            self.dpad.left = value
+            self.dpad['left']= value
 
     def __str__(self):
         return "x: %s, y: %s\n" \
