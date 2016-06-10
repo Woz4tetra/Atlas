@@ -185,7 +185,7 @@ if __name__ == '__main__':
                 main_event = event
             elif event.type == pygame.JOYHATMOTION:
                 main_event = event
-            elif event.type == pygame.JOYAXISMOTION and event.axis and \
+            elif event.type == pygame.JOYAXISMOTION and \
                             event.axis not in recorded_axes:
                 if highest_value is None or abs(event.value) > highest_value:
                     main_event = event
@@ -202,6 +202,8 @@ if __name__ == '__main__':
 
     def update_content_button(content, event):
         button_name = input("What's this button's name?\n> ")
+        while button_name in content["buttons"]:
+            button_name = input("Button name already in use...\n> ")
         if button_name != "":
             print(button_name + ": " + str(event.button))
 
@@ -213,6 +215,8 @@ if __name__ == '__main__':
 
     def update_content_axis(content, event):
         axis_name = input("What's this axis' name?\n> ")
+        while axis_name in content["axes"]:
+            axis_name = input("Axis name already in use...\n> ")
         if axis_name != "":
             print(axis_name + ": " + str(event.axis))
 
