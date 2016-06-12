@@ -9,7 +9,7 @@ class Communicator(object):
         self.command_pool = CommandPool(commands)
 
         self.packet = ""
-        self.reset_code = None
+        self.reset = None
 
     def write_packet(self, sensor):
         self.serial_ref.write(sensor.get_packet())
@@ -17,12 +17,10 @@ class Communicator(object):
     def read_command(self):
         if self.serial_ref.any():
             self.packet = self.serial_ref.readline().decode("ascii")
-            if "R" in self.packet or "H" in self.packet:
+            if "R" in self.packet:
                 pyb.LED(2).toggle()
-                self.reset_code = "R"
-                if "H" in self.packet:
-                    self.reset_code = "H"
-                    self.serial_ref.write("R\r")
+                self.reset = True
+                self.serial_ref.write("R\r")
                 return
 
             if type(self.packet) == str:

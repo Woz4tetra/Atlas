@@ -1,41 +1,52 @@
-# main.py -- put your code here!
 
-import pyb
-from pyb import UART
 from objects import *
 from data import *
 from comm import Communicator
+from libraries.rc_motors import RCmotors
 
-leds = [CommandLED(index, index + 1) for index in range(4)]
-servo = Servo(4, 1, start_pos=0)
-motors = RCmotors(5)
+rc_motors = RCmotors("X8", 100, 800, 50)
 
+leds = [LEDcommand(index, index + 1) for index in range(4)]
+servo = ServoCommand(4, 1, start_pos=0)
+motors = MotorCommand(5, rc_motors)
+
+encoder = RCencoder(0, rc_motors)
+gps = GPS(1, 6, "Y3")
 imu = IMU(2, 1)
 
 communicator = Communicator(*leds, servo, motors)
 
 while True:
     communicator.write_packet(imu)
+    pyb.delay(1)
+    
+    if gps.new_data:
+        gps.stream_data()
+        communicator.write_packet(gps)
+        pyb.delay(1)
+    
+    if encoder.recved_data():
+        communicator.write_packet(encoder)
+        pyb.delay(1)
 
     communicator.read_command()
 
-    if communicator.reset_code:
-        # gps.reset()
+    if communicator.reset:
+        gps.reset()
         imu.reset()
-        # encoder.reset()
+        encoder.reset()
 
         servo.reset()
         motors.reset()
 
-        if communicator.reset_code == "R":
-            # communicator.write_packet(gps)
-            # pyb.delay(1)
+        communicator.write_packet(gps)
+        pyb.delay(1)
 
-            communicator.write_packet(imu)
-            pyb.delay(1)
+        communicator.write_packet(imu)
+        pyb.delay(1)
 
-            # communicator.write_packet(encoder)
+        communicator.write_packet(encoder)
+        pyb.delay(1)
 
-        communicator.reset_code = None
-
-    pyb.delay(1)
+        communicator.reset = False
+ 

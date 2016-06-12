@@ -541,7 +541,7 @@ class MicropyGPS(object):
             # Write Character to log file if enabled
             if self.log_en:
                 self.write_log(new_char)
-
+            
             # Check if a new string is starting ($)
             if new_char == '$':
                 self.new_sentence()

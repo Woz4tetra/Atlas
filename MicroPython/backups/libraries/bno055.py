@@ -1,3 +1,29 @@
+"""
+Written by Ben Warwick
+
+bno055.py
+Version 6/7/2016
+=========
+
+A MicroPython library for the BNO055 IMU sensor. This library was adapted from
+Adafruit's Arduino library and contains only the essential features of the
+sensor.
+(buy it here: https://www.adafruit.com/products/2472)
+
+Usage
+-----
+import pyb
+from libraries.bno055 import BNO055
+
+imu = BNO055(2)  # imu on I2C bus 2
+
+while True:
+    yaw, pitch, roll = imu.get_euler()
+    w, x, y, z = imu.get_quat()
+    print(yaw)
+    pyb.delay(1)
+"""
+
 import pyb
 import struct
 import math

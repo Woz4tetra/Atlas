@@ -23,7 +23,6 @@ import pyb
 
 pyb.usb_mode('CDC+MSC')
 
-# pyb.main('pi_main.py') # main script to run after this on
-# pyb.main('quasar_main.py')
-# pyb.main("tests/lidar_lite_v2_test.py")
-pyb.main("tests/rc_car_test.py")
+pyb.main('pi_main.py') # main script to run after this on
+#pyb.main("tests/encoder_motor_test.py")
+#pyb.main("tests/gps_test.py")

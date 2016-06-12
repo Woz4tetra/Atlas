@@ -6,6 +6,62 @@ from libraries.pca9685 import PCA9685
 
 from data import *
 
+class HallEncoder(Sensor):
+    def __init__(self, sensor_id, analog_pin, lower, upper):
+        super(HallEncoder, self).__init__(sensor_id, 'u64')
+        
+        self.pin_ref = pyb.ADC(pyb.Pin(analog_pin, pyb.Pin.ANALOG))
+        
+        self.in_range = False
+        self.enc_dist = 0
+        self.hall_value = 0
+        
+        self.sum = 0
+        self.count = 0
+        
+        # need to be calibrated to real life values
+        # for RoboQuasar, upper = 3100, lower = 2900
+        self.upper_threshold = upper
+        self.lower_threshold = lower
+        
+        self.data_recved = False
+        
+        self.timer1 = pyb.Timer(1, freq=5000)
+        self.timer1.callback(lambda t: self.on_interrupt())
+        
+        assert analog_pin == "X8" or analog_pin == "Y11" or analog_pin == "Y12"
+    
+    def on_interrupt(self):
+        self.hall_value = self.pin_ref.read()
+        self.sum += self.hall_value
+        self.count += 1
+        
+        if self.count == 25:
+            average = self.sum // self.count
+            
+            if self.in_range and (average > self.upper_threshold):
+                self.in_range = False
+                self.enc_dist += 1
+                self.data_recved = True
+            elif not self.in_range and (average <= self.lower_threshold):
+                self.in_range = True
+            
+            self.sum = 0
+            self.count = 0
+    
+def update_data(self):
+    return self.enc_dist
+    
+    def reset(self):
+        self.enc_dist = 0
+    
+    def recved_data(self):
+        if self.data_recved == True:
+            self.data_recved = False
+            return True
+        else:
+            return False
+
 class MCP9808(Sensor):
     CONFIG = 0x01
     CONFIG_SHUTDOWN = 0x0100

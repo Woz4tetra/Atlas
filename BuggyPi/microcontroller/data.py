@@ -218,7 +218,7 @@ class Sensor(SerialObject):
         return "%s(%s, %s)" % (self.__class__.__name__, self.object_id,
                                str_formats)
 
-    def __getitem__(self, item):
+    def get(self, item):
         return self._properties[item]
 
     def received(self):
@@ -346,8 +346,7 @@ class Command(SerialObject):
         self.property_set(value)
 
         current_time = time.time()
-        print(current_time - self.prev_time)
-
+        
         communicator.put(self.get_packet())
         time.sleep(0.004)
 
@@ -359,7 +358,6 @@ class Command(SerialObject):
             num -= abs(upper - lower)
         while num < lower:
             num += abs(upper - lower)
-
         return num
 
     def property_set(self, value):
@@ -369,7 +367,7 @@ class Command(SerialObject):
             elif value < self.range[0]:
                 value = self.range[0]
         else:  # Wraps out of bound value to self.data_range (modulo)
-            value = self.wrap(value, self.range[1], self.range[0])
+            value = self.wrap(value, self.range[0], self.range[1])
 
         self.value = value
 

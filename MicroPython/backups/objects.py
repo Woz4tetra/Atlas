@@ -5,10 +5,16 @@ import pyb
 from data import *
 from libraries.bno055 import BNO055
 from libraries.micro_gps import MicropyGPS
-
+from libraries.rc_motors import RCmotors
 
 class GPS(Sensor):
-    def __init__(self, sensor_id):
+    gps_indicator = pyb.LED(3)
+    new_data = False
+    uart = None
+    pps_pin = None
+    extint = None
+    
+    def __init__(self, sensor_id, uart_bus, int_pin):
         super().__init__(sensor_id, ['f', 'f', 'b'])
 
         self.gps_ref = MicropyGPS()
@@ -17,8 +23,16 @@ class GPS(Sensor):
         self.prev_long = None
         self.lat = 0.0
         self.long = 0.0
+        
+        # using class variables because lists can't be created in callbacks
+        # MicropyGPS creates a list in one of its functions
+        GPS.pps_pin = int_pin
+        GPS.ext_pin = pyb.ExtInt(GPS.pps_pin, pyb.ExtInt.IRQ_FALLING,
+                        pyb.Pin.PULL_UP, GPS.pps_callback)
+        GPS.uart = pyb.UART(6, 9600, read_buf_len=1000)
 
-    def update(self, character):
+
+    def update_gps(self, character):
         self.gps_ref.update(character)
 
     def heading(self):
@@ -40,7 +54,19 @@ class GPS(Sensor):
             self.long,
             self.gps_ref.satellites_in_view > 0
         )
+    
+    def recved_data(self):
+        return GPS.new_data
+    
+    @staticmethod
+    def pps_callback(line):
+        GPS.new_data = True
+        GPS.gps_indicator.toggle()
 
+    def stream_data(self):
+        while GPS.uart.any():
+            self.update_gps(chr(GPS.uart.readchar()))
+        GPS.new_data = False
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus):
@@ -52,48 +78,7 @@ class IMU(Sensor):
         return self.bno.get_euler()[0] * math.pi / 180
 
 
-class HallEncoder(Sensor):
-    def __init__(self, sensor_id, analog_pin):
-        super(HallEncoder, self).__init__(sensor_id, 'u64')
-
-        self.pin_ref = pyb.ADC(pyb.Pin(analog_pin, pyb.Pin.ANALOG))
-
-        self.in_range = False
-        self.enc_dist = 0
-        self.timer1 = pyb.Timer(4, freq=50)
-        self.timer1.callback(lambda t: self.on_interrupt())
-
-        # need to be calibrated to real life values
-        self.upper_threshold = 3100
-        self.lower_threshold = 2900
-
-        self.data_recved = False
-
-    def on_interrupt(self):
-        self.hall_value = self.pin_ref.read()
-
-        if self.in_range and (self.hall_value > self.upper_threshold):
-            self.in_range = False
-            self.enc_dist += 1
-            self.data_recved = True
-        elif not self.in_range and (self.hall_value <= self.lower_threshold):
-            self.in_range = True
-
-    def update_data(self):
-        return self.enc_dist
-
-    def reset(self):
-        self.enc_dist = 0
-
-    def recved_data(self):
-        if self.data_recved == True:
-            self.data_recved = False
-            return True
-        else:
-            return False
-
-
-class Servo(Command):
+class ServoCommand(Command):
     def __init__(self, command_id, pin_num, start_pos=0):
         super().__init__(command_id, 'i8')
         self.start_pos = start_pos
@@ -111,7 +96,7 @@ class Servo(Command):
         self.servo_ref.angle(self.angle)
 
 
-class CommandLED(Command):
+class LEDcommand(Command):
     def __init__(self, command_id, led_num, initial_state=0):
         super().__init__(command_id, 'u4')
         self.led = pyb.LED(led_num)
@@ -131,32 +116,28 @@ class CommandLED(Command):
     def reset(self):
         self.set_state(0)
 
-class RCmotors(Command):
-    def __init__(self, command_id):
+class MotorCommand(Command):
+    def __init__(self, command_id, rc_motor):
         super().__init__(command_id, 'i8')
-        timer = pyb.Timer(2, freq=1000)
-        self.motor_speed = 0
-        self.ch2 = timer.channel(2, pyb.Timer.PWM, pin=pyb.Pin.board.X2, pulse_width=16000)
-        self.ch3 = timer.channel(3, pyb.Timer.PWM, pin=pyb.Pin.board.X3, pulse_width=16000)
-
-    def speed(self, speed=None):
-        if speed is None:
-            return self.motor_speed
-        else:
-            self.motor_speed = speed
-            if speed > 0:
-                self.ch2.pulse_width_percent(self.motor_speed)
-                self.ch3.pulse_width_percent(0)
-            elif speed < 0:
-                self.ch2.pulse_width_percent(0)
-                self.ch3.pulse_width_percent(abs(self.motor_speed))
-            else:
-                self.ch2.pulse_width_percent(0)
-                self.ch3.pulse_width_percent(0)
-
+        self.rc_motor = rc_motor
 
     def callback(self, speed):
-        self.speed(speed)
+        self.rc_motor.set_speed(speed)
 
     def reset(self):
-        self.speed(0)
+        self.rc_motor.set_speed(0)
+
+class RCencoder(Sensor):
+    def __init__(self, sensor_id, rc_motor):
+        super().__init__(sensor_id, 'i64')
+        self.rc_motor = rc_motor
+
+    def reset(self):
+        self.rc_motor.enc_dist = 0
+    
+    def update_data(self):
+        return self.rc_motor.enc_dist
+    
+    def recved_data(self):
+        return self.rc_motor.new_encoder_data()
+

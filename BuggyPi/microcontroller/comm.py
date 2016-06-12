@@ -87,9 +87,8 @@ class Communicator(threading.Thread):
         :param packet: A string formed by a Command object
         :return: None
         """
-        time0 = time.time()
+        
         self.serial_ref.write(bytearray(packet, 'ascii'))
-        print(time.time() - time0)
     
     def handshake(self):
         """
@@ -109,7 +108,7 @@ class Communicator(threading.Thread):
             self.serial_ref.write(struct.pack("B", 4))
             self.serial_ref.write(b"\r")
 
-            self.serial_ref.write(b"H")
+            self.serial_ref.write(b"R")
             self.serial_ref.write(b"\r")
 
         counter = 0

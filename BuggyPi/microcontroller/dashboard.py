@@ -5,7 +5,13 @@ from microcontroller import data
 from microcontroller.comm import Communicator
 
 
-def reset():
+def reset(soft_reboot=False):
+    if soft_reboot:
+        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))
+        time.sleep(0.01)
+        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))
+        print("rebooting...")
+        time.sleep(3)
     # reset the pyboard if it is in the REPL
     data.communicator.serial_ref.write(struct.pack("B", 4))
     time.sleep(0.01)
