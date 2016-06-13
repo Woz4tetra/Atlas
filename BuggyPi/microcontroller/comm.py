@@ -24,13 +24,17 @@ import time
 
 import serial
 
+import config
+from microcontroller.logger import Logger
+
 
 class Communicator(threading.Thread):
     # Flag used to kill all running threads (mainly the serial thread in
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, sensors_pool, use_handshake=True):
+    def __init__(self, baud_rate, sensors_pool, use_handshake=True,
+                 log_name=None, directory=None, log_data=True):
         """
         Constructor for Communicator
 
@@ -52,6 +56,29 @@ class Communicator(threading.Thread):
         self.time0 = time.time()
         self.thread_time = 0
 
+        self.log_data = log_data
+        if self.log_data:
+            if log_name is None:
+                log_name = time.strftime("%c").replace(":", ";") + "/"
+            else:
+                log_name = log_name
+
+                if log_name[-1] != "/":
+                    log_name += "/"
+
+            if directory is None:
+                directory = config.get_dir(":logs")
+            else:
+                if directory[-1] != "/":
+                    directory += "/"
+                if not os.path.isdir(directory):
+                    directory = config.get_dir(":logs") + directory
+            directory += log_name
+
+            self.sensor_log = Logger(directory, "sensor log.txt")
+            self.command_log = Logger(directory, "command log.txt")
+            self.user_log = Logger(directory, "user log.txt")
+
         super(Communicator, self).__init__()
 
     def run(self):
@@ -71,11 +98,18 @@ class Communicator(threading.Thread):
                         packet += incoming
                     incoming = self.serial_ref.read()
                 if len(packet) > 0:
-                    invalid_packets = self.sensor_pool.update(packet)
+                    invalid_packet_num, sensor = self.sensor_pool.update(packet)
 
-                    if invalid_packets > 512:
+                    if self.log_data and sensor is not None:
+                        self.sensor_log.record(sensor.name, sensor._properties)
+
+                    if invalid_packet_num > 512:
                         Communicator.exit_flag = True
             time.sleep(0.0005)
+        if self.log_data:
+            self.sensor_log.close()
+            self.command_log.close()
+            self.user_log.close()
         self.serial_ref.close()
 
     def put(self, packet):
@@ -87,9 +121,9 @@ class Communicator(threading.Thread):
         :param packet: A string formed by a Command object
         :return: None
         """
-        
+
         self.serial_ref.write(bytearray(packet, 'ascii'))
-    
+
     def handshake(self):
         """
         Ensures communication between serial and Arduino (or any
@@ -104,26 +138,24 @@ class Communicator(threading.Thread):
         self.serial_ref.flushInput()
         self.serial_ref.flushOutput()
 
-        def write_resets():
-            self.serial_ref.write(struct.pack("B", 4))
-            self.serial_ref.write(b"\r")
-
-            self.serial_ref.write(b"R")
-            self.serial_ref.write(b"\r")
-
         counter = 0
-        write_resets()
+        self.serial_ref.write(b"R\r")
 
         print("\n---------")
         while read_flag != "R":
-            time.sleep(0.001)
+            time.sleep(0.01)
             read_flag = self.serial_ref.read().decode("ascii")
             print(read_flag, end="")
-            time.sleep(0.001)
+            time.sleep(0.01)
 
             counter += 1
             if counter % 50 == 0:
-                write_resets()
+                self.serial_ref.write(b'\x03')
+                time.sleep(0.01)
+                self.serial_ref.write(struct.pack("B", 4))
+                time.sleep(0.01)
+                self.serial_ref.write(b"R\r")
+                time.sleep(0.01)
 
         print("\n---------")
 

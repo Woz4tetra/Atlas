@@ -28,7 +28,7 @@ import struct
 import time
 from collections import OrderedDict
 from sys import maxsize as MAXINT
-
+import traceback
 
 class SensorPool(object):
     def __init__(self):
@@ -106,10 +106,11 @@ class SensorPool(object):
                 sensor.parse(data)
                 sensor.current_packet = packet
 
-        else:
-            print("Invalid packet: " + repr(packet))
-            self.invalid_packets += 1
-        return self.invalid_packets
+                return self.invalid_packets, sensor
+
+        print("Invalid packet: " + repr(packet))
+        self.invalid_packets += 1
+        return self.invalid_packets, None
 
 
 sensor_pool = SensorPool()
@@ -119,7 +120,10 @@ communicator = None
 def try_sensor(sensor_id, properties):
     global sensor_pool
     # sensor_id = max(sensor_pool.sensors.keys()) + 1
-    exp_sensor = Sensor(sensor_id, properties)
+    sensor_pool.sensors = {}
+    exp_sensor = Sensor(sensor_id, 'exp_sensor', properties)
+    if type(properties) is not list or type(properties) is not tuple:
+        properties = [properties]
 
     packet = ""
     for _ in properties:
@@ -127,7 +131,6 @@ def try_sensor(sensor_id, properties):
         if data_type == 'u' or data_type == 'i':
             int_size = random.choice([8, 16, 32, 64])
             data = random.randint(0, 2 << (int_size - 1) - 1)
-            print("%i, %x" % (data, data))
             packet += "%s%x\t" % (data_type, data)
         elif data_type == 'f':
             data = random.random() * 10000
@@ -136,7 +139,7 @@ def try_sensor(sensor_id, properties):
                                                    struct.pack('<f', data))[0])
         elif data_type == 'b':
             data = random.choice([True, False])
-            if data == True:
+            if data is True:
                 data = random.randint(1, 15)
             else:
                 data = 0
@@ -144,7 +147,7 @@ def try_sensor(sensor_id, properties):
 
     exp_sensor.parse(packet[:-1])
 
-    return exp_sensor._properties
+    return exp_sensor
 
 
 def try_command(command_id, data_range, data=None):
@@ -158,7 +161,7 @@ def try_command(command_id, data_range, data=None):
 
 
 class SerialObject(object):
-    def __init__(self, object_id):
+    def __init__(self, object_id, name):
         """
         Constructor for SerialObject.
         Takes a list of strings (properties) and creates an internal dictionary
@@ -178,11 +181,13 @@ class SerialObject(object):
         self.object_id = object_id
         self.current_packet = ""
 
+        self.name = name
+
         assert (type(object_id) == int)
 
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, properties):
+    def __init__(self, sensor_id, name, properties):
         """
         Constructor for Sensor. Inherits from SerialObject.
         Adds self to sensor_pool (a module internal object)
@@ -194,7 +199,7 @@ class Sensor(SerialObject):
             object
         :return: Sensor
         """
-        super().__init__(sensor_id)
+        super().__init__(sensor_id, name)
         self._new_data_received = False
 
         if type(properties) == str:
@@ -300,7 +305,8 @@ class Sensor(SerialObject):
 
 class Command(SerialObject):
     used_ids = []
-    def __init__(self, command_id, data_range, bound=False, initial=None):
+
+    def __init__(self, command_id, name, data_range, bound=False, initial=None):
         """
         Constructor for Command. Inherits from SerialObject.
 
@@ -317,7 +323,7 @@ class Command(SerialObject):
         """
         self.data_type, self.data_len, self.range = self.get_type_size(
             data_range)
-        super().__init__(command_id)
+        super().__init__(command_id, name)
 
         self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
                                          self.to_hex(self.data_len, 2))
@@ -329,7 +335,7 @@ class Command(SerialObject):
             raise ValueError("Command ID already in use:", command_id)
         else:
             Command.used_ids.append(command_id)
-    
+
     def get(self):
         return self.value
 
@@ -346,7 +352,9 @@ class Command(SerialObject):
         self.property_set(value)
 
         current_time = time.time()
-        
+
+        if communicator.log_data:
+            communicator.command_log.record(self.name, self.value)
         communicator.put(self.get_packet())
         time.sleep(0.004)
 
@@ -468,90 +476,3 @@ class Command(SerialObject):
 
         return self.current_packet
 
-
-# --------------------------------------------------
-#                    Test cases
-# --------------------------------------------------
-
-if __name__ == '__main__':
-    def almost_equal(value1, value2, epsilon=0.0005):
-        """
-        almost_equal is a function created to compare floats to assert the code
-        is correct.
-
-        :param value1:
-        :param value2:
-        :param epsilon:
-        :return:
-        """
-        if type(value1) == list and type(value2) == list:
-            # assert len(value1) == len(value2)
-            for index in range(len(value1)):
-                if type(value1[index]) == float or type(value2[index]) == float:
-                    if abs(value1[index] - value2[index]) > epsilon:
-                        return False
-                else:
-                    if value1[index] != value2[index]:
-                        return False
-            return True
-        else:
-            return abs(value1 - value2) <= epsilon
-
-
-    imu = Sensor(0, ['accel_x', 'accel_y', 'accel_z',
-                     'gyro_x', 'gyro_y', 'gyro_z',
-                     'mag_x', 'mag_y', 'mag_z'])
-    imu.parse("u73e1\tu2305\tu5243\t"
-              "uaa49\tua4d2\tue674\t"
-              "u9627\tud3b2\tu3752")
-    assert imu["accel_x"] == 0x73e1
-    assert imu["accel_y"] == 0x2305
-    assert imu["accel_z"] == 0x5243
-    assert imu["gyro_x"] == 0xaa49
-    assert imu["gyro_y"] == 0xa4d2
-    assert imu["gyro_z"] == 0xe674
-    assert imu["mag_x"] == 0x9627
-    assert imu["mag_y"] == 0xd3b2
-    assert imu["mag_z"] == 0x3752
-
-    imu.parse("i933f\ticae9\ti047f\t"
-              "i00d1\tiff35\ti107c\t"
-              "i36ed\tic14b\tic349")
-
-    assert imu["accel_x"] == -0x6cc1
-    assert imu["accel_y"] == -0x3517
-    assert imu["accel_z"] == 0x47f
-    assert imu["gyro_x"] == 0xd1
-    assert imu["gyro_y"] == -0xcb
-    assert imu["gyro_z"] == 0x107c
-    assert imu["mag_x"] == 0x36ed
-    assert imu["mag_y"] == -0x3eb5
-    assert imu["mag_z"] == -0x3cb7
-
-    gps = Sensor(1, ['lat', 'long', 'speed', 'heading', 'hdop'])
-    gps.parse("f457ec735\t"
-              "f457ed196\t"
-              "f457a1718\t"
-              "i1a\t"
-              "i69")
-
-    assert almost_equal(gps["lat"], 4076.4504098326465)
-    assert almost_equal(gps["long"], 4077.0990541993133)
-    assert almost_equal(gps["speed"], 4001.4434308771893)
-    assert gps["heading"] == 26
-    assert gps["hdop"] == 105
-
-    test = Sensor(2, ['value'])
-    for num in range(-128, 128):
-        if num < 0:
-            num += (2 << 7)
-
-        test.parse("i" + Command.to_hex(num, 8))
-        assert test["value"] == num
-
-    test = Sensor(3, ['value'])
-    for num in range(0, 256):
-        test.parse("u" + Command.to_hex(num, 8))
-        assert test["value"] == num
-
-    print("Sensor IDs 0...3 have been taken")

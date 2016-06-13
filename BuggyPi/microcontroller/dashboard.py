@@ -22,9 +22,15 @@ def reset(soft_reboot=False):
     time.sleep(0.01)
 
 
-def start(baud=115200, use_handshake=True, check_status=False):
-    data.communicator = Communicator(baud, data.sensor_pool, use_handshake)
+def start(baud=115200, use_handshake=True, check_status=False,
+          log_name=None, directory=None, log_data=True, soft_reboot=False):
+
+    data.communicator = Communicator(
+        baud, data.sensor_pool, use_handshake, log_name=log_name,
+        directory=directory, log_data=log_data
+    )
     data.communicator.start()
+
     if check_status:
         status = [False] * 5
         status_index = 0
@@ -37,7 +43,7 @@ def start(baud=115200, use_handshake=True, check_status=False):
             print(".")
             time.sleep(2)
         print("\nIt's alive!")
-    reset()
+    reset(soft_reboot)
 
 
 def stop():
@@ -51,3 +57,8 @@ def is_running(threshold=1):
     if status is True:
         data.communicator.time0 = time.time()
     return status
+
+
+def record(value_name, value):
+    if data.communicator.log_data:
+        data.communicator.user_log.record(value_name, value)
