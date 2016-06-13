@@ -4,8 +4,8 @@ sys.path.insert(0, "../")
 
 from microcontroller.data import *
 from microcontroller.dashboard import *
-# from manual.wiiu_joystick import WiiUJoystick
-from manual.gc_joystick import GCjoystick
+from manual.wiiu_joystick import WiiUJoystick
+##from manual.gc_joystick import GCjoystick
 
 
 def stick_to_servo(x):
@@ -20,10 +20,10 @@ def main():
     encoder = Sensor(0, 'encoder', 'counts')
     imu = Sensor(2, 'imu', 'yaw')
 
-    joystick = GCjoystick()
+    joystick = WiiUJoystick()
 
     joystick.start()
-    start(log_data=True)
+    start(file_name="test 2", log_data=True)
 
     try:
         while True:
@@ -31,8 +31,8 @@ def main():
                 print("Aborted by user")
                 break
 
-            servo.set(stick_to_servo(joystick.get_axis("main x")))
-            motors.set(int(-joystick.get_axis("c y") * 100))
+            servo.set(stick_to_servo(joystick.get_axis("left x")))
+            motors.set(int(-joystick.get_axis("right y") * 100))
 
             if joystick.dpad[1] == 1:
                 leds[0].set(1)

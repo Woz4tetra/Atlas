@@ -23,10 +23,10 @@ def reset(soft_reboot=False):
 
 
 def start(baud=115200, use_handshake=True, check_status=False,
-          log_name=None, directory=None, log_data=True, soft_reboot=False):
+          file_name=None, directory=None, log_data=True, soft_reboot=False):
 
     data.communicator = Communicator(
-        baud, data.sensor_pool, use_handshake, log_name=log_name,
+        baud, data.sensor_pool, use_handshake, file_name=file_name,
         directory=directory, log_data=log_data
     )
     data.communicator.start()
@@ -61,4 +61,4 @@ def is_running(threshold=1):
 
 def record(value_name, value):
     if data.communicator.log_data:
-        data.communicator.user_log.record(value_name, value)
+        data.communicator.log.enq(value_name, value)

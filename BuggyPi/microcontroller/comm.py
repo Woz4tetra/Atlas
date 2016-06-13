@@ -21,6 +21,7 @@ import struct
 import sys
 import threading
 import time
+import shutil
 
 import serial
 
@@ -34,7 +35,7 @@ class Communicator(threading.Thread):
     exit_flag = False
 
     def __init__(self, baud_rate, sensors_pool, use_handshake=True,
-                 log_name=None, directory=None, log_data=True):
+                 file_name=None, directory=None, log_data=True):
         """
         Constructor for Communicator
 
@@ -58,27 +59,8 @@ class Communicator(threading.Thread):
 
         self.log_data = log_data
         if self.log_data:
-            if log_name is None:
-                log_name = time.strftime("%c").replace(":", ";") + "/"
-            else:
-                log_name = log_name
-
-                if log_name[-1] != "/":
-                    log_name += "/"
-
-            if directory is None:
-                directory = config.get_dir(":logs")
-            else:
-                if directory[-1] != "/":
-                    directory += "/"
-                if not os.path.isdir(directory):
-                    directory = config.get_dir(":logs") + directory
-            directory += log_name
-
-            self.sensor_log = Logger(directory, "sensor log.txt")
-            self.command_log = Logger(directory, "command log.txt")
-            self.user_log = Logger(directory, "user log.txt")
-
+            self.log = Logger(file_name, directory)
+        
         super(Communicator, self).__init__()
 
     def run(self):
@@ -101,15 +83,14 @@ class Communicator(threading.Thread):
                     invalid_packet_num, sensor = self.sensor_pool.update(packet)
 
                     if self.log_data and sensor is not None:
-                        self.sensor_log.record(sensor.name, sensor._properties)
+                        self.log.enq(sensor.name, sensor._properties)
 
                     if invalid_packet_num > 512:
                         Communicator.exit_flag = True
+            self.log.record()
             time.sleep(0.0005)
         if self.log_data:
-            self.sensor_log.close()
-            self.command_log.close()
-            self.user_log.close()
+            self.log.close()
         self.serial_ref.close()
 
     def put(self, packet):

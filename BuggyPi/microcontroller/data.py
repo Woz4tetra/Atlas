@@ -354,7 +354,7 @@ class Command(SerialObject):
         current_time = time.time()
 
         if communicator.log_data:
-            communicator.command_log.record(self.name, self.value)
+            communicator.log.enq(self.name, self.value)
         communicator.put(self.get_packet())
         time.sleep(0.004)
 
