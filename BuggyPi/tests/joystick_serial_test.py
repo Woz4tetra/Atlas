@@ -18,12 +18,13 @@ def main():
     motors = Command(5, 'motors', (-100, 100))
 
     encoder = Sensor(0, 'encoder', 'counts')
+    gps = Sensor(1, 'gps', ['lat', 'long', 'found'])
     imu = Sensor(2, 'imu', 'yaw')
 
     joystick = WiiUJoystick()
 
     joystick.start()
-    start(file_name="test 2", log_data=True)
+    start(log_data=False)
 
     try:
         while True:
@@ -53,10 +54,11 @@ def main():
                 leds[3].set(1)
             else:
                 leds[3].set(0)
-            print("%0.4f, %5.0i" % (imu.get('yaw'), encoder.get('counts')),
-                  end='\r')
+            print("%0.4f, %5.0i, (%0.4f, %0.4f, %i)" % (imu.get('yaw'), encoder.get('counts'),
+                  gps.get('lat'), gps.get('long'), gps.get('found')), end='\r')
 
             record('something', leds)
+            time.sleep(0.01)
 
     except KeyboardInterrupt:
         stop()

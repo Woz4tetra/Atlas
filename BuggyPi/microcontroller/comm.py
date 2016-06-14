@@ -87,7 +87,8 @@ class Communicator(threading.Thread):
 
                     if invalid_packet_num > 512:
                         Communicator.exit_flag = True
-            self.log.record()
+            if self.log_data:
+                self.log.record()
             time.sleep(0.0005)
         if self.log_data:
             self.log.close()

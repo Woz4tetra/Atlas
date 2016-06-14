@@ -107,6 +107,10 @@ class SensorPool(object):
                 sensor.current_packet = packet
 
                 return self.invalid_packets, sensor
+            else:
+                print("Sensor ID not found")
+        else:
+            print("Packet malformed")
 
         print("Invalid packet: " + repr(packet))
         self.invalid_packets += 1

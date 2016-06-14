@@ -121,7 +121,7 @@ class Parser:
             raise StopIteration
         
 if __name__ == '__main__':
-    log = Parser("test 2")
+    log = Parser("Mon Jun 13 21;17;24 2016")
     for data in log:
         if data[1] == 'encoder':
             print(data)
