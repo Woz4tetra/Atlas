@@ -28,7 +28,7 @@ import struct
 import time
 from collections import OrderedDict
 from sys import maxsize as MAXINT
-import traceback
+
 
 class SensorPool(object):
     def __init__(self):

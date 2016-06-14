@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import re
 
 sys.path.insert(0, '../')
 
@@ -12,13 +11,14 @@ name_values_sep = ";\t"
 values_sep = "|\t"
 datum_sep = ",\t"
 
+
 class Logger:
     def __init__(self, file_name, directory):
         if file_name is None or file_name.replace(".txt", "") == "":
             file_name = time.strftime("%c").replace(":", ";") + ".txt"
         elif len(file_name) < 4 or file_name[-4:] != ".txt":
             file_name += ".txt"
-        
+
         if directory is None:
             directory = config.get_dir(":logs")
         else:
@@ -40,11 +40,12 @@ class Logger:
 
     def enq(self, value_name, data):
         self.queue.append((value_name, data))
-    
+
     def record(self):
         while len(self.queue) > 0:
             value_name, data = self.queue.pop(0)
-            line = str(time.time() - self.time0) + time_name_sep + str(value_name) + name_values_sep
+            line = str(time.time() - self.time0) + time_name_sep + str(
+                value_name) + name_values_sep
             if isinstance(data, dict):
                 for prop_name, value in data.items():
                     line += prop_name + datum_sep + str(value) + values_sep
@@ -56,6 +57,7 @@ class Logger:
     def close(self):
         self.record()
         self.data_file.close()
+
 
 def convert_str(string):
     if string == "True":
@@ -74,6 +76,7 @@ def convert_str(string):
         return float(string)
     else:
         return int(string)
+
 
 class Parser:
     def __init__(self, file_name, directory=None):
@@ -104,7 +107,8 @@ class Parser:
             name = self.contents[time_index + len(time_name_sep): name_index]
 
             end_index = self.contents.find("\n", self.iter_index)
-            value_content = self.contents[name_index + len(name_values_sep):end_index]
+            value_content = self.contents[
+                            name_index + len(name_values_sep):end_index]
 
             values = {}
             for data in value_content.split(values_sep):
@@ -119,9 +123,14 @@ class Parser:
             return timestamp, name, values
         else:
             raise StopIteration
-        
+
+
 if __name__ == '__main__':
-    log = Parser("Mon Jun 13 21;17;24 2016")
+    log = Parser("Mon Jun 13 21;23;34 2016", "Jun 13 2016")
+    import time
+    time0 = time.time()
     for data in log:
-        if data[1] == 'encoder':
-            print(data)
+        # if data[1] == 'encoder':
+        #     print(data)
+        pass
+    print(time.time() - time0)
