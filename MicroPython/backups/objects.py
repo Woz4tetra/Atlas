@@ -6,6 +6,7 @@ from data import *
 from libraries.bno055 import BNO055
 from libraries.micro_gps import MicropyGPS
 from libraries.rc_motors import RCmotors
+from libraries.bmp280 import *
 
 class GPS(Sensor):
     gps_indicator = pyb.LED(3)
@@ -15,7 +16,7 @@ class GPS(Sensor):
     extint = None
     
     def __init__(self, sensor_id, uart_bus, int_pin):
-        super().__init__(sensor_id, ['f', 'f', 'b'])
+        super().__init__(sensor_id, ['f', 'f', 'u8'])
 
         self.gps_ref = MicropyGPS()
 
@@ -52,7 +53,7 @@ class GPS(Sensor):
         return (
             self.lat,
             self.long,
-            self.gps_ref.satellites_in_view > 0
+            self.gps_ref.satellites_in_view
         )
     
     def recved_data(self):
@@ -140,4 +141,25 @@ class RCencoder(Sensor):
     
     def recved_data(self):
         return self.rc_motor.new_encoder_data()
+
+class Altitude(Sensor):
+    def __init__(self, sensor_id, bus, frequency=20, use_i2c=True):
+        if use_i2c:
+            self.bmp280 = BMP280_I2C(bus)
+        else:
+            self.bmp280 = BMP280_SPI(bus)
+        self.counter = 0
+        self.freq = frequency
+        super(Altitude, self).__init__(sensor_id, 'f')
+
+    def update_data(self):
+        return self.bmp280.altitude()
+
+    def recved_data(self):
+        self.counter += 1
+        if self.counter == self.freq:
+            self.counter = 0
+            return True
+        else:
+            return False
 

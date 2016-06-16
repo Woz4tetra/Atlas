@@ -186,9 +186,8 @@ class Communicator(threading.Thread):
 
         elif (sys.platform.startswith('linux') or
                   sys.platform.startswith('cygwin')):  # linux
-
-            return glob.glob('/dev/tty[A-Za-z]*')
-
+            return ['/dev/ttyACM' + str(i) for i in range(10)]
+            
         elif sys.platform.startswith('win'):  # Windows
             return ['COM' + str(i + 1) for i in range(256)]
 

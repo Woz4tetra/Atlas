@@ -12,41 +12,41 @@ motors = MotorCommand(5, rc_motors)
 
 encoder = RCencoder(0, rc_motors)
 gps = GPS(1, 6, "Y3")
-imu = IMU(2, 1)
+imu = IMU(2, 2)
+altitude = Altitude(3, 2)
 
 communicator = Communicator(*leds, servo, motors)
 
 while True:
     communicator.write_packet(imu)
-    pyb.delay(1)
+
+    communicator.read_command()
     
     if gps.new_data:
         gps.stream_data()
         communicator.write_packet(gps)
-        pyb.delay(1)
     
     if encoder.recved_data():
         communicator.write_packet(encoder)
-        pyb.delay(1)
 
     communicator.read_command()
+
+    if altitude.recved_data():
+        communicator.write_packet(altitude)
 
     if communicator.reset:
         gps.reset()
         imu.reset()
         encoder.reset()
+        altitude.reset()
 
         servo.reset()
         motors.reset()
 
         communicator.write_packet(gps)
-        pyb.delay(1)
-
         communicator.write_packet(imu)
-        pyb.delay(1)
-
         communicator.write_packet(encoder)
-        pyb.delay(1)
-
+        communicator.write_packet(altitude)
+        
         communicator.reset = False
  
