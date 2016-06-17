@@ -1,5 +1,6 @@
 import os
 import sys
+import pygame  # TODO: create live plotter
 
 from matplotlib import pyplot as plt
 
@@ -33,5 +34,5 @@ def plot_all_gps(directory):
         lat, long = [], []
     plt.show()
 
-# plot_gps("Mon Jun 13 21;23;34 2016", "Jun 13 2016")
-plot_all_gps("Jun 13 2016")
+plot_gps("Mon Jun 13 21;23;34 2016", "Jun 13 2016")
+# plot_all_gps("Jun 13 2016")

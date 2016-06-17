@@ -13,6 +13,7 @@ class Communicator(object):
 
     def write_packet(self, sensor):
         self.serial_ref.write(sensor.get_packet())
+        pyb.delay(1)
 
     def read_command(self):
         if self.serial_ref.any():

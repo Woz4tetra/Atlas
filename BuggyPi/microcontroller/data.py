@@ -191,7 +191,7 @@ class SerialObject(object):
 
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, name, properties):
+    def __init__(self, sensor_id, name, properties=None):
         """
         Constructor for Sensor. Inherits from SerialObject.
         Adds self to sensor_pool (a module internal object)
@@ -206,7 +206,9 @@ class Sensor(SerialObject):
         super().__init__(sensor_id, name)
         self._new_data_received = False
 
-        if type(properties) == str:
+        if properties is None:
+            properties = [None]
+        elif type(properties) == str:
             properties = [properties]
         elif type(properties) != list:
             properties = list(properties)
@@ -227,7 +229,7 @@ class Sensor(SerialObject):
         return "%s(%s, %s)" % (self.__class__.__name__, self.object_id,
                                str_formats)
 
-    def get(self, item):
+    def get(self, item=None):  # None assuming None was provided for properties
         return self._properties[item]
 
     def received(self):
