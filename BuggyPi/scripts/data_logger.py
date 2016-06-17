@@ -68,7 +68,7 @@ def main():
     except KeyboardInterrupt:
         joystick.stop()
         stop()
-        print()
+        print("\n------------\n\n")
 
 
 if __name__ == '__main__':
