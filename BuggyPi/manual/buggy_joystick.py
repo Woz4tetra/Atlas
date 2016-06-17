@@ -19,8 +19,7 @@ import pygame
 sys.path.insert(0, "../")
 
 pygame.init()
-pygame.display.init()
-# screen = pygame.display.set_mode((200, 200))
+# pygame.display.init()
 pygame.joystick.init()
 
 
@@ -50,6 +49,8 @@ class BuggyJoystick(threading.Thread):
 
         self.dpad = (0, 0)
 
+        self.events = []
+
         super(BuggyJoystick, self).__init__()
 
     @staticmethod
@@ -70,29 +71,30 @@ class BuggyJoystick(threading.Thread):
         BuggyJoystick.exit_flag = True
 
     def update(self):
-        event = pygame.event.poll()
-        # if event.type != pygame.NOEVENT:
-        #     print(event)
-        if event.type == pygame.QUIT:
-            self.stop()
+        self.events = pygame.event.get()
+        for event in self.events:
+            # if event.type != pygame.NOEVENT:
+            #     print(event)
+            if event.type == pygame.QUIT:
+                self.stop()
 
-        if event.type == pygame.JOYAXISMOTION:
-            for axis_num in range(len(self.axes)):
-                if abs(self.axes[axis_num]) < self.dead_zones[axis_num]:
-                    self.axes[axis_num] = 0.0
-                if axis_num == event.axis:
-                    self.axes[axis_num] = event.value
+            if event.type == pygame.JOYAXISMOTION:
+                for axis_num in range(len(self.axes)):
+                    if abs(self.axes[axis_num]) < self.dead_zones[axis_num]:
+                        self.axes[axis_num] = 0.0
+                    if axis_num == event.axis:
+                        self.axes[axis_num] = event.value
 
-        elif event.type == pygame.JOYHATMOTION:
-            self.dpad = event.value
+            elif event.type == pygame.JOYHATMOTION:
+                self.dpad = event.value
 
-        elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button < len(self.buttons):
-                self.buttons[event.button] = True
+            elif event.type == pygame.JOYBUTTONDOWN:
+                if event.button < len(self.buttons):
+                    self.buttons[event.button] = True
 
-        elif event.type == pygame.JOYBUTTONUP:
-            if event.button < len(self.buttons):
-                self.buttons[event.button] = False
+            elif event.type == pygame.JOYBUTTONUP:
+                if event.button < len(self.buttons):
+                    self.buttons[event.button] = False
 
     def get_button(self, name):
         return self.buttons[self.button_mapping[name]]

@@ -125,12 +125,31 @@ class Parser:
             raise StopIteration
 
 
+def get_points(file_name="checkpoints.txt", directory=":logs"):
+    directory = config.get_dir(directory)
+    with open(directory + file_name, 'r') as checkpoints:
+        contents = checkpoints.read()
+
+    split = contents.splitlines()
+    split.pop(0)  # remove first line (no data there)
+
+    checkpoints = []
+    for line in split:
+        line_data = line.split(",")
+        if len(line_data) == 2:
+            lat, long = float(line_data[0]), float(line_data[1])
+            checkpoints.append((lat, long))
+
+    return checkpoints
+
+
 if __name__ == '__main__':
     log = Parser("Mon Jun 13 21;23;34 2016", "Jun 13 2016")
     import time
+
     time0 = time.time()
     for data in log:
-        # if data[1] == 'encoder':
-        #     print(data)
-        pass
+        if data[1] == 'gps':
+            print(data)
     print(time.time() - time0)
+    print(get_points())

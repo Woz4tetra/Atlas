@@ -5,7 +5,7 @@ sys.path.insert(0, "../")
 from microcontroller.data import *
 from microcontroller.dashboard import *
 from manual.wiiu_joystick import WiiUJoystick
-##from manual.gc_joystick import GCjoystick
+# from manual.gc_joystick import GCjoystick
 
 
 def stick_to_servo(x):
