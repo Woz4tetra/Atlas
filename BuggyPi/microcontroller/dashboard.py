@@ -7,8 +7,11 @@ from microcontroller.comm import Communicator
 
 def reset(soft_reboot=False):
     if soft_reboot:
-        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))
-        time.sleep(0.01)  # control-c
+        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))  # control-c
+        time.sleep(0.01)
+        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))  # control-c again
+        time.sleep(0.01)
+        
         print("rebooting...")
         time.sleep(3)
     # reset the pyboard if it is in the REPL
@@ -46,6 +49,9 @@ def start(baud=115200, use_handshake=True, check_status=False,
 
 
 def stop():
+    print()
+    data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))
+    time.sleep(0.1)
     data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))
     time.sleep(0.1)
     data.communicator.stop()

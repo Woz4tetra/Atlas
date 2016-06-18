@@ -91,6 +91,10 @@ class Communicator(threading.Thread):
                                     self.log.enq(sensor.name,
                                                  sensor._properties)
                             else:
+                                packet = packet.replace("\r", "")
+                                packet = packet.replace("\n", "")
+                                if "Traceback" in packet:
+                                    print("MicroPython ", end="")
                                 print(packet)
                 if self.log_data:
                     self.log.record()
