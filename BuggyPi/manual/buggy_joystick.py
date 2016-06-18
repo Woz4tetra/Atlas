@@ -18,10 +18,6 @@ import pygame
 
 sys.path.insert(0, "../")
 
-pygame.init()
-# pygame.display.init()
-pygame.joystick.init()
-
 
 class BuggyJoystick(threading.Thread):
     exit_flag = False
