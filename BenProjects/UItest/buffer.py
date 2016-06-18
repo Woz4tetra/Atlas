@@ -16,7 +16,6 @@ all data conversion.
 """
 
 import glob
-import struct
 import sys
 import threading
 import time
@@ -24,44 +23,44 @@ import traceback
 
 import serial
 
-from microcontroller.logger import Logger
+class SerialBuffer(threading.Thread):
+    lock = threading.Lock()
 
-
-class Communicator(threading.Thread):
     # Flag used to kill all running threads (mainly the serial thread in
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, sensors_pool, use_handshake=True,
-                 file_name=None, directory=None, log_data=True):
+    def __init__(self, baud_rate=115200):
         """
         Constructor for Communicator
 
         :param baud_rate: Data communication rate. Make sure it matches your
             device's baud rate! (For MicroPython it doesn't matter)
-        :param sensors_pool: The SensorPool object in which to put the sensor
-            data
         :param use_handshake: For Arduino boards or any micro-controller that
             reboots when a program connects over serial.
         :return: Communicator object
         """
         self.serial_ref, self.address = self.find_port(baud_rate)
-
-        if use_handshake:
-            self.handshake()
-
-        self.sensor_pool = sensors_pool
+        if self.serial_ref is None:
+            self.error_message = self.address
+        else:
+            self.error_message = ""
 
         self.time0 = time.time()
         self.thread_time = 0
 
         self.buffer = ""
 
-        self.log_data = log_data
-        if self.log_data:
-            self.log = Logger(file_name, directory)
+        super(SerialBuffer, self).__init__()
 
-        super(Communicator, self).__init__()
+    def begin(self):
+        if self.serial_ref is None:
+            self.stop()
+            return self.error_message
+
+        else:
+            self.start()
+            return self.address
 
     def run(self):
         """
@@ -71,36 +70,24 @@ class Communicator(threading.Thread):
         """
 
         try:
-            while not Communicator.exit_flag:
+            while not SerialBuffer.exit_flag:
                 self.thread_time = round(time.time() - self.time0)
                 if self.serial_ref.inWaiting() > 0:
-                    incoming = self.serial_ref.read(self.serial_ref.inWaiting())
-                    self.buffer += incoming.decode('ascii')
-                    packets = self.buffer.split('\r')
-
-                    if self.buffer[-1] != '\r':
-                        self.buffer = packets.pop(-1)
-                    else:
-                        self.buffer = ""
-                    for packet in packets:
-                        if len(packet) > 0:
-                            sensor = self.sensor_pool.update(packet)
-
-                            if sensor is not None:
-                                if self.log_data:
-                                    self.log.enq(sensor.name,
-                                                 sensor._properties)
-                            else:
-                                print(packet)
-                if self.log_data:
-                    self.log.record()
+                    incoming = self.serial_ref.read(self.serial_ref.inWaiting()).decode('ascii')
+                    # SerialBuffer.lock.acquire()
+                    self.buffer += incoming
+                    # SerialBuffer.lock.release()
                 time.sleep(0.0005)
         except:
             traceback.print_exc()
 
-        if self.log_data:
-            self.log.close()
-        self.serial_ref.close()
+        if self.serial_ref is not None:
+            self.serial_ref.close()
+
+    def get(self):
+        buffer = self.buffer
+        self.buffer = ""
+        return buffer
 
     def put(self, packet):
         """
@@ -113,42 +100,6 @@ class Communicator(threading.Thread):
         """
 
         self.serial_ref.write(bytearray(packet, 'ascii'))
-
-    def handshake(self):
-        """
-        Ensures communication between serial and Arduino (or any
-        micro-controller that needs it, MicroPython does not)
-
-        :return: None
-        """
-        print("Waiting for ready flag from %s..." % self.address)
-
-        read_flag = None
-
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
-
-        counter = 0
-        self.serial_ref.write(b"R\r")
-
-        while read_flag != "R":
-            time.sleep(0.01)
-            read_flag = self.serial_ref.read().decode("ascii")
-            print(read_flag, end="")
-            time.sleep(0.01)
-
-            if counter % 50 == 0:
-                self.serial_ref.write(b'\x03')  # control-c to stop pyboard
-                time.sleep(0.25)
-                self.serial_ref.write(struct.pack("B", 4))
-                time.sleep(0.25)
-                self.serial_ref.write(b"R\r")
-                time.sleep(0.25)
-            counter += 1
-
-        # self.serial_ref.write("\r")
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
 
     def find_port(self, baud_rate):
         """
@@ -170,9 +121,8 @@ class Communicator(threading.Thread):
             except serial.SerialException:
                 pass
         if address is None:
-            raise Exception(
-                "No boards could be found! Did you plug it in? Try "
-                "entering the address manually.")
+            return (None, "No boards could be found! Did you plug it in? Try "
+                          "entering the address manually.")
         else:
             return serial_ref, address
 
@@ -204,7 +154,7 @@ class Communicator(threading.Thread):
 
         :return: None
         """
-        Communicator.exit_flag = True
+        SerialBuffer.exit_flag = True
 
     def dump(self):
         """

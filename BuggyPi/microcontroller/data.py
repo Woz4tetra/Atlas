@@ -38,8 +38,6 @@ class SensorPool(object):
         :return: SensorPool object
         """
 
-        self.invalid_packets = 0
-
         self.sensors = {}
 
     def add_sensor(self, sensor):
@@ -92,8 +90,6 @@ class SensorPool(object):
         :return: None
         """
 
-        packet = packet.decode('ascii')
-        # print(self.is_packet(packet), packet)
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
             if sensor_id in list(self.sensors.keys()):
@@ -106,15 +102,9 @@ class SensorPool(object):
                 sensor.parse(data)
                 sensor.current_packet = packet
 
-                return self.invalid_packets, sensor
-            else:
-                print("Sensor ID not found")
-        else:
-            print("Packet malformed")
+                return sensor
 
-        print("Invalid packet: " + repr(packet))
-        self.invalid_packets += 1
-        return self.invalid_packets, None
+        return None
 
 
 sensor_pool = SensorPool()
