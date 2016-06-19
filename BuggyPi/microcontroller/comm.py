@@ -95,6 +95,8 @@ class Communicator(threading.Thread):
                                 packet = packet.replace("\n", "")
                                 if "Traceback" in packet:
                                     print("MicroPython ", end="")
+                                if ">>> " in packet:
+                                    self.stop()
                                 print(packet)
                 if self.log_data:
                     self.log.record()

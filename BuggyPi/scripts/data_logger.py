@@ -33,7 +33,7 @@ def main():
     start(log_data=False, soft_reboot=False)    
 
     try:
-        while True:
+        while is_running():
             if joystick.get_button('B'):
                 print("Aborted by user")
                 break
