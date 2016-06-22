@@ -32,8 +32,8 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, baud_rate, sensors_pool, use_handshake=True,
-                 file_name=None, directory=None, log_data=True):
+    def __init__(self, sensors_pool, baud_rate=115200, log_data=True,
+                 log_name=None, log_dir=None):
         """
         Constructor for Communicator
 
@@ -47,21 +47,21 @@ class Communicator(threading.Thread):
         """
         self.serial_ref, self.address = self.find_port(baud_rate)
 
-        if use_handshake:
-            self.handshake()
+        self.handshake()
 
         self.sensor_pool = sensors_pool
 
         self.time0 = time.time()
         self.thread_time = 0
 
-        self.buffer = ""
-
         self.log_data = log_data
         if self.log_data:
-            self.log = Logger(file_name, directory)
+            self.log = Logger(log_name, log_dir)
 
         super(Communicator, self).__init__()
+
+    def record(self, name, value):
+        self.log.enq(name, value)
 
     def run(self):
         """
@@ -69,23 +69,18 @@ class Communicator(threading.Thread):
 
         :return: None
         """
-
         try:
             while not Communicator.exit_flag:
                 self.thread_time = round(time.time() - self.time0)
                 if self.serial_ref.inWaiting() > 0:
-                    incoming = self.serial_ref.read(self.serial_ref.inWaiting())
-                    self.buffer += incoming.decode('ascii')
-                    packets = self.buffer.split('\r')
-
-                    if self.buffer[-1] != '\r':
-                        self.buffer = packets.pop(-1)
+                    packets, status = self.read_packets()
+                    if status is False:
+                        print("Serial read failed...")
+                        raise KeyboardInterrupt
                     else:
-                        self.buffer = ""
-                    for packet in packets:
-                        if len(packet) > 0:
-                            sensor = self.sensor_pool.update(packet)
-
+                        for packet in packets:
+                            if len(packet) > 0:
+                                sensor = self.sensor_pool.update(packet)
                             if sensor is not None:
                                 if self.log_data:
                                     self.log.enq(sensor.name,
@@ -95,18 +90,38 @@ class Communicator(threading.Thread):
                                 packet = packet.replace("\n", "")
                                 if "Traceback" in packet:
                                     print("MicroPython ", end="")
-                                if ">>> " in packet:
-                                    self.stop()
-                                print(packet)
-                if self.log_data:
-                    self.log.record()
+                    if self.log_data and len(self.log.queue) > 64:
+                        self.log.record()
                 time.sleep(0.0005)
-        except:
+        except KeyboardInterrupt:
             traceback.print_exc()
 
         if self.log_data:
             self.log.close()
         self.serial_ref.close()
+
+    def read_packets(self):
+        try:
+            incoming = self.serial_ref.read(self.serial_ref.inWaiting())
+            self.buffer += incoming.decode('ascii')
+            packets = self.buffer.split('\n')
+
+            if self.buffer[-1] != '\r':
+                self.buffer = packets.pop(-1)
+            else:
+                self.buffer = ""
+            return packets, True
+        except:
+            traceback.print_exc()
+            return [], False
+
+    def write_byte(self, data):
+        try:
+            self.serial_ref.write(data)
+        except:
+            print("Serial write failed...")
+            traceback.print_exc()
+            self.stop()
 
     def put(self, packet):
         """
@@ -117,8 +132,7 @@ class Communicator(threading.Thread):
         :param packet: A string formed by a Command object
         :return: None
         """
-
-        self.serial_ref.write(bytearray(packet, 'ascii'))
+        self.write_byte(bytearray(packet, 'ascii'))
 
     def handshake(self):
         """
@@ -129,37 +143,31 @@ class Communicator(threading.Thread):
         """
         print("Waiting for ready flag from %s..." % self.address)
 
+        self.put("R")
         read_flag = None
-
-##        self.serial_ref.flushInput()
-##        self.serial_ref.flushOutput()
-
-        counter = 0
-        self.serial_ref.write(b"R\r")
+        start_time = time.time()
 
         try:
             while read_flag != "R":
-##                time.sleep(0.01)
                 read_flag = self.serial_ref.read().decode("ascii")
-                print(read_flag, end="")
-                time.sleep(0.001)
+                time.sleep(0.0005)
 
-                if counter % 1000 == 0:
-                    self.serial_ref.write(b'\x03')  # control-c to stop pyboard
-                    time.sleep(0.01)
-                    self.serial_ref.write(b'\x03')
-                    time.sleep(0.25)
-                    self.serial_ref.write(struct.pack("B", 4))
-                    time.sleep(0.25)
-                    self.serial_ref.write(b"R\r")
-                    time.sleep(0.25)
-                counter += 1
+                if time.time() - start_time > 2000:
+                    print("The board seems unresponsive... try entering some "
+                          "commands. (type 'c-c' for control C and 'c-d' for "
+                          "control D. Separate commands with spaces)")
+                    commands = input(">> ")
+                    for command in commands.split(" "):
+                        if command.lower() == 'c-c':
+                            self.write_byte(b'\x03')
+                        elif command.lower() == 'c-d':
+                            self.write_byte(b'\x04')
+                        elif len(command) > 0:
+                            self.put(command)
+
         except:
+            traceback.print_exc()
             self.stop()
-        
-        # self.serial_ref.write("\r")
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
 
     def find_port(self, baud_rate):
         """
@@ -217,11 +225,3 @@ class Communicator(threading.Thread):
         """
         Communicator.exit_flag = True
 
-    def dump(self):
-        """
-        Dump all contents of serial
-
-        :return: None
-        """
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()

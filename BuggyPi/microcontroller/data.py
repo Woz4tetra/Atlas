@@ -1,8 +1,8 @@
 """
 Written by Ben Warwick
 
-data.py, written for RoboQuasar3.0
-Version 3/6/2016
+data.py, written for BuggyPi
+Version 6/6/2016
 =========
 
 Handles sensor data sorting, the command queue, and raw data storage.
@@ -30,31 +30,19 @@ from collections import OrderedDict
 from sys import maxsize as MAXINT
 
 
-class SensorPool(object):
-    def __init__(self):
-        """
-        Constructor for SensorPool. Initializes sensor pool dictionary as empty
-
-        :return: SensorPool object
-        """
-
+class SensorPool:
+    def __init__(self, *sensors):
         self.sensors = {}
 
-    def add_sensor(self, sensor):
-        """
-        add sensors to self.sensors with non-repeating sensor IDs
-
-        :param sensor: A sensor object
-        :return: None
-        """
-        if sensor.object_id in list(self.sensors.keys()):
-            raise Exception(
-                "Sensor ID already taken: " + str(sensor.object_id))
-        elif not isinstance(sensor, Sensor):
-            raise TypeError(
-                "Parameter is not of the type sensor: " + repr(sensor))
-        else:
-            self.sensors[sensor.object_id] = sensor
+        for sensor in sensors:
+            if sensor.object_id in list(self.sensors.keys()):
+                raise Exception(
+                    "Sensor ID already taken: " + str(sensor.object_id))
+            elif not isinstance(sensor, Sensor):
+                raise TypeError(
+                    "Parameter is not of the type sensor: " + repr(sensor))
+            else:
+                self.sensors[sensor.object_id] = sensor
 
     def is_packet(self, packet):
         """
@@ -89,7 +77,7 @@ class SensorPool(object):
         :param packet: A string that may or may not be a valid packet
         :return: None
         """
-##        print(repr(packet))
+
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
             if sensor_id in list(self.sensors.keys()):
@@ -105,10 +93,6 @@ class SensorPool(object):
                 return sensor
 
         return None
-
-
-sensor_pool = SensorPool()
-communicator = None
 
 
 def try_sensor(sensor_id, properties):
@@ -154,7 +138,7 @@ def try_command(command_id, data_range, data=None):
     return exp_command.get_packet()
 
 
-class SerialObject(object):
+class SerialObject:
     def __init__(self, object_id, name):
         """
         Constructor for SerialObject.
@@ -193,18 +177,13 @@ class Sensor(SerialObject):
             object
         :return: Sensor
         """
-        super().__init__(sensor_id, name)
+        super(Sensor, self).__init__(sensor_id, name)
         self._new_data_received = False
 
         if properties is None:
-            properties = [self.name]
-        elif type(properties) == str:
-            properties = [properties]
-        elif type(properties) != list:
-            properties = list(properties)
-        self._properties = self.init_properties(properties)
-
-        sensor_pool.add_sensor(self)
+            self._properties = self.name
+        else:
+            self._properties = self.init_properties(properties)
 
     @staticmethod
     def init_properties(properties):
@@ -214,17 +193,11 @@ class Sensor(SerialObject):
 
         return dict_props
 
-    def __repr__(self):
-        str_formats = str(self._properties)[1:-1]
-        return "%s(%s, %s)" % (self.__class__.__name__, self.object_id,
-                               str_formats)
-
     def get(self, item=None):  # None assuming None was provided for properties
-        if len(self._properties) == 1:
-            item = list(self._properties.keys())[0]
-        elif item is None:
-            item = self.name
-        return self._properties[item]
+        if item is None:
+            return self._properties
+        else:
+            return self._properties[item]
 
     def received(self):
         if self._new_data_received:
@@ -295,6 +268,11 @@ class Sensor(SerialObject):
                 if new_datum is not None:
                     self._properties[key] = new_datum
 
+    def __repr__(self):
+        str_formats = str(self._properties)[1:-1]
+        return "%s(%s, %s)" % (self.__class__.__name__, self.object_id,
+                               str_formats)
+
     def __str__(self):
         to_string = "["
         for key, value in self._properties.items():
@@ -306,79 +284,43 @@ class Sensor(SerialObject):
 class Command(SerialObject):
     used_ids = []
 
-    def __init__(self, command_id, name, data_range, bound=False, initial=None,
-                 use_repeats=False, repeats=None):
-        """
-        Constructor for Command. Inherits from SerialObject.
-
-        :param command_id: The unique Command identifier. Allows
-            micro-controllers to identify Commands.
-        :param data_range: The range of values that the command can send. This
-            determines the data type and size. It doesn't matter if the smaller
-            value is first or second.
-        :param bound: The value bound type. If True and a value outside
-            data_range is given, it will be truncated to that bound, if False
-            and a value outside data_range is given, it will wrap around to the
-            appropriate value (kind of like overflow or modulo)
-        :param use_repeats: if a command doesn't need to be repeated after
-            it is sent, set this flag to True (an LED only requires the off signal
-            to be sent once while the toggle command should be sent every time)
-        :param repeats: if None and use_repeats is True, every
-            value is repeated. Otherwise, provide a list of the values that
-            are repeatable
-        :return: Command object
-        """
-        self.data_type, self.data_len, self.range = self.get_type_size(
-            data_range)
-        super().__init__(command_id, name)
-
-        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
-                                         self.to_hex(self.data_len, 2))
-        self.bound = bound
-
-        self.prev_value = None
-        self.value = initial
-
+    def __init__(self, command_id, name, data_range, communicator,
+                 bound=False, initial=None):
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
             Command.used_ids.append(command_id)
 
-        self.use_repeats = use_repeats
-        self.repeats = repeats
-    
+        super(Command, self).__init__(command_id, name)
+
+        self.data_type, self.data_len, self.range = self.get_type_size(
+            data_range)
+        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
+                                         self.to_hex(self.data_len, 2))
+        self.bound = bound
+        self.communicator = communicator
+
+        self.prev_value = None
+        if initial is None:
+            if self.data_type == 'i' or self.data_type == 'u':
+                self.value = 0
+            elif self.data_type == 'f':
+                self.value = 0.0
+            elif self.data_type == 'b':
+                self.value = False
+
     def get(self):
         return self.value
 
     def set(self, value):
-        """
-        Commands values to serial from the microcontroller to act upon
-
-        :param key: A string with the name of the property
-        :param value: A number to send via the command object
-        :return: None
-        """
-
-        global communicator
-        
-        send_data = False
-        if self.use_repeats:
-            if value != self.prev_value:
-                if self.repeats is None:
-                    send_data = True
-                elif value in self.repeats:
-                    send_data = True
-        else:
-            send_data = True
-
-        if send_data:
+        if value != self.prev_value:
             self.property_set(value)
 
             current_time = time.time()
 
-            if communicator.log_data:
-                communicator.log.enq(self.name, self.value)
-            communicator.put(self.get_packet())
+            if self.communicator.log_data:
+                self.communicator.log.enq(self.name, self.value)
+            self.communicator.put(self.get_packet())
             time.sleep(0.004)
 
             self.prev_time = current_time
@@ -498,4 +440,3 @@ class Command(SerialObject):
                               self.format_data(self.value) + "\r"
 
         return self.current_packet
-

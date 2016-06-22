@@ -39,12 +39,13 @@ class Logger:
         self.queue = []
 
     def enq(self, value_name, data):
-        self.queue.append((value_name, data))
+        timestamp = time.time() - self.time0
+        self.queue.append((timestamp, value_name, data))
 
     def record(self):
         while len(self.queue) > 0:
-            value_name, data = self.queue.pop(0)
-            line = str(time.time() - self.time0) + time_name_sep + str(
+            timestamp, value_name, data = self.queue.pop(0)
+            line = str(timestamp) + time_name_sep + str(
                 value_name) + name_values_sep
             if isinstance(data, dict):
                 for prop_name, value in data.items():

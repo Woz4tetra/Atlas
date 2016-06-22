@@ -20,8 +20,8 @@ def start(baud=115200, use_handshake=True, check_status=False,
           file_name=None, directory=None, log_data=True):
 
     data.communicator = Communicator(
-        baud, data.sensor_pool, use_handshake, file_name=file_name,
-        directory=directory, log_data=log_data
+        baud, data.sensor_pool, use_handshake, log_name=file_name,
+        log_dir=directory, log_data=log_data
     )
     data.communicator.start()
 

@@ -18,6 +18,9 @@ import pygame
 
 sys.path.insert(0, "../")
 
+pygame.init()
+pygame.joystick.init()
+
 class BuggyJoystick(threading.Thread):
     exit_flag = False
 
@@ -97,6 +100,7 @@ class BuggyJoystick(threading.Thread):
                         self.axes[axis_num] = event.value
                         if self.axis_active_fn is not None:
                             self.axis_active_fn(self.axis_to_name[axis_num],
+                                                event.value,
                                                 self.fn_params)
 
             elif event.type == pygame.JOYHATMOTION:
