@@ -89,7 +89,7 @@ class SensorPool(object):
         :param packet: A string that may or may not be a valid packet
         :return: None
         """
-
+##        print(repr(packet))
         if self.is_packet(packet):
             sensor_id, data = int(packet[0:2], 16), packet[3:]
             if sensor_id in list(self.sensors.keys()):
@@ -197,7 +197,7 @@ class Sensor(SerialObject):
         self._new_data_received = False
 
         if properties is None:
-            properties = [None]
+            properties = [self.name]
         elif type(properties) == str:
             properties = [properties]
         elif type(properties) != list:
@@ -220,6 +220,10 @@ class Sensor(SerialObject):
                                str_formats)
 
     def get(self, item=None):  # None assuming None was provided for properties
+        if len(self._properties) == 1:
+            item = list(self._properties.keys())[0]
+        elif item is None:
+            item = self.name
         return self._properties[item]
 
     def received(self):
@@ -302,7 +306,8 @@ class Sensor(SerialObject):
 class Command(SerialObject):
     used_ids = []
 
-    def __init__(self, command_id, name, data_range, bound=False, initial=None):
+    def __init__(self, command_id, name, data_range, bound=False, initial=None,
+                 use_repeats=False, repeats=None):
         """
         Constructor for Command. Inherits from SerialObject.
 
@@ -315,6 +320,12 @@ class Command(SerialObject):
             data_range is given, it will be truncated to that bound, if False
             and a value outside data_range is given, it will wrap around to the
             appropriate value (kind of like overflow or modulo)
+        :param use_repeats: if a command doesn't need to be repeated after
+            it is sent, set this flag to True (an LED only requires the off signal
+            to be sent once while the toggle command should be sent every time)
+        :param repeats: if None and use_repeats is True, every
+            value is repeated. Otherwise, provide a list of the values that
+            are repeatable
         :return: Command object
         """
         self.data_type, self.data_len, self.range = self.get_type_size(
@@ -325,6 +336,7 @@ class Command(SerialObject):
                                          self.to_hex(self.data_len, 2))
         self.bound = bound
 
+        self.prev_value = None
         self.value = initial
 
         if command_id in Command.used_ids:
@@ -332,6 +344,9 @@ class Command(SerialObject):
         else:
             Command.used_ids.append(command_id)
 
+        self.use_repeats = use_repeats
+        self.repeats = repeats
+    
     def get(self):
         return self.value
 
@@ -345,16 +360,28 @@ class Command(SerialObject):
         """
 
         global communicator
-        self.property_set(value)
+        
+        send_data = False
+        if self.use_repeats:
+            if value != self.prev_value:
+                if self.repeats is None:
+                    send_data = True
+                elif value in self.repeats:
+                    send_data = True
+        else:
+            send_data = True
 
-        current_time = time.time()
+        if send_data:
+            self.property_set(value)
 
-        if communicator.log_data:
-            communicator.log.enq(self.name, self.value)
-        communicator.put(self.get_packet())
-        time.sleep(0.004)
+            current_time = time.time()
 
-        self.prev_time = current_time
+            if communicator.log_data:
+                communicator.log.enq(self.name, self.value)
+            communicator.put(self.get_packet())
+            time.sleep(0.004)
+
+            self.prev_time = current_time
 
     @staticmethod
     def wrap(num, lower, upper):

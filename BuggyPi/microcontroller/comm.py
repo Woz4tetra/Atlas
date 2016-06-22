@@ -131,27 +131,32 @@ class Communicator(threading.Thread):
 
         read_flag = None
 
-        self.serial_ref.flushInput()
-        self.serial_ref.flushOutput()
+##        self.serial_ref.flushInput()
+##        self.serial_ref.flushOutput()
 
         counter = 0
         self.serial_ref.write(b"R\r")
 
-        while read_flag != "R":
-            time.sleep(0.01)
-            read_flag = self.serial_ref.read().decode("ascii")
-            print(read_flag, end="")
-            time.sleep(0.01)
+        try:
+            while read_flag != "R":
+##                time.sleep(0.01)
+                read_flag = self.serial_ref.read().decode("ascii")
+                print(read_flag, end="")
+                time.sleep(0.001)
 
-            if counter % 50 == 0:
-                self.serial_ref.write(b'\x03')  # control-c to stop pyboard
-                time.sleep(0.25)
-                self.serial_ref.write(struct.pack("B", 4))
-                time.sleep(0.25)
-                self.serial_ref.write(b"R\r")
-                time.sleep(0.25)
-            counter += 1
-
+                if counter % 1000 == 0:
+                    self.serial_ref.write(b'\x03')  # control-c to stop pyboard
+                    time.sleep(0.01)
+                    self.serial_ref.write(b'\x03')
+                    time.sleep(0.25)
+                    self.serial_ref.write(struct.pack("B", 4))
+                    time.sleep(0.25)
+                    self.serial_ref.write(b"R\r")
+                    time.sleep(0.25)
+                counter += 1
+        except:
+            self.stop()
+        
         # self.serial_ref.write("\r")
         self.serial_ref.flushInput()
         self.serial_ref.flushOutput()

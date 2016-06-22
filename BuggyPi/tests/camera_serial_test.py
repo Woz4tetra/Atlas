@@ -21,9 +21,10 @@ def stick_to_servo(x):
 
 def main():
     camera = PiCamera()
-    camera.resolution = (640, 480)
+    width, height = 320, 240
+    camera.resolution = width, height
     camera.framerate = 32
-    rawCapture = PiRGBArray(camera, size=(640, 480))
+    rawCapture = PiRGBArray(camera, size=(width, height))
 
     time.sleep(0.1)
 

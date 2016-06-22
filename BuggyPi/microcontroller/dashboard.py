@@ -5,15 +5,7 @@ from microcontroller import data
 from microcontroller.comm import Communicator
 
 
-def reset(soft_reboot=False):
-    if soft_reboot:
-        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))  # control-c
-        time.sleep(0.01)
-        data.communicator.serial_ref.write(bytes("\x03", encoding='ascii'))  # control-c again
-        time.sleep(0.01)
-        
-        print("rebooting...")
-        time.sleep(3)
+def reset():
     # reset the pyboard if it is in the REPL
     data.communicator.serial_ref.write(struct.pack("B", 4))
     time.sleep(0.01)
@@ -25,7 +17,7 @@ def reset(soft_reboot=False):
 
 
 def start(baud=115200, use_handshake=True, check_status=False,
-          file_name=None, directory=None, log_data=True, soft_reboot=False):
+          file_name=None, directory=None, log_data=True):
 
     data.communicator = Communicator(
         baud, data.sensor_pool, use_handshake, file_name=file_name,
@@ -45,7 +37,7 @@ def start(baud=115200, use_handshake=True, check_status=False,
             print(".")
             time.sleep(2)
         print("\nIt's alive!")
-    reset(soft_reboot)
+    reset()
 
 
 def stop():
