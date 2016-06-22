@@ -181,9 +181,10 @@ class Sensor(SerialObject):
         self._new_data_received = False
 
         if properties is None:
-            self._properties = self.name
-        else:
-            self._properties = self.init_properties(properties)
+            properties = [self.name]
+        elif type(properties) == str:
+            properties = [properties]
+        self._properties = self.init_properties(properties)
 
     @staticmethod
     def init_properties(properties):

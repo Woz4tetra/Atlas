@@ -41,6 +41,9 @@ def main():
     sensor_pool = SensorPool(counts, gps, yaw, altitude)
     communicator = Communicator(sensor_pool)
 
+    if not communicator.initialized:
+        quit()
+
     leds = [Command(command_id, "led " + str(command_id), (0, 2), communicator)
             for command_id in range(4)]
     servo = Command(4, 'servo', (-90, 90), communicator)
@@ -54,13 +57,13 @@ def main():
 
     try:
         while True:
-            if yaw.received():
-                print(yaw, end='\r')
-            elif gps.received():
+##            if yaw.received():
+##                print(yaw, end='\r')
+            if gps.received():
                 print(gps)
-            elif counts.received():
+            if counts.received():
                 print(counts)
-            elif altitude.received():
+            if altitude.received():
                 print(altitude)
             time.sleep(0.05)
 

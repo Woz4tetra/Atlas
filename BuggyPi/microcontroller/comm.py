@@ -33,7 +33,7 @@ class Communicator(threading.Thread):
     exit_flag = False
 
     def __init__(self, sensors_pool, baud_rate=115200, log_data=True,
-                 log_name=None, log_dir=None):
+                 log_name=None, log_dir=None, handshake=True):
         """
         Constructor for Communicator
 
@@ -47,15 +47,19 @@ class Communicator(threading.Thread):
         """
         self.serial_ref, self.address = self.find_port(baud_rate)
 
-        self.handshake()
+        if handshake:
+            self.initialized = self.handshake()
+        else:
+            self.initialized = False
 
         self.sensor_pool = sensors_pool
+        self.buffer = ""
 
         self.time0 = time.time()
         self.thread_time = 0
 
         self.log_data = log_data
-        if self.log_data:
+        if self.log_data and self.initialized:
             self.log = Logger(log_name, log_dir)
 
         super(Communicator, self).__init__()
@@ -81,15 +85,14 @@ class Communicator(threading.Thread):
                         for packet in packets:
                             if len(packet) > 0:
                                 sensor = self.sensor_pool.update(packet)
-                            if sensor is not None:
-                                if self.log_data:
-                                    self.log.enq(sensor.name,
-                                                 sensor._properties)
-                            else:
-                                packet = packet.replace("\r", "")
-                                packet = packet.replace("\n", "")
-                                if "Traceback" in packet:
-                                    print("MicroPython ", end="")
+                                if sensor is not None:
+                                    if self.log_data:
+                                        self.log.enq(sensor.name,
+                                                     sensor._properties)
+                                else:
+                                    if "Traceback" in packet:
+                                        print("MicroPython ", end="")
+                                    print("no sensor found:", packet)
                     if self.log_data and len(self.log.queue) > 64:
                         self.log.record()
                 time.sleep(0.0005)
@@ -104,9 +107,9 @@ class Communicator(threading.Thread):
         try:
             incoming = self.serial_ref.read(self.serial_ref.inWaiting())
             self.buffer += incoming.decode('ascii')
-            packets = self.buffer.split('\n')
+            packets = self.buffer.split('\r\n')
 
-            if self.buffer[-1] != '\r':
+            if self.buffer[-2:] != '\r\n':
                 self.buffer = packets.pop(-1)
             else:
                 self.buffer = ""
@@ -144,30 +147,20 @@ class Communicator(threading.Thread):
         print("Waiting for ready flag from %s..." % self.address)
 
         self.put("R")
+        
         read_flag = None
-        start_time = time.time()
-
         try:
-            while read_flag != "R":
-                read_flag = self.serial_ref.read().decode("ascii")
+            while read_flag != "buggypi":
+                read_flag = self.serial_ref.readline().decode("ascii").strip("\r\n")
+                print(read_flag)
                 time.sleep(0.0005)
-
-                if time.time() - start_time > 2000:
-                    print("The board seems unresponsive... try entering some "
-                          "commands. (type 'c-c' for control C and 'c-d' for "
-                          "control D. Separate commands with spaces)")
-                    commands = input(">> ")
-                    for command in commands.split(" "):
-                        if command.lower() == 'c-c':
-                            self.write_byte(b'\x03')
-                        elif command.lower() == 'c-d':
-                            self.write_byte(b'\x04')
-                        elif len(command) > 0:
-                            self.put(command)
-
         except:
             traceback.print_exc()
             self.stop()
+            return False
+        
+        print("Ready flag received!")
+        return True
 
     def find_port(self, baud_rate):
         """
@@ -223,5 +216,6 @@ class Communicator(threading.Thread):
 
         :return: None
         """
+        print("")
         Communicator.exit_flag = True
 
