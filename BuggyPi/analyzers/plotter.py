@@ -1,12 +1,11 @@
 import os
 import sys
-import pygame  # TODO: create live plotter
 
 from matplotlib import pyplot as plt
 
 sys.path.insert(0, "../")
 
-import config
+import directories
 from microcontroller.logger import Parser
 
 
@@ -23,7 +22,7 @@ def plot_gps(file_name, directory):
 
 def plot_all_gps(directory):
     lat, long = [], []
-    for file_name in os.listdir(config.get_dir(":logs") + directory):
+    for file_name in os.listdir(directories.get_dir(":logs") + directory):
         parser = Parser(file_name, directory)
         for data in parser:
             if data[1] == 'gps':
@@ -34,5 +33,7 @@ def plot_all_gps(directory):
         lat, long = [], []
     plt.show()
 
-plot_gps("Mon Jun 13 21;23;34 2016", "Jun 13 2016")
+
+
+plot_gps("Mon Jun 13 21;14;38 2016", "Jun 13 2016")
 # plot_all_gps("Jun 13 2016")

@@ -4,7 +4,7 @@ import time
 
 sys.path.insert(0, '../')
 
-import config
+import directories
 
 time_name_sep = ":\t"
 name_values_sep = ";\t"
@@ -20,12 +20,12 @@ class Logger:
             file_name += ".txt"
 
         if directory is None:
-            directory = config.get_dir(":logs")
+            directory = directories.get_dir(":logs")
         else:
             if directory[-1] != "/":
                 directory += "/"
             if not os.path.isdir(directory):
-                directory = config.get_dir(":logs") + directory
+                directory = directories.get_dir(":logs") + directory
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -81,9 +81,9 @@ def convert_str(string):
 class Parser:
     def __init__(self, file_name, directory=None):
         if directory is None:
-            directory = config.get_dir(":logs")
-        elif os.path.isdir(config.get_dir(":logs") + directory):
-            directory = config.get_dir(":logs") + directory
+            directory = directories.get_dir(":logs")
+        elif os.path.isdir(directories.get_dir(":logs") + directory):
+            directory = directories.get_dir(":logs") + directory
         if directory[-1] != "/":
             directory += "/"
 
@@ -94,6 +94,8 @@ class Parser:
 
         self.data = []
         self.iter_index = 0
+
+
 
     def __iter__(self):
         return self
@@ -126,7 +128,7 @@ class Parser:
 
 
 def get_points(file_name="checkpoints.txt", directory=":logs"):
-    directory = config.get_dir(directory)
+    directory = directories.get_dir(directory)
     with open(directory + file_name, 'r') as checkpoints:
         contents = checkpoints.read()
 

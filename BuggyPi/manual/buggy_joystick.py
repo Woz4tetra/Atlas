@@ -22,7 +22,9 @@ class BuggyJoystick(threading.Thread):
     exit_flag = False
 
     # TODO: add multiple joystick support
-    def __init__(self, axes_mapping, axes_dead_zones, button_mapping):
+    def __init__(self, axes_mapping, axes_dead_zones, button_mapping,
+                 button_down_fn=None, button_up_fn=None, axis_active_fn=None,
+                 axis_inactive_fn=None, joy_hat_fn=None, fn_params=None):
         joysticks = [pygame.joystick.Joystick(x) for x in
                      range(pygame.joystick.get_count())]
         assert len(joysticks) > 0
@@ -35,16 +37,27 @@ class BuggyJoystick(threading.Thread):
         assert type(axes_dead_zones) == list or type(axes_dead_zones) == tuple
         assert type(button_mapping) == list or type(button_mapping) == tuple
 
-        self.axis_mapping = self.create_mapping(axes_mapping)
-        self.button_mapping = self.create_mapping(button_mapping)
+        self.axis_to_name = axes_mapping
+        self.button_to_name = button_mapping
+
+        self.name_to_axis = self.create_mapping(axes_mapping)
+        self.name_to_button = self.create_mapping(button_mapping)
 
         self.dead_zones = axes_dead_zones
-        self.axes = [0] * len(axes_mapping)
-        self.buttons = [0] * len(button_mapping)
+        self.axes = [0.0] * len(axes_mapping)
+        self.buttons = [False] * len(button_mapping)
+        self.prev_buttons = [False] * len(button_mapping)
 
         self.dpad = (0, 0)
 
         self.events = []
+
+        self.button_down_fn = button_down_fn
+        self.button_up_fn = button_up_fn
+        self.axis_active_fn = axis_active_fn
+        self.axis_inactive_fn = axis_inactive_fn
+        self.joy_hat_fn = joy_hat_fn
+        self.fn_params = fn_params
 
         super(BuggyJoystick, self).__init__()
 
@@ -77,32 +90,46 @@ class BuggyJoystick(threading.Thread):
                 for axis_num in range(len(self.axes)):
                     if abs(self.axes[axis_num]) < self.dead_zones[axis_num]:
                         self.axes[axis_num] = 0.0
+                        if self.axis_inactive_fn is not None:
+                            self.axis_inactive_fn(self.axis_to_name[axis_num],
+                                                  self.fn_params)
                     if axis_num == event.axis:
                         self.axes[axis_num] = event.value
+                        if self.axis_active_fn is not None:
+                            self.axis_active_fn(self.axis_to_name[axis_num],
+                                                self.fn_params)
 
             elif event.type == pygame.JOYHATMOTION:
                 self.dpad = event.value
+                if self.joy_hat_fn is not None:
+                    self.joy_hat_fn(self.dpad, self.fn_params)
 
             elif event.type == pygame.JOYBUTTONDOWN:
                 if event.button < len(self.buttons):
                     self.buttons[event.button] = True
+                    if self.button_down_fn is not None:
+                        self.button_down_fn(self.button_to_name[event.button],
+                                            self.fn_params)
 
             elif event.type == pygame.JOYBUTTONUP:
                 if event.button < len(self.buttons):
                     self.buttons[event.button] = False
+                    if self.button_up_fn is not None:
+                        self.button_up_fn(self.button_to_name[event.button],
+                                          self.fn_params)
 
     def get_button(self, name):
-        return self.buttons[self.button_mapping[name]]
+        return self.buttons[self.name_to_button[name]]
 
     def get_axis(self, name):
-        return self.axes[self.axis_mapping[name]]
+        return self.axes[self.name_to_axis[name]]
 
     def __str__(self):
         print(self.axes)
-        print(self.axis_mapping)
+        print(self.name_to_axis)
         string = "axes:"
         counter = 0
-        for name, index in self.axis_mapping.items():
+        for name, index in self.name_to_axis.items():
             string += name + ": " + str(self.axes[index]) + "\t"
             if counter % 3 == 0 and index != 0:
                 string += "\n"
@@ -111,7 +138,7 @@ class BuggyJoystick(threading.Thread):
 
         string += "buttons:\n"
         counter = 0
-        for name, index in self.button_mapping.items():
+        for name, index in self.name_to_button.items():
             string += name + ": " + str(self.buttons[index]) + "\t"
             if counter % 5 == 0 and index != 0:
                 string += "\n"
