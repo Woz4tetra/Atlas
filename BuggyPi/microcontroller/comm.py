@@ -16,7 +16,6 @@ all data conversion.
 """
 
 import glob
-import struct
 import sys
 import threading
 import time
@@ -74,6 +73,9 @@ class Communicator(threading.Thread):
         """
         Runs and constantly, updates packets for different sensors
 
+        see "self.log.enq(sensor.name, sensor._properties.copy())"
+            super important to copy()! sensor._properties is passed by reference
+            otherwise and may change before being recorded.
         :return: None
         """
         try:
@@ -89,8 +91,8 @@ class Communicator(threading.Thread):
                             if len(packet) > 0:
                                 sensor = self.sensor_pool.update(packet)
                                 if sensor is not None and self.log_data:
-                                    self.log.enq(sensor.name,
-                                                 sensor._properties)
+                                    self.log.enq(
+                                        sensor.name, sensor._properties.copy())
                                 else:
                                     if "Traceback" in packet:
                                         print("MicroPython ", end="")
@@ -151,11 +153,12 @@ class Communicator(threading.Thread):
         self.put("R")
 
         start_time = time.time()
-        
+
         read_flag = None
         try:
             while read_flag != "buggypi":
-                read_flag = self.serial_ref.readline().decode("ascii").strip("\r\n")
+                read_flag = self.serial_ref.readline().decode("ascii").strip(
+                    "\r\n")
                 print(read_flag)
                 time.sleep(0.0005)
                 if time.time() - start_time > 1:
@@ -165,7 +168,7 @@ class Communicator(threading.Thread):
             traceback.print_exc()
             self.stop()
             return False
-        
+
         print("Ready flag received!")
         return True
 
@@ -225,4 +228,3 @@ class Communicator(threading.Thread):
         """
         print("")
         Communicator.exit_flag = True
-

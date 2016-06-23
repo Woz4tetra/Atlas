@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 
 sys.path.insert(0, '../')
 
@@ -71,7 +70,7 @@ def convert_str(string):
         if char == ".":
             is_float = True
 
-        elif not char.isdigit():
+        elif not char.isdigit() and char != '-':
             return string
     if is_float:
         return float(string)
@@ -88,28 +87,59 @@ class Parser:
         if directory[-1] != "/":
             directory += "/"
 
-        if len(file_name) < 4 or file_name[-4:] != '.txt':
-            file_name += '.txt'
+        if type(file_name) == str:
+            if len(file_name) < 4 or file_name[-4:] != '.txt':
+                file_name += '.txt'
+        elif type(file_name) == int:
+            files = os.listdir(directory)
+            log_files = []
+            for file in files:
+                if len(file) >= 4 and file[-4:] == '.txt':
+                    log_files.append(file)
+            file_name = log_files[file_name]
+            print("Using file named '%s'" % file_name)
+        else:
+            raise ValueError("Invalid file name: " + str(file_name))
         with open(directory + file_name, 'r') as data_file:
             self.contents = data_file.read()
 
         self.data = []
         self.iter_index = 0
 
+        self.initials = {}
 
+        self.create_data()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.iter_index < len(self.contents):
-            time_index = self.contents.find(time_name_sep, self.iter_index)
-            timestamp = float(self.contents[self.iter_index: time_index])
+        if self.iter_index < len(self.data):
+            datum = self.data[self.iter_index]
+            self.iter_index += 1
+            return datum
+        else:
+            raise StopIteration
 
-            name_index = self.contents.find(name_values_sep, self.iter_index)
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def __len__(self):
+        return len(self.data)
+
+    def get_first(self, name):
+        return self.initials[name]
+
+    def create_data(self):
+        index = 0
+        while index < len(self.contents):
+            time_index = self.contents.find(time_name_sep, index)
+            timestamp = float(self.contents[index: time_index])
+
+            name_index = self.contents.find(name_values_sep, index)
             name = self.contents[time_index + len(time_name_sep): name_index]
 
-            end_index = self.contents.find("\n", self.iter_index)
+            end_index = self.contents.find("\n", index)
             value_content = self.contents[
                             name_index + len(name_values_sep):end_index]
 
@@ -121,12 +151,12 @@ class Parser:
                 else:
                     values[None] = convert_str(data)
 
-            self.iter_index = end_index + 1
+            index = end_index + 1
 
-            return timestamp, name, values
-        else:
-            raise StopIteration
+            self.data.append((timestamp, name, values))
 
+            if name not in self.initials.keys():
+                self.initials[name] = timestamp, len(self.data), values
 
 def get_points(file_name="checkpoints.txt", directory=":logs"):
     directory = directories.get_dir(directory)
@@ -150,7 +180,8 @@ def get_points(file_name="checkpoints.txt", directory=":logs"):
             num = int(line_data[0])
             while len(checkpoints) < num + 1:
                 checkpoints.append(None)
-            lat, long = float(line_data[lat_index]), float(line_data[long_index])
+            lat, long = float(line_data[lat_index]), float(
+                line_data[long_index])
 
             checkpoints[num] = lat, long
 
@@ -162,8 +193,8 @@ if __name__ == '__main__':
     import time
 
     time0 = time.time()
-    for data in log:
-        if data[1] == 'gps':
-            print(data)
+    for log_data in log:
+        if log_data[1] == 'gps':
+            print(log_data)
     print(time.time() - time0)
     print(get_points())
