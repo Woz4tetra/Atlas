@@ -64,8 +64,11 @@ class Communicator(threading.Thread):
 
         super(Communicator, self).__init__()
 
-    def record(self, name, value):
-        self.log.enq(name, value)
+    def record(self, name, value=None, **values):
+        if value is not None or len(values) == 0:
+            self.log.enq(name, value)
+        elif value is None and len(values) > 0:
+            self.log.enq(name, values)
 
     def run(self):
         """
@@ -85,15 +88,14 @@ class Communicator(threading.Thread):
                         for packet in packets:
                             if len(packet) > 0:
                                 sensor = self.sensor_pool.update(packet)
-                                if sensor is not None:
-                                    if self.log_data:
-                                        self.log.enq(sensor.name,
-                                                     sensor._properties)
+                                if sensor is not None and self.log_data:
+                                    self.log.enq(sensor.name,
+                                                 sensor._properties)
                                 else:
                                     if "Traceback" in packet:
                                         print("MicroPython ", end="")
-                                    print("no sensor found:", packet)
-                    if self.log_data and len(self.log.queue) > 64:
+                                    print("-- ", packet)
+                    if self.log_data:
                         self.log.record()
                 time.sleep(0.0005)
         except KeyboardInterrupt:
@@ -147,6 +149,8 @@ class Communicator(threading.Thread):
         print("Waiting for ready flag from %s..." % self.address)
 
         self.put("R")
+
+        start_time = time.time()
         
         read_flag = None
         try:
@@ -154,6 +158,9 @@ class Communicator(threading.Thread):
                 read_flag = self.serial_ref.readline().decode("ascii").strip("\r\n")
                 print(read_flag)
                 time.sleep(0.0005)
+                if time.time() - start_time > 1:
+                    start_time = time.time()
+                    self.put('R')
         except:
             traceback.print_exc()
             self.stop()

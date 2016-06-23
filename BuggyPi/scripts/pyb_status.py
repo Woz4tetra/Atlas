@@ -6,6 +6,7 @@ sys.path.insert(0, '../')
 from microcontroller.comm import *
 
 def read_for(seconds):
+    global communicator
     start_time = time.time()
     while time.time() - start_time < seconds:
         time.sleep(0.0005)
@@ -31,7 +32,9 @@ while data != 'exit' and data != 'quit':
             communicator.write_byte(bytes(chr(3), encoding='ascii'))
             time.sleep(0.25)
             read_for(0.5)
+        elif data == "quit" or data == "exit":
+            break
         else:
             read_for(1)
         
-commmunicator.serial_ref.close()
+communicator.serial_ref.close()

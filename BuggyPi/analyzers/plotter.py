@@ -9,7 +9,7 @@ import directories
 from microcontroller.logger import Parser
 
 
-def plot_gps(file_name, directory):
+def plot_gps(file_name, directory=None):
     lat, long = [], []
     parser = Parser(file_name, directory)
     for data in parser:
@@ -33,7 +33,23 @@ def plot_all_gps(directory):
         lat, long = [], []
     plt.show()
 
+def plot_vs_time(file_name, name, value=None, directory=None):
+    plot_data = []
+    t = []
+    parser = Parser(file_name, directory)
+    for data in parser:
+        if data[1] == name:
+            plot_data.append(data[2][value])
+            t.append(data[0])
+    plt.plot(t, plot_data)
+    plt.show()
 
 
-plot_gps("Mon Jun 13 21;14;38 2016", "Jun 13 2016")
+plot_vs_time("Wed Jun 22 20;59;40 2016", 'servo')
 # plot_all_gps("Jun 13 2016")
+##parser = Parser("Wed Jun 22 20;59;40 2016")
+##
+##for data in parser:
+##    if data[1] == 'imu':
+##        print(data)
+        

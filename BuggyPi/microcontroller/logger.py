@@ -119,7 +119,7 @@ class Parser:
                     datum_name, datum_value = data.split(datum_sep)
                     values[datum_name] = convert_str(datum_value)
                 else:
-                    values['value'] = convert_str(data)
+                    values[None] = convert_str(data)
 
             self.iter_index = end_index + 1
 
