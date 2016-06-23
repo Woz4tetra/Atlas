@@ -17,7 +17,8 @@ def button_dn(button, params):
     if button == 'B':
         print("Aborted by user")
     elif button == 'A':
-        communicator.record('checkpoint', num=checkpoint_num, coord=(gps.get("long"), gps.get("lat")))
+        communicator.record('checkpoint', num=checkpoint_num,
+            long=gps.get("long"), lat=gps.get("lat"))
         checkpoint_num += 1
 
 def joy_changed(axis, value, params):
