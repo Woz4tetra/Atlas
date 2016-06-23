@@ -33,6 +33,7 @@ def plot_all_gps(directory):
         lat, long = [], []
     plt.show()
 
+
 def plot_vs_time(file_name, name, value=None, directory=None):
     plot_data = []
     t = []
@@ -44,12 +45,14 @@ def plot_vs_time(file_name, name, value=None, directory=None):
     plt.plot(t, plot_data)
     plt.show()
 
+file_name = "Wed Jun 22 20;36;22 2016"
 
-plot_vs_time("Wed Jun 22 20;59;40 2016", 'servo')
-# plot_all_gps("Jun 13 2016")
-##parser = Parser("Wed Jun 22 20;59;40 2016")
-##
-##for data in parser:
-##    if data[1] == 'imu':
-##        print(data)
-        
+# plot_vs_time(file_name, 'imu', 'yaw', directory="Jun 22 2016")
+# plot_vs_time(file_name, 'encoder', 'counts', directory="Jun 22 2016")
+plot_gps(file_name, "Jun 22 2016")
+# parser = Parser("Wed Jun 22 20;59;40 2016")
+#
+# for data in parser:
+#    if data[1] == 'imu':
+#        print(data)
+#
