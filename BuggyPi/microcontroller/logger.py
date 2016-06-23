@@ -134,14 +134,25 @@ def get_points(file_name="checkpoints.txt", directory=":logs"):
         contents = checkpoints.read()
 
     split = contents.splitlines()
-    split.pop(0)  # remove first line (no data there)
+    header = split.pop(0).split(",")
+
+    if header[1] == 'lat':
+        lat_index = 1
+        long_index = 2
+    else:
+        lat_index = 2
+        long_index = 1
 
     checkpoints = []
     for line in split:
         line_data = line.split(",")
-        if len(line_data) == 2:
-            lat, long = float(line_data[0]), float(line_data[1])
-            checkpoints.append((lat, long))
+        if len(line_data) == 3:
+            num = int(line_data[0])
+            while len(checkpoints) < num + 1:
+                checkpoints.append(None)
+            lat, long = float(line_data[lat_index]), float(line_data[long_index])
+
+            checkpoints[num] = lat, long
 
     return checkpoints
 
