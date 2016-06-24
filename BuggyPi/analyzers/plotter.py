@@ -148,14 +148,17 @@ def plot_encoder_xy(file_name, directory=None, use_meters=True):
     prev_enc_time = 0
     prev_time = 0
     yaw = 0.0
+    prev_enc = 0
 
     for data in parser:
         timestamp, name, values = data
         if name == 'encoder':
-            speed = 0.085 / 6 * math.pi / (timestamp - prev_enc_time)
+            counts = values['counts']
+            speed = (counts - prev_enc) * 0.085 / 6 * math.pi / (timestamp - prev_enc_time)
+            prev_enc = counts
             prev_enc_time = timestamp
         elif name == 'imu':
-            yaw = -values['yaw']  # - math.pi / 2
+            yaw = values['yaw']  # - math.pi / 2
 
         x -= speed * math.cos(yaw) * (timestamp - prev_time)
         y -= speed * math.sin(yaw) * (timestamp - prev_time)
@@ -175,12 +178,12 @@ def plot_encoder_xy(file_name, directory=None, use_meters=True):
 
 
 if __name__ == '__main__':
-    file_name = 3
+    file_name = 7
 
     # plot_vs_time(file_name, 'imu', 'yaw', directory="Jun 22 2016")
     # plot_vs_time(file_name, 'encoder', 'counts', directory="Jun 22 2016")
-    plot_encoder_xy(file_name, "Jun 22 2016", use_meters=False)
-    plot_everything(file_name, "Jun 22 2016")
+    plot_encoder_xy(file_name, "Jun 23 2016", use_meters=False)
+    plot_everything(file_name, "Jun 23 2016")
     plt.show()
 
     # parser = Parser("Wed Jun 22 20;59;40 2016")

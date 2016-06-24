@@ -1,4 +1,5 @@
 import sys
+import time
 
 sys.path.insert(0, "../")
 
@@ -7,19 +8,24 @@ from microcontroller.comm import *
 from manual.wiiu_joystick import WiiUJoystick
 
 
-# from manual.gc_joystick import GCjoystick
+def log_folder():
+    month = time.strftime("%b")
+    day = time.strftime("%d")
+    year = time.strftime("%Y")
+    return "%s %s %s" % (month, day, year)
 
 def stick_to_servo(x):
     return int(-math.atan2(x, 1) * 180 / (math.pi * 1.85))
 
 def button_dn(button, params):
     global checkpoint_num, gps
-    if button == 'B':
-        print("Aborted by user")
-    elif button == 'A':
+##    if button == 'B':
+##        print("Aborted by user")
+    if button == 'A':
         communicator.record('checkpoint', num=checkpoint_num,
             long=gps.get("long"), lat=gps.get("lat"))
         checkpoint_num += 1
+        print("--------\nCheckpoint reached! %s\n--------" % str(checkpoint_num))
 
 def joy_changed(axis, value, params):
     global servo, motors, joystick
@@ -38,7 +44,7 @@ altitude = Sensor(3, 'altitude', 'altitude')
 checkpoint_num = 0
 
 sensor_pool = SensorPool(counts, gps, yaw, altitude)
-communicator = Communicator(sensor_pool)
+communicator = Communicator(sensor_pool, log_dir=log_folder())
 
 if not communicator.initialized:
     quit()

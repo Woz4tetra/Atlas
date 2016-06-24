@@ -314,9 +314,8 @@ class Command(SerialObject):
         return self.value
 
     def set(self, value):
-        if value != self.prev_value:
-            self.property_set(value)
-
+        self.value = self.property_set(value)
+        if self.value != self.prev_value:
             current_time = time.time()
 
             if self.communicator.log_data:
@@ -325,6 +324,7 @@ class Command(SerialObject):
             time.sleep(0.004)
 
             self.prev_time = current_time
+            self.prev_value = self.value
 
     @staticmethod
     def wrap(num, lower, upper):
@@ -343,7 +343,7 @@ class Command(SerialObject):
         else:  # Wraps out of bound value to self.data_range (modulo)
             value = self.wrap(value, self.range[0], self.range[1])
 
-        self.value = value
+        return value
 
     @staticmethod
     def get_data_size(data_range):

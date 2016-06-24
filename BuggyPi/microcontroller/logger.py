@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 sys.path.insert(0, '../')
 
@@ -91,7 +92,7 @@ class Parser:
             if len(file_name) < 4 or file_name[-4:] != '.txt':
                 file_name += '.txt'
         elif type(file_name) == int:
-            files = os.listdir(directory)
+            files = sorted(os.listdir(directory))
             log_files = []
             for file in files:
                 if len(file) >= 4 and file[-4:] == '.txt':
