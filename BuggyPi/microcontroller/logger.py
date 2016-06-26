@@ -181,10 +181,10 @@ def get_points(file_name="checkpoints.txt", directory=":logs"):
             num = int(line_data[0])
             while len(checkpoints) < num + 1:
                 checkpoints.append(None)
-            lat, long = float(line_data[lat_index]), float(
-                line_data[long_index])
+            long, lat = float(line_data[long_index]), float(
+                line_data[lat_index])
 
-            checkpoints[num] = lat, long
+            checkpoints[num] = long, lat
 
     return checkpoints
 
