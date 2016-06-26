@@ -5,7 +5,7 @@ sys.path.insert(0, '../')
 from vision.camera import Camera
 from vision.video import Video
 
-use_camera = False
+use_camera = True
 
 if use_camera:
     capture = Camera(480, 320)
