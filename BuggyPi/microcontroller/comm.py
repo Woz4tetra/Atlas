@@ -31,7 +31,7 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, sensors_pool, baud_rate=115200, log_data=True,
+    def __init__(self, sensors_pool, address=None, baud_rate=115200, log_data=True,
                  log_name=None, log_dir=None, handshake=True):
         """
         Constructor for Communicator
@@ -44,7 +44,13 @@ class Communicator(threading.Thread):
             reboots when a program connects over serial.
         :return: Communicator object
         """
-        self.serial_ref, self.address = self.find_port(baud_rate)
+        if address is None:
+            self.serial_ref, self.address = self.find_port(baud_rate)
+        else:
+            self.address = address
+            self.serial_ref = serial.Serial(port=self.address,
+                                            baudrate=baud_rate,
+                                            timeout=1)
 
         if handshake:
             self.initialized = self.handshake()
@@ -90,9 +96,10 @@ class Communicator(threading.Thread):
                         for packet in packets:
                             if len(packet) > 0:
                                 sensor = self.sensor_pool.update(packet)
-                                if sensor is not None and self.log_data:
-                                    self.log.enq(
-                                        sensor.name, sensor._properties.copy())
+                                if sensor is not None:
+                                    if self.log_data:
+                                        self.log.enq(
+                                            sensor.name, sensor._properties.copy())
                                 else:
                                     if "Traceback" in packet:
                                         print("MicroPython ", end="")
@@ -158,9 +165,11 @@ class Communicator(threading.Thread):
         read_flag = None
         try:
             while read_flag != "ready!":
-                read_flag = self.serial_ref.readline().decode("ascii").strip(
-                    "\r\n")
-                print(read_flag, end='')
+                try:
+                    read_flag = self.serial_ref.readline().decode("ascii").strip("\r\n")
+                except UnicodeDecodeError:
+                    print("invalid character")
+                print(read_flag)
                 time.sleep(0.0005)
                 if time.time() - start_time > 1:
                     start_time = time.time()

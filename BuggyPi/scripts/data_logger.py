@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 
 sys.path.insert(0, "../")
@@ -6,7 +7,7 @@ sys.path.insert(0, "../")
 from microcontroller.data import *
 from microcontroller.comm import *
 from manual.wiiu_joystick import WiiUJoystick
-
+from vision.camera import Camera
 
 def log_folder():
     month = time.strftime("%b")
@@ -18,9 +19,12 @@ def stick_to_servo(x):
     return int(-math.atan2(x, 1) * 180 / (math.pi * 1.85))
 
 def button_dn(button, params):
-    global checkpoint_num, gps
-##    if button == 'B':
-##        print("Aborted by user")
+    global checkpoint_num, gps, communicator
+    if button == 'B':
+        if communicator.log_data:
+            communicator.log.close()
+            communicator.log_data = False
+        print("\n\nClosing log!\n\n")
     if button == 'A':
         communicator.record('checkpoint', num=checkpoint_num,
             long=gps.get("long"), lat=gps.get("lat"))
@@ -44,10 +48,13 @@ altitude = Sensor(3, 'altitude', 'altitude')
 checkpoint_num = 0
 
 sensor_pool = SensorPool(counts, gps, yaw, altitude)
-communicator = Communicator(sensor_pool, log_dir=log_folder())
+log_data = True
+if len(sys.argv) == 2 and sys.argv[1] == 'no-log':
+    log_data = False
+communicator = Communicator(sensor_pool, address='/dev/ttyAMA0', log_data=log_data, log_dir=log_folder())
 
 if not communicator.initialized:
-    quit()
+    raise Exception("Communicator not initialized...")
 
 leds = [Command(command_id, "led " + str(command_id), (0, 2), communicator)
         for command_id in range(4)]
@@ -57,10 +64,19 @@ motors = Command(5, 'motors', (-100, 100), communicator)
 joystick = WiiUJoystick(button_down_fn=button_dn,
                         axis_active_fn=joy_changed)
 
+enable_draw = True
+capture = Camera(320, 240, enable_draw=enable_draw, framerate=32)
 
 def main():
+    if not enable_draw:
+        print("Display will now turn off")
+        time.sleep(2)
+        os.system("sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power")
+    
     joystick.start()
     communicator.start()
+
+    time_start = time.time()
 
     try:
         while True:
@@ -72,13 +88,43 @@ def main():
                 print(counts)
 ##            if altitude.received():
 ##                print(altitude)
-            time.sleep(0.05)
+##            time.sleep(0.05)
+            if capture.get_frame() is None:
+                break
+            key = capture.key_pressed()
 
+            if key == 'q' or key == "esc":
+                break
+            elif key == ' ':
+                if paused:
+                    print("%0.4fs: ...Video unpaused" % (
+                        time.time() - time_start))
+                else:
+                    print("%0.4fs: Video paused..." % (
+                        time.time() - time_start))
+                paused = not paused
+            elif key == 's':
+                capture.save_frame()
+            elif key == 'v':
+                if not capture.recording:
+                    capture.start_recording()
+                else:
+                    capture.stop_recording()
+
+            if capture.recording:
+                capture.record_frame()
+
+            capture.show_frame()
+            
     except:
         traceback.print_exc()
     finally:
         joystick.stop()
         communicator.stop()
+        capture.stop()
+        
+        if not enable_draw:
+            os.system("sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")
 
 
 if __name__ == '__main__':

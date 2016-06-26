@@ -1,4 +1,5 @@
 import sys
+import time
 
 sys.path.insert(0, '../')
 
@@ -10,10 +11,15 @@ use_camera = "F"
 if use_camera == "T":
     capture = Camera(480, 320)
 else:
-    capture = Video(0, loop_video=True)
+    capture = Video(-1, loop_video=True)
+
+paused = False
+time_start = time.time()
+
 while True:
-    if capture.get_frame() is None:
-        break
+    if not paused:
+        if capture.get_frame() is None:
+            break
 
     key = capture.key_pressed()
 

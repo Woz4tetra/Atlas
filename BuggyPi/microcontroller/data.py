@@ -325,6 +325,12 @@ class Command(SerialObject):
 
             self.prev_time = current_time
             self.prev_value = self.value
+        else:
+            current_time = time.time()
+            self.communicator.put(self.get_id_packet())
+            time.sleep(0.004)
+            self.prev_time = current_time
+
 
     @staticmethod
     def wrap(num, lower, upper):
@@ -441,3 +447,6 @@ class Command(SerialObject):
                               self.format_data(self.value) + "\r\n"
 
         return self.current_packet
+
+    def get_id_packet(self):
+        return "%s\r\n" % (self.to_hex(self.object_id, 2))

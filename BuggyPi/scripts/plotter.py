@@ -50,7 +50,6 @@ def plot_everything(file_name, directory=None):
     for timestamp, name, values in Parser(file_name, directory):
         if name == 'gps':
             if len(lat_data) == 0:
-                print(values['long'], values['lat'])
                 plt.plot(values['long'], values['lat'], "go", markersize=12)
 
             lat_data.append(values['lat'])
@@ -64,10 +63,10 @@ def plot_everything(file_name, directory=None):
             long, lat = values['long'], values['lat']
             check_long_data.append(long)
             check_lat_data.append(lat)
-        elif name == 'imu' and counter % 100 == 0:
+        elif name == 'imu':
             yaw = values['yaw']
 
-            if len(lat_data) > 0 and len(long_data) > 0:
+            if counter % 100 == 0 and len(lat_data) > 0 and len(long_data) > 0:
                 x1 = long_data[-1] + 0.00001 * math.cos(-yaw)
                 y1 = lat_data[-1] + 0.00001 * math.sin(-yaw)
                 yaw_lines.append((long_data[-1], x1))
@@ -102,7 +101,20 @@ def plot_everything(file_name, directory=None):
 
 
 if __name__ == '__main__':
-    file_name = 7
+    if len(sys.argv) == 2:
+        file_name = sys.argv[1]
+        directory = None
+    elif len(sys.argv) == 3:
+        file_name = sys.argv[1]
+        directory = sys.argv[2]
+    else:
+        file_name = 7
+        directory = "Jun 23 2016"
 
-    plot_everything(file_name, "Jun 23 2016")
+    try:
+        file_name = int(file_name)
+    except ValueError:
+        pass
+
+    plot_everything(file_name, directory)
     plt.show()

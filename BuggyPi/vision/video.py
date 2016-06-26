@@ -2,14 +2,17 @@ import os
 import cv2
 
 import directories
+from vision.capture import Capture
 
-class Video:
+class Video(Capture):
     def __init__(self, video_name, directory=None, enable_draw=True,
                  start_frame=0, width=None, height=None, frame_skip=0,
                  loop_video=False):
         video_name, capture, length_msec, num_frames, self.slider_len, self.track_bar_name = \
             self.load_video(video_name, directory)
 
+        super(Video, self).__init__(width, height, video_name, enable_draw)
+        
         self.resize_width = width
         self.resize_height = height
 
@@ -38,20 +41,9 @@ class Video:
         self.capture = capture
         
         self.video_len = num_frames
-        self.current_pos = self.current_frame
-        self.set_frame = self.set_frame_pos
-   
+        
         if start_frame > 0:
             self.set_frame(start_frame)
-
-        self.key_codes = {
-            65362: "up",
-            65364: "down",
-            65361: "left",
-            65363: "right",
-            'esc': 'esc',
-            10: "enter"
-        }
 
     def show_frame(self, frame=None):
         """
@@ -122,7 +114,9 @@ class Video:
             self.set_frame(self.current_pos() + self.frame_skip)
 
         success, self.frame = self.capture.read()
-
+##        if self.frame.shape[0] == 0 or self.frame.shape[1] == 0:
+##            success = False
+        
         if success is False or self.frame is None:
             if self.loop_video:
                 self.set_frame(0)
@@ -130,7 +124,7 @@ class Video:
                     success, self.frame = self.capture.read()
             else:
                 self.stop()
-                return
+                return None
         if self.resize_frame:
             self.frame = cv2.resize(self.frame,
                                     (self.resize_width, self.resize_height),
@@ -141,52 +135,21 @@ class Video:
                                self.slider_len / self.video_len))
 
         return self.frame
-
-    def key_pressed(self, delay=1):
-        key = cv2.waitKey(delay)
-        if key in self.key_codes:
-            return self.key_codes[key]
-        elif key > -1:
-            if 0 <= key < 0x100:
-                return chr(key)
-            else:
-                print(("Unrecognized key: " + str(key)))
-        else:
-            return key
-
     
-    # --- video position methods --- #
     def current_pos(self):
-        return 0
-
-    def current_time_msec(self):
-        return int(self.capture.get(cv2.CAP_PROP_POS_MSEC))
-
-    def current_frame(self):
         return int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
 
-    # --- slider methods --- #
     def on_slider(self, slider_index):
         slider_time = int(slider_index * self.video_len / self.slider_len)
         if abs(slider_time - self.current_pos()) > 10:
             self.set_frame(slider_time)
             self.show_frame(self.get_frame())
 
-    # --- position setter methods --- #
     def set_frame(self, position):
-        pass
-
-    def set_frame_pos(self, position):
         if position >= self.video_len:
             position = self.video_len
         if position >= 0:
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, int(position))
-
-    def set_frame_msec(self, time_msec):
-        if time_msec >= self.video_len:
-            time_msec = self.video_len
-        if time_msec >= 0:
-            self.capture.set(cv2.CAP_PROP_POS_MSEC, int(time_msec))
 
     def increment_frame(self):
         self.set_frame(self.current_pos() + 1)
