@@ -150,7 +150,7 @@ class Sensor(SerialObject):
         except TypeError:
             # print(self.data, 'is not iterable')
             self.data = [self.data]
-        self.current_packet = "%s\t%s\r" % (self.to_hex(self.object_id, 2),
+        self.current_packet = "%s\t%s\r\n" % (self.to_hex(self.object_id, 2),
                                             self.format_data())
         return self.current_packet
 

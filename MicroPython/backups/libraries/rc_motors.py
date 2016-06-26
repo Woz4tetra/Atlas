@@ -39,23 +39,22 @@ class RCmotors():
     
         self.speed = 0
         self.min_speed = min_speed
+        self.is_forward = True
     
     def on_interrupt(self):
         self.hall_value = self.enc_pin_ref.read()
         self.sum += self.hall_value
         self.count += 1
         
-        if self.count == 20:
+        if self.count >= 20:
             average = self.sum // self.count
-            
             if self.in_range and (average > self.upper):
                 self.in_range = False
                 
-                if self.speed > 0:
+                if self.is_forward:
                     self.enc_dist += 1
-                elif self.speed < 0:
+                else:
                     self.enc_dist -= 1
-                # else: don't record encoder data
                 
                 self.data_recved = True
             elif not self.in_range and (average <= self.lower):
@@ -72,6 +71,7 @@ class RCmotors():
             return False
     
     def forward(self, speed):
+        self.is_forward = True
         speed = abs(speed)
         
         self.pin1.pulse_width_percent(0)
@@ -81,6 +81,7 @@ class RCmotors():
         self.pin4.pulse_width_percent(speed)
     
     def backward(self, speed):
+        self.is_forward = False
         speed = abs(speed)
         
         self.pin2.pulse_width_percent(0)

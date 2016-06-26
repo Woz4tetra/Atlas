@@ -15,23 +15,29 @@ class GPS(Sensor):
     pps_pin = None
     extint = None
     
-    def __init__(self, sensor_id, uart_bus, int_pin):
-        super().__init__(sensor_id, ['f', 'f', 'u8'])
-
+    def __init__(self, sensor_id, uart_bus, int_pin=None, timer_num=None):
+        assert not (int_pin == timer_num == None)
+        super().__init__(sensor_id, ['f', 'f', 'f', 'u8'])
+        
         self.gps_ref = MicropyGPS()
 
         self.prev_lat = None
         self.prev_long = None
         self.lat = 0.0
         self.long = 0.0
+        self.altitude = 0.0
+
+        GPS.uart = pyb.UART(uart_bus, 9600, read_buf_len=1000)
         
         # using class variables because lists can't be created in callbacks
         # MicropyGPS creates a list in one of its functions
-        GPS.pps_pin = int_pin
-        GPS.ext_pin = pyb.ExtInt(GPS.pps_pin, pyb.ExtInt.IRQ_FALLING,
-                        pyb.Pin.PULL_UP, GPS.pps_callback)
-        GPS.uart = pyb.UART(6, 9600, read_buf_len=1000)
-
+        if int_pin is not None:
+            GPS.pps_pin = int_pin
+            GPS.ext_pin = pyb.ExtInt(GPS.pps_pin, pyb.ExtInt.IRQ_FALLING,
+                            pyb.Pin.PULL_UP, GPS.pps_callback)
+        else:
+            self.timer = pyb.Timer(timer_num, freq=1)
+            self.timer.callback(lambda t: GPS.pps_callback(t))
 
     def update_gps(self, character):
         self.gps_ref.update(character)
@@ -52,31 +58,49 @@ class GPS(Sensor):
         self.long = self.gps_ref.longitude[0] + self.gps_ref.longitude[1] / 60
         return (
             self.lat,
-            self.long,
+            -self.long,
+##            self.gps_ref.geoid_height,
+            self.gps_ref.altitude,
             self.gps_ref.satellites_in_view
         )
     
     def recved_data(self):
-        return GPS.new_data
+        if GPS.new_data:
+            while GPS.uart.any():
+                self.update_gps(chr(GPS.uart.readchar()))
+            GPS.new_data = False
+            return True
+        else:
+            return False
     
     @staticmethod
     def pps_callback(line):
-        GPS.new_data = True
-        GPS.gps_indicator.toggle()
-
-    def stream_data(self):
-        while GPS.uart.any():
-            self.update_gps(chr(GPS.uart.readchar()))
-        GPS.new_data = False
+        if GPS.uart.any():
+            GPS.new_data = True
+            GPS.gps_indicator.toggle()
+        
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus):
         super().__init__(sensor_id, 'f')
         self.bus = bus
         self.bno = BNO055(self.bus)
-
-    def update_data(self):
+        self.yaw = self.get_yaw()
+        self.prev_yaw = None
+        
+    def get_yaw(self):
         return self.bno.get_euler()[0] * math.pi / 180
+
+    def recved_data(self):
+        self.yaw = self.get_yaw()
+        if self.prev_yaw != self.yaw:
+            self.prev_yaw = self.yaw
+            return True
+        else:
+            return False
+        
+    def update_data(self):
+        return self.yaw
 
 
 class ServoCommand(Command):

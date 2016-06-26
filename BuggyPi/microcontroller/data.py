@@ -438,6 +438,6 @@ class Command(SerialObject):
         """
 
         self.current_packet = self.packet_info + \
-                              self.format_data(self.value) + "\r"
+                              self.format_data(self.value) + "\r\n"
 
         return self.current_packet

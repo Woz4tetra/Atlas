@@ -150,20 +150,21 @@ class Communicator(threading.Thread):
         """
         print("Waiting for ready flag from %s..." % self.address)
 
-        self.put("R")
+        signal = 'ready?\r\n'
+        self.put(signal)
 
         start_time = time.time()
 
         read_flag = None
         try:
-            while read_flag != "buggypi":
+            while read_flag != "ready!":
                 read_flag = self.serial_ref.readline().decode("ascii").strip(
                     "\r\n")
-                print(read_flag)
+                print(read_flag, end='')
                 time.sleep(0.0005)
                 if time.time() - start_time > 1:
                     start_time = time.time()
-                    self.put('R')
+                    self.put(signal)
         except:
             traceback.print_exc()
             self.stop()

@@ -73,9 +73,8 @@ class BNO055:
         self.sample_delay = 100
 
         addresses = self.i2c.scan()
-
         if self.address not in addresses:
-            raise Exception("Address not found during scan: " + str(addresses))
+            raise Exception("Address %s not found during scan: %s" % (self.address, addresses))
 
         if not self.i2c.is_ready(self.address):
             raise Exception("Device not ready")
