@@ -97,6 +97,7 @@ class Parser:
             for file in files:
                 if len(file) >= 4 and file[-4:] == '.txt':
                     log_files.append(file)
+            # file_name is the index in the list of files in the directory
             file_name = log_files[file_name]
             print("Using file named '%s'" % file_name)
         else:
