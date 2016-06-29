@@ -85,6 +85,8 @@ def main():
 
     time_start = time.time()
 
+    paused = False
+
     try:
         while True:
             if yaw.received():
@@ -93,9 +95,9 @@ def main():
                 print(gps)
             if counts.received():
                 print(counts)
-            ##            if altitude.received():
-            ##                print(altitude)
-            ##            time.sleep(0.05)
+            # if altitude.received():
+            #     print(altitude)
+            # time.sleep(0.05)
             if capture.get_frame() is None:
                 break
             key = capture.key_pressed()

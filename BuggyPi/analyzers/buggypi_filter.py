@@ -107,8 +107,9 @@ class BuggyPiFilter:
 
         long_rad = math.radians(gps_x_long)
         lat_rad = math.radians(gps_y_lat)
-        bearing = self.gps_bearing(long_rad, lat_rad,
-                                   self.prev_gps_long, self.prev_gps_lat)
+        bearing = self.gps_bearing(
+            long_rad, lat_rad, self.prev_gps_long, self.prev_gps_lat
+        )
 
         enc_vx, enc_vy = self.get_enc_vel(enc_counts, dt)
 
