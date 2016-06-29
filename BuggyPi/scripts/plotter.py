@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 
 sys.path.insert(0, "../")
 
+from analyzers.kalman_filter import BuggyPiFilter
 from microcontroller.logger import *
 
 # retrieved from http://www.geomidpoint.com/destination/
@@ -39,13 +40,18 @@ def plot_everything(file_name, directory=None):
 
     checkpoints = get_points()
     counter = 0
+
     prev_enc = 0
     prev_enc_time = 0
     prev_time = 0
+
     speed = 0
     x, y = 0, 0
     enc_long, enc_lat = [], []
+
     yaw = None
+
+    # initial_long, initial_lat = checkpoints[0]
 
     for timestamp, name, values in Parser(file_name, directory):
         if name == 'gps':
@@ -72,6 +78,7 @@ def plot_everything(file_name, directory=None):
                 yaw_lines.append((long_data[-1], x1))
                 yaw_lines.append((lat_data[-1], y1))
                 yaw_lines.append('orange')
+
         elif name == 'encoder':
             counts = values['counts']
             speed = enc_to_meters(counts - prev_enc) / (timestamp - prev_enc_time)

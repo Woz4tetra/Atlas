@@ -1,4 +1,5 @@
 import math
+import time
 
 import pyb
 
@@ -84,27 +85,44 @@ class GPS(Sensor):
         GPS.pps_timer = 0
 
 class IMU(Sensor):
-    def __init__(self, sensor_id, bus):
+    def __init__(self, sensor_id, bus, timer_num):
         super().__init__(sensor_id, 'f')
         self.bus = bus
         self.bno = BNO055(self.bus)
-        self.yaw = self.get_yaw()
+        
+        self.ang_v = 0.0
+        
         self.prev_yaw = None
+        self.prev_ang_v = None
+        self.prev_time = time.ticks_us()
+        
+        self.timer = pyb.Timer(timer_num, freq=100)
+        self.timer.callback(lambda _: self.callback_angular_v()) 
         
     def get_yaw(self):
         return self.bno.get_euler()[0] * math.pi / 180
 
     def recved_data(self):
-        self.yaw = self.get_yaw()
-        if self.prev_yaw != self.yaw:
-            self.prev_yaw = self.yaw
+        if self.new_data:
+            self.new_data = False
             return True
         else:
             return False
         
     def update_data(self):
-        return self.yaw
-
+        return self.ang_v
+    
+    def callback_angular_v(self):
+        dt = time.ticks_diff(self.prev_time, time.ticks_us()) / 1E6
+        yaw = self.get_yaw()
+        
+        self.ang_v = (yaw - self.prev_yaw) / dt
+        if self.ang_v != self.prev_ang_v:
+            self.new_data = True
+        
+        self.prev_yaw = yaw
+        self.prev_ang_v = self.ang_v
+        self.prev_time = time.ticks_us()
 
 class ServoCommand(Command):
     def __init__(self, command_id, pin_num, start_pos=0):

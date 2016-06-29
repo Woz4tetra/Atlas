@@ -1,6 +1,6 @@
 import os
 import sys
-import time
+from datetime import datetime
 
 sys.path.insert(0, '../')
 
@@ -10,6 +10,8 @@ time_name_sep = ":\t"
 name_values_sep = ";\t"
 values_sep = "|\t"
 datum_sep = ",\t"
+
+obsolete_data = "Jun 26 2016"
 
 
 class Logger:
@@ -105,6 +107,19 @@ class Parser:
         with open(directory + file_name, 'r') as data_file:
             self.contents = data_file.read()
 
+        try:
+            if (datetime.strptime(file_name, '%b %d %Y') <=
+                    datetime.strptime(obsolete_data, '%b %d %Y')):
+                print("WARNING: You are using a data set that is obsolete "
+                      "with the current parser. Continue? (y/n)", end="")
+                proceed = None
+                while proceed != "" and proceed != "y" and proceed != "n":
+                    proceed = input(": ").lower()
+                if proceed == "n":
+                    sys.exit(1)
+        except ValueError:
+            pass
+
         self.data = []
         self.iter_index = 0
 
@@ -159,6 +174,7 @@ class Parser:
 
             if name not in self.initials.keys():
                 self.initials[name] = timestamp, len(self.data), values
+
 
 def get_points(file_name="checkpoints.txt", directory=":logs"):
     directory = directories.get_dir(directory)

@@ -1,6 +1,5 @@
-import sys
 import os
-import time
+import sys
 
 sys.path.insert(0, "../")
 
@@ -9,14 +8,17 @@ from microcontroller.comm import *
 from manual.wiiu_joystick import WiiUJoystick
 from vision.camera import Camera
 
+
 def log_folder():
     month = time.strftime("%b")
     day = time.strftime("%d")
     year = time.strftime("%Y")
     return "%s %s %s" % (month, day, year)
 
+
 def stick_to_servo(x):
     return int(-math.atan2(x, 1) * 180 / (math.pi * 1.85))
+
 
 def button_dn(button, params):
     global checkpoint_num, gps, communicator
@@ -27,9 +29,11 @@ def button_dn(button, params):
         print("\n\nClosing log!\n\n")
     if button == 'A':
         communicator.record('checkpoint', num=checkpoint_num,
-            long=gps.get("long"), lat=gps.get("lat"))
+                            long=gps.get("long"), lat=gps.get("lat"))
         checkpoint_num += 1
-        print("--------\nCheckpoint reached! %s\n--------" % str(checkpoint_num))
+        print(
+            "--------\nCheckpoint reached! %s\n--------" % str(checkpoint_num))
+
 
 def joy_changed(axis, value, params):
     global servo, motors, joystick
@@ -41,6 +45,7 @@ def joy_changed(axis, value, params):
             value = 1 * ((value > 0) - (value < 0))
         motors.set(int(value * 100))
 
+
 counts = Sensor(0, 'encoder', 'counts')
 gps = Sensor(1, 'gps', ['lat', 'long', 'altitude', 'found'])
 yaw = Sensor(2, 'imu', 'yaw')
@@ -51,7 +56,8 @@ sensor_pool = SensorPool(counts, gps, yaw, altitude)
 log_data = True
 if len(sys.argv) == 2 and sys.argv[1] == 'no-log':
     log_data = False
-communicator = Communicator(sensor_pool, address='/dev/ttyAMA0', log_data=log_data, log_dir=log_folder())
+communicator = Communicator(sensor_pool, address='/dev/ttyAMA0',
+                            log_data=log_data, log_dir=log_folder())
 
 if not communicator.initialized:
     raise Exception("Communicator not initialized...")
@@ -67,12 +73,13 @@ joystick = WiiUJoystick(button_down_fn=button_dn,
 enable_draw = True
 capture = Camera(320, 240, enable_draw=enable_draw, framerate=32)
 
+
 def main():
     if not enable_draw:
         print("Display will now turn off")
         time.sleep(2)
         os.system("sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power")
-    
+
     joystick.start()
     communicator.start()
 
@@ -86,9 +93,9 @@ def main():
                 print(gps)
             if counts.received():
                 print(counts)
-##            if altitude.received():
-##                print(altitude)
-##            time.sleep(0.05)
+            ##            if altitude.received():
+            ##                print(altitude)
+            ##            time.sleep(0.05)
             if capture.get_frame() is None:
                 break
             key = capture.key_pressed()
@@ -115,16 +122,17 @@ def main():
                 capture.record_frame()
 
             capture.show_frame()
-            
+
     except:
         traceback.print_exc()
     finally:
         joystick.stop()
         communicator.stop()
         capture.stop()
-        
+
         if not enable_draw:
-            os.system("sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")
+            os.system(
+                "sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")
 
 
 if __name__ == '__main__':
