@@ -16,8 +16,8 @@ motors = MotorCommand(5, rc_motors)
 
 encoder = RCencoder(0, rc_motors)
 gps = GPS(1, 6, "Y4", 4)
-imu = IMU(2, 2)
-altitude = Altitude(3, 2)
+imu = IMU(2, 2, 11)
+##altitude = Altitude(3, 2)
 
 communicator = Communicator(*leds, servo, motors, uart_bus=1)
 
@@ -39,14 +39,14 @@ while True:
 
 ##    communicator.read_command()
 
-    if altitude.recved_data():
-        communicator.write_packet(altitude)
+##    if altitude.recved_data():
+##        communicator.write_packet(altitude)
 
-    if communicator.reset:
+    if communicator.should_reset():
         gps.reset()
         imu.reset()
         encoder.reset()
-        altitude.reset()
+##        altitude.reset()
 
         servo.reset()
         motors.reset()
@@ -54,7 +54,5 @@ while True:
         communicator.write_packet(gps)
         communicator.write_packet(imu)
         communicator.write_packet(encoder)
-        communicator.write_packet(altitude)
-        
-        communicator.reset = False
+##        communicator.write_packet(altitude)
  

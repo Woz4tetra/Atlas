@@ -124,8 +124,8 @@ class BuggyPiFilter:
 
     def servo_to_angle(self, servo_value):
         return ((self.left_angle - self.right_angle) /
-                (self.left_value - self.right_angle) *
-                (servo_value - self.right_angle) + self.right_angle)
+                (self.left_value - self.right_value) *
+                (servo_value - self.right_value) + self.right_angle)
 
     @staticmethod
     def gps_bearing(long, lat, prev_long, prev_lat):  # long & lat in radians

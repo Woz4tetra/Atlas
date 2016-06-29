@@ -304,24 +304,3 @@ class Motor(Command):
     def callback(self, value):
         self.speed(value)
 
-class IMU(Sensor):
-    def __init__(self, sensor_id, bus):
-        super().__init__(sensor_id, 'f')
-        self.bus = bus
-        self.bno = BNO055(self.bus)
-        self.yaw = self.get_yaw()
-        self.prev_yaw = None
-        
-    def get_yaw(self):
-        return self.bno.get_euler()[0] * math.pi / 180
-
-    def recved_data(self):
-        self.yaw = self.get_yaw()
-        if self.prev_yaw != self.yaw:
-            self.prev_yaw = self.yaw
-            return True
-        else:
-            return False
-        
-    def update_data(self):
-        return self.yaw

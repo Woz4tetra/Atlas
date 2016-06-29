@@ -64,7 +64,7 @@ class Communicator(threading.Thread):
         self.thread_time = 0
 
         self.log_data = log_data
-        if self.log_data and self.initialized:
+        if self.log_data and self.initialized and len(self.sensor_pool) > 0:
             self.log = Logger(log_name, log_dir)
 
         super(Communicator, self).__init__()
@@ -84,6 +84,9 @@ class Communicator(threading.Thread):
             otherwise and may change before being recorded.
         :return: None
         """
+        if len(self.sensor_pool) == 0:
+            print("No sensors! Will only send commands")
+            return
         try:
             while not Communicator.exit_flag:
                 self.thread_time = round(time.time() - self.time0)

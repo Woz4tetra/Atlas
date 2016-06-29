@@ -45,6 +45,13 @@ class Communicator(object):
         else:
             self.buffer = ""
         return packets 
-    
+
+    def should_reset(self):
+        if self.reset:
+            self.reset = False
+            return True
+        else:
+            return False
+        
     def close(self):
         self.serial_ref.close()

@@ -94,6 +94,9 @@ class SensorPool:
 
         return None
 
+    def __len__(self):
+        return len(self.sensors)
+
 
 def try_sensor(sensor_id, properties):
     global sensor_pool
