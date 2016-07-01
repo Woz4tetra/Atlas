@@ -80,10 +80,10 @@ def plot_everything(file_name, directory=None):
             gps_counter += 1
 
             if prev_long is not None and prev_lat is not None and (
-                    long_data[-1] != prev_long or lat_data[-1] != prev_lat):
+                            long_data[-1] != prev_long or lat_data[
+                        -1] != prev_lat):
                 bearing = math.atan2(lat_data[-1] - prev_lat,
                                      long_data[-1] - prev_long)
-                print("%s\t%s\t%s" % (values['lat'], values['long'], math.degrees(bearing)))
 
                 x1 = long_data[-1] + 0.00001 * math.cos(bearing)
                 y1 = lat_data[-1] + 0.00001 * math.sin(bearing)
@@ -147,24 +147,27 @@ def plot_everything(file_name, directory=None):
 
 
 def plot_filter(file_name, directory=None):
+    parser = Parser(file_name, directory)
+    # initial_gps = parser.get_first("gps")[2]
+    # initial_long, initial_lat = initial_gps["long"], initial_gps["lat"]
+
     checkpoints = get_checkpoints()
     initial_long, initial_lat = checkpoints[0]
-    pi_filter = BuggyPiFilter(initial_long, initial_lat, 0.0, 6, wheel_radius,
-                              0.25)
 
-    prev_filter_time = 0.0
+    pi_filter = BuggyPiFilter(
+        initial_long, initial_lat, 0.0, 6, wheel_radius, 0.25
+    )
 
-    prev_imu = 0.0
     prev_imu_time = 0.0
-
-    prev_enc = 0
     prev_enc_time = 0.0
+
+    dt_enc = None
+    dt_imu = None
 
     bag = {
         "gps": [initial_long, initial_lat, False],
         "encoder": 0,
-        "imu ang v": 0.0,
-        "enc v": 0.0,
+        "imu": 0.0,
         "servo": 0
     }
 
@@ -172,56 +175,66 @@ def plot_filter(file_name, directory=None):
     state_y = []
     state_heading = []
 
+    lat_data, long_data = [], []  # all gps data
+    check_lat, check_long = [], []  # checkpoint gps points
+
+    state_x_gps = []
+    state_y_gps = []
+
     heading_counter = 0
 
-    for timestamp, name, values in Parser(file_name, directory):
-        # if timestamp - prev_filter_time > 0.01:  # 100 Hz update
-        if bag["gps"][2] is False:
-            state = pi_filter.update(bag["encoder"], prev_enc_time,
-                                     bag["imu ang v"], prev_imu_time,
-                                     bag["enc v"], bag["servo"], timestamp)
-        else:
-            state = pi_filter.update(bag["encoder"], prev_enc_time,
-                                     bag["imu ang v"], prev_imu_time,
-                                     bag["enc v"], bag["servo"], timestamp,
-                                     bag["gps"][0], bag["gps"][1])
-            bag["gps"][2] = False
-        # prev_filter_time = timestamp
-        # print(state)
-        state_x.append(state[0])
-        state_y.append(state[1])
-        if heading_counter % 100 == 0:
-            x0 = state_x[-1]
-            y0 = state_y[-1]
-            x1 = x0 + 0.00001 * math.cos(state[2])
-            y1 = y0 + 0.00001 * math.sin(state[2])
-            state_heading.append((x0, x1))
-            state_heading.append((y0, y1))
-            state_heading.append('orange')
+    for timestamp, name, values in parser:
+        if dt_imu is not None and dt_enc is not None:
+            if bag["gps"][2] is False:
+                state = pi_filter.update(timestamp, bag["encoder"], dt_enc,
+                                         bag["imu"], dt_imu, bag["servo"])
+            else:
+                state = pi_filter.update(timestamp, bag["encoder"], dt_enc,
+                                         bag["imu"], dt_imu, bag["servo"],
+                                         bag["gps"][0], bag["gps"][1])
+                bag["gps"][2] = False
+                state_x_gps.append(state[0])
+                state_y_gps.append(state[1])
 
-        heading_counter += 1
+            state_x.append(state[0])
+            state_y.append(state[1])
+            if heading_counter % 20 == 0:
+                x0 = state_x[-1]
+                y0 = state_y[-1]
+                x1 = x0 + 0.00001 * math.cos(state[2])
+                y1 = y0 + 0.00001 * math.sin(state[2])
+                state_heading.append((x0, x1))
+                state_heading.append((y0, y1))
+                state_heading.append('orange')
+
+            heading_counter += 1
 
         if name == "gps":
             bag["gps"][0] = values["long"]
             bag["gps"][1] = values["lat"]
             bag["gps"][2] = True
+
+            long_data.append(values["long"])
+            lat_data.append(values["lat"])
         elif name == "imu":
-            bag["imu ang v"] = (values["yaw"] - prev_imu) / (
-                timestamp - prev_imu_time)
-            prev_imu = values["yaw"]
+            bag["imu"] = values["yaw"]
+            dt_imu = timestamp - prev_imu_time
             prev_imu_time = timestamp
         elif name == "encoder":
             bag["encoder"] = values["counts"]
-            bag["enc v"] = pi_filter.enc_to_meters(
-                values["counts"] - prev_enc) / (
-                               timestamp - prev_enc_time)
-
-            prev_enc = values["counts"]
+            dt_enc = timestamp - prev_enc_time
             prev_enc_time = timestamp
         elif name == "servo":
             bag["servo"] = values[None]
+        elif name == "checkpoint":
+            long, lat = checkpoints[values['num']]
+            check_long.append(long)
+            check_lat.append(lat)
 
-    plt.plot(state_x, state_y, 'r', label="state xy")
+    plt.plot(long_data, lat_data, "r", label="GPS")
+    plt.plot(check_long, check_lat, "o", label="Checkpoints")
+    plt.plot(state_x_gps, state_y_gps, "ro", label="GPS updated", markersize=4)
+    plt.plot(state_x, state_y, 'g', label="state xy")
     plt.plot(*state_heading)
     plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
@@ -235,7 +248,7 @@ if __name__ == '__main__':
         directory = sys.argv[2]
     else:
         file_name = 0
-        directory = "Jun 23 2016"
+        directory = "Jun 26 2016"
 
     try:
         file_name = int(file_name)

@@ -124,7 +124,7 @@ class Parser:
         self.data = []
         self.iter_index = 0
 
-        self.initials = {}
+        self.initial_values = {}
 
         self.create_data()
 
@@ -146,7 +146,7 @@ class Parser:
         return len(self.data)
 
     def get_first(self, name):
-        return self.initials[name]
+        return self.initial_values[name]
 
     def create_data(self):
         index = 0
@@ -173,8 +173,8 @@ class Parser:
 
             self.data.append((timestamp, name, values))
 
-            if name not in self.initials.keys():
-                self.initials[name] = timestamp, len(self.data), values
+            if name not in self.initial_values.keys():
+                self.initial_values[name] = timestamp, len(self.data), values
 
 
 def get_checkpoints(file_name="checkpoints.txt", directory=":logs"):
