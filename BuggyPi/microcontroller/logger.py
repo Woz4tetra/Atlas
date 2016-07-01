@@ -12,7 +12,7 @@ name_values_sep = ";\t"
 values_sep = "|\t"
 datum_sep = ",\t"
 
-obsolete_data = "Jun 26 2016"
+obsolete_data = "Jun 22 2016"
 
 
 class Logger:
@@ -177,7 +177,7 @@ class Parser:
                 self.initials[name] = timestamp, len(self.data), values
 
 
-def get_points(file_name="checkpoints.txt", directory=":logs"):
+def get_checkpoints(file_name="checkpoints.txt", directory=":logs"):
     directory = directories.get_dir(directory)
     with open(directory + file_name, 'r') as checkpoints:
         contents = checkpoints.read()
@@ -216,4 +216,4 @@ if __name__ == '__main__':
         if log_data[1] == 'gps':
             print(log_data)
     print(time.time() - time0)
-    print(get_points())
+    print(get_checkpoints())
