@@ -24,13 +24,13 @@ directories = {
     'arduino': _arduino_dir(),
     'microcontroller': CONFIGDIR + "/microcontroller/",
     'logs': CONFIGDIR + "/microcontroller/logs/",
+    'maps': CONFIGDIR + "/microcontroller/maps/",
     'vision': CONFIGDIR + "/vision/",
     'videos': CONFIGDIR + "/vision/videos/",
     'images': CONFIGDIR + "/vision/images/",
     'scripts': CONFIGDIR + "/scripts/",
     'test': CONFIGDIR + "/tests/",
-    # 'sound': CONFIGDIR + "/sound/",
-    # 'tunes': CONFIGDIR + "/sound/tunes/",
+    'tunes': CONFIGDIR + "/sound/tunes/",
     'project': CONFIGDIR + "/",
 }
 

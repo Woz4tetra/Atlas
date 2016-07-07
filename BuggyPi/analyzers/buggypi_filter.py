@@ -1,4 +1,5 @@
 import math
+from sys import maxsize as MAX_INT
 
 import numpy as np
 
@@ -6,10 +7,12 @@ from analyzers.kalman_filter import KalmanFilter
 
 
 class BuggyPiFilter:
+    # retrieved from http://www.geomidpoint.com/destination/
     earth_radius = 6372797.6
 
     def __init__(self, initial_long, initial_lat, initial_heading,
-                 counts_per_rotation, wheel_radius, front_back_dist):
+                 counts_per_rotation, wheel_radius, front_back_dist,
+                 max_speed):
         # ----- filter related variables -----
         self.initial_long = initial_long
         self.initial_lat = initial_lat
@@ -21,16 +24,30 @@ class BuggyPiFilter:
         self.rotation = counts_per_rotation
         self.wheel_radius = wheel_radius
         self.front_back_dist = front_back_dist
+        self.max_speed = max_speed
 
-        self.state_transition = np.eye(6)
+        state_transition = np.eye(6)
         self.control_matrix = np.eye(6)
 
-        self.measurement_covariance = np.eye(6)
-        process_error_covariance = np.eye(6)
-        observation_matrix = np.eye(6)
+        self.measurement_covariance = np.array([
+            [1, 0, 0, 0, 0, 0],  # GPS long (will change during update)
+            [0, 1, 0, 0, 0, 0],  # GPS lat (changes)
+            [0, 0, 1, 0, 0, 0],  # GPS bearing (changes)
+            [0, 0, 0, 1, 0, 0],  # encoder vx
+            [0, 0, 0, 0, 1, 0],  # encoder vy
+            [0, 0, 0, 0, 0, 1],  # imu angular velocity
+        ])
 
-        self.prev_time = 0.0
-        self.prev_gps_t = 0.0
+        process_error_covariance = np.array([
+            [1, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1],
+        ])
+
+        observation_matrix = np.eye(6)
 
         initial_state = np.array(
             [self.initial_long_rad, self.initial_lat_rad, self.initial_heading,
@@ -38,114 +55,178 @@ class BuggyPiFilter:
         )
         initial_probability = np.eye(6)
 
-        self.state = initial_state
+        self._state = initial_state
+        self.state = {}
+        self.update_state_dict()
 
-        self.filter = KalmanFilter(initial_state, initial_probability,
-                                   observation_matrix, process_error_covariance)
+        self.filter = KalmanFilter(initial_state, state_transition,
+                                   initial_probability, observation_matrix,
+                                   process_error_covariance)
 
         # ----- unit conversion related variables -----
+        self.prev_time = 0.0
+        self.prev_enc_t = 0.0
+        self.prev_imu_t = 0.0
+        self.prev_gps_t = 0.0
+        self.prev_extrapolate_t = 0.0
+
+        self.enc_vx, self.enc_vy = 0.0, 0.0
+        self.enc_speed = 0.0
         self.prev_enc = 0
-        self.prev_enc_vx = 0
-        self.prev_enc_vy = 0
 
-        self.prev_imu = 0.0
+        self.imu_ang_v = 0.0
+        self.prev_imu = 0
 
-        self.prev_gps_long = self.initial_long
-        self.prev_gps_lat = self.initial_lat
+        self.prev_gps_long = self.initial_long_rad
+        self.prev_gps_lat = self.initial_lat_rad
+        self.gps_long = self.initial_long_rad
+        self.gps_lat = self.initial_lat_rad
+        self.gps_x_meters = 0.0
+        self.gps_y_meters = 0.0
         self.bearing = 0.0  # 0.0 == east
-        self.preserved_gps_data = [0.0, 0.0]
 
-    def update(self, timestamp, enc_counts, dt_enc,
-               imu_yaw, dt_imu, servo_value,
-               gps_long=None, gps_lat=None):
-        vx, vy = self.get_speed(enc_counts, self.prev_enc, dt_enc)
+        self.motor_speed = 0.0
+        self.servo_angle = 0.0
 
-        imu_angular_v = (imu_yaw - self.prev_imu) / dt_imu
+    # ----- update sensors and commands -----
 
-        if gps_long is None or gps_lat is None:
-            gps_long = self.preserved_gps_data[0]
-            gps_lat = self.preserved_gps_data[1]
-            gps_updated = False
-        else:
-            self.preserved_gps_data[0] = gps_long
-            self.preserved_gps_data[1] = gps_lat
-            gps_updated = True
+    def update_motors(self, motor_value):
+        self.motor_speed = motor_value / 100 * self.max_speed
 
-        if gps_updated and (
-                gps_long != self.prev_gps_long or gps_lat != self.prev_gps_lat):
-            self.bearing = math.atan2(gps_lat - self.prev_gps_lat,
-                                      gps_long - self.prev_gps_long)
+    def update_servo(self, servo_value):
+        self.servo_angle = self.servo_to_angle(servo_value)
 
-        gps_x_meters, gps_y_meters = \
+    def extrapolate_gps(self, timestamp):
+        dt = timestamp - self.prev_extrapolate_t
+        self.gps_x_meters += self.state["vx"] * dt
+        self.gps_y_meters += self.state["vy"] * dt
+
+        self.bearing += self.state["ang v"] * dt
+
+        self.prev_extrapolate_t = timestamp
+
+    def update_encoder(self, timestamp, enc_counts):
+        dt = timestamp - self.prev_enc_t
+        self.enc_vx, self.enc_vy, self.enc_speed = self.get_velocity(
+            enc_counts, self.prev_enc, self._state[2], dt)
+        self.prev_enc_t = timestamp
+        self.prev_enc = enc_counts
+
+        self.extrapolate_gps(timestamp)
+        self.update_covariances(timestamp)
+
+        return self.update_filter(
+            timestamp, self.enc_vx, self.enc_vy, self.imu_ang_v,
+            self.motor_speed, self.servo_angle, self.gps_x_meters,
+            self.gps_y_meters, self.bearing
+        )
+
+    def update_imu(self, timestamp, imu_yaw):
+        dt = timestamp - self.prev_imu_t
+        self.imu_ang_v = (imu_yaw - self.prev_imu) / dt
+        self.prev_imu_t = timestamp
+        self.prev_imu = imu_yaw
+
+        self.extrapolate_gps(timestamp)
+        self.update_covariances(timestamp)
+
+        return self.update_filter(
+            timestamp, self.enc_vx, self.enc_vy, self.imu_ang_v,
+            self.motor_speed, self.servo_angle, self.gps_x_meters,
+            self.gps_y_meters, self.bearing
+        )
+
+    def update_gps(self, timestamp, gps_long, gps_lat):
+        self.gps_x_meters, self.gps_y_meters = \
             self.gps_to_xy_meters(gps_long, gps_lat)
 
-        if not gps_updated:
-            self.bearing += imu_yaw - self.prev_imu
+        self.bearing = math.atan2(gps_lat - self.prev_gps_lat,
+                                  gps_long - self.prev_gps_long)
 
-        servo_angle = self.servo_to_angle(servo_value)
-
-        state = self.update_filter(
-            timestamp, vx, vy, imu_angular_v,
-            self.prev_enc_vx, self.prev_enc_vy,
-            servo_angle, gps_x_meters, gps_y_meters,
-            self.bearing, gps_updated)
-
-        self.prev_enc = enc_counts
-        self.prev_enc_vx = vx
-        self.prev_enc_vy = vy
-
-        self.prev_imu = imu_yaw
+        self.prev_gps_t = timestamp
+        self.update_covariances(timestamp)
 
         self.prev_gps_long = gps_long
         self.prev_gps_lat = gps_lat
 
-        return state
+        return self.update_filter(
+            timestamp, self.enc_vx, self.enc_vy, self.imu_ang_v,
+            self.motor_speed, self.servo_angle, self.gps_x_meters,
+            self.gps_y_meters, self.bearing
+        )
 
-    def get_speed(self, counts, prev_count, dt):
-        current_speed = self.enc_to_meters(counts - prev_count) / dt
-
-        # using previous heading estimation
-        vx = current_speed * math.cos(self.state[2])
-        vy = current_speed * math.sin(self.state[2])
-        return vx, vy
-
-    def enc_to_meters(self, counts):
-        return counts * self.wheel_radius / self.rotation * math.pi
+    # ----- update state and filter -----
 
     def update_filter(self, timestamp, enc_vx, enc_vy, imu_angular_yaw,
-                      vx_command, vy_command, angle_command,
-                      gps_x_meters, gps_y_meters, gps_bearing, gps_updated):
+                      motor_speed, servo_angle,
+                      gps_x_meters, gps_y_meters, gps_bearing):
         dt = timestamp - self.prev_time
 
         # update control matrix with dt
         for index in range(0, 3):
             self.control_matrix[index][index] = dt
 
-        # reset measurement covariances
-        if gps_updated:
-            self.prev_gps_t = timestamp
-
-        # covariance should be >= 1 TODO: experiment with different curves
-        self.measurement_covariance[0][0] = \
-            (timestamp - self.prev_gps_t) * 100000 + 1
-        self.measurement_covariance[1][1] = \
-            (timestamp - self.prev_gps_t) * 100000 + 1
-
-        self.state = self.filter.update(
-            np.array([vx_command, vy_command, angle_command,
-                      vx_command, vy_command, angle_command]),
+        self._state = self.filter.update(
+            self.get_command_vector(motor_speed, servo_angle),
             np.array([gps_x_meters, gps_y_meters, gps_bearing,
                       enc_vx, enc_vy, imu_angular_yaw]),
-            self.state_transition, self.control_matrix,
-            self.measurement_covariance,
+            self.control_matrix, self.measurement_covariance,
         )
-        self.prev_time = timestamp
-        return self.get_state()
 
-    def get_state(self):
-        x, y, heading = self.state[0:3]
+        self.prev_time = timestamp
+
+        self.update_state_dict()
+        return self.state
+
+    def update_state_dict(self):
+        x, y, heading = self._state[0:3]
         long, lat = self.xy_meters_to_gps(x, y)
-        return math.degrees(long), math.degrees(lat), heading
+        self.state["x"] = math.degrees(long)  # gps long
+        self.state["y"] = math.degrees(lat)   # gps lat
+        self.state["angle"] = heading         # radians
+        self.state["vx"] = self._state[3]     # meters / second
+        self.state["vy"] = self._state[4]     # meters / second
+        self.state["ang v"] = self._state[5]  # radians / second
+
+    def update_covariances(self, timestamp):
+        # covariance should be >= 1 TODO: experiment with different curves
+        gps_covariance = int((math.exp(
+            timestamp - self.prev_gps_t) - 1) * 10000) + 1
+        bearing_covariance = (timestamp - self.prev_gps_t) * 10000 + 10000
+        vel_covariance = (timestamp - self.prev_enc_t) * 1000 + 1
+        ang_v_covariance = (timestamp - self.prev_imu_t) * 100 + 1
+
+        if gps_covariance < MAX_INT:  # prevent overflow error
+            self.measurement_covariance[0][0] = gps_covariance
+            self.measurement_covariance[1][1] = gps_covariance
+        if bearing_covariance < MAX_INT:
+            self.measurement_covariance[2][2] = bearing_covariance
+        if vel_covariance < MAX_INT:
+            self.measurement_covariance[3][3] = vel_covariance
+            self.measurement_covariance[4][4] = vel_covariance
+        if ang_v_covariance < MAX_INT:
+            self.measurement_covariance[5][5] = ang_v_covariance
+
+    # ----- conversion methods -----
+
+    def get_command_vector(self, motor_speed, servo_angle):
+        vx_command = motor_speed * math.cos(self._state[2])
+        vy_command = motor_speed * math.cos(self._state[2])
+        ang_v_command = motor_speed * math.tan(
+            servo_angle) / self.front_back_dist
+
+        return np.array([vx_command, vy_command, ang_v_command,
+                         vx_command, vy_command, ang_v_command])
+
+    def get_velocity(self, counts, prev_count, heading, dt):
+        current_speed = self.enc_to_meters(counts - prev_count) / dt
+
+        vx = current_speed * math.cos(heading)
+        vy = current_speed * math.sin(heading)
+        return vx, vy, current_speed
+
+    def enc_to_meters(self, counts):
+        return counts * self.wheel_radius / self.rotation * math.pi
 
     def xy_meters_to_gps(self, x, y):
         dist = (x ** 2 + y ** 2) ** 0.5
@@ -166,16 +247,6 @@ class BuggyPiFilter:
                         initial_lat)
                     * math.sin(lat)))
         return long, lat
-
-    def get_control_vector(self, speed, servo_value, heading):
-        servo_angle = self.servo_to_angle(servo_value)
-        vx = speed * math.cos(heading)
-        vy = speed * math.sin(heading)
-        angular_v = speed * math.tan(servo_angle) / self.front_back_dist
-
-        return np.array(
-            [vx, vy, angular_v, vx, vy, angular_v]
-        )
 
     def gps_to_xy_meters(self, gps_x_long, gps_y_lat):
         long2 = math.radians(gps_x_long)
@@ -222,25 +293,3 @@ class BuggyPiFilter:
         bearing = math.atan2(y, x)
 
         return bearing
-
-        #
-        # def get_enc_vel(self, enc_counts, enc_dt):
-        #     heading = self.state[2]
-        #     enc_dist = self.enc_to_meters(enc_counts - self.prev_enc)
-        #     self.prev_enc = enc_counts
-        #
-        #     # self.enc_x_meters += enc_dist * math.cos(bearing)
-        #     # self.enc_y_meters += enc_dist * math.sin(bearing)
-        #
-        #     # enc_long, enc_lat = self.xy_meters_to_gps(
-        #     #     self.enc_x_meters, self.enc_y_meters
-        #     # )
-        #     # dt *= 10
-        #     vx = enc_dist * math.cos(
-        #         heading) / enc_dt
-        #     vy = enc_dist * math.sin(heading) / enc_dt
-        #     # self.prev_enc_long = enc_long
-        #     # self.prev_enc_lat = enc_lat
-        #
-        #     return vx, vy
-        #

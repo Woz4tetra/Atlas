@@ -12,7 +12,7 @@ name_values_sep = ";\t"
 values_sep = "|\t"
 datum_sep = ",\t"
 
-obsolete_data = "Jun 22 2016"
+obsolete_data = "Jun 21 2016"
 
 
 class Logger:
@@ -90,6 +90,8 @@ class Parser:
             directory = directories.get_dir(":logs") + directory
         if directory[-1] != "/":
             directory += "/"
+        self.directory = directory
+        self.local_dir = directory[self.directory.rfind("/", 0, -1) + 1:]
 
         if type(file_name) == str:
             if len(file_name) < 4 or file_name[-4:] != '.txt':
@@ -105,11 +107,13 @@ class Parser:
             print("Using file named '%s'" % file_name)
         else:
             raise ValueError("Invalid file name: " + str(file_name))
-        with open(directory + file_name, 'r') as data_file:
+        self.file_name = file_name
+
+        with open(self.directory + self.file_name, 'r') as data_file:
             self.contents = data_file.read()
 
         try:
-            if (datetime.strptime(file_name, '%b %d %Y') <=
+            if (datetime.strptime(directory.split("/")[-2], '%b %d %Y') <=
                     datetime.strptime(obsolete_data, '%b %d %Y')):
                 print("WARNING: You are using a data set that is obsolete "
                       "with the current parser. Continue? (y/n)", end="")
@@ -133,9 +137,9 @@ class Parser:
 
     def __next__(self):
         if self.iter_index < len(self.data):
-            datum = self.data[self.iter_index]
+            timestamp, name, values = self.data[self.iter_index]
             self.iter_index += 1
-            return datum
+            return self.iter_index - 1, timestamp, name, values
         else:
             raise StopIteration
 
@@ -145,8 +149,16 @@ class Parser:
     def __len__(self):
         return len(self.data)
 
-    def get_first(self, name):
-        return self.initial_values[name]
+    def get(self, sensor_name, instance_num=0):
+        if instance_num == 0:
+            return self.initial_values[sensor_name]
+        else:
+            counter = 0
+            for index, (timestamp, name, values) in enumerate(self.data):
+                if name == sensor_name:
+                    counter += 1
+                    if counter == instance_num:
+                        return timestamp, index, values
 
     def create_data(self):
         index = 0
@@ -177,7 +189,7 @@ class Parser:
                 self.initial_values[name] = timestamp, len(self.data), values
 
 
-def get_checkpoints(file_name="checkpoints.txt", directory=":logs"):
+def get_checkpoints(file_name="checkpoints.txt", directory=":maps"):
     directory = directories.get_dir(directory)
     with open(directory + file_name, 'r') as checkpoints:
         contents = checkpoints.read()
