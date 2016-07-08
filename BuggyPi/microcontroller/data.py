@@ -199,7 +199,7 @@ class Sensor(SerialObject):
 
     def get(self, item=None):  # None assuming None was provided for properties
         if item is None:
-            return self._properties
+            return self._properties[self.name]
         else:
             return self._properties[item]
 

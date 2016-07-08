@@ -2,7 +2,7 @@ import cv2
 import time
 import os
 
-import directories
+import project
 
 class Capture:
     def __init__(self, width, height, window_name, enable_draw):
@@ -79,7 +79,7 @@ class Capture:
         print("Frame saved as " + str(image_name), end=" ")
 
         if directory is None:
-            directory = directories.get_dir(":images")
+            directory = project.get_dir(":images")
         print("in directory:\n" + directory)
 
         if not os.path.isdir(directory):
@@ -138,7 +138,7 @@ class Capture:
         video_name += "." + video_format
 
         if output_dir is None:
-            output_dir = directories.get_dir(":videos")
+            output_dir = project.get_dir(":videos")
         else:
             output_dir += "/"
 

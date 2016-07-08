@@ -1,18 +1,18 @@
 import os
 import sys
 from datetime import datetime
-import time
+import random
 
 sys.path.insert(0, '../')
 
-import directories
+import project
 
 time_name_sep = ":\t"
 name_values_sep = ";\t"
 values_sep = "|\t"
 datum_sep = ",\t"
 
-obsolete_data = "Jun 21 2016"
+obsolete_data = "Jun 22 2016"
 
 
 class Logger:
@@ -23,12 +23,12 @@ class Logger:
             file_name += ".txt"
 
         if directory is None:
-            directory = directories.get_dir(":logs")
+            directory = project.get_dir(":logs")
         else:
             if directory[-1] != "/":
                 directory += "/"
             if not os.path.isdir(directory):
-                directory = directories.get_dir(":logs") + directory
+                directory = project.get_dir(":logs") + directory
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -85,29 +85,34 @@ def convert_str(string):
 class Parser:
     def __init__(self, file_name, directory=None):
         if directory is None:
-            directory = directories.get_dir(":logs")
-        elif os.path.isdir(directories.get_dir(":logs") + directory):
-            directory = directories.get_dir(":logs") + directory
+            directory = project.get_dir(":logs")
+        elif directory == ":random":
+            directories = []
+            for local_dir in os.listdir(project.get_dir(":logs")):
+                directory = project.get_dir(":logs") + local_dir
+                if os.path.isdir(directory):
+                    directories.append(directory)
+            directory = random.choice(directories)
+            print("Using directory '%s'" % directory)
+        elif os.path.isdir(project.get_dir(":logs") + directory):
+            directory = project.get_dir(":logs") + directory
         if directory[-1] != "/":
             directory += "/"
         self.directory = directory
         self.local_dir = directory[self.directory.rfind("/", 0, -1) + 1:]
 
-        if type(file_name) == str:
-            if len(file_name) < 4 or file_name[-4:] != '.txt':
-                file_name += '.txt'
-        elif type(file_name) == int:
-            files = sorted(os.listdir(directory))
-            log_files = []
-            for file in files:
-                if len(file) >= 4 and file[-4:] == '.txt':
-                    log_files.append(file)
+        if type(file_name) == int:
             # file_name is the index in the list of files in the directory
-            file_name = log_files[file_name]
-            print("Using file named '%s'" % file_name)
+            file_name = self.get_files(self.directory)[file_name]
+        elif type(file_name) == str:
+            if file_name == ":random":
+                file_name = random.choice(self.get_files(self.directory))
+            elif len(file_name) < 4 or file_name[-4:] != '.txt':
+                file_name += '.txt'
         else:
             raise ValueError("Invalid file name: " + str(file_name))
         self.file_name = file_name
+        print("Using file named '%s'" % self.file_name)
 
         with open(self.directory + self.file_name, 'r') as data_file:
             self.contents = data_file.read()
@@ -131,6 +136,14 @@ class Parser:
         self.initial_values = {}
 
         self.create_data()
+
+    def get_files(self, directory):
+        log_files = []
+        files = sorted(os.listdir(directory))
+        for file in files:
+            if len(file) >= 4 and file[-4:] == '.txt':
+                log_files.append(file)
+        return log_files
 
     def __iter__(self):
         return self
@@ -190,31 +203,28 @@ class Parser:
 
 
 def get_checkpoints(file_name="checkpoints.txt", directory=":maps"):
-    directory = directories.get_dir(directory)
+    directory = project.get_dir(directory)
     with open(directory + file_name, 'r') as checkpoints:
         contents = checkpoints.read()
 
     split = contents.splitlines()
     header = split.pop(0).split(",")
 
-    if header[1] == 'lat':
-        lat_index = 1
-        long_index = 2
-    else:
-        lat_index = 2
+    if header[0] == 'lat':
+        lat_index = 0
         long_index = 1
+    else:
+        lat_index = 1
+        long_index = 0
 
     checkpoints = []
     for line in split:
         line_data = line.split(",")
-        if len(line_data) == 3:
-            num = int(line_data[0])
-            while len(checkpoints) < num + 1:
-                checkpoints.append(None)
+        if len(line_data) == 2:
             long, lat = float(line_data[long_index]), float(
                 line_data[lat_index])
 
-            checkpoints[num] = long, lat
+            checkpoints.append((long, lat))
 
     return checkpoints
 

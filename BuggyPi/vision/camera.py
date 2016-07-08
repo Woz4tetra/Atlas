@@ -9,7 +9,7 @@ from picamera import PiCamera
 ##sys.path.insert(0, '../')
 
 from vision.capture import Capture
-import directories
+import project
 
 class Camera(Capture):
     def __init__(self, width, height, window_name="PiCamera", enable_draw=True, **args):

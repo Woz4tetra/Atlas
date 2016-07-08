@@ -1,7 +1,7 @@
 import os
 import cv2
 
-import directories
+import project
 from vision.capture import Capture
 
 class Video(Capture):
@@ -61,12 +61,12 @@ class Video(Capture):
 
     def load_video(self, video_name, directory):
         if directory is None:
-            directory = directories.get_dir(":videos")
-        elif os.path.isdir(directories.get_dir(":videos") + directory):
+            directory = project.get_dir(":videos")
+        elif os.path.isdir(project.get_dir(":videos") + directory):
             if directory[-1] != "/":
                 directory += "/"
             capture = cv2.VideoCapture(
-                directories.get_dir(":videos") + directory + video_name)
+                project.get_dir(":videos") + directory + video_name)
         else:
             raise NotADirectoryError("Invalid directory: " + str(directory))
 
