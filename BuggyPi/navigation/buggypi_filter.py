@@ -3,7 +3,7 @@ from sys import maxsize as MAX_INT
 
 import numpy as np
 
-from analyzers.kalman_filter import KalmanFilter
+from navigation.kalman_filter import KalmanFilter
 
 
 class BuggyPiFilter:
@@ -26,7 +26,7 @@ class BuggyPiFilter:
         self.front_back_dist = front_back_dist
         self.max_speed = max_speed
 
-        state_transition = np.eye(6)
+        self.state_transition = np.eye(6)
         self.control_matrix = np.eye(6)
 
         # self.measurement_covariance = np.array([
@@ -39,7 +39,7 @@ class BuggyPiFilter:
         # ])
         self.measurement_covariance = np.eye(6)
 
-        process_error_covariance = np.array([
+        self.process_error_covariance = np.array([
             [100, 0, 0, 0, 0, 0],
             [0, 100, 0, 0, 0, 0],
             [0, 0, 1000000, 0, 0, 0],
@@ -48,21 +48,22 @@ class BuggyPiFilter:
             [0, 0, 0, 0, 0, 1],
         ])
 
-        observation_matrix = np.eye(6)
+        self.observation_matrix = np.eye(6)
 
-        initial_state = np.array(
+        self.initial_state = np.array(
             [self.initial_long_rad, self.initial_lat_rad, self.initial_heading,
              0.0, 0.0, 0.0]
         )
-        initial_probability = np.eye(6)
+        self.initial_probability = np.eye(6)
 
-        self._state = initial_state
+        self._state = self.initial_state
         self.state = {}
         self.update_state_dict()
 
-        self.filter = KalmanFilter(initial_state, state_transition,
-                                   initial_probability, observation_matrix,
-                                   process_error_covariance)
+        self.filter = KalmanFilter(self.initial_state, self.state_transition,
+                                   self.initial_probability,
+                                   self.observation_matrix,
+                                   self.process_error_covariance)
 
         # ----- unit conversion related variables -----
         self.prev_time = 0.0
@@ -133,7 +134,8 @@ class BuggyPiFilter:
         self.gps_x_meters, self.gps_y_meters = \
             self.gps_to_xy_meters(gps_long, gps_lat)
 
-        if not (gps_long == self.prev_gps_long and gps_lat == self.prev_gps_lat):
+        if not (
+                gps_long == self.prev_gps_long and gps_lat == self.prev_gps_lat):
             self.gps_bearing = self.get_gps_bearing(
                 gps_long, gps_lat,
                 self.prev_gps_long, self.prev_gps_lat
@@ -170,11 +172,10 @@ class BuggyPiFilter:
         return self.state
 
     def update_state_dict(self):
-        x, y, heading = self._state[0:3]
-        long, lat = self.xy_meters_to_gps(x, y)
+        long, lat = self.xy_meters_to_gps(self._state[0], self._state[1])
         self.state["x"] = math.degrees(long)  # gps long
         self.state["y"] = math.degrees(lat)  # gps lat
-        self.state["angle"] = heading  # radians
+        self.state["angle"] = self._state[2]  # radians
         self.state["vx"] = self._state[3]  # meters / second
         self.state["vy"] = self._state[4]  # meters / second
         self.state["ang v"] = self._state[5]  # radians / second
@@ -201,8 +202,8 @@ class BuggyPiFilter:
     # ----- conversion methods -----
 
     def get_command_vector(self, motor_speed, servo_angle):
-        vx_command = motor_speed * math.cos(self._state[2])
-        vy_command = motor_speed * math.cos(self._state[2])
+        vx_command = motor_speed * math.cos(self._state[2] + servo_angle)
+        vy_command = motor_speed * math.cos(self._state[2] + servo_angle)
         ang_v_command = motor_speed * math.tan(
             servo_angle) / self.front_back_dist
 

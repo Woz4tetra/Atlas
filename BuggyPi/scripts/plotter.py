@@ -6,11 +6,13 @@ from matplotlib import pyplot as plt
 sys.path.insert(0, "../")
 
 from microcontroller.logger import *
-from analyzers.buggypi_filter import BuggyPiFilter
+from navigation.buggypi_filter import BuggyPiFilter
 
 
 class FilterPlotter:
     def __init__(self, file_name, directory=None):
+        # ----- initialize filter -----
+
         self.parser = Parser(file_name, directory)
         # self.initial_gps = self.parser.get("gps", 2)[2]
         # self.initial_long = self.initial_gps["long"]
@@ -29,18 +31,15 @@ class FilterPlotter:
         self.dt_enc = None
         self.dt_imu = None
 
-        self.gps = [self.initial_long, self.initial_lat, False]
-        self.encoder = 0
-        self.imu = 0.0
-        self.servo = 0
-
         self.heading_arrow_len = 0.00002
+
+        # ----- data to record -----
 
         self.state_x = [self.initial_long]
         self.state_y = [self.initial_lat]
         self.state_heading = [(self.initial_long - 0.0001,
                                self.initial_long - 0.0001 +
-                                self.heading_arrow_len),
+                               self.heading_arrow_len),
                               (self.initial_lat + 0.00001,
                                self.initial_lat + 0.00001),
                               'darkgreen']
@@ -55,8 +54,7 @@ class FilterPlotter:
 
         self.heading_counter = 0
 
-        self.speed_accum = 0.0
-        self.count = 0
+        # ----- initialize figures -----
 
         self.fig = plt.figure(0)
         ax = self.fig.gca()
@@ -74,9 +72,12 @@ class FilterPlotter:
             y0 = self.state_y[-1]
             speed = (state["vx"] ** 2 + state["vy"] ** 2) ** 0.5
             speed = speed * 0.75 + 0.75
-            percent_speed = abs(self.pi_filter.max_speed - speed) / self.pi_filter.max_speed
-            x1 = x0 + self.heading_arrow_len * percent_speed * math.cos(state["angle"])
-            y1 = y0 + self.heading_arrow_len * percent_speed * math.sin(state["angle"])
+            percent_speed = abs(
+                self.pi_filter.max_speed - speed) / self.pi_filter.max_speed
+            x1 = x0 + self.heading_arrow_len * percent_speed * math.cos(
+                state["angle"])
+            y1 = y0 + self.heading_arrow_len * percent_speed * math.sin(
+                state["angle"])
             self.state_heading.append((x0, x1))
             self.state_heading.append((y0, y1))
             self.state_heading.append('orange')
@@ -104,12 +105,15 @@ class FilterPlotter:
             self.bearing_data.append((x0, x1))
             self.bearing_data.append((y0, y1))
             self.bearing_data.append('blue')
+
         elif name == "imu":
             state = self.pi_filter.update_imu(timestamp, -values["yaw"])
             self.update_state_data(state)
+
         elif name == "encoder":
             state = self.pi_filter.update_encoder(timestamp, values["counts"])
             self.update_state_data(state)
+
         elif name == "servo":
             self.pi_filter.update_servo(values[None])
         elif name == "motors":
@@ -133,6 +137,7 @@ class FilterPlotter:
     def static_plot(self):
         for index, timestamp, name, values in self.parser:
             self.step(index, timestamp, name, values)
+
         print("plotting...")
         plt.plot(self.long_data, self.lat_data, "r", label="GPS")
         plt.plot(self.check_long, self.check_lat, "o", label="Checkpoints")
@@ -145,38 +150,40 @@ class FilterPlotter:
 
         plt.show()
 
-    # def live_plot(self):
-    #     plt.ion()
-    #
-    #     # fig = plt.figure(0)
-    #     # fig.canvas.set_window_title(
-    #     #     self.parser.local_dir + self.parser.file_name[:-4])
-    #     #
-    #     # plt.legend(loc='upper right', shadow=True, fontsize='x-small')
-    #
-    #     while not self.computing_done:
-    #         self.step()
-    #         print(self.state_x_gps)
-    #         plt.plot(self.long_data, self.lat_data, "r", label="GPS")
-    #         plt.plot(self.check_long, self.check_lat, "o", label="Checkpoints")
-    #         plt.plot(self.state_x_gps, self.state_y_gps, "ro",
-    #                  label="GPS updated",
-    #                  markersize=4)
-    #         plt.plot(self.state_x, self.state_y, 'g', label="state xy")
-    #         plt.plot(*self.state_heading)
-    #
-    #         plt.draw()
-    #         plt.pause(0.0001)
-    #
-    #     plt.ioff()
-    #     plt.show()
+    def live_plot(self):
+        # TODO: Find a not terrible way to do this (it's really slow)
 
-    def create_map(self, skip):
+        plt.ion()
+
+        # fig = plt.figure(0)
+        # fig.canvas.set_window_title(
+        #     self.parser.local_dir + self.parser.file_name[:-4])
+        #
+        # plt.legend(loc='upper right', shadow=True, fontsize='x-small')
+
+        for index, timestamp, name, values in self.parser:
+            self.step(index, timestamp, name, values)
+            plt.plot(self.long_data, self.lat_data, "r", label="GPS")
+            plt.plot(self.check_long, self.check_lat, "o", label="Checkpoints")
+            plt.plot(self.state_x_gps, self.state_y_gps, "ro",
+                     label="GPS updated",
+                     markersize=4)
+            plt.plot(self.state_x, self.state_y, 'g', label="state xy")
+            plt.plot(*self.state_heading)
+
+            plt.draw()
+            plt.pause(0.0001)
+
+        plt.ioff()
+        plt.show()
+
+    def write_maps(self, skip):
         map_file = open(
             "../microcontroller/maps/%s map.txt" % self.parser.file_name[:-4],
             "w+")
         map_gpx_file = open(
-            "../microcontroller/maps/%s map.gpx" % self.parser.file_name[:-4],
+            "../microcontroller/maps/gpx maps/%s map.gpx" % self.parser.file_name[
+                                                            :-4],
             "w+")
 
         assert len(self.state_x) == len(self.state_y)
@@ -234,6 +241,6 @@ if __name__ == '__main__':
 
     # plot_everything(file_name, directory)
     plot = FilterPlotter(file_name, directory)
-    plot.static_plot()
-    # plot.live_plot()
-    plot.create_map(50)
+    # plot.static_plot()
+    plot.live_plot()
+    # plot.create_map(50)

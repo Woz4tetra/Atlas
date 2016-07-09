@@ -8,7 +8,8 @@ from microcontroller.comm import *
 from manual.wiiu_joystick import WiiUJoystick
 from vision.camera import Camera
 from microcontroller.logger import get_checkpoints
-from analyzers.buggypi_filter import BuggyPiFilter
+from navigation.buggypi_filter import BuggyPiFilter
+
 
 def log_folder():
     month = time.strftime("%b")
@@ -22,12 +23,10 @@ def stick_to_servo(x):
 
 
 def button_dn(button, params):
-    global checkpoint_num, gps, communicator
+    global manual_mode, checkpoint_num, gps, communicator
     if button == 'B':
-        if communicator.log_data:
-            communicator.log.close()
-            communicator.log_data = False
-        print("\n\nClosing log!\n\n")
+        manual_mode = not manual_mode
+        print("Switching to", "manual mode!" if manual_mode else "autonomous!")
     if button == 'A':
         communicator.record('checkpoint', num=checkpoint_num,
                             long=gps.get("long"), lat=gps.get("lat"))
@@ -82,6 +81,7 @@ initial_long, initial_lat = checkpoints[9]
 pi_filter = BuggyPiFilter(
     initial_long, initial_lat, 0.0, 6, 0.097, 0.234, 0.88
 )
+
 
 def main():
     if not enable_draw:
