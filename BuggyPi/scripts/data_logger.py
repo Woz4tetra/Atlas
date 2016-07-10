@@ -11,7 +11,9 @@ def main():
 
     try:
         while True:
-            robot.update()
+            status = robot.update()
+            if not status:
+                break
     except:
         traceback.print_exc()
     finally:

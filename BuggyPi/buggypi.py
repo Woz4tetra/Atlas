@@ -23,7 +23,7 @@ class BuggyPi:
 
         # ----- Sensors -----
         self.encoder = Sensor(0, 'encoder', 'counts')
-        self.gps = Sensor(1, 'gps', ['lat', 'long', 'altitude', 'found'])
+        self.gps = Sensor(1, 'gps', ['long', 'lat'])
         self.yaw = Sensor(2, 'imu', 'yaw')
         # self.altitude = Sensor(3, 'altitude', 'altitude')
         self.checkpoint_num = 0
@@ -66,6 +66,7 @@ class BuggyPi:
             counts_per_rotation=6, wheel_radius=0.097,
             front_back_dist=0.234, max_speed=0.88
         )
+        self.state = self.filter.state
 
         # ----- Turn display off? -----
         if not self.enable_draw:
@@ -82,22 +83,34 @@ class BuggyPi:
 
     def update(self):
         self.update_filter()
-        self.update_camera()
+        if not self.update_camera():
+            self.close()
+            return False
         # if not self.manual_mode:  # do path planning and command stuff
+        return True
 
     def update_filter(self):
+        sensors_updated = False
         if self.yaw.received():
             print(self.yaw)
+            sensors_updated = True
             self.filter.update_imu(time.time() - self.time_start,
                                    -self.yaw.get('yaw'))
         if self.gps.received():
             print(self.gps)
+            sensors_updated = True
             self.filter.update_gps(time.time() - self.time_start,
                                    self.gps.get("long"), self.gps.get("lat"))
         if self.encoder.received():
             print(self.encoder)
+            sensors_updated = True
             self.filter.update_encoder(time.time() - self.time_start,
                                        self.encoder.get("counts"))
+
+        if sensors_updated:
+            timestamp = time.time() - self.time_start
+            self.state = self.filter.update_filter(timestamp)
+            self.communicator.record("state", **self.state, timestamp=timestamp)
 
     def update_camera(self):
         if self.capture.get_frame() is None:
@@ -133,7 +146,6 @@ class BuggyPi:
         self.joystick.stop()
         self.communicator.stop()
         self.capture.stop()
-
         if not self.enable_draw:
             os.system(
                 "sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")

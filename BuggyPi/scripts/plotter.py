@@ -52,6 +52,11 @@ class FilterPlotter:
 
         self.bearing_data = []
 
+        self.recorded_state_x = []
+        self.recorded_state_y = []
+        self.recorded_heading = []
+
+        self.recorded_heading_counter = 0
         self.heading_counter = 0
 
         # ----- initialize figures -----
@@ -63,6 +68,27 @@ class FilterPlotter:
         self.fig.canvas.set_window_title(
             self.parser.local_dir + self.parser.file_name[:-4])
 
+    def update_recorded_state_data(self, state):
+        self.recorded_state_x.append(state["x"])
+        self.recorded_state_y.append(state["y"])
+
+        if self.recorded_heading_counter % 15 == 0:
+            x0 = self.recorded_state_x[-1]
+            y0 = self.recorded_state_y[-1]
+            speed = (state["vx"] ** 2 + state["vy"] ** 2) ** 0.5
+            speed = speed * 0.75 + 0.75
+            percent_speed = abs(
+                self.pi_filter.max_speed - speed) / self.pi_filter.max_speed
+            x1 = x0 + self.heading_arrow_len * percent_speed * math.cos(
+                state["angle"])
+            y1 = y0 + self.heading_arrow_len * percent_speed * math.sin(
+                state["angle"])
+            self.recorded_heading.append((x0, x1))
+            self.recorded_heading.append((y0, y1))
+            self.recorded_heading.append('orange')
+
+        self.recorded_heading_counter += 1
+    
     def update_state_data(self, state):
         self.state_x.append(state["x"])
         self.state_y.append(state["y"])
@@ -122,30 +148,36 @@ class FilterPlotter:
             long, lat = self.checkpoints[values['num']]
             self.check_long.append(long)
             self.check_lat.append(lat)
+        elif name == "state":
+            self.update_recorded_state_data(values)
 
         percent = 100 * index / len(self.parser)
-        if self.almost_equal(percent % 5, 0):
-            # doesn't work in pycharm terminal...
-            # print(str(int(percent)) + "%", end='\r')
-
-            print(str(int(percent)) + "%")
+        print(str(int(percent)) + "%", end='\r')
+##        if self.almost_equal(percent % 5, 0):
+##            print(str(int(percent)) + "%")
 
     @staticmethod
-    def almost_equal(num1, num2, epsilon=0.005):
+    def almost_equal(num1, num2, epsilon=0.01):
         return abs(num1 - num2) < epsilon
 
-    def static_plot(self):
+    def static_plot(self, plot_recorded_state, plot_calculated_state):
         for index, timestamp, name, values in self.parser:
             self.step(index, timestamp, name, values)
 
         print("plotting...")
         plt.plot(self.long_data, self.lat_data, "r", label="GPS")
-        plt.plot(self.check_long, self.check_lat, "o", label="Checkpoints")
-        plt.plot(self.state_x_gps, self.state_y_gps, "ro", label="GPS updated",
+##        plt.plot(self.check_long, self.check_lat, "o", label="Checkpoints")
+##        plt.plot(*self.bearing_data)
+
+        if plot_calculated_state:
+            plt.plot(self.state_x_gps, self.state_y_gps, "ro", label="GPS updated",
                  markersize=4)
-        plt.plot(self.state_x, self.state_y, 'g', label="state xy")
-        plt.plot(*self.state_heading)
-        plt.plot(*self.bearing_data)
+            plt.plot(self.state_x, self.state_y, 'g', label="state xy")
+            plt.plot(*self.state_heading)
+        if plot_recorded_state:
+            plt.plot(self.recorded_state_x, self.recorded_state_y, 'g', label="state xy")
+            plt.plot(*self.recorded_heading)
+        
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
         plt.show()
@@ -228,8 +260,8 @@ if __name__ == '__main__':
         file_name = sys.argv[1]
         directory = sys.argv[2]
     else:
-        file_name = 0
-        directory = "Jun 26 2016"
+        file_name = -1
+        directory = "Jul 10 2016"
         # file_name = ":random"
         # directory = ":random"
         # file_name = 'Thu Jun 23 20;53;43 2016.txt'
@@ -241,6 +273,6 @@ if __name__ == '__main__':
 
     # plot_everything(file_name, directory)
     plot = FilterPlotter(file_name, directory)
-    # plot.static_plot()
-    plot.live_plot()
+    plot.static_plot(plot_recorded_state=True, plot_calculated_state=True)
+    # plot.live_plot()
     # plot.create_map(50)
