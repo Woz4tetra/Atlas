@@ -1,5 +1,6 @@
 import math
 import time
+
 import pyb
 
 from data import *
@@ -13,9 +14,10 @@ class GPS(Sensor):
     new_data = False
     uart = None
     pps_pin = None
+    pps_timer = 0
     extint = None
     
-    def __init__(self, sensor_id, uart_bus, int_pin=None, timer_num=None):
+    def __init__(self, sensor_id, uart_bus, int_pin, timer_num):
         assert not (int_pin == timer_num == None)
         super().__init__(sensor_id, ['f', 'f', 'f', 'u8'])
         
@@ -31,13 +33,11 @@ class GPS(Sensor):
         
         # using class variables because lists can't be created in callbacks
         # MicropyGPS creates a list in one of its functions
-        if int_pin is not None:
-            GPS.pps_pin = int_pin
-            GPS.ext_pin = pyb.ExtInt(GPS.pps_pin, pyb.ExtInt.IRQ_FALLING,
-                            pyb.Pin.PULL_UP, GPS.pps_callback)
-        else:
-            self.timer = pyb.Timer(timer_num, freq=1)
-            self.timer.callback(lambda t: GPS.pps_callback(t))
+        GPS.pps_pin = int_pin
+        GPS.ext_pin = pyb.ExtInt(GPS.pps_pin, pyb.ExtInt.IRQ_FALLING,
+                        pyb.Pin.PULL_UP, GPS.pps_callback)
+        self.timer = pyb.Timer(timer_num, freq=1)
+        self.timer.callback(lambda t: GPS.timer_callback(t))
 
     def update_gps(self, character):
         self.gps_ref.update(character)
@@ -65,7 +65,8 @@ class GPS(Sensor):
         )
     
     def recved_data(self):
-        if GPS.new_data:
+        GPS.pps_timer += 1
+        if GPS.new_data and GPS.pps_timer < 500:
             while GPS.uart.any():
                 self.update_gps(chr(GPS.uart.readchar()))
             GPS.new_data = False
@@ -74,64 +75,44 @@ class GPS(Sensor):
             return False
     
     @staticmethod
-    def pps_callback(line):
+    def timer_callback(line):
         if GPS.uart.any():
             GPS.new_data = True
             GPS.gps_indicator.toggle()
-        
+
+    @staticmethod
+    def pps_callback(line):
+        GPS.pps_timer = 0
 
 class IMU(Sensor):
-    def __init__(self, sensor_id, timer_num, bus, get_ang_v=True):
-        super().__init__(sensor_id, 'f')
+    def __init__(self, sensor_id, bus, timer_num):
+        super(IMU, self).__init__(sensor_id, 'f')
         self.bus = bus
         self.bno = BNO055(self.bus)
         
-        self.yaw = self.get_yaw()
-        self.ang_v = 0.0
-        self.prev_ang_v = None
-        
         self.new_data = False
-        self.prev_time = time.ticks_us()
+        self.prev_yaw = 0.0
         
         self.timer = pyb.Timer(timer_num, freq=100)
-        self.get_ang_v = get_ang_v
-        if self.get_ang_v:
-            self.timer.callback(lambda _: self.callback_angular_v(_))
-        else:
-            self.timer.callback(lambda _: self.callback_yaw(_))
-    
+        self.timer.callback(lambda _: self.callback()) 
+        
     def get_yaw(self):
         return self.bno.get_euler()[0] * math.pi / 180
-    
-    def callback_yaw(self, line):
-        new_yaw = self.get_yaw()
-        if self.yaw != new_yaw:
-            self.new_data = True
-            self.yaw = new_yaw
-    
-    def callback_angular_v(self, line):
-        dt = time.ticks_diff(self.prev_time, time.ticks_us()) / 1E6
-        new_yaw = self.get_yaw()
-        
-        self.ang_v = (new_yaw - self.yaw) / dt 
-        self.yaw = new_yaw
-        if self.prev_ang_v != self.ang_v:
-            self.new_data = True
-            self.prev_ang_v = self.ang_v
 
     def recved_data(self):
         if self.new_data:
             self.new_data = False
-            return True
-        else:
-            return False
-    
+            self.yaw = self.get_yaw()
+            if self.prev_yaw != self.yaw:
+                self.prev_yaw = self.yaw
+                return True
+        return False
+        
     def update_data(self):
-        if self.get_ang_v:
-            return self.yaw
-        else:
-            return self.ang_v
-
+        return self.yaw
+    
+    def callback(self):
+        self.new_data = True
 
 class ServoCommand(Command):
     def __init__(self, command_id, pin_num, start_pos=0):

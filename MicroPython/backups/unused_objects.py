@@ -3,6 +3,7 @@ import pyb
 from libraries.mpu6050 import MPU6050
 from libraries.hmc5883l import HMC5883L
 from libraries.pca9685 import PCA9685
+from libraries.bno055 import BNO055
 
 from data import *
 
@@ -302,3 +303,4 @@ class Motor(Command):
 
     def callback(self, value):
         self.speed(value)
+

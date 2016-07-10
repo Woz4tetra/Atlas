@@ -44,24 +44,29 @@ class CommandPool(object):
 
     @staticmethod
     def is_packet(packet):
-        if len(packet) < 7: return False
+        if len(packet) < 2: return False
         # for index in [0, 1, 3, 4] + list(range(6, len(packet) - 1)):
-        for index in range(len(packet) - 1):
+        for index in range(len(packet)):
             if packet[index] != '\t' and not CommandPool.is_hex(packet[index]):
                 return False
         return True
 
     def update(self, packet):
         if self.is_packet(packet):
-            command_id = int(packet[0:2], 16)
-            data_len = int(packet[3:5], 16)
-            hex_data = packet[6: data_len + 6]
+            if len(packet) == 2:  # use previously sent command
+                command_id = int(packet, 16)
+                data = self.commands[command_id].data[0]
+            else:
+                command_id = int(packet[0:2], 16)
+                data_len = int(packet[3:5], 16)
+                hex_data = packet[6: data_len + 6]
 
-            if len(hex_data) == data_len and command_id in self.commands.keys():
-                self.commands[command_id].current_packet = packet
-                data = self.commands[command_id].format_data(hex_data)
-                self.commands[command_id].callback(data)
-
+                if len(hex_data) == data_len and command_id in self.commands.keys():
+                    self.commands[command_id].current_packet = packet
+                    data = self.commands[command_id].format_data(hex_data)
+            self.commands[command_id].callback(data)
+            self.commands[command_id].new_data = True
+            
 
 class SerialObject(object):
     def __init__(self, object_id, formats):
@@ -100,9 +105,14 @@ class SerialObject(object):
     def reset(self):
         pass
 
+    def recved_data(self):
+        pass
+
     def __repr__(self):
-        print("something")
-        return "%s(%i, %s): %s" % (self.__class__.__name__, self.object_id, str(self.formats))
+        return "%s(%i, %s): %s" % (self.__class__.__name__, self.object_id, str(self.formats), self.data)
+
+    def __str__(self):
+        return str(self.data)
 
 
 class Sensor(SerialObject):
@@ -154,38 +164,45 @@ class Sensor(SerialObject):
                                             self.format_data())
         return self.current_packet
 
-    def recved_data(self):
-        pass
-
-
 class Command(SerialObject):
     def __init__(self, command_id, format):
+        self.new_data = False
         super().__init__(command_id, [format])
 
     def format_data(self, hex_string):
         if self.formats[0] == 'b':
-            return bool(int(hex_string, 16))
+            data = bool(int(hex_string, 16))
 
         elif self.formats[0][0] == 'u':
-            return int(hex_string, 16)
+            data = int(hex_string, 16)
 
         elif self.formats[0][0] == 'i':
             bin_length = len(hex_string) * 4
             raw_int = int(hex_string, 16)
             if (raw_int >> (bin_length - 1)) == 1:
                 raw_int -= 2 << (bin_length - 1)
-            return int(raw_int)
+            data = int(raw_int)
 
         elif self.formats[0][0] == 'f':
             # assure length of 8
             input_str = "0" * (8 - len(hex_string)) + hex_string
 
-            return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            data = struct.unpack('!f', bytes.fromhex(hex_string))[0]
         elif self.formats[0][0] == 'd':
             # assure length of 16
             input_str = "0" * (16 - len(hex_string)) + hex_string
 
-            return struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            data = struct.unpack('!d', bytes.fromhex(hex_string))[0]
 
+        self.data[0] = data
+        return data
+
+    def recved_data(self):
+        if self.new_data:
+            self.new_data = False
+            return True
+        else:
+            return False
+    
     def callback(self, data):
         pass

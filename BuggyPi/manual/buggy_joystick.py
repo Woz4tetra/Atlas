@@ -21,6 +21,7 @@ sys.path.insert(0, "../")
 pygame.init()
 pygame.joystick.init()
 
+
 class BuggyJoystick(threading.Thread):
     exit_flag = False
 
@@ -198,7 +199,7 @@ if __name__ == '__main__':
             if event.type == pygame.QUIT:
                 quit()
 
-            if event.type == pygame.KEYDOWN:  # or event.type == pygame.KEYUP:
+            elif event.type == pygame.KEYDOWN:  # or event.type == pygame.KEYUP:
                 print(event)
                 if event.key == 13:  # enter
                     enter_pressed = True
@@ -207,8 +208,8 @@ if __name__ == '__main__':
                 if event.key == 27:  # esc
                     esc_pressed = True
 
-            if (event.type == pygame.JOYBUTTONUP or
-                        event.type == pygame.JOYBUTTONDOWN) and \
+            elif (event.type == pygame.JOYBUTTONUP or
+                          event.type == pygame.JOYBUTTONDOWN) and \
                             event.button not in recorded_buttons:
                 main_event = event
             elif event.type == pygame.JOYHATMOTION:

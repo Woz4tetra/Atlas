@@ -61,12 +61,15 @@ class CommandPool(object):
                 data_len = int(packet[3:5], 16)
                 hex_data = packet[6: data_len + 6]
 
-                if len(hex_data) == data_len and command_id in self.commands.keys():
+                if (len(hex_data) == data_len and
+                            command_id in self.commands.keys()):
                     self.commands[command_id].current_packet = packet
                     data = self.commands[command_id].format_data(hex_data)
+                else:
+                    return  # invalid packet. Do nothing
             self.commands[command_id].callback(data)
             self.commands[command_id].new_data = True
-            
+
 
 class SerialObject(object):
     def __init__(self, object_id, formats):
@@ -109,7 +112,9 @@ class SerialObject(object):
         pass
 
     def __repr__(self):
-        return "%s(%i, %s): %s" % (self.__class__.__name__, self.object_id, str(self.formats), self.data)
+        return "%s(%i, %s): %s" % (
+            self.__class__.__name__, self.object_id, str(self.formats),
+            self.data)
 
     def __str__(self):
         return str(self.data)
@@ -161,8 +166,9 @@ class Sensor(SerialObject):
             # print(self.data, 'is not iterable')
             self.data = [self.data]
         self.current_packet = "%s\t%s\r\n" % (self.to_hex(self.object_id, 2),
-                                            self.format_data())
+                                              self.format_data())
         return self.current_packet
+
 
 class Command(SerialObject):
     def __init__(self, command_id, format):
@@ -187,12 +193,15 @@ class Command(SerialObject):
             # assure length of 8
             input_str = "0" * (8 - len(hex_string)) + hex_string
 
-            data = struct.unpack('!f', bytes.fromhex(hex_string))[0]
+            data = struct.unpack('!f', bytes.fromhex(input_str))[0]
         elif self.formats[0][0] == 'd':
             # assure length of 16
             input_str = "0" * (16 - len(hex_string)) + hex_string
 
-            data = struct.unpack('!d', bytes.fromhex(hex_string))[0]
+            data = struct.unpack('!d', bytes.fromhex(input_str))[0]
+        else:
+            raise ValueError("Invalid data type '%s' for command %s" % (
+                self.formats[0][0], repr(self)))
 
         self.data[0] = data
         return data
@@ -203,6 +212,12 @@ class Command(SerialObject):
             return True
         else:
             return False
-    
+
     def callback(self, data):
         pass
+
+
+class PollSensor(SerialObject):
+    pass
+    # TODO: implement poll based sensors. It has a command and sensor. The
+    # command is used to tell the sensor to return data

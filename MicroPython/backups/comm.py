@@ -3,8 +3,15 @@ import pyb
 from objects import *
 
 class Communicator(object):
-    def __init__(self, *commands):
-        self.serial_ref = pyb.USB_VCP()
+    def __init__(self, *commands, uart_bus=None):
+        if uart_bus is not None:
+            self.using_usb = False
+            self.serial_ref = pyb.UART(uart_bus, 115200, read_buf_len=1000,
+                                       timeout_char=10000)
+            print("Initialized! Ready to go!")
+        else:
+            self.using_usb = True
+            self.serial_ref = pyb.USB_VCP()
 
         self.command_pool = CommandPool(commands)
 
@@ -13,6 +20,8 @@ class Communicator(object):
         self.buffer = ""
 
     def write_packet(self, sensor):
+        packet = sensor.get_packet()
+##        print(packet)
         self.serial_ref.write(sensor.get_packet())
         pyb.delay(1)
 
@@ -27,7 +36,7 @@ class Communicator(object):
                     self.command_pool.update(packet)
                     
     def read_packets(self):
-        incoming = self.serial_ref.readall()
+        incoming = self.serial_ref.read(self.serial_ref.any())
         self.buffer += incoming.decode('ascii')
         packets = self.buffer.split("\r\n")
 
@@ -36,6 +45,13 @@ class Communicator(object):
         else:
             self.buffer = ""
         return packets 
-    
+
+    def should_reset(self):
+        if self.reset:
+            self.reset = False
+            return True
+        else:
+            return False
+        
     def close(self):
         self.serial_ref.close()

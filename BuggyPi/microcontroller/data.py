@@ -334,7 +334,6 @@ class Command(SerialObject):
             time.sleep(0.004)
             self.prev_time = current_time
 
-
     @staticmethod
     def wrap(num, lower, upper):
         while num > upper:
@@ -453,3 +452,8 @@ class Command(SerialObject):
 
     def get_id_packet(self):
         return "%s\r\n" % (self.to_hex(self.object_id, 2))
+
+
+class PollSensor(SerialObject):
+    pass
+    # TODO: implement poll based sensors. It has a command and sensor. The command is used to tell the sensor to return data
