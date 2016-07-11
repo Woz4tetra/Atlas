@@ -289,7 +289,7 @@ class Command(SerialObject):
     used_ids = []
 
     def __init__(self, command_id, name, data_range, communicator,
-                 bound=False, initial=None):
+                 bound_values=True, initial=None):
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
@@ -301,7 +301,7 @@ class Command(SerialObject):
             data_range)
         self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
                                          self.to_hex(self.data_len, 2))
-        self.bound = bound
+        self.bound = bound_values
         self.communicator = communicator
 
         self.prev_value = None

@@ -12,7 +12,7 @@ class BuggyPiFilter:
 
     def __init__(self, initial_long, initial_lat, initial_heading,
                  counts_per_rotation, wheel_radius, front_back_dist,
-                 max_speed):
+                 max_speed, left_angle_limit, right_angle_limit, left_servo_limit, right_servo_limit):
         # ----- filter related variables -----
         self.initial_long = initial_long
         self.initial_lat = initial_lat
@@ -66,6 +66,12 @@ class BuggyPiFilter:
                                    self.process_error_covariance)
 
         # ----- unit conversion related variables -----
+
+        self.left_angle = left_angle_limit
+        self.right_angle = right_angle_limit
+        self.left_value = left_servo_limit
+        self.right_value = right_servo_limit
+
         self.prev_time = 0.0
         self.prev_enc_t = 0.0
         self.prev_imu_t = 0.0
@@ -260,11 +266,6 @@ class BuggyPiFilter:
         x = dist * math.cos(bearing)
         y = dist * math.sin(bearing)
         return x, y
-
-    left_angle = 0.81096
-    right_angle = -0.53719
-    left_value = 35
-    right_value = -25
 
     def servo_to_angle(self, servo_value):
         return ((self.left_angle - self.right_angle) /

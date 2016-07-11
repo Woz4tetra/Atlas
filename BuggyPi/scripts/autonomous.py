@@ -7,7 +7,7 @@ from microcontroller.data import *
 from microcontroller.comm import *
 from manual.wiiu_joystick import WiiUJoystick
 from vision.camera import Camera
-from microcontroller.logger import get_checkpoints
+from microcontroller.logger import get_map
 from navigation.buggypi_filter import BuggyPiFilter
 
 
@@ -75,7 +75,7 @@ manual_mode = True
 enable_draw = True
 capture = Camera(320, 240, enable_draw=enable_draw, framerate=32)
 
-checkpoints = get_checkpoints()
+checkpoints = get_map()
 initial_long, initial_lat = checkpoints[9]
 
 pi_filter = BuggyPiFilter(

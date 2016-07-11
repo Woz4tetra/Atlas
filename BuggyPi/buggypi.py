@@ -3,15 +3,21 @@ import os
 from manual.wiiu_joystick import WiiUJoystick
 from microcontroller.comm import *
 from microcontroller.data import *
-from microcontroller.logger import get_checkpoints
+from microcontroller.logger import get_map
 from navigation.buggypi_filter import BuggyPiFilter
+from navigation.pd_controller import Controller
+from navigation.waypoint_picker import Waypoints
 from vision.camera import Camera
 
 
 class BuggyPi:
     def __init__(self, initial_long=None, initial_lat=None, initial_heading=0.0,
                  manual_mode=True, enable_draw=True, log_data=True,
-                 log_dir=None):
+                 log_dir=None, counts_per_rotation=6, wheel_radius=0.097,
+                 front_back_dist=0.234, max_speed=0.88,
+                 left_angle_limit=0.81096, right_angle_limit=-0.53719,
+                 left_servo_limit=35, right_servo_limit=-25):
+
         # ----- BuggyPi properties -----
         self.log_data = log_data
         self.manual_mode = manual_mode
@@ -27,7 +33,7 @@ class BuggyPi:
         self.yaw = Sensor(2, 'imu', 'yaw')
         # self.altitude = Sensor(3, 'altitude', 'altitude')
         self.checkpoint_num = 0
-        self.checkpoints = get_checkpoints()
+        self.checkpoints = get_map("checkpoints")
 
         # ----- Communication instances -----
         self.sensor_pool = SensorPool(self.encoder, self.gps, self.yaw)
@@ -54,7 +60,7 @@ class BuggyPi:
                               framerate=32)
         self.paused = False
 
-        # ---- Kalman Filter -----
+        # ----- Kalman Filter -----
         check_long, check_lat = self.checkpoints[0]
         if initial_long is None:
             initial_long = check_long
@@ -63,10 +69,19 @@ class BuggyPi:
 
         self.filter = BuggyPiFilter(
             initial_long, initial_lat, initial_heading,
-            counts_per_rotation=6, wheel_radius=0.097,
-            front_back_dist=0.234, max_speed=0.88
+            counts_per_rotation, wheel_radius,
+            front_back_dist, max_speed,
+            left_angle_limit, right_angle_limit,
+            left_servo_limit, right_servo_limit
         )
         self.state = self.filter.state
+
+        # ----- Planners -----
+        self.controller = Controller(0.5, front_back_dist, 1, 1)
+
+        self.waypoints = Waypoints(
+            get_map(0), left_angle_limit, right_angle_limit
+        )
 
         # ----- Turn display off? -----
         if not self.enable_draw:
@@ -110,7 +125,10 @@ class BuggyPi:
         if sensors_updated:
             timestamp = time.time() - self.time_start
             self.state = self.filter.update_filter(timestamp)
-            self.communicator.record("state", **self.state, timestamp=timestamp)
+            self.communicator.record("state", timestamp=timestamp, **self.state)
+
+            goal_x, goal_y = self.waypoints.get_goal(self.state)
+            self.controller.update(self.state, goal_x, goal_y)
 
     def update_camera(self):
         if self.capture.get_frame() is None:

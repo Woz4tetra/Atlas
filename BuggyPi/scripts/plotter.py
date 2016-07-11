@@ -18,7 +18,7 @@ class FilterPlotter:
         # self.initial_long = self.initial_gps["long"]
         # self.initial_lat = self.initial_gps["lat"]
 
-        self.checkpoints = get_checkpoints()
+        self.checkpoints = get_map("checkpoints")
         self.initial_long, self.initial_lat = self.checkpoints[9]
 
         self.pi_filter = BuggyPiFilter(
