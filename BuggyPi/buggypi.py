@@ -127,8 +127,8 @@ class BuggyPi:
             self.state = self.filter.update_filter(timestamp)
             self.communicator.record("state", timestamp=timestamp, **self.state)
 
-            goal_x, goal_y = self.waypoints.get_goal(self.state)
-            self.controller.update(self.state, goal_x, goal_y)
+##            goal_x, goal_y = self.waypoints.get_goal(self.state)
+##            self.controller.update(self.state, goal_x, goal_y)
 
     def update_camera(self):
         if self.capture.get_frame() is None:

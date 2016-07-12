@@ -129,7 +129,7 @@ class Parser:
     def __init__(self, file_name, directory=None):
         self.directory = get_dir_name(directory)
         self.local_dir = directory[self.directory.rfind("/", 0, -1) + 1:]
-        self.file_name = get_file_name(file_name, directory)
+        self.file_name = get_file_name(file_name, self.directory)
 
         print("Using file named '%s'" % self.file_name)
 
@@ -137,7 +137,7 @@ class Parser:
             self.contents = data_file.read()
 
         try:
-            if (datetime.strptime(directory.split("/")[-2], '%b %d %Y') <=
+            if (datetime.strptime(self.directory.split("/")[-2], '%b %d %Y') <=
                     datetime.strptime(obsolete_data, '%b %d %Y')):
                 print("WARNING: You are using a data set that is obsolete "
                       "with the current parser. Continue? (y/n)", end="")

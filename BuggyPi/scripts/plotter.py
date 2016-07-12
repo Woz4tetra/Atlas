@@ -19,10 +19,11 @@ class FilterPlotter:
         # self.initial_lat = self.initial_gps["lat"]
 
         self.checkpoints = get_map("checkpoints")
-        self.initial_long, self.initial_lat = self.checkpoints[9]
+        self.initial_long, self.initial_lat = self.checkpoints[0]
 
         self.pi_filter = BuggyPiFilter(
-            self.initial_long, self.initial_lat, 0.0, 6, 0.097, 0.234, 0.88
+            self.initial_long, self.initial_lat, 0.0, 6, 0.097, 0.234, 0.88,
+            0.81096, -0.5371, 35, -25
         )
 
         self.prev_imu_time = 0.0
@@ -261,7 +262,7 @@ if __name__ == '__main__':
         directory = sys.argv[2]
     else:
         file_name = -1
-        directory = "Jul 10 2016"
+        directory = "Jul 11 2016"
         # file_name = ":random"
         # directory = ":random"
         # file_name = 'Thu Jun 23 20;53;43 2016.txt'
