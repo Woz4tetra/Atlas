@@ -83,6 +83,9 @@ class BuggyPi:
             get_map(0), left_angle_limit, right_angle_limit
         )
 
+        self.goal_x, self.goal_y = self.waypoints.map[0]
+        self.waypoint_num = 0
+
         # ----- Turn display off? -----
         if not self.enable_draw:
             print("Display will now turn off")
@@ -101,7 +104,6 @@ class BuggyPi:
         if not self.update_camera():
             self.close()
             return False
-        # if not self.manual_mode:  # do path planning and command stuff
         return True
 
     def update_filter(self):
@@ -128,7 +130,10 @@ class BuggyPi:
             self.communicator.record("state", timestamp=timestamp, **self.state)
 
 ##            goal_x, goal_y = self.waypoints.get_goal(self.state)
-##            self.controller.update(self.state, goal_x, goal_y)
+            if not self.manual_mode:
+                speed, angle = self.controller.update(self.state, self.goal_x, self.goal_y)
+                self.motors.set(int(speed))
+                self.servo.set(angle)
 
     def update_camera(self):
         if self.capture.get_frame() is None:
@@ -185,7 +190,7 @@ class BuggyPi:
             self.manual_mode = not self.manual_mode
             print("Switching to",
                   "manual mode!" if self.manual_mode else "autonomous!")
-        if button == 'A':
+        elif button == 'A':
             self.communicator.record('checkpoint', num=self.checkpoint_num,
                                      long=self.gps.get("long"),
                                      lat=self.gps.get("lat"))
@@ -193,6 +198,9 @@ class BuggyPi:
             print(
                 "--------\nCheckpoint reached! %s\n--------" % str(
                     self.checkpoint_num))
+        elif button == 'X':
+            self.goal_x, self.goal_y = self.waypoints.map[self.waypoint_num]
+            self.waypoint_num += 1
 
     @staticmethod
     def joy_changed(axis, value, self):
