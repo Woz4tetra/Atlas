@@ -7,7 +7,7 @@ from robots.autobot import AutoBot
 
 
 def main():
-    robot = AutoBot()
+    robot = AutoBot(log_data=False)
 
     try:
         while True:

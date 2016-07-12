@@ -45,7 +45,7 @@ class LoggerBot(RealBot):
             self.filter.update_servo(self.servo.get())
         if axis == "left y":
             if value != 0:
-                value = 1 * ((value > 0) - (value < 0))
+                value = 1 * ((value < 0) - (value > 0))
             self.motors.set(int(value * 100))
             self.filter.update_motors(self.motors.get())
 

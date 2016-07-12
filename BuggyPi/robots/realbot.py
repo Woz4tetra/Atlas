@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 sys.path.insert(0, '../')
 
@@ -77,6 +78,7 @@ class RealBot(Robot):
         self.communicator.start()
 
         self.time_start = time.time()
+        self.running = True
 
     def update(self):
         self.update_filter()
@@ -144,17 +146,26 @@ class RealBot(Robot):
         return True  # True == don't exit program
 
     def close(self):
-        self.communicator.stop()
-        self.capture.stop()
-        self.display_backlight(True)
+        if self.running:
+            self.motors.set(0)
+            self.servo.set(0)
+
+            time.sleep(0.1)
+
+            self.communicator.stop()
+            self.capture.stop()
+            self.display_backlight(True)
+
+            self.running = False
 
     def display_backlight(self, show):
-        if show is True and not self.enable_draw:
-            os.system(
-                "sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")
-        else:
-            os.system(
-                "sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power")
+        if not self.enable_draw:
+            if show is True:
+                os.system(
+                    "sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power")
+            else:
+                os.system(
+                    "sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power")
 
     @staticmethod
     def stick_to_servo(x):

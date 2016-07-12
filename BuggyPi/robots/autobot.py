@@ -1,4 +1,5 @@
 import sys
+import time
 
 sys.path.insert(0, '../')
 
@@ -47,10 +48,10 @@ class AutoBot(RealBot):
             speed, servo_value = self.controller.update(
                 self.state, self.goal_x, self.goal_y
             )
+            print(speed, servo_value)
             self.motors.set(int(speed))
             self.servo.set(servo_value)
         if not self.update_camera():
-            self.close()
             return False
         return True
 
@@ -78,16 +79,24 @@ class AutoBot(RealBot):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(RealBot.stick_to_servo(value))
-                self.filter.update_servo(self.servo.get())
+                self.pi_filter.update_servo(self.servo.get())
             if axis == "left y":
                 if value != 0:
-                    value = 1 * ((value > 0) - (value < 0))
+                    value = 1 * ((value < 0) - (value > 0))
                 self.motors.set(int(value * 100))
-                self.filter.update_motors(self.motors.get())
+                self.pi_filter.update_motors(self.motors.get())
 
     def close(self):
-        self.communicator.stop()
-        self.capture.stop()
-        self.joystick.stop()
+        if self.running:
+            self.motors.set(0)
+            time.sleep(0.005)
+            self.servo.set(0)
+            time.sleep(0.005)
 
-        self.display_backlight(True)
+            self.communicator.stop()
+            self.capture.stop()
+            self.joystick.stop()
+            
+            self.display_backlight(True)
+
+            self.running = False
