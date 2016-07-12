@@ -2,11 +2,18 @@ import math
 
 
 class Controller:
-    def __init__(self, imaginary_length, front_back_dist, kp, kd):
+    def __init__(self, imaginary_length, front_back_dist, kp, kd,
+                 left_angle_limit, right_angle_limit,
+                 left_servo_limit, right_servo_limit):
         self.l = imaginary_length
         self.front_back_dist = front_back_dist
         self.kp = kp
         self.kd = kd
+
+        self.left_angle = left_angle_limit
+        self.right_angle = right_angle_limit
+        self.left_value = left_servo_limit
+        self.right_value = right_servo_limit
 
     def update(self, state, goal_x, goal_y):
         x_control = -self.kp * (goal_x - state["x"]) + \
@@ -21,4 +28,9 @@ class Controller:
 
         angle_command = math.atan(ang_v * self.front_back_dist / speed_command)
 
-        return speed_command, angle_command
+        return speed_command, self.angle_to_servo(angle_command)
+
+    def angle_to_servo(self, angle):
+        return int(((self.left_value - self.right_value) /
+                    (self.left_angle - self.right_angle) *
+                    (angle - self.right_angle) + self.right_value))

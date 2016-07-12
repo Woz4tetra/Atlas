@@ -12,7 +12,8 @@ class BuggyPiFilter:
 
     def __init__(self, initial_long, initial_lat, initial_heading,
                  counts_per_rotation, wheel_radius, front_back_dist,
-                 max_speed, left_angle_limit, right_angle_limit, left_servo_limit, right_servo_limit):
+                 max_speed, left_angle_limit, right_angle_limit,
+                 left_servo_limit, right_servo_limit):
         # ----- filter related variables -----
         self.initial_long = initial_long
         self.initial_lat = initial_lat

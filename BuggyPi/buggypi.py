@@ -77,7 +77,9 @@ class BuggyPi:
         self.state = self.filter.state
 
         # ----- Planners -----
-        self.controller = Controller(0.5, front_back_dist, 1, 1)
+        self.controller = Controller(0.5, front_back_dist, 1, 1,
+                                     left_angle_limit, right_angle_limit,
+                                     left_servo_limit, right_servo_limit)
 
         self.waypoints = Waypoints(
             get_map(0), left_angle_limit, right_angle_limit
@@ -109,17 +111,17 @@ class BuggyPi:
     def update_filter(self):
         sensors_updated = False
         if self.yaw.received():
-            print(self.yaw)
+            # print(self.yaw)
             sensors_updated = True
             self.filter.update_imu(time.time() - self.time_start,
                                    -self.yaw.get('yaw'))
         if self.gps.received():
-            print(self.gps)
+            # print(self.gps)
             sensors_updated = True
             self.filter.update_gps(time.time() - self.time_start,
                                    self.gps.get("long"), self.gps.get("lat"))
         if self.encoder.received():
-            print(self.encoder)
+            # print(self.encoder)
             sensors_updated = True
             self.filter.update_encoder(time.time() - self.time_start,
                                        self.encoder.get("counts"))
@@ -129,11 +131,13 @@ class BuggyPi:
             self.state = self.filter.update_filter(timestamp)
             self.communicator.record("state", timestamp=timestamp, **self.state)
 
-##            goal_x, goal_y = self.waypoints.get_goal(self.state)
+            # goal_x, goal_y = self.waypoints.get_goal(self.state)
             if not self.manual_mode:
-                speed, angle = self.controller.update(self.state, self.goal_x, self.goal_y)
+                speed, servo_value = self.controller.update(
+                    self.state, self.goal_x, self.goal_y
+                )
                 self.motors.set(int(speed))
-                self.servo.set(angle)
+                self.servo.set(servo_value)
 
     def update_camera(self):
         if self.capture.get_frame() is None:
@@ -194,13 +198,14 @@ class BuggyPi:
             self.communicator.record('checkpoint', num=self.checkpoint_num,
                                      long=self.gps.get("long"),
                                      lat=self.gps.get("lat"))
-            self.checkpoint_num += 1
             print(
                 "--------\nCheckpoint reached! %s\n--------" % str(
                     self.checkpoint_num))
+            self.checkpoint_num += 1
         elif button == 'X':
             self.goal_x, self.goal_y = self.waypoints.map[self.waypoint_num]
             self.waypoint_num += 1
+            print("Setting goal to (%s, %s)" % (self.goal_x, self.goal_y))
 
     @staticmethod
     def joy_changed(axis, value, self):
