@@ -25,6 +25,7 @@ directories = {
     'microcontroller': CONFIGDIR + "/microcontroller/",
     'logs': CONFIGDIR + "/microcontroller/logs/",
     'maps': CONFIGDIR + "/microcontroller/maps/",
+    'gpx': CONFIGDIR + "/microcontroller/maps/gpx/",
     'vision': CONFIGDIR + "/vision/",
     'videos': CONFIGDIR + "/vision/videos/",
     'images': CONFIGDIR + "/vision/images/",
@@ -48,18 +49,24 @@ def get_platform():
 
 
 def get_dir(directory=""):
+    abs_directory = ""
     if len(directory) > 0 and directory[0] == ':':
         shortcut_start = directory.find(":") + 1
         shortcut_end = directory.find("/", shortcut_start)
         if shortcut_end == -1:
             key = directory[shortcut_start:]
-            return directories[key]
+            abs_directory = directories[key]
         else:
             key = directory[shortcut_start: shortcut_end]
-            return directories[key] + directory[shortcut_end + 1:]
+            abs_directory = directories[key] + directory[shortcut_end + 1:]
 
     elif len(directory) > 0 and directory[0] == '/':
-        return directory
+        abs_directory = directory
 
     else:
-        return CONFIGDIR + "/" + directory
+        abs_directory = CONFIGDIR + "/" + directory
+
+    if not os.path.isdir(abs_directory):
+        os.mkdir(abs_directory)
+
+    return abs_directory

@@ -3,11 +3,11 @@ import traceback
 
 sys.path.insert(0, "../")
 
-from buggypi import BuggyPi
+from robots.loggerbot import LoggerBot
 
 
 def main():
-    robot = BuggyPi()
+    robot = LoggerBot()
 
     try:
         while True:

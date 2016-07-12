@@ -1,8 +1,8 @@
 import os
+import random
 import sys
 import time
 from datetime import datetime
-import random
 
 sys.path.insert(0, '../')
 
@@ -70,17 +70,13 @@ def convert_str(string):
     if string == "False":
         return False
 
-    is_float = False
-    for char in string:
-        if char == ".":
-            is_float = True
-
-        elif not char.isdigit() and char != '-':
-            return string
-    if is_float:
-        return float(string)
-    else:
-        return int(string)
+    trys = [lambda s: int(s), lambda s: float(s), lambda s: str(s)]
+    for func in trys:
+        try:
+            return func(string)
+        except ValueError:
+            pass
+    return None
 
 
 def get_dir_name(directory):
