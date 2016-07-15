@@ -21,7 +21,6 @@ class Camera(Capture):
         time.sleep(0.1)
 
         self.capture = self.camera.capture_continuous(self.raw_capture, format="bgr", use_video_port=True)
-        self.frame_num = 0
 
     def get_frame(self):
         self.frame = next(self.capture).array
@@ -30,6 +29,7 @@ class Camera(Capture):
         self.raw_capture.truncate(0)
 
         self.frame_num += 1
+        self.slider_num += 1
         
         return self.frame
 

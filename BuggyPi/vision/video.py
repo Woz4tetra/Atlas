@@ -8,7 +8,7 @@ class Video(Capture):
     def __init__(self, video_name, directory=None, enable_draw=True,
                  start_frame=0, width=None, height=None, frame_skip=0,
                  loop_video=False):
-        video_name, capture, length_msec, num_frames, self.slider_len, self.track_bar_name = \
+        video_name, capture, length_msec, num_frames, self.slider_ticks, self.track_bar_name = \
             self.load_video(video_name, directory)
 
         super(Video, self).__init__(width, height, video_name, enable_draw)
@@ -101,21 +101,25 @@ class Video(Capture):
         print("\tlength (sec):", length_sec)
         print("\tlength (frames):", num_frames)
 
-        slider_len = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) // 3)
+        slider_ticks = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) // 3)
+        if slider_ticks > num_frames:
+            slider_ticks = num_frames
         track_bar_name = "frame:"
-        cv2.createTrackbar(track_bar_name, video_name, 0, slider_len,
+        cv2.createTrackbar(track_bar_name, video_name, 0, slider_ticks,
                            self.on_slider)
 
         print("video loaded!")
-        return video_name, capture, length_msec, num_frames, slider_len, track_bar_name
+        return video_name, capture, length_msec, num_frames, slider_ticks, track_bar_name
 
-    def get_frame(self):
+    def get_frame(self, advance_frame=True):
         if self.frame_skip > 0:
             self.set_frame(self.current_pos() + self.frame_skip)
 
         success, self.frame = self.capture.read()
 ##        if self.frame.shape[0] == 0 or self.frame.shape[1] == 0:
 ##            success = False
+        if not advance_frame:
+            self.set_frame(self.current_pos() - 1)
         
         if success is False or self.frame is None:
             if self.loop_video:
@@ -130,9 +134,11 @@ class Video(Capture):
                                     (self.resize_width, self.resize_height),
                                     interpolation=cv2.INTER_NEAREST)
 ##        if self.platform != "linux":
-        cv2.setTrackbarPos(self.track_bar_name, self.video_name,
-                           int(self.current_pos() *
-                               self.slider_len / self.video_len))
+        if self.current_pos() != self.frame_num:
+            self.frame_num = self.current_pos()
+            self.slider_num = int(self.frame_num * self.video_len / self.slider_ticks)
+            cv2.setTrackbarPos(self.track_bar_name, self.video_name,
+                               self.slider_num)
 
         return self.frame
     
@@ -140,10 +146,12 @@ class Video(Capture):
         return int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
 
     def on_slider(self, slider_index):
-        slider_time = int(slider_index * self.video_len / self.slider_len)
-        if abs(slider_time - self.current_pos()) > 10:
-            self.set_frame(slider_time)
+        slider_pos = int(slider_index * self.video_len / self.slider_ticks)
+        if abs(slider_pos - self.current_pos()) > 1:
+            self.set_frame(slider_pos)
             self.show_frame(self.get_frame())
+            self.frame_num = self.current_pos()
+            self.slider_num = slider_index
 
     def set_frame(self, position):
         if position >= self.video_len:
@@ -152,7 +160,9 @@ class Video(Capture):
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, int(position))
 
     def increment_frame(self):
-        self.set_frame(self.current_pos() + 1)
+#        self.set_frame(self.current_pos() + 1)
+        self.get_frame()
 
     def decrement_frame(self):
         self.set_frame(self.current_pos() - 2)
+        self.get_frame(False)

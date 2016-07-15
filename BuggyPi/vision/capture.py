@@ -27,6 +27,9 @@ class Capture:
         self.recorder_width, self.recorder_height = 0, 0
         self.recorder_output_dir = ""
         self.recording = False
+        
+        self.frame_num = 0
+        self.slider_num = 0
 
     def get_frame(self):
         pass

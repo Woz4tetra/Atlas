@@ -1,5 +1,6 @@
 import sys
 import traceback
+from pprint import pprint
 
 sys.path.insert(0, "../")
 
@@ -12,6 +13,8 @@ def main():
     try:
         while True:
             status = robot.update()
+            pprint(robot.state)
+            
             if not status:
                 break
     except:
