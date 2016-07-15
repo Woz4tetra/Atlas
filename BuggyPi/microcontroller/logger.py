@@ -183,30 +183,29 @@ class Parser:
     def create_data(self):
         index = 0
         while index < len(self.contents):
-            time_index = self.contents.find(time_name_sep, index)
-            timestamp = float(self.contents[index: time_index])
-
-            name_index = self.contents.find(name_values_sep, index)
-            name = self.contents[time_index + len(time_name_sep): name_index]
-
             end_index = self.contents.find("\n", index)
-            value_content = self.contents[
-                            name_index + len(name_values_sep):end_index]
+            time_index = self.contents.find(time_name_sep, index, end_index)
+            name_index = self.contents.find(name_values_sep, index, end_index)
 
-            values = {}
-            for data in value_content.split(values_sep):
-                if datum_sep in data:
-                    datum_name, datum_value = data.split(datum_sep)
-                    values[datum_name] = convert_str(datum_value)
-                else:
-                    values[None] = convert_str(data)
+            if time_index != -1 and name_index != -1 and end_index != -1:
+                timestamp = float(self.contents[index: time_index])
+                name = self.contents[time_index + len(time_name_sep): name_index]
+                value_content = self.contents[
+                                name_index + len(name_values_sep):end_index]
+                values = {}
+                for data in value_content.split(values_sep):
+                    if datum_sep in data:
+                        datum_name, datum_value = data.split(datum_sep)
+                        values[datum_name] = convert_str(datum_value)
+                    else:
+                        values[None] = convert_str(data)
+
+                self.data.append((timestamp, name, values))
+
+                if name not in self.initial_values.keys():
+                    self.initial_values[name] = timestamp, len(self.data), values
 
             index = end_index + 1
-
-            self.data.append((timestamp, name, values))
-
-            if name not in self.initial_values.keys():
-                self.initial_values[name] = timestamp, len(self.data), values
 
 
 def get_map(file_name, directory=":maps"):

@@ -11,8 +11,11 @@ import project
 
 
 class PlotterBot(Robot):
-    def __init__(self, file_name, directory):
-        super(PlotterBot, self).__init__()
+    def __init__(self, file_name, directory,
+                 initial_long=None, initial_lat=None, initial_heading=0.0):
+        super(PlotterBot, self).__init__(
+            initial_long, initial_lat, initial_heading
+        )
         self.parser = Parser(file_name, directory)
 
         self.prev_imu_time = 0.0
@@ -30,12 +33,13 @@ class PlotterBot(Robot):
 
         self.state_x = [self.initial_long]
         self.state_y = [self.initial_lat]
-        self.state_heading = [(self.initial_long - 0.0001,
-                               self.initial_long - 0.0001 +
-                               self.heading_arrow_len),
-                              (self.initial_lat + 0.00001,
-                               self.initial_lat + 0.00001),
-                              'darkgreen']
+        # self.state_heading = [(self.initial_long - 0.0001,
+        #                        self.initial_long - 0.0001 +
+        #                        self.heading_arrow_len),
+        #                       (self.initial_lat + 0.00001,
+        #                        self.initial_lat + 0.00001),
+        #                       'darkgreen']
+        self.state_heading = []
 
         self.lat_data, self.long_data = [], []  # all gps data
         self.check_lat, self.check_long = [], []  # checkpoint gps points
@@ -96,7 +100,6 @@ class PlotterBot(Robot):
                 self.record_state_data(state, self.state_x, self.state_y,
                                        self.state_heading, self.heading_counter,
                                        self.arrow_color, self.heading_freq)
-
         elif name == "encoder":
             state = self.pi_filter.update_encoder(timestamp, values["counts"])
             self.heading_counter = \
@@ -172,41 +175,49 @@ class PlotterBot(Robot):
         plt.show()
 
     def write_maps(self, skip):
-        map_file = open("%s%s map.txt" % (project.get_dir(":maps"),
-                                          self.parser.file_name[:-4]), "w+")
-        map_gpx_file = open("%s%s gpx map.gpx" %
-                            (project.get_dir(":gpx"),
-                             self.parser.file_name[:-4]), "w+")
+        print("You are about to create map based on the current plot. "
+              "Continue? (y/n)", end="")
 
-        assert len(self.state_x) == len(self.state_y)
-        map_file.write("long, lat\n")
-        for index in range(0, len(self.state_x), skip):
-            map_file.write("%s, %s\n" % (
-                self.state_x[index], self.state_y[index]))
+        proceed = None
+        while proceed != "" and proceed != "y" and proceed != "n":
+            proceed = input(": ").lower()
 
-        map_gpx_file.write("""<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>\n<metadata>
-    <gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
-    <metadata>
-      <name>checkpoints</name>
-      <desc></desc>
-      <author><name>WTracks - Online GPX track editor</name></author>
-      <link href="https://wtracks.appspot.com/">
-        <text>WTracks</text>
-        <type>text/html</type>
-      </link>
-      <time>2016-06-22T19-23-22Z</time>""")
-        map_gpx_file.write(
-            '<bounds minlat="%s" minlon="%s" maxlat="%s" '
-            'maxlon="%s"/></metadata>\n' % (
-                min(self.state_y), min(self.state_x), max(self.state_y),
-                max(self.state_x)
-            ))
-        map_gpx_file.write("<trk><name>checkpoints</name><trkseg>\n")
-        for index in range(0, len(self.state_x), skip):
-            map_gpx_file.write('<trkpt lat="%s" lon="%s"></trkpt>\n' % (
-                self.state_y[index], self.state_x[index]))
+        if proceed != "n":
+            map_file = open("%s%s map.txt" % (project.get_dir(":maps"),
+                                              self.parser.file_name[:-4]), "w+")
+            map_gpx_file = open("%s%s gpx map.gpx" %
+                                (project.get_dir(":gpx"),
+                                 self.parser.file_name[:-4]), "w+")
 
-        map_gpx_file.write('</trkseg></trk></gpx>\n')
+            assert len(self.state_x) == len(self.state_y)
+            map_file.write("long, lat\n")
+            for index in range(0, len(self.state_x), skip):
+                map_file.write("%s, %s\n" % (
+                    self.state_x[index], self.state_y[index]))
 
-        map_file.close()
-        map_gpx_file.close()
+            map_gpx_file.write("""<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>\n<metadata>
+        <gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+        <metadata>
+          <name>checkpoints</name>
+          <desc></desc>
+          <author><name>WTracks - Online GPX track editor</name></author>
+          <link href="https://wtracks.appspot.com/">
+            <text>WTracks</text>
+            <type>text/html</type>
+          </link>
+          <time>2016-06-22T19-23-22Z</time>""")
+            map_gpx_file.write(
+                '<bounds minlat="%s" minlon="%s" maxlat="%s" '
+                'maxlon="%s"/></metadata>\n' % (
+                    min(self.state_y), min(self.state_x), max(self.state_y),
+                    max(self.state_x)
+                ))
+            map_gpx_file.write("<trk><name>checkpoints</name><trkseg>\n")
+            for index in range(0, len(self.state_x), skip):
+                map_gpx_file.write('<trkpt lat="%s" lon="%s"></trkpt>\n' % (
+                    self.state_y[index], self.state_x[index]))
+
+            map_gpx_file.write('</trkseg></trk></gpx>\n')
+
+            map_file.close()
+            map_gpx_file.close()

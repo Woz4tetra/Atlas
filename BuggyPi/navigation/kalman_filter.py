@@ -16,7 +16,6 @@ class KalmanFilter:
         # Prediction step. Where will I be next update?
         # predicted state estimate
         state_est = self.A.dot(self.state) + control_b.dot(control_vector)
-        # print(state_est[3:], self.state[3:], control_vector[3:])
 
         # predicted covariance estimate
         prob_est = self.A.dot(self.prob).dot(np.transpose(self.A)) + self.Q

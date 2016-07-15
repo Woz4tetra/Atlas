@@ -12,8 +12,13 @@ class Robot:
         check_long, check_lat = self.checkpoints[0]
         if initial_long is None:
             self.initial_long = check_long
+        else:
+            self.initial_long = initial_long
+
         if initial_lat is None:
             self.initial_lat = check_lat
+        else:
+            self.initial_lat = initial_lat
 
         self.counts_per_rotation = counts_per_rotation
         self.wheel_radius = wheel_radius

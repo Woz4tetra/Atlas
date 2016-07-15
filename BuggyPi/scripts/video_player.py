@@ -3,15 +3,14 @@ import time
 
 sys.path.insert(0, '../')
 
-from vision.camera import Camera
-from vision.video import Video
-
 use_camera = "F"
 
 if use_camera == "T":
+    from vision.camera import Camera
     capture = Camera(480, 320)
 else:
-    capture = Video(-1, loop_video=True)
+    from vision.video import Video
+    capture = Video(4, loop_video=True)
 
 paused = False
 time_start = time.time()
