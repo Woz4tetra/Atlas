@@ -4,8 +4,9 @@ from comm import Communicator
 from libraries.rc_motors import RCmotors
 
 for _ in range(50):
-    pyb.LED(3)
+    pyb.LED(3).toggle()
     pyb.delay(50)
+pyb.LED(3).on()
 
 rc_motors = RCmotors("X8", 50, 900, 50)
 

@@ -108,11 +108,11 @@ class LEDcommand(Command):
 class BlueLEDcommand(Command):
     def __init__(self, command_id, initial_state=0):
         super().__init__(command_id, 'u8')
-        self.led = pyb.LED(led_num)
+        self.led = pyb.LED(4)
         self.set_state(initial_state)
 
     def set_state(self, state):
-        led.intensity(state)
+        self.led.intensity(state)
 
     def callback(self, state):
         self.set_state(state)

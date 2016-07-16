@@ -289,8 +289,7 @@ class Command(SerialObject):
     used_ids = []
 
     def __init__(self, command_id, name, data_range, communicator,
-                 mapping=None, bound_values=True, initial=None,
-                 enable_redundant=False, redundant_values=None):
+                 mapping=None, bound_values=True, initial=None):
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
@@ -313,12 +312,6 @@ class Command(SerialObject):
                 self.value = 0.0
             elif self.data_type == 'b':
                 self.value = False
-
-        self.enable_redundant = enable_redundant
-
-        # None: all values can be redundant
-        # []: list of values that can be redundant
-        self.redundant_values = redundant_values
 
         self.mapping = mapping
 
@@ -349,13 +342,10 @@ class Command(SerialObject):
             return value
 
     def set(self, value):
-        value = self.bound_value(value)
-        if value != self.prev_value:
-            self.value = value
+        self.value = self.bound_value(value)
+        if self.value != self.prev_value:
             self.send_new_value()
-        elif self.enable_redundant and (
-                self.redundant_values is None or
-                value in self.redundant_values):
+        else:
             self.send_prev_value()
 
     @staticmethod

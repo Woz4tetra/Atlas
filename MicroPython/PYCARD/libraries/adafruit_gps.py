@@ -98,7 +98,7 @@ class AdafruitGPS:
         self.in_standby_mode = False
 
         self.init_uart(uart_bus, baud_rate, update_rate)
-        self.timer = pyb.Timer(timer_num, freq=1000)  # call every 1 ms
+        self.timer = pyb.Timer(timer_num, freq=250)
         self.timer.callback(lambda t: self.timer_callback())
 
     def init_uart(self, uart_bus, baud_rate, update_rate):
@@ -135,22 +135,29 @@ class AdafruitGPS:
 
     def parse(self, sentence):
         # do checksum, first look if we have one
-        if sentence[-3] == b'*':
-            sum = self.parse_hex(sentence[-2]) * 16
-            sum += self.parse_hex(sentence[-1])
+        if len(sentence) > 6:
+            sentence = sentence.decode('ascii')
+            if sentence[-3] == b'*':
+                sum = self.parse_hex(sentence[-2]) * 16
+                sum += self.parse_hex(sentence[-1])
 
-            # check checksum
-            for index in range(1, len(sentence) - 3):
-                sum ^= ord(sentence[index])
+                # check checksum
+                for index in range(1, len(sentence) - 3):
+                    sum ^= ord(sentence[index])
 
-            if sum != 0:
-                # bad checksum :(
-                return False
+                if sum != 0:
+                    # bad checksum :(
+                    return False
 
-        if "$GPGGA" in sentence:
-            self.parse_gga_sentence(sentence)
-        elif "GPRMC":
-            self.parse_rmc_sentence(sentence)
+            if "$GPGGA" in sentence:
+                self.parse_gga_sentence(sentence)
+            elif "GPRMC":
+                self.parse_rmc_sentence(sentence)
+
+            return True
+        else:
+            return False
+
 
     def parse_gga_sentence(self, sentence):
         """
@@ -183,7 +190,7 @@ class AdafruitGPS:
         """
         _, time, latitude, lat_direction, longitude, long_direction, \
         fix_quality, num_satellites, hdop, altitude, altitude_units, \
-        geoid_height, geoid_height_units, _, _, checksum = \
+        geoid_height, geoid_height_units, _, checksum = \
             sentence.split(",")
 
         self.parse_time(time)
@@ -191,11 +198,15 @@ class AdafruitGPS:
         self.parse_latitude(latitude, lat_direction)
         self.parse_longitude(longitude, long_direction)
 
-        self.num_satellites = int(num_satellites)
-        self.hdop = float(hdop)
+        if len(num_satellites) > 0:
+            self.num_satellites = int(num_satellites)
+        if len(hdop) > 0:
+            self.hdop = float(hdop)
 
-        self.altitude = float(altitude)
-        self.geoid_height = float(geoid_height)
+        if len(altitude) > 0:
+            self.altitude = float(altitude)
+        if len(geoid_height) > 0:
+            self.geoid_height = float(geoid_height)
 
     def parse_rmc_sentence(self, sentence):
         """
@@ -225,43 +236,50 @@ class AdafruitGPS:
         self.parse_latitude(latitude, lat_direction)
         self.parse_longitude(longitude, long_direction)
 
-        self.speed_knots = float(speed_knots)
+        if len(speed_knots) > 0:
+            self.speed_knots = float(speed_knots)
 
         self.parse_date(date)
 
-        self.magnetic_variation = float(mag_variation)
-        self.mag_var_direction = mag_direction.decode('ascii')
+        if len(mag_variation) > 0:
+            self.magnetic_variation = float(mag_variation)
+        if len(mag_direction) > 0:
+            self.mag_var_direction = mag_direction.decode('ascii')
 
     def parse_date(self, date_sentence):
-        self.day = int(date_sentence[0:2])
-        self.month = int(date_sentence[2:4])
-        self.year = int(date_sentence[4:6])
+        if len(date_sentence) >= 6:
+            self.day = int(date_sentence[0:2])
+            self.month = int(date_sentence[2:4])
+            self.year = int(date_sentence[4:6])
 
     def parse_time(self, time_sentence):
-        self.hour = int(time_sentence[0:2])
-        self.minute = int(time_sentence[2:4])
-        self.seconds = int(time_sentence[4:6])
+        if len(time_sentence) >= 6:
+            self.hour = int(time_sentence[0:2])
+            self.minute = int(time_sentence[2:4])
+            self.seconds = int(time_sentence[4:6])
 
     def parse_latitude(self, latitude, lat_direction):
-        self.latitude_deg = int(latitude[0:2])
-        self.latitude_min = float(latitude[2:])
-        self.latitude = self.latitude_deg + self.latitude_min / 60
-        self.lat_direction = lat_direction.decode('ascii')
-        if self.lat_direction != "N":  # switch south to north
-            self.latitude *= -1
+        if len(latitude) >= 4:
+            self.latitude_deg = int(latitude[0:2])
+            self.latitude_min = float(latitude[2:])
+            self.latitude = self.latitude_deg + self.latitude_min / 60
+        if len(lat_direction) > 0:
+            self.lat_direction = lat_direction.decode('ascii')
 
     def parse_longitude(self, longitude, long_direction):
-        self.longitude_deg = int(longitude[0:2])
-        self.longitude_min = float(longitude[2:])
-        self.longitude = self.longitude_deg + self.longitude_min / 60
-        self.long_direction = long_direction.decode('ascii')
-        if self.long_direction != "W":  # switch east to west
-            self.longitude *= -1
+        if len(longitude) >= 4:
+            self.longitude_deg = int(longitude[0:3])
+            self.longitude_min = float(longitude[3:])
+            self.longitude = self.longitude_deg + self.longitude_min / 60
+        if len(long_direction) > 0:
+            self.long_direction = long_direction.decode('ascii')
+            if self.long_direction != "W":  # switch east to west
+                self.longitude *= -1
 
     @staticmethod
-    def parse_hex(byte_char):
+    def parse_hex(char):
         # convert hex byte to int
-        return int(byte_char, 16)
+        return int(char, 16)
 
     def read(self):
         if self.paused: return
