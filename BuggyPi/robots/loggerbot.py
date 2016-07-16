@@ -42,18 +42,19 @@ class LoggerBot(RealBot):
     def joy_changed(axis, value, self):
         if axis == "left x":
             self.servo.set(RealBot.stick_to_servo(value))
-            self.filter.update_servo(self.servo.get())
+            self.pi_filter.update_servo(self.servo.get())
         if axis == "left y":
             if value != 0:
                 value = 1 * ((value < 0) - (value > 0))
 
             self.blue_led.set(int(value * 255 / 100))
             self.motors.set(int(value * 100))
-            self.filter.update_motors(self.motors.get())
+            self.pi_filter.update_motors(self.motors.get())
 
     def close(self):
         self.communicator.stop()
-        self.capture.stop()
+        if self.enable_camera:
+            self.capture.stop()
         self.joystick.stop()
 
         self.display_backlight(True)

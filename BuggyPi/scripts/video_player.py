@@ -3,7 +3,7 @@ import time
 
 sys.path.insert(0, '../')
 
-use_camera = "F"
+use_camera = "T"
 
 if use_camera == "T":
     from vision.camera import Camera

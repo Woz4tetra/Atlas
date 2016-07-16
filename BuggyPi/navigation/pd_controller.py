@@ -20,14 +20,18 @@ class Controller:
                     -self.kd * state["vx"]
         y_control = -self.kp * (goal_y - state["y"]) + \
                     -self.kd * state["vy"]
+        print(x_control, y_control)
 
-        speed_command = math.cos(state["angle"]) * x_control + \
+        speed_command = -math.cos(state["angle"]) * x_control - \
                         math.sin(state["angle"]) * y_control
         ang_v = -math.sin(state["angle"]) / self.l * x_control + \
                 math.cos(state["angle"]) / self.l * y_control
 
-        angle_command = math.atan(ang_v * self.front_back_dist / speed_command)
-
+        angle_command = -math.atan(ang_v * self.front_back_dist / speed_command)
+        if angle_command > self.left_value:
+            angle_command = self.left_value
+        elif angle_command < self.right_value:
+            angle_command = self.right_value
         return speed_command, self.angle_to_servo(angle_command)
 
     def angle_to_servo(self, angle):

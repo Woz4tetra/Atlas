@@ -342,7 +342,7 @@ class Command(SerialObject):
             return value
 
     def set(self, value):
-        self.value = self.bound_value(value)
+        self.value = self.bound_value(self.map_value(value))
         if self.value != self.prev_value:
             self.send_new_value()
         else:

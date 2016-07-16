@@ -24,7 +24,7 @@ class AutoBot(RealBot):
 
         # ----- Planners -----
         self.controller = Controller(
-            0.5, self.front_back_dist, 1, 1, self.left_angle_limit,
+            0.001, self.front_back_dist, 10000, 100, self.left_angle_limit,
             self.right_angle_limit, self.left_servo_limit,
             self.right_servo_limit
         )
@@ -54,7 +54,7 @@ class AutoBot(RealBot):
             self.blue_led.set(int(speed * 255 / 100))
             self.motors.set(int(speed))
             self.servo.set(servo_value)
-        if not self.update_camera():
+        if self.enable_camera and not self.update_camera():
             return False
         return True
 
@@ -107,7 +107,8 @@ class AutoBot(RealBot):
             self.servo.set(0)
             time.sleep(0.005)
 
-            self.capture.stop()
+            if self.enable_camera:
+                self.capture.stop()
             time.sleep(0.005)
             
             self.joystick.stop()

@@ -39,7 +39,7 @@ class RealBot(Robot):
 
         # ----- Sensors -----
         self.encoder = Sensor(0, 'encoder', 'counts')
-        self.gps = Sensor(1, 'gps', ['long', 'lat'])
+        self.gps = Sensor(1, 'gps', ['long', 'lat', 'fix'])
         self.yaw = Sensor(2, 'imu', 'yaw')
         # self.altitude = Sensor(3, 'altitude', 'altitude')
         self.checkpoint_num = 0
@@ -101,7 +101,7 @@ class RealBot(Robot):
 
     def update(self):
         self.update_filter()
-        if not self.update_camera():
+        if self.enable_camera and not self.update_camera():
             self.close()
             return False
         return True
@@ -113,7 +113,7 @@ class RealBot(Robot):
             sensors_updated = True
             self.pi_filter.update_imu(time.time() - self.time_start,
                                       self.yaw.get('yaw'))
-        if self.gps.received():
+        if self.gps.received() and self.gps.get("fix"):
             # print(self.gps)
             sensors_updated = True
             self.pi_filter.update_gps(time.time() - self.time_start,
@@ -172,7 +172,8 @@ class RealBot(Robot):
             time.sleep(0.1)
 
             self.communicator.stop()
-            self.capture.stop()
+            if self.enable_camera:
+                self.capture.stop()
             self.display_backlight(True)
 
             self.running = False
