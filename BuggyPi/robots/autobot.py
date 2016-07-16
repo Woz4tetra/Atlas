@@ -39,6 +39,7 @@ class AutoBot(RealBot):
         # ----- Joystick -----
         self.joystick = WiiUJoystick(button_down_fn=self.button_dn,
                                      axis_active_fn=self.joy_changed,
+                                     axis_inactive_fn=self.joy_stopped,
                                      fn_params=self)
 
         self.joystick.start()
@@ -77,17 +78,26 @@ class AutoBot(RealBot):
             print("Setting goal to (%s, %s)" % (self.goal_x, self.goal_y))
 
     @staticmethod
+    def joy_stopped(axis, self):
+        if self.manual_mode:
+            if axis == "left x":
+                self.servo.set(0)
+                self.pi_filter.update_servo(0)
+            if axis == "left y":
+                self.blue_led.set(0)
+                self.motors.set(0)
+                self.pi_filter.update_motors(self.motors.get())
+
+    
+    @staticmethod
     def joy_changed(axis, value, self):
         if self.manual_mode:
             if axis == "left x":
-                self.servo.set(RealBot.stick_to_servo(value))
+                self.servo.set(self.stick_to_servo(value))
                 self.pi_filter.update_servo(self.servo.get())
             if axis == "left y":
-                if value != 0:
-                    value = 1 * ((value < 0) - (value > 0))
-
-                self.blue_led.set(int(value * 255 / 100))
-                self.motors.set(int(value * 100))
+                self.blue_led.set(int(abs(value) * 255))
+                self.motors.set(int(-value * 100))
                 self.pi_filter.update_motors(self.motors.get())
 
     def close(self):
@@ -97,10 +107,14 @@ class AutoBot(RealBot):
             self.servo.set(0)
             time.sleep(0.005)
 
-            self.communicator.stop()
             self.capture.stop()
-            self.joystick.stop()
+            time.sleep(0.005)
             
+            self.joystick.stop()
+            time.sleep(0.005)
+            
+            self.communicator.stop()
+
             self.display_backlight(True)
 
             self.running = False

@@ -188,4 +188,4 @@ class RealBot(Robot):
 
     @staticmethod
     def stick_to_servo(x):
-        return int(-math.atan2(x, 1) * 180 / (math.pi * 1.85))
+        return int(-math.atan2(x, 1) * 180 / (math.pi * 1.5))

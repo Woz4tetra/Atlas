@@ -133,12 +133,13 @@ class Communicator(threading.Thread):
             return [], False
 
     def write_byte(self, data):
-        try:
-            self.serial_ref.write(data)
-        except:
-            print("Serial write failed...")
-            traceback.print_exc()
-            self.stop()
+        if not Communicator.exit_flag:
+            try:
+                self.serial_ref.write(data)
+            except:
+                print("Serial write failed...")
+                # traceback.print_exc()
+                self.stop()
 
     def put(self, packet):
         """

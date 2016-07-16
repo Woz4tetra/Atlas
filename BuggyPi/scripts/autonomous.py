@@ -1,4 +1,5 @@
 import sys
+import time
 import traceback
 from pprint import pprint
 
@@ -14,7 +15,8 @@ def main():
         while True:
             status = robot.update()
             pprint(robot.state)
-            
+
+            time.sleep(0.05)
             if not status:
                 break
     except:

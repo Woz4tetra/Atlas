@@ -241,11 +241,15 @@ class BuggyPiFilter:
                 self.measurement_covariance[2][2] = bearing_covariance
 
         if self.prev_enc_t is not None:
-            vel_covariance = (timestamp - self.prev_enc_t) * 1000 + 1
+            if timestamp - self.prev_enc_t > 0.25:
+                self.enc_vx = 0
+                self.enc_vy = 0
+            else:
+                vel_covariance = (timestamp - self.prev_enc_t) * 1000 + 1
 
-            if vel_covariance < MAX_INT:
-                self.measurement_covariance[3][3] = vel_covariance
-                self.measurement_covariance[4][4] = vel_covariance
+                if vel_covariance < MAX_INT:
+                    self.measurement_covariance[3][3] = vel_covariance
+                    self.measurement_covariance[4][4] = vel_covariance
 
         if self.prev_imu_t is not None:
             ang_v_covariance = (timestamp - self.prev_imu_t) + 1

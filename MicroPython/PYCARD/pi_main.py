@@ -3,7 +3,7 @@ from objects import *
 from comm import Communicator
 from libraries.rc_motors import RCmotors
 
-for _ in range(50):
+for _ in range(15):
     pyb.LED(3).toggle()
     pyb.delay(50)
 pyb.LED(3).on()
@@ -19,7 +19,7 @@ encoder = RCencoder(0, rc_motors)
 gps = GPS(1, 6, 4)
 imu = IMU(2, 2, 11)
 
-communicator = Communicator(*leds, servo, motors, uart_bus=1)
+communicator = Communicator(*leds, blue_led, servo, motors, uart_bus=1)
 
 while True:
     communicator.read_command()

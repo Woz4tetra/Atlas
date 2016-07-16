@@ -98,7 +98,7 @@ class AdafruitGPS:
         self.in_standby_mode = False
 
         self.init_uart(uart_bus, baud_rate, update_rate)
-        self.timer = pyb.Timer(timer_num, freq=250)
+        self.timer = pyb.Timer(timer_num, freq=update_rate)
         self.timer.callback(lambda t: self.timer_callback())
 
     def init_uart(self, uart_bus, baud_rate, update_rate):
@@ -131,12 +131,12 @@ class AdafruitGPS:
             raise ValueError("Invalid update rate:", update_rate)
 
     def timer_callback(self):
-        self.read()
+        self.recved_flag = True
 
     def parse(self, sentence):
         # do checksum, first look if we have one
         if len(sentence) > 6:
-            sentence = sentence.decode('ascii')
+            sentence = sentence[:-2].decode('ascii')
             if sentence[-3] == b'*':
                 sum = self.parse_hex(sentence[-2]) * 16
                 sum += self.parse_hex(sentence[-1])
@@ -148,11 +148,15 @@ class AdafruitGPS:
                 if sum != 0:
                     # bad checksum :(
                     return False
+            packet_type = sentence[:6]
+            sentence = sentence[7:-3]
 
-            if "$GPGGA" in sentence:
+            if packet_type == "$GPGGA":
                 self.parse_gga_sentence(sentence)
-            elif "GPRMC":
+            elif packet_type == "GPRMC":
                 self.parse_rmc_sentence(sentence)
+##            else:
+##                print(packet_type, sentence)
 
             return True
         else:
@@ -188,10 +192,11 @@ class AdafruitGPS:
 
         see http://www.gpsinformation.org/dale/nmea.htm#GGA for more
         """
-        _, time, latitude, lat_direction, longitude, long_direction, \
+        
+        time, latitude, lat_direction, longitude, long_direction, \
         fix_quality, num_satellites, hdop, altitude, altitude_units, \
-        geoid_height, geoid_height_units, _, checksum = \
-            sentence.split(",")
+        geoid_height, geoid_height_units = \
+            sentence.split(",")[0:12]
 
         self.parse_time(time)
 
@@ -224,10 +229,9 @@ class AdafruitGPS:
          003.1,W      Magnetic Variation
          *6A          The checksum data, always begins with *
         """
-
-        _, time, fix_status, latitude, lat_direction, longitude, \
+        time, fix_status, latitude, lat_direction, longitude, \
         long_direction, speed_knots, bearing, date, mag_variation, \
-        mag_direction, checksum = sentence.split(",")
+        mag_direction = sentence.split(",")
 
         self.parse_time(time)
 
@@ -244,7 +248,7 @@ class AdafruitGPS:
         if len(mag_variation) > 0:
             self.magnetic_variation = float(mag_variation)
         if len(mag_direction) > 0:
-            self.mag_var_direction = mag_direction.decode('ascii')
+            self.mag_var_direction = mag_direction
 
     def parse_date(self, date_sentence):
         if len(date_sentence) >= 6:
@@ -264,45 +268,34 @@ class AdafruitGPS:
             self.latitude_min = float(latitude[2:])
             self.latitude = self.latitude_deg + self.latitude_min / 60
         if len(lat_direction) > 0:
-            self.lat_direction = lat_direction.decode('ascii')
+            self.lat_direction = lat_direction
 
     def parse_longitude(self, longitude, long_direction):
         if len(longitude) >= 4:
             self.longitude_deg = int(longitude[0:3])
             self.longitude_min = float(longitude[3:])
-            self.longitude = self.longitude_deg + self.longitude_min / 60
+            self.longitude = -self.longitude_deg - self.longitude_min / 60
         if len(long_direction) > 0:
-            self.long_direction = long_direction.decode('ascii')
-            if self.long_direction != "W":  # switch east to west
-                self.longitude *= -1
+            self.long_direction = long_direction
 
     @staticmethod
     def parse_hex(char):
         # convert hex byte to int
         return int(char, 16)
 
-    def read(self):
-        if self.paused: return
-
-        if self.uart.any():
-            char = self.uart.read()
-        else:
-            return
-
-        if char == b'\n':
-            self.previous_line = self.current_line
-            self.current_line = b''
-            self.recved_flag = True
-        else:
-            self.current_line += char
-
     def received_sentence(self):
         if self.recved_flag is True:
             self.recved_flag = False
-            self.parse(self.previous_line)
-            return True
-        else:
-            return False
+            if self.uart.any():
+##                self.current_line += self.uart.readline()
+##                print(self.current_line)
+##                if b'\n' in self.current_line[-1]:
+##                    self.previous_line = self.current_line
+##                    self.current_line = b''
+                    
+                    self.parse(self.uart.readline())
+                    return True
+        return False
 
     def wait_for_sentence(self, sentence, max_wait_count=5):
         counter = 0

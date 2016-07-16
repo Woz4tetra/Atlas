@@ -91,18 +91,19 @@ class BuggyJoystick(threading.Thread):
                 self.stop()
 
             if event.type == pygame.JOYAXISMOTION:
-                for axis_num in range(len(self.axes)):
-                    if abs(self.axes[axis_num]) < self.dead_zones[axis_num]:
-                        self.axes[axis_num] = 0.0
+                value = event.value if abs(event.value) > self.dead_zones[event.axis] else 0.0
+
+                if self.axes[event.axis] != value:
+                    if value == 0.0:
                         if self.axis_inactive_fn is not None:
-                            self.axis_inactive_fn(self.axis_to_name[axis_num],
+                            self.axis_inactive_fn(self.axis_to_name[event.axis],
                                                   self.fn_params)
-                    if axis_num == event.axis:
-                        self.axes[axis_num] = event.value
+                    else:                
                         if self.axis_active_fn is not None:
-                            self.axis_active_fn(self.axis_to_name[axis_num],
-                                                event.value,
+                            self.axis_active_fn(self.axis_to_name[event.axis],
+                                                value,
                                                 self.fn_params)
+                    self.axes[event.axis] = value
 
             elif event.type == pygame.JOYHATMOTION:
                 self.dpad = event.value
@@ -256,7 +257,7 @@ if __name__ == '__main__':
             content["axes"][event.axis] = axis_name
 
             dead_zone = None
-            while not bool(dead_zone):
+            while type(dead_zone) != float:
                 if dead_zone is None:
                     value = input("What's the axis dead zone value?\n> ")
                 else:
@@ -265,9 +266,8 @@ if __name__ == '__main__':
                 try:
                     dead_zone = float(value)
                 except ValueError:
-                    dead_zone = 0
-            assert type(dead_zone) == float
-
+                    pass
+                
             content["dead zones"][event.axis] = dead_zone
 
 
@@ -324,11 +324,15 @@ sys.path.insert(0, "../")
 from manual.buggy_joystick import *
 
 class %s(BuggyJoystick):
-    def __init__(self):
+    def __init__(self, button_down_fn=None, button_up_fn=None,
+                 axis_active_fn=None, axis_inactive_fn=None, joy_hat_fn=None,
+                 fn_params=None):
         super(%s, self).__init__(
             %s,
             %s,
-            %s
+            %s,
+            button_down_fn, button_up_fn, axis_active_fn,
+            axis_inactive_fn, joy_hat_fn, fn_params
         )
 
 if __name__ == '__main__':
@@ -348,7 +352,7 @@ if __name__ == '__main__':
        class_name)
 
                 with open(module_name + ".py",
-                          "w+") as joy_module:
+                          "w") as joy_module:
                     joy_module.write(content_string)
 
                 print("Done! Exiting.")
