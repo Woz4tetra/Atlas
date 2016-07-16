@@ -95,7 +95,7 @@ class PlotterBot(Robot):
             self.bearing_data.append('orange')
 
         elif name == "imu":
-            state = self.pi_filter.update_imu(timestamp, -values["yaw"])
+            state = self.pi_filter.update_imu(timestamp, values["yaw"])
             self.heading_counter = \
                 self.record_state_data(state, self.state_x, self.state_y,
                                        self.state_heading, self.heading_counter,
@@ -108,9 +108,9 @@ class PlotterBot(Robot):
                                        self.arrow_color, self.heading_freq)
 
         elif name == "servo":
-            self.pi_filter.update_servo(values[None])
+            self.pi_filter.update_servo(values)
         elif name == "motors":
-            self.pi_filter.update_motors(values[None])
+            self.pi_filter.update_motors(values)
         elif name == "checkpoint":
             long, lat = self.checkpoints[values['num']]
             self.check_long.append(long)

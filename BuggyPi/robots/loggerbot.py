@@ -46,6 +46,8 @@ class LoggerBot(RealBot):
         if axis == "left y":
             if value != 0:
                 value = 1 * ((value < 0) - (value > 0))
+
+            self.blue_led.set(int(value * 255 / 100))
             self.motors.set(int(value * 100))
             self.filter.update_motors(self.motors.get())
 

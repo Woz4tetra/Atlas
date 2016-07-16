@@ -65,8 +65,8 @@ class Video(Capture):
         elif os.path.isdir(project.get_dir(":videos") + directory):
             if directory[-1] != "/":
                 directory += "/"
-            capture = cv2.VideoCapture(
-                project.get_dir(":videos") + directory + video_name)
+            # capture = cv2.VideoCapture(
+            #     project.get_dir(":videos") + directory + video_name)
         else:
             raise NotADirectoryError("Invalid directory: " + str(directory))
 
@@ -116,8 +116,6 @@ class Video(Capture):
             self.set_frame(self.current_pos() + self.frame_skip)
 
         success, self.frame = self.capture.read()
-##        if self.frame.shape[0] == 0 or self.frame.shape[1] == 0:
-##            success = False
         if not advance_frame:
             self.set_frame(self.current_pos() - 1)
         
@@ -133,7 +131,6 @@ class Video(Capture):
             self.frame = cv2.resize(self.frame,
                                     (self.resize_width, self.resize_height),
                                     interpolation=cv2.INTER_NEAREST)
-##        if self.platform != "linux":
         if self.current_pos() != self.frame_num:
             self.frame_num = self.current_pos()
             self.slider_num = int(self.frame_num * self.video_len / self.slider_ticks)
@@ -160,9 +157,8 @@ class Video(Capture):
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, int(position))
 
     def increment_frame(self):
-#        self.set_frame(self.current_pos() + 1)
         self.get_frame()
 
     def decrement_frame(self):
-        self.set_frame(self.current_pos() - 2)
+        self.set_frame(self.current_pos() - 1)
         self.get_frame(False)

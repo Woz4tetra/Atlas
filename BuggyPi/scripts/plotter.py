@@ -28,10 +28,10 @@ if __name__ == '__main__':
         file_name = sys.argv[1]
         directory = sys.argv[2]
     else:
-        file_name = 0  # -1
-        directory = "Simulated"  # "Jul 11 2016"
-        # file_name = ":random"
-        # directory = ":random"
+        # file_name = 0  # -1
+        # directory = "Simulated"  # "Jul 11 2016"
+        file_name = ":random"
+        directory = ":random"
         # file_name = 'Mon Jul 11 19;50;34 2016.txt'
         # directory = 'Jul 11 2016'
     try:

@@ -137,7 +137,7 @@ def try_command(command_id, data_range, data=None):
         data = random.randint(exp_command.range[0], exp_command.range[1])
         print("data:", data)
 
-    exp_command.property_set(data)
+    exp_command.bound_value(data)
     return exp_command.get_packet()
 
 
@@ -289,7 +289,8 @@ class Command(SerialObject):
     used_ids = []
 
     def __init__(self, command_id, name, data_range, communicator,
-                 bound_values=True, initial=None):
+                 mapping=None, bound_values=True, initial=None,
+                 enable_redundant=False, redundant_values=None):
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
@@ -297,8 +298,8 @@ class Command(SerialObject):
 
         super(Command, self).__init__(command_id, name)
 
-        self.data_type, self.data_len, self.range = self.get_type_size(
-            data_range)
+        self.data_type, self.data_len, self.range = \
+            self.get_type_size(data_range)
         self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
                                          self.to_hex(self.data_len, 2))
         self.bound = bound_values
@@ -313,26 +314,49 @@ class Command(SerialObject):
             elif self.data_type == 'b':
                 self.value = False
 
+        self.enable_redundant = enable_redundant
+
+        # None: all values can be redundant
+        # []: list of values that can be redundant
+        self.redundant_values = redundant_values
+
+        self.mapping = mapping
+
     def get(self):
         return self.value
 
-    def set(self, value):
-        self.value = self.property_set(value)
-        if self.value != self.prev_value:
-            current_time = time.time()
+    def send_new_value(self):
+        current_time = time.time()
 
-            if self.communicator.log_data:
-                self.communicator.log.enq(self.name, self.value)
-            self.communicator.put(self.get_packet())
-            time.sleep(0.004)
+        if self.communicator.log_data:
+            self.communicator.log.enq(self.name, self.value)
+        self.communicator.put(self.get_packet())
+        time.sleep(0.004)
 
-            self.prev_time = current_time
-            self.prev_value = self.value
+        self.prev_time = current_time
+        self.prev_value = self.value
+
+    def send_prev_value(self):
+        current_time = time.time()
+        self.communicator.put(self.get_id_packet())  # only send command ID
+        time.sleep(0.004)
+        self.prev_time = current_time
+
+    def map_value(self, value):
+        if self.mapping is not None and value in self.mapping:
+            return self.mapping[value]
         else:
-            current_time = time.time()
-            self.communicator.put(self.get_id_packet())
-            time.sleep(0.004)
-            self.prev_time = current_time
+            return value
+
+    def set(self, value):
+        value = self.bound_value(value)
+        if value != self.prev_value:
+            self.value = value
+            self.send_new_value()
+        elif self.enable_redundant and (
+                self.redundant_values is None or
+                value in self.redundant_values):
+            self.send_prev_value()
 
     @staticmethod
     def wrap(num, lower, upper):
@@ -342,7 +366,7 @@ class Command(SerialObject):
             num += abs(upper - lower)
         return num
 
-    def property_set(self, value):
+    def bound_value(self, value):
         if self.bound:  # bound by self.data_range
             if value > self.range[1]:
                 value = self.range[1]
@@ -452,6 +476,30 @@ class Command(SerialObject):
 
     def get_id_packet(self):
         return "%s\r\n" % (self.to_hex(self.object_id, 2))
+
+
+class CommandArray:
+    def __init__(self, command_mapping, name, data_range, communicator,
+                 *args, **kwargs):
+        self.commands = {}
+
+        # command name to ID number or a list of command IDs
+        self.command_mapping = command_mapping
+        if type(self.command_mapping) == dict:
+            for command_name, command_id in self.command_mapping.items():
+                name += " " + command_name
+                self.commands[command_name] = \
+                    Command(command_id, name, data_range,
+                            communicator, *args, **kwargs)
+        else:
+            for command_id in self.command_mapping:
+                name += " " + str(command_id)
+                self.commands[command_id] = \
+                    Command(command_id, name, data_range,
+                            communicator, *args, **kwargs)
+
+    def __getitem__(self, item):
+        return self.commands[item]
 
 
 class PollSensor(SerialObject):

@@ -42,8 +42,9 @@ class Logger:
 
         self.queue = []
 
-    def enq(self, value_name, data):
-        timestamp = time.time() - self.time0
+    def enq(self, value_name, data, timestamp=None):
+        if timestamp is None:
+            timestamp = time.time() - self.time0
         self.queue.append((timestamp, value_name, data))
 
     def record(self):
@@ -198,7 +199,7 @@ class Parser:
                         datum_name, datum_value = data.split(datum_sep)
                         values[datum_name] = convert_str(datum_value)
                     else:
-                        values[None] = convert_str(data)
+                        values = convert_str(data)
 
                 self.data.append((timestamp, name, values))
 

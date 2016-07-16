@@ -6,14 +6,26 @@ import project
 
 class Capture:
     def __init__(self, width, height, window_name, enable_draw):
-        self.key_codes = {
-            65362: "up",
-            65364: "down",
-            65361: "left",
-            65363: "right",
-            'esc': 'esc',
-            10: "enter"
-        }
+        platform = project.get_platform()
+        if platform == "linux":
+            self.key_codes = {
+                65362: "up",
+                65364: "down",
+                65361: "left",
+                65363: "right",
+                'esc': 'esc',
+                10: "enter"
+            }
+        elif platform == "mac":
+            self.key_codes = {
+                63232: "up",
+                63233: "down",
+                63234: "left",
+                63235: "right",
+                13: "enter"
+            }
+        else:
+            raise NotImplementedError
 
         self.width = width
         self.height = height
@@ -34,7 +46,7 @@ class Capture:
     def get_frame(self):
         pass
 
-    def set_frame(self):
+    def set_frame(self, position):
         pass
 
     def current_pos(self):

@@ -49,6 +49,8 @@ class AutoBot(RealBot):
                 self.state, self.goal_x, self.goal_y
             )
             print(speed, servo_value)
+
+            self.blue_led.set(int(speed * 255 / 100))
             self.motors.set(int(speed))
             self.servo.set(servo_value)
         if not self.update_camera():
@@ -83,6 +85,8 @@ class AutoBot(RealBot):
             if axis == "left y":
                 if value != 0:
                     value = 1 * ((value < 0) - (value > 0))
+
+                self.blue_led.set(int(value * 255 / 100))
                 self.motors.set(int(value * 100))
                 self.pi_filter.update_motors(self.motors.get())
 

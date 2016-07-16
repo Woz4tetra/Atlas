@@ -9,7 +9,8 @@ for _ in range(50):
 
 rc_motors = RCmotors("X8", 50, 900, 50)
 
-leds = [LEDcommand(index, index + 1) for index in range(4)]
+leds = [LEDcommand(index, index + 1) for index in range(3)]
+blue_led = BlueLEDcommand(3)
 servo = ServoCommand(4, 1, start_pos=0)
 motors = MotorCommand(5, rc_motors)
 

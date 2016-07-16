@@ -48,7 +48,7 @@ class IMU(Sensor):
         add_timer(timer_num, self.timer.freq())
 
     def get_yaw(self):
-        return self.bno.get_euler()[0] * pi / 180
+        return -self.bno.get_euler()[0] * pi / 180
 
     def recved_data(self):
         if self.new_data:
@@ -97,6 +97,22 @@ class LEDcommand(Command):
             self.led.on()
         elif state == 2:
             self.led.toggle()
+
+    def callback(self, state):
+        self.set_state(state)
+
+    def reset(self):
+        self.set_state(0)
+
+
+class BlueLEDcommand(Command):
+    def __init__(self, command_id, initial_state=0):
+        super().__init__(command_id, 'u8')
+        self.led = pyb.LED(led_num)
+        self.set_state(initial_state)
+
+    def set_state(self, state):
+        led.intensity(state)
 
     def callback(self, state):
         self.set_state(state)

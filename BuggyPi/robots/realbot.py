@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 
 sys.path.insert(0, '../')
 
@@ -56,10 +55,30 @@ class RealBot(Robot):
             raise Exception("Communicator not initialized...")
 
         # ----- Commands -----
-        self.leds = [Command(command_id, "led " + str(command_id), (0, 2),
-                             self.communicator) for command_id in range(4)]
-        self.servo = Command(4, 'servo', (-90, 90), self.communicator)
-        self.motors = Command(5, 'motors', (-100, 100), self.communicator)
+        self.leds = CommandArray({
+            "red": 0,
+            "yellow": 1,
+            "green": 2,
+        }, "led", (0, 2), self.communicator,
+            mapping={
+                "off": 0,
+                "on": 1,
+                "toggle": 2
+            }
+        )
+        self.blue_led = Command(3, "led blue", (0, 255), self.communicator)
+        self.servo = Command(4, 'servo', (-90, 90), self.communicator,
+                             mapping={
+                                 "left": self.left_servo_limit,
+                                 "right": self.right_servo_limit,
+                                 "forward": 0
+                             })
+        self.motors = Command(5, 'motors', (-100, 100), self.communicator,
+                              mapping={
+                                  "forward": 100,
+                                  "backward": -100,
+                                  "stop": 0
+                              })
 
         # ----- Camera -----
         if self.enable_camera:
@@ -93,7 +112,7 @@ class RealBot(Robot):
             # print(self.yaw)
             sensors_updated = True
             self.pi_filter.update_imu(time.time() - self.time_start,
-                                      -self.yaw.get('yaw'))
+                                      self.yaw.get('yaw'))
         if self.gps.received():
             # print(self.gps)
             sensors_updated = True
