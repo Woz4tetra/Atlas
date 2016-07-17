@@ -35,14 +35,17 @@ class SensorPool:
         self.sensors = {}
 
         for sensor in sensors:
-            if sensor.object_id in list(self.sensors.keys()):
-                raise Exception(
-                    "Sensor ID already taken: " + str(sensor.object_id))
-            elif not isinstance(sensor, Sensor):
-                raise TypeError(
-                    "Parameter is not of the type sensor: " + repr(sensor))
-            else:
-                self.sensors[sensor.object_id] = sensor
+            self.add_sensor(sensor)
+
+    def add_sensor(self, sensor):
+        if sensor.object_id in list(self.sensors.keys()):
+            raise Exception(
+                "Sensor ID already taken: " + str(sensor.object_id))
+        elif not isinstance(sensor, Sensor):
+            raise TypeError(
+                "Parameter is not of the type sensor: " + repr(sensor))
+        else:
+            self.sensors[sensor.object_id] = sensor
 
     def is_packet(self, packet):
         """
@@ -69,7 +72,7 @@ class SensorPool:
 
         return True
 
-    def update(self, packet):
+    def update(self, packet, robot):
         """
         updates the sensors' data when called and, if correct, parses and
         replaces the old sensor data
@@ -89,6 +92,8 @@ class SensorPool:
 
                 sensor.parse(data)
                 sensor.current_packet = packet
+
+                sensor.update_fn(robot)
 
                 return sensor
 
@@ -168,7 +173,7 @@ class SerialObject:
 
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, name, properties=None):
+    def __init__(self, sensor_id, name, update_fn, properties=None):
         """
         Constructor for Sensor. Inherits from SerialObject.
         Adds self to sensor_pool (a module internal object)
@@ -188,6 +193,8 @@ class Sensor(SerialObject):
         elif type(properties) == str:
             properties = [properties]
         self._properties = self.init_properties(properties)
+
+        self.update_fn = update_fn
 
     @staticmethod
     def init_properties(properties):

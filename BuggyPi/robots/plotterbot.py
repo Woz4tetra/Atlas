@@ -5,19 +5,16 @@ from matplotlib import pyplot as plt
 
 sys.path.insert(0, "../")
 
-from robots.robot import Robot
 from microcontroller.logger import *
+from robots.robot import Robot
 import project
 
 
 class PlotterBot(Robot):
-    def __init__(self, file_name, directory,
-                 initial_long=None, initial_lat=None, initial_heading=0.0):
-        super(PlotterBot, self).__init__(
-            initial_long, initial_lat, initial_heading
-        )
+    def __init__(self, file_name, directory, properties):
+        super(PlotterBot, self).__init__(properties)
         self.parser = Parser(file_name, directory)
-
+        
         self.prev_imu_time = 0.0
         self.prev_enc_time = 0.0
 
@@ -70,7 +67,7 @@ class PlotterBot(Robot):
 
     def step(self, index, timestamp, name, values):
         if name == "gps":
-            state = self.pi_filter.update_gps(
+            state = self.filter.update_gps(
                 timestamp, values["long"], values["lat"])
 
             self.heading_counter = \
@@ -87,30 +84,30 @@ class PlotterBot(Robot):
             x0 = values["long"]
             y0 = values["lat"]
             x1 = x0 + self.bearing_arrow_len * math.cos(
-                self.pi_filter.gps_bearing)
+                self.filter.gps_bearing)
             y1 = y0 + self.bearing_arrow_len * math.sin(
-                self.pi_filter.gps_bearing)
+                self.filter.gps_bearing)
             self.bearing_data.append((x0, x1))
             self.bearing_data.append((y0, y1))
             self.bearing_data.append('orange')
 
         elif name == "imu":
-            state = self.pi_filter.update_imu(timestamp, values["yaw"])
+            state = self.filter.update_imu(timestamp, values["yaw"])
             self.heading_counter = \
                 self.record_state_data(state, self.state_x, self.state_y,
                                        self.state_heading, self.heading_counter,
                                        self.arrow_color, self.heading_freq)
         elif name == "encoder":
-            state = self.pi_filter.update_encoder(timestamp, values["counts"])
+            state = self.filter.update_encoder(timestamp, values["counts"])
             self.heading_counter = \
                 self.record_state_data(state, self.state_x, self.state_y,
                                        self.state_heading, self.heading_counter,
                                        self.arrow_color, self.heading_freq)
 
         elif name == "servo":
-            self.pi_filter.update_servo(values)
+            self.filter.update_servo(values)
         elif name == "motors":
-            self.pi_filter.update_motors(values)
+            self.filter.update_motors(values)
         elif name == "checkpoint":
             long, lat = self.checkpoints[values['num']]
             self.check_long.append(long)
@@ -139,7 +136,7 @@ class PlotterBot(Robot):
             speed = (state["vx"] ** 2 + state["vy"] ** 2) ** 0.5
             speed = speed * 0.75 + 0.75
             percent_speed = abs(
-                self.pi_filter.max_speed - speed) / self.pi_filter.max_speed
+                self.filter.max_speed - speed) / self.filter.max_speed
             x1 = x0 + self.heading_arrow_len * percent_speed * math.cos(
                 state["angle"])
             y1 = y0 + self.heading_arrow_len * percent_speed * math.sin(

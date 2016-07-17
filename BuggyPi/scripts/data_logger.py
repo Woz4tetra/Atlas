@@ -1,29 +1,18 @@
-import sys
 import time
-import traceback
+import sys
 
-sys.path.insert(0, "../")
+sys.path.insert(0, '../')
 
-from robots.loggerbot import LoggerBot
+from robots.realbot import RealRobot
+from robots.standard_config import *
 
 
 def main():
-    robot = LoggerBot(enable_camera=False, log_data=False)
-    for _ in range(10):
-        robot.leds["green"].set("toggle")
+    update_properties(
+        log_data=True,
+    )
+    robot = RealRobot(properties, sensors, commands)
+
+    while True:
+        print(robot.get_state())
         time.sleep(0.05)
-
-    try:
-        while True:
-            status = robot.update()
-            print(robot.state["x"], robot.state["y"])
-            if not status:
-                break
-    except:
-        traceback.print_exc()
-    finally:
-        robot.close()
-
-
-if __name__ == '__main__':
-    main()

@@ -209,7 +209,9 @@ class Parser:
             index = end_index + 1
 
 
-def get_map(file_name, directory=":maps"):
+def get_map(file_name, directory=None):
+    if directory is None:
+        directory = ":maps"
     directory = project.get_dir(directory)
     file_name = get_file_name(file_name, directory)
     with open(directory + file_name, 'r') as map_file:

@@ -31,7 +31,7 @@ class Communicator(threading.Thread):
     # Communicator)
     exit_flag = False
 
-    def __init__(self, sensors_pool, address=None, baud_rate=115200, log_data=True,
+    def __init__(self, sensors_pool, robot, address=None, baud_rate=115200, log_data=True,
                  log_name=None, log_dir=None, handshake=True):
         """
         Constructor for Communicator
@@ -67,6 +67,8 @@ class Communicator(threading.Thread):
         if self.log_data and self.initialized and len(self.sensor_pool) > 0:
             self.log = Logger(log_name, log_dir)
 
+        self.robot = robot
+
         super(Communicator, self).__init__()
 
     def record(self, name, value=None, **values):
@@ -96,17 +98,7 @@ class Communicator(threading.Thread):
                         print("Serial read failed...")
                         raise KeyboardInterrupt
                     else:
-                        for packet in packets:
-                            if len(packet) > 0:
-                                sensor = self.sensor_pool.update(packet)
-                                if sensor is not None:
-                                    if self.log_data:
-                                        self.log.enq(
-                                            sensor.name, sensor._properties.copy())
-                                else:
-                                    if "Traceback" in packet:
-                                        print("MicroPython ", end="")
-                                    print("-- ", packet)
+                        self.parse_packets(packets)
                     if self.log_data:
                         self.log.record()
                 time.sleep(0.0005)
@@ -116,6 +108,18 @@ class Communicator(threading.Thread):
         if self.log_data:
             self.log.close()
         self.serial_ref.close()
+
+    def parse_packets(self, packets):
+        for packet in packets:
+            if len(packet) > 0:
+                sensor = self.sensor_pool.update(packet, self.robot)
+                if sensor is not None:
+                    if self.log_data:
+                        self.log.enq(sensor.name, sensor._properties.copy())
+                else:
+                    if "Traceback" in packet:
+                        print("MicroPython ", end="")
+                    print("-- ", packet)
 
     def read_packets(self):
         try:

@@ -5,7 +5,7 @@ from pprint import pprint
 
 sys.path.insert(0, "../")
 
-from robots.autobot import AutoBot
+from robots.auto_config import AutoBot
 
 
 def main():

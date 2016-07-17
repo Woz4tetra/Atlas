@@ -1,40 +1,121 @@
-from microcontroller.logger import *
+import sys
+
+sys.path.insert(0, '../')
+
+from microcontroller.data import *
+from microcontroller.logger import get_map
 from navigation.buggypi_filter import BuggyPiFilter
 
 
 class Robot:
-    def __init__(self, initial_long=None, initial_lat=None, initial_heading=0.0,
-                 counts_per_rotation=6, wheel_radius=0.097,
-                 front_back_dist=0.234, max_speed=0.88,
-                 left_angle_limit=0.81096, right_angle_limit=-0.53719,
-                 left_servo_limit=35, right_servo_limit=-25):
-        self.checkpoints = get_map("checkpoints")
-        check_long, check_lat = self.checkpoints[0]
-        if initial_long is None:
-            self.initial_long = check_long
+    def __init__(self, properties):
+        #       ----- initial state -----
+        self.initial_long = self.get_property(
+            properties, 'initial_long', ('checkpoint', 0))
+        self.initial_lat = self.get_property(
+            properties, 'initial_lat', ('checkpoint', 0))
+        self.initial_heading = self.get_property(
+            properties, 'initial_heading', 0.0)
+
+        #       ----- physical properties -----
+        self.counts_per_rotation = self.get_property(
+            properties, 'counts_per_rotation', ValueError)
+
+        self.wheel_radius = self.get_property(
+            properties, 'wheel_radius', ValueError)
+
+        self.front_back_dist = self.get_property(
+            properties, 'front_back_dist', ValueError)
+
+        self.max_speed = self.get_property(
+            properties, 'max_speed', ValueError)
+
+        self.left_angle_limit = self.get_property(
+            properties, 'left_angle_limit', ValueError)
+
+        self.right_angle_limit = self.get_property(
+            properties, 'right_angle_limit', ValueError)
+
+        self.left_servo_limit = self.get_property(
+            properties, 'left_servo_limit', ValueError)
+
+        self.right_servo_limit = self.get_property(
+            properties, 'right_servo_limit', ValueError)
+
+        #       ----- map -----
+        self.map_file = self.get_property(properties, 'map_file')
+        self.map_dir = self.get_property(properties, 'map_dir')
+
+        #       ----- checkpoints -----
+        self.checkpoints_file = self.get_property(
+            properties, 'checkpoints_file', "checkpoints.txt")
+        self.checkpoints_dir = self.get_property(
+            properties, 'checkpoints_dir', ":maps")
+
+        #
+        # ----- initialize internal properties ----- #
+        #
+
+        #       ----- checkpoints -----
+        self.checkpoint_num = 0
+        self.checkpoints = get_map(self.checkpoints_file, self.checkpoints_dir)
+
+        # ----- Map -----
+        self.map = get_map(self.map_file, self.map_dir)
+
+        #       ----- Filter -----
+        if self.initial_long[0] == 'checkpoint':
+            self.initial_long = self.checkpoints[self.initial_long[1]][0]
+        elif self.initial_long[0] == 'map':
+            self.initial_long = self.map[self.initial_long[1]][0]
+        elif self.initial_long == 'gps':
+            pass  # wait for later
+        elif type(self.initial_long) == float:
+            pass  # already assigned 
         else:
-            self.initial_long = initial_long
+            raise ValueError("Please provide an initial longitude")
 
-        if initial_lat is None:
-            self.initial_lat = check_lat
+        if self.initial_lat[0] == 'checkpoint':
+            self.initial_lat = self.checkpoints[self.initial_lat[1]][1]
+        elif self.initial_lat[0] == 'map':
+            self.initial_lat = self.map[self.initial_lat[1]][1]
+        elif self.initial_lat == 'gps':
+            pass  # wait for later
+        elif type(self.initial_lat) == float:
+            pass  # already assigned 
         else:
-            self.initial_lat = initial_lat
+            raise ValueError("Please provide an initial latitude")
 
-        self.counts_per_rotation = counts_per_rotation
-        self.wheel_radius = wheel_radius
-        self.front_back_dist = front_back_dist
-        self.max_speed = max_speed
-        self.left_angle_limit = left_angle_limit
-        self.right_angle_limit = right_angle_limit
-        self.left_servo_limit = left_servo_limit
-        self.right_servo_limit = right_servo_limit
-
-        self.pi_filter = BuggyPiFilter(
-            self.initial_long, self.initial_lat, initial_heading,
-            counts_per_rotation, wheel_radius,
-            front_back_dist, max_speed,
-            left_angle_limit, right_angle_limit,
-            left_servo_limit, right_servo_limit
+        self.filter = BuggyPiFilter(
+            self.initial_long, self.initial_lat, self.initial_heading,
+            self.counts_per_rotation, self.wheel_radius,
+            self.front_back_dist, self.max_speed,
+            self.left_angle_limit, self.right_angle_limit,
+            self.left_servo_limit, self.right_servo_limit
         )
 
-        self.state = self.pi_filter.state
+        #       ----- Start joystick and comm threads -----
+
+        self.time_start = time.time()
+        self.running = True
+
+    def get_state(self):
+        return self.filter.state
+
+    def get_property(self, properties, key, default=None):
+        if key in properties:
+            if properties[key] is None:
+                return default
+            else:
+                return properties[key]
+        elif default is ValueError:
+            raise ValueError("Please provide value for property " + key)
+        else:
+            return default
+
+    @staticmethod
+    def log_folder():
+        month = time.strftime("%b")
+        day = time.strftime("%d")
+        year = time.strftime("%Y")
+        return "%s %s %s" % (month, day, year)

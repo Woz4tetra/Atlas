@@ -3,86 +3,132 @@ import sys
 
 sys.path.insert(0, '../')
 
-from robots.robot import Robot
 from microcontroller.comm import *
 from microcontroller.data import *
 from microcontroller.logger import get_map
 from vision.camera import Camera
+from manual.wiiu_joystick import WiiUJoystick
+from navigation.buggypi_filter import BuggyPiFilter
+from robots.robot import Robot
 
+class RealRobot(Robot):
+    def __init__(self, properties, sensors, commands):
+        super(RealRobot, self).__init__(properties)
 
-def log_folder():
-    month = time.strftime("%b")
-    day = time.strftime("%d")
-    year = time.strftime("%Y")
-    return "%s %s %s" % (month, day, year)
+        # ----- user set properties -----
 
+        #       ----- general properties -----
+        self.close_fn = self.get_property(properties, 'close_fn',
+                                          lambda robot: robot)
+        self.turn_display_off = self.get_property(
+            properties, 'turn_display_off', False)
+        self.has_autonomous = self.get_property(
+            properties, 'has_autonomous', True)
 
-class RealBot(Robot):
-    def __init__(self, initial_long=None, initial_lat=None,
-                 initial_heading=0.0, log_data=True, log_dir=None,
-                 enable_draw=True, enable_camera=True,
-                 cam_width=320, cam_height=240):
+        #       ----- camera -----
+        self.enable_camera = self.get_property(properties, 'enable_camera',
+                                               True)
+        self.enable_draw = self.get_property(properties, 'enable_draw', True)
+        self.cam_width = self.get_property(properties, 'cam_width', ValueError)
+        self.cam_height = self.get_property(properties, 'cam_height',
+                                            ValueError)
 
-        super(RealBot, self).__init__(
-            initial_long, initial_lat, initial_heading
-        )
+        #       ----- logger -----
+        self.log_data = self.get_property(properties, 'log_data', True)
+        self.log_dir = self.get_property(properties, 'log_dir')
+        self.record_state = self.get_property(properties, 'record_state', True)
 
-        # ----- BuggyPi properties -----
-        self.log_data = log_data
-        self.enable_draw = enable_draw
-        self.enable_camera = enable_camera
-
-        if log_dir is None:
-            self.log_dir = log_folder()
+        #       ----- map -----
+        if self.has_autonomous:
+            self.map_file = self.get_property(properties, 'map_file',
+                                              ValueError)
         else:
-            self.log_dir = log_dir
+            self.map_file = self.get_property(properties, 'map_file')
+        self.map_dir = self.get_property(properties, 'map_dir')
 
-        # ----- Sensors -----
-        self.encoder = Sensor(0, 'encoder', 'counts')
-        self.gps = Sensor(1, 'gps', ['long', 'lat', 'fix'])
-        self.yaw = Sensor(2, 'imu', 'yaw')
-        # self.altitude = Sensor(3, 'altitude', 'altitude')
-        self.checkpoint_num = 0
-        self.checkpoints = get_map("checkpoints")
+        #       ----- checkpoints -----
+        self.checkpoints_file = self.get_property(properties,
+                                                  'checkpoints_file')
+        self.checkpoints_dir = self.get_property(properties, 'checkpoints_dir')
 
-        # ----- Communication instances -----
-        self.sensor_pool = SensorPool(self.encoder, self.gps, self.yaw)
+        #       ----- joystick-----
+        self.use_joystick = self.get_property(properties, 'use_joystick')
+
+        self.button_down_fn = self.get_property(properties,
+                                                'button_down_fn')
+        self.button_up_fn = self.get_property(properties, 'button_up_fn')
+        self.axis_active_fn = self.get_property(properties,
+                                                'axis_active_fn')
+        self.axis_inactive_fn = self.get_property(properties,
+                                                  'axis_inactive_fn')
+        self.joy_hat_fn = self.get_property(properties, 'joy_hat_fn')
+
+        #
+        # ----- initialize internal properties ----- #
+        #
+
+        #       ------ sensors -----
+        sensor_pool = SensorPool()
+
+        for name, sensor_properties in sensors.items():
+            sensor = Sensor(sensor_properties['sensor_id'],
+                            name, sensor_properties['update_fn'],
+                            sensor_properties['properties'])
+            setattr(self, name, sensor)
+            sensor_pool.add_sensor(sensor)
+
         self.communicator = Communicator(
-            self.sensor_pool, address='/dev/ttyAMA0', log_data=log_data,
+            sensor_pool, self, address='/dev/ttyAMA0',
+            log_data=self.log_data,
             log_dir=self.log_dir)
-
         if not self.communicator.initialized:
             raise Exception("Communicator not initialized...")
 
-        # ----- Commands -----
-        self.leds = CommandArray({
-            "red": 0,
-            "yellow": 1,
-            "green": 2,
-        }, "led", (0, 2), self.communicator,
-            mapping={
-                "off": 0,
-                "on": 1,
-                "toggle": 2
-            }
-        )
-        self.blue_led = Command(3, "led blue", (0, 255), self.communicator)
-        self.servo = Command(4, 'servo', (-90, 90), self.communicator,
-                             mapping={
-                                 "left": self.left_servo_limit,
-                                 "right": self.right_servo_limit,
-                                 "forward": 0
-                             })
-        self.motors = Command(5, 'motors', (-100, 100), self.communicator,
-                              mapping={
-                                  "forward": 100,
-                                  "backward": -100,
-                                  "stop": 0
-                              })
+        # add all commands
+        for name, command_properties in commands.items():
+            if 'command_array' in command_properties:
+                command_ids = command_properties['command_array']
+                command_range = command_properties['range']
+                del command_properties['command_array'], \
+                    command_properties['range']
+                command = CommandArray(command_ids, name, command_range,
+                                       self.communicator,
+                                       **command_properties)
+            else:
+                command_id = command_properties['command_id']
+                command_range = command_properties['range']
+                del command_properties['command_id'], \
+                    command_properties['range']
+                command = CommandArray(command_id, name, command_range,
+                                       self.communicator,
+                                       **command_properties)
 
-        # ----- Camera -----
+            setattr(self, name, command)
+
+        # ----- filter -----
+        if self.initial_long == 'gps' or self.initial_lat== 'gps':
+            if self.initial_long == 'gps':
+                while not self.gps.get('fix'):
+                    time.sleep(0.15)
+                self.initial_long = self.gps.get('long')
+
+            if self.initial_lat == 'gps':
+                while not self.gps.get('fix'):
+                    time.sleep(0.15)
+                self.initial_lat = self.gps.get('lat')
+
+            # reinitialize filter with new data
+            self.filter = BuggyPiFilter(
+                self.initial_long, self.initial_lat, self.initial_heading,
+                self.counts_per_rotation, self.wheel_radius,
+                self.front_back_dist, self.max_speed,
+                self.left_angle_limit, self.right_angle_limit,
+                self.left_servo_limit, self.right_servo_limit
+            )
+
+        # ----- camera -----
         if self.enable_camera:
-            self.capture = Camera(cam_width, cam_height,
+            self.capture = Camera(self.cam_width, self.cam_height,
                                   enable_draw=self.enable_draw,
                                   framerate=32)
             self.paused = False
@@ -93,90 +139,27 @@ class RealBot(Robot):
             time.sleep(2)
             self.display_backlight(False)
 
-        # ----- Start joystick and comm threads -----
+        # ----- Joystick -----
+        if self.use_joystick:
+            self.joystick = WiiUJoystick(
+                button_down_fn=self.button_down_fn,
+                button_up_fn=self.button_up_fn,
+                axis_active_fn=self.axis_active_fn,
+                axis_inactive_fn=self.axis_inactive_fn,
+                joy_hat_fn=self.joy_hat_fn,
+                fn_params=self
+            )
+
+        #       ----- Start joystick and comm threads -----
         self.communicator.start()
+        if self.use_joystick:
+            self.joystick.start()
 
         self.time_start = time.time()
         self.running = True
 
-    def update(self):
-        self.update_filter()
-        if self.enable_camera and not self.update_camera():
-            self.close()
-            return False
-        return True
-
-    def update_filter(self):
-        sensors_updated = False
-        if self.yaw.received():
-            # print(self.yaw)
-            sensors_updated = True
-            self.pi_filter.update_imu(time.time() - self.time_start,
-                                      self.yaw.get('yaw'))
-        if self.gps.received() and self.gps.get("fix"):
-            # print(self.gps)
-            sensors_updated = True
-            self.pi_filter.update_gps(time.time() - self.time_start,
-                                      self.gps.get("long"), self.gps.get("lat"))
-        if self.encoder.received():
-            # print(self.encoder)
-            sensors_updated = True
-            self.pi_filter.update_encoder(time.time() - self.time_start,
-                                          self.encoder.get("counts"))
-
-        if sensors_updated:
-            timestamp = time.time() - self.time_start
-            self.state = self.pi_filter.update_filter(timestamp)
-            if self.log_data:
-                self.communicator.record("state", timestamp=timestamp,
-                                         **self.state)
-
-        return sensors_updated
-
-    def update_camera(self):
-        if self.enable_camera:
-            if self.capture.get_frame() is None:
-                return False
-            key = self.capture.key_pressed()
-
-            if key == 'q' or key == "esc":
-                return False
-            elif key == ' ':
-                if self.paused:
-                    print("%0.4fs: ...Video unpaused" % (
-                        time.time() - self.time_start))
-                else:
-                    print("%0.4fs: Video paused..." % (
-                        time.time() - self.time_start))
-                self.paused = not self.paused
-            elif key == 's':
-                self.capture.save_frame()
-            elif key == 'v':
-                if not self.capture.recording:
-                    self.capture.start_recording()
-                else:
-                    self.capture.stop_recording()
-
-            if self.capture.recording:
-                self.capture.record_frame()
-
-            self.capture.show_frame()
-
-        return True  # True == don't exit program
-
-    def close(self):
-        if self.running:
-            self.motors.set(0)
-            self.servo.set(0)
-
-            time.sleep(0.1)
-
-            self.communicator.stop()
-            if self.enable_camera:
-                self.capture.stop()
-            self.display_backlight(True)
-
-            self.running = False
+    def get_state(self):
+        return self.filter.state
 
     def display_backlight(self, show):
         if not self.enable_draw:
@@ -187,6 +170,20 @@ class RealBot(Robot):
                 os.system(
                     "sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power")
 
-    @staticmethod
-    def stick_to_servo(x):
-        return int(-math.atan2(x, 1) * 180 / (math.pi * 1.5))
+    def close(self):
+        self.motors.set(0)
+        self.servo.set(0)
+
+        if self.enable_camera:
+            self.capture.stop()
+        time.sleep(0.005)
+
+        if self.use_joystick:
+            self.joystick.stop()
+        time.sleep(0.005)
+
+        self.communicator.stop()
+
+        self.display_backlight(True)
+
+        self.close_fn()

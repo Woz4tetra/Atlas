@@ -22,9 +22,10 @@ for position range(-90, 91):  # servos have a range of -90 to 90
     pyb.delay(50)
 """
 
-import pyb
-import struct
 from math import floor
+
+import pyb
+
 
 class PCA9685:
     register = dict(
@@ -44,19 +45,22 @@ class PCA9685:
     def set_pwm_freq(self, freq):
         freq *= 0.9
         prescale_val = 25000000
-        prescale_val //= 4096;
-        prescale_val //= freq;
-        prescale_val -= 1;
+        prescale_val //= 4096
+        prescale_val //= freq
+        prescale_val -= 1
 
         prescale_val = floor(prescale_val + 0.5)
 
-        current_mode = ord(self.i2c.mem_read(1, self.address, self.register['MODE1']))
+        current_mode = ord(
+            self.i2c.mem_read(1, self.address, self.register['MODE1']))
         sleep_mode = (current_mode & 0x7f) | 0x10
         self.i2c.mem_write(sleep_mode, self.address, self.register['MODE1'])
-        self.i2c.mem_write(prescale_val, self.address, self.register['PRESCALE'])
+        self.i2c.mem_write(prescale_val, self.address,
+                           self.register['PRESCALE'])
         self.i2c.mem_write(current_mode, self.address, self.register['MODE1'])
         pyb.delay(5)
-        self.i2c.mem_write(current_mode | 0xa1, self.address, self.register['MODE1'])
+        self.i2c.mem_write(current_mode | 0xa1, self.address,
+                           self.register['MODE1'])
 
     def reset(self):
         self.i2c.mem_write(0, self.address, self.register['MODE1'])
@@ -65,9 +69,10 @@ class PCA9685:
         if servo_num <= 15:
             value = self.pos_to_pwm(position)
             self.i2c.mem_write(bytearray([0, 0, value & 0xff, value >> 8]),
-                self.address,
-                self.register['LED0'] + 4 * servo_num)
+                               self.address,
+                               self.register['LED0'] + 4 * servo_num)
 
     def pos_to_pwm(self, position):
         # m * (x - x0) + y0 = y
-        return int((self.servo_max - self.servo_min) / 180 * (position + 90) + self.servo_min)
+        return int((self.servo_max - self.servo_min) / 180 * (
+        position + 90) + self.servo_min)

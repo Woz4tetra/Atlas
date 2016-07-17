@@ -1,29 +1,27 @@
-import sys
 import time
-import traceback
-from pprint import pprint
+import sys
 
-sys.path.insert(0, "../")
+sys.path.insert(0, '../')
 
-from robots.autobot import AutoBot
+from robots.realbot import RealRobot
+from robots.standard_config import *
 
 
 def main():
-    robot = AutoBot(log_data=False)
+    bearing = get_gps_bearing(
+        -71.420864, 42.427317, -71.420795, 42.427332
+    )
+    bearing = (-bearing - math.pi / 2) % (2 * math.pi) + 0.1
+    update_properties(
+        initial_long="gps",
+        initial_lat="gps",
+        initial_heading=bearing
+    )
+    robot = RealRobot(properties, sensors, commands)
 
-    try:
-        while True:
-            status = robot.update()
-            pprint(robot.state)
+    while True:
+        print(robot.get_state())
 
-            time.sleep(0.05)
-            if not status:
-                break
-    except:
-        traceback.print_exc()
-    finally:
-        robot.close()
+        # control stuff...
 
-
-if __name__ == '__main__':
-    main()
+        time.sleep(0.05)
