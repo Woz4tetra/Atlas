@@ -120,7 +120,6 @@ class RealRobot(Robot):
                 enable_draw=self.enable_draw,
                 pipeline=pipeline,
                 framerate=32)
-            self.paused = False
 
         # ----- Turn display off? -----
         if not self.enable_draw:
@@ -182,13 +181,13 @@ class RealRobot(Robot):
             if key == 'q' or key == "esc":
                 return False
             elif key == ' ':
-                if self.paused:
+                if self.capture.paused:
                     print("%0.4fs: ...Video unpaused" % (
                         time.time() - self.time_start))
                 else:
                     print("%0.4fs: Video paused..." % (
                         time.time() - self.time_start))
-                self.paused = not self.paused
+                self.capture.paused = not self.capture.paused
             elif key == 's':
                 self.capture.save_frame()
             elif key == 'v':
@@ -197,7 +196,8 @@ class RealRobot(Robot):
                 else:
                     self.capture.stop_recording()
 
-            self.capture.show_frame()
+            if not self.capture.paused:
+                self.capture.show_frame()
 
         return True  # True == don't exit program
 

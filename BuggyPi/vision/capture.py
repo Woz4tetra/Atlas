@@ -43,6 +43,8 @@ class Capture:
         self.frame_num = 0
         self.slider_num = 0
 
+        self.paused = False
+
     def get_frame(self):
         pass
 

@@ -5,7 +5,7 @@ sys.path.insert(0, '../')
 
 from robots.realbot import RealRobot
 from robots.standard_config import *
-
+from navigation.pd_controller import Controller
 
 def main():
     bearing = get_gps_bearing(
@@ -18,12 +18,20 @@ def main():
         initial_heading=bearing
     )
     robot = RealRobot(properties, sensors, commands)
-
+    pid = Controller(0.001, robot.front_back_dist, 1000, 1,
+                     robot.left_angle_limit, robot.right_angle_limit,
+                     robot.left_servo_limit, robot.right_servo_limit)
+    goal_x, goal_y = robot.checkpoints[2]
     try:
         while True:
             print(robot)
             robot.update_camera()
-            # control stuff...
+
+            speed_command, servo_command = \
+                pid.update(robot.get_state(), goal_x, goal_y)
+            robot.servo.set(servo_command)
+            robot.motor.set(int(speed_command))
+            robot.blue_led.set(int(speed_command))
 
             time.sleep(0.05)
     except:
