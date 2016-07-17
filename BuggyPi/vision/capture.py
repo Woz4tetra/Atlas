@@ -120,7 +120,7 @@ class Capture:
         if self.enable_draw:
             if frame is not None:
                 cv2.imshow(self.window_name, frame)
-            else:
+            elif self.frame is not None:
                 cv2.imshow(self.window_name, self.frame)
 
     def start_recording(self, fps=32, video_name=None, add_timestamp=True,

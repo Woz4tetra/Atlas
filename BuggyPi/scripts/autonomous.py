@@ -25,16 +25,20 @@ def main():
     try:
         while True:
             print(robot)
-            robot.update_camera()
 
             speed_command, servo_command = \
                 pid.update(robot.get_state(), goal_x, goal_y)
             robot.servo.set(servo_command)
             robot.motor.set(int(speed_command))
             robot.blue_led.set(int(speed_command))
+            
+            if not robot.update_camera():
+                break
 
             time.sleep(0.05)
     except:
+        pass
+    finally:
         robot.close()
 
 if __name__ == '__main__':
