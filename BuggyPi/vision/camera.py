@@ -22,7 +22,7 @@ class Camera(Capture):
                                       size=(self.width, self.height))
         time.sleep(0.1)
 
-        self.capture = self.camera.capture_continuous(
+        self.picam_capture = self.camera.capture_continuous(
             self.raw_capture, format="bgr", use_video_port=True
         )
         self.stopped = False
@@ -47,7 +47,7 @@ class Camera(Capture):
 
     def update(self):
         # keep looping infinitely until the thread is stopped
-        for f in self.capture:
+        for f in self.picam_capture:
             # grab the frame from the stream and clear the stream in
             # preparation for the next frame
             self.frame = f.array
@@ -60,13 +60,13 @@ class Camera(Capture):
             # if the thread indicator variable is set, stop the thread
             # and resource camera resources
             if self.stopped:
-                self.capture.close()
+                self.picam_capture.close()
                 self.raw_capture.close()
                 self.camera.close()
                 return
 
-            if self.capture.recording:
-                self.capture.record_frame()
+            if self.recording:
+                self.record_frame()
 
             self.frame_num += 1
             self.slider_num += 1

@@ -22,11 +22,14 @@ def main():
     try:
         while True:
             print(robot)
-            robot.update_camera()
+            if not robot.update_camera():
+                break
             # control stuff...
 
             time.sleep(0.05)
     except:
+        pass
+    finally:
         robot.close()
 
 if __name__ == '__main__':
