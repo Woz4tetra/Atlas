@@ -20,8 +20,7 @@ class Controller:
                     -self.kd * state["vx"]
         y_control = -self.kp * (goal_y - state["y"]) + \
                     -self.kd * state["vy"]
-        print(x_control, y_control)
-
+        
         speed_command = -math.cos(state["angle"]) * x_control - \
                         math.sin(state["angle"]) * y_control
         ang_v = -math.sin(state["angle"]) / self.l * x_control + \

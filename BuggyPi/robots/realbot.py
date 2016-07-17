@@ -179,6 +179,7 @@ class RealRobot(Robot):
             key = self.capture.key_pressed()
 
             if key == 'q' or key == "esc":
+                print("quitting...")
                 return False
             elif key == ' ':
                 if self.capture.paused:

@@ -146,7 +146,7 @@ commands = dict(
             "toggle": 2
         }),
     blue_led=dict(command_id=3, range=(0, 255)),
-    servo=dict(command_id=4, range=(-90, 90),
+    servo=dict(command_id=4, range=(properties["left_servo_limit"], properties["right_servo_limit"]), #(-90, 90),
                mapping={
                    "left": properties['left_servo_limit'],
                    "right": properties['right_servo_limit'],
