@@ -93,7 +93,7 @@ class BuggyPiFilter:
 
         self.imu_ang_v = 0.0
         self.start_imu = 0.0
-        self.imu_yaw = None
+        self.imu_yaw = 0.0
         self.prev_imu = None
 
         self.prev_gps_long = self.initial_long_rad

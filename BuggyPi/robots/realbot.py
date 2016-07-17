@@ -99,32 +99,11 @@ class RealRobot(Robot):
                 command_range = command_properties['range']
                 del command_properties['command_id'], \
                     command_properties['range']
-                command = CommandArray(command_id, name, command_range,
+                command = Command(command_id, name, command_range,
                                        self.communicator,
                                        **command_properties)
 
             setattr(self, name, command)
-
-        # ----- filter -----
-        if self.initial_long == 'gps' or self.initial_lat== 'gps':
-            if self.initial_long == 'gps':
-                while not self.gps.get('fix'):
-                    time.sleep(0.15)
-                self.initial_long = self.gps.get('long')
-
-            if self.initial_lat == 'gps':
-                while not self.gps.get('fix'):
-                    time.sleep(0.15)
-                self.initial_lat = self.gps.get('lat')
-
-            # reinitialize filter with new data
-            self.filter = BuggyPiFilter(
-                self.initial_long, self.initial_lat, self.initial_heading,
-                self.counts_per_rotation, self.wheel_radius,
-                self.front_back_dist, self.max_speed,
-                self.left_angle_limit, self.right_angle_limit,
-                self.left_servo_limit, self.right_servo_limit
-            )
 
         # ----- camera -----
         if self.enable_camera:
@@ -155,9 +134,32 @@ class RealRobot(Robot):
         if self.use_joystick:
             self.joystick.start()
 
+        # ----- filter -----
+        if self.initial_long == 'gps' or self.initial_lat== 'gps':
+            if self.initial_long == 'gps':
+                while not self.gps.get('fix'):
+                    print(self.gps)
+                    time.sleep(0.15)
+                self.initial_long = self.gps.get('long')
+
+            if self.initial_lat == 'gps':
+                while not self.gps.get('fix'):
+                    time.sleep(0.15)
+                self.initial_lat = self.gps.get('lat')
+
+            # reinitialize filter with new data
+            self.filter = BuggyPiFilter(
+                self.initial_long, self.initial_lat, self.initial_heading,
+                self.counts_per_rotation, self.wheel_radius,
+                self.front_back_dist, self.max_speed,
+                self.left_angle_limit, self.right_angle_limit,
+                self.left_servo_limit, self.right_servo_limit
+            )
+
+        self.communicator.enable_callbacks = True
         self.time_start = time.time()
         self.running = True
-
+    
     def get_state(self):
         return self.filter.state
 
@@ -186,4 +188,4 @@ class RealRobot(Robot):
 
         self.display_backlight(True)
 
-        self.close_fn()
+        self.close_fn(self)

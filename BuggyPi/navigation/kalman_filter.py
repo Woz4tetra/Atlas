@@ -12,7 +12,7 @@ class KalmanFilter:
 
     def update(self, control_vector, measurement, control_b,
                measurement_error_covariance_r):
-
+        
         # Prediction step. Where will I be next update?
         # predicted state estimate
         state_est = self.A.dot(self.state) + control_b.dot(control_vector)

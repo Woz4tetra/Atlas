@@ -1,5 +1,5 @@
 import math
-
+import time
 
 def axis_inactive(axis, robot):
     if robot.manual_mode:
@@ -61,17 +61,18 @@ def close(robot):
 
 
 def yaw_updated(robot):
-    robot.filter.update_imu(robot.yaw.get('yaw'))
-
+    robot.filter.update_imu(time.time() - robot.time_start,
+                            robot.yaw.get('yaw'))
 
 def gps_updated(robot):
     if robot.gps.get("fix"):
-        robot.filter.update_gps(robot.gps.get("long"), robot.gps.get("lat"))
+        robot.filter.update_gps(time.time() - robot.time_start,
+                                robot.gps.get("long"), robot.gps.get("lat"))
 
 
 def encoder_updated(robot):
-    robot.filter.update_encoder(robot.encoder.get("counts"))
-
+    robot.filter.update_encoder(time.time() - robot.time_start,
+                                robot.encoder.get("counts"))
 
 properties = dict(
     # ----- general properties -----
@@ -138,7 +139,7 @@ commands = dict(
         "red": 0,
         "yellow": 1,
         "green": 2,
-    }, name="led", range=(0, 2),
+    }, range=(0, 2),
         mapping={
             "off": 0,
             "on": 1,
@@ -151,7 +152,7 @@ commands = dict(
                    "right": properties['right_servo_limit'],
                    "forward": 0
                }),
-    motors=dict(sensor_id=5, range=(-100, 100),
+    motors=dict(command_id=5, range=(-100, 100),
                 mapping={
                     "forward": 100,
                     "backward": -100,

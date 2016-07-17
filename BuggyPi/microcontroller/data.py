@@ -72,7 +72,7 @@ class SensorPool:
 
         return True
 
-    def update(self, packet, robot):
+    def update(self, packet, robot, enable_callbacks):
         """
         updates the sensors' data when called and, if correct, parses and
         replaces the old sensor data
@@ -93,7 +93,8 @@ class SensorPool:
                 sensor.parse(data)
                 sensor.current_packet = packet
 
-                sensor.update_fn(robot)
+                if enable_callbacks:
+                    sensor.update_fn(robot)
 
                 return sensor
 

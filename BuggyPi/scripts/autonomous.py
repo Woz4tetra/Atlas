@@ -19,9 +19,15 @@ def main():
     )
     robot = RealRobot(properties, sensors, commands)
 
-    while True:
-        print(robot.get_state())
+    try:
+        while True:
+            print(robot)
 
-        # control stuff...
+            # control stuff...
 
-        time.sleep(0.05)
+            time.sleep(0.05)
+    except:
+        robot.close()
+
+if __name__ == '__main__':
+    main()

@@ -68,6 +68,7 @@ class Communicator(threading.Thread):
             self.log = Logger(log_name, log_dir)
 
         self.robot = robot
+        self.enable_callbacks = False
 
         super(Communicator, self).__init__()
 
@@ -112,7 +113,7 @@ class Communicator(threading.Thread):
     def parse_packets(self, packets):
         for packet in packets:
             if len(packet) > 0:
-                sensor = self.sensor_pool.update(packet, self.robot)
+                sensor = self.sensor_pool.update(packet, self.robot, self.enable_callbacks)
                 if sensor is not None:
                     if self.log_data:
                         self.log.enq(sensor.name, sensor._properties.copy())
