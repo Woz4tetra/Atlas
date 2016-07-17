@@ -5,11 +5,12 @@ sys.path.insert(0, '../')
 
 from microcontroller.comm import *
 from microcontroller.data import *
-from microcontroller.logger import get_map
+from vision.pipeline import Pipeline
 from vision.camera import Camera
 from manual.wiiu_joystick import WiiUJoystick
 from navigation.buggypi_filter import BuggyPiFilter
 from robots.robot import Robot
+
 
 class RealRobot(Robot):
     def __init__(self, properties, sensors, commands):
@@ -32,6 +33,8 @@ class RealRobot(Robot):
         self.cam_width = self.get_property(properties, 'cam_width', ValueError)
         self.cam_height = self.get_property(properties, 'cam_height',
                                             ValueError)
+        self.use_cv_pipeline = self.get_property(properties, 'use_cv_pipeline',
+                                                 False)
 
         #       ----- logger -----
         self.log_data = self.get_property(properties, 'log_data', True)
@@ -100,16 +103,23 @@ class RealRobot(Robot):
                 del command_properties['command_id'], \
                     command_properties['range']
                 command = Command(command_id, name, command_range,
-                                       self.communicator,
-                                       **command_properties)
+                                  self.communicator,
+                                  **command_properties)
 
             setattr(self, name, command)
 
         # ----- camera -----
+        if self.use_cv_pipeline:
+            pipeline = Pipeline(self.cam_width, self.cam_height,
+                                self.enable_draw)
+        else:
+            pipeline = None
         if self.enable_camera:
-            self.capture = Camera(self.cam_width, self.cam_height,
-                                  enable_draw=self.enable_draw,
-                                  framerate=32)
+            self.capture = Camera(
+                self.cam_width, self.cam_height,
+                enable_draw=self.enable_draw,
+                pipeline=pipeline,
+                framerate=32)
             self.paused = False
 
         # ----- Turn display off? -----
@@ -129,13 +139,15 @@ class RealRobot(Robot):
                 fn_params=self
             )
 
-        #       ----- Start joystick and comm threads -----
+        # ----- Start external threads -----
         self.communicator.start()
         if self.use_joystick:
             self.joystick.start()
+        if self.enable_camera:
+            self.capture.start()
 
         # ----- filter -----
-        if self.initial_long == 'gps' or self.initial_lat== 'gps':
+        if self.initial_long == 'gps' or self.initial_lat == 'gps':
             if self.initial_long == 'gps':
                 while not self.gps.get('fix'):
                     print(self.gps)
@@ -159,9 +171,35 @@ class RealRobot(Robot):
         self.communicator.enable_callbacks = True
         self.time_start = time.time()
         self.running = True
-    
+
     def get_state(self):
         return self.filter.state
+
+    def update_camera(self):
+        if self.enable_camera:
+            key = self.capture.key_pressed()
+
+            if key == 'q' or key == "esc":
+                return False
+            elif key == ' ':
+                if self.paused:
+                    print("%0.4fs: ...Video unpaused" % (
+                        time.time() - self.time_start))
+                else:
+                    print("%0.4fs: Video paused..." % (
+                        time.time() - self.time_start))
+                self.paused = not self.paused
+            elif key == 's':
+                self.capture.save_frame()
+            elif key == 'v':
+                if not self.capture.recording:
+                    self.capture.start_recording()
+                else:
+                    self.capture.stop_recording()
+
+            self.capture.show_frame()
+
+        return True  # True == don't exit program
 
     def display_backlight(self, show):
         if not self.enable_draw:

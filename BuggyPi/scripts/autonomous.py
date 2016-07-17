@@ -22,7 +22,7 @@ def main():
     try:
         while True:
             print(robot)
-
+            robot.update_camera()
             # control stuff...
 
             time.sleep(0.05)
