@@ -31,8 +31,8 @@ class RealRobot(Robot):
         #       ----- camera -----
         self.enable_camera = self.get_property(
             properties, 'enable_camera', True)
-        self.enable_draw = self.get_property(properties, 'enable_draw', True)
-        self.cam_width = self.get_property(properties, 'cam_width', ValueError)
+        self.cam_width = self.get_property(
+            properties, 'cam_width', ValueError)
         self.cam_height = self.get_property(
             properties, 'cam_height', ValueError)
         self.use_cv_pipeline = self.get_property(
@@ -150,30 +150,34 @@ class RealRobot(Robot):
             self.capture.start()
 
         # ----- filter -----
-        if self.initial_long == 'gps' or self.initial_lat == 'gps':
-            if self.initial_long == 'gps':
-                while not self.gps.get('fix'):
-                    print(self.gps)
-                    time.sleep(0.15)
-                self.initial_long = self.gps.get('long')
+        if self.use_filter:
+            if self.initial_long == 'gps' or self.initial_lat == 'gps':
+                if self.initial_long == 'gps':
+                    while not self.gps.get('fix'):
+                        print(self.gps)
+                        time.sleep(0.15)
+                    self.initial_long = self.gps.get('long')
 
-            if self.initial_lat == 'gps':
-                while not self.gps.get('fix'):
-                    time.sleep(0.15)
-                self.initial_lat = self.gps.get('lat')
+                if self.initial_lat == 'gps':
+                    while not self.gps.get('fix'):
+                        time.sleep(0.15)
+                    self.initial_lat = self.gps.get('lat')
 
-            # reinitialize filter with new data
-            self.filter = BuggyPiFilter(
-                self.initial_long, self.initial_lat, self.initial_heading,
-                self.counts_per_rotation, self.wheel_radius,
-                self.front_back_dist, self.max_speed,
-                self.left_angle_limit, self.right_angle_limit,
-                self.left_servo_limit, self.right_servo_limit
-            )
+                # reinitialize filter with new data
+                self.filter = BuggyPiFilter(
+                    self.initial_long, self.initial_lat, self.initial_heading,
+                    self.counts_per_rotation, self.wheel_radius,
+                    self.front_back_dist, self.max_speed,
+                    self.left_angle_limit, self.right_angle_limit,
+                    self.left_servo_limit, self.right_servo_limit
+                )
 
         self.communicator.enable_callbacks = True
         self.time_start = time.time()
         self.running = True
+
+    def record(self, name, value, **values):
+        self.communicator.record(name, value, **values)
 
     def get_state(self):
         return self.filter.state

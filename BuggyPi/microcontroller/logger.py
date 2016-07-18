@@ -1,5 +1,4 @@
 import os
-import random
 import sys
 import time
 from datetime import datetime
@@ -14,22 +13,26 @@ values_sep = "|\t"
 datum_sep = ",\t"
 
 obsolete_data = "Jun 22 2016"
+log_file_type = "txt"
+log_directory = ":logs"
 
 
 class Logger:
     def __init__(self, file_name, directory):
-        if file_name is None or file_name.replace(".txt", "") == "":
-            file_name = time.strftime("%c").replace(":", ";") + ".txt"
-        elif len(file_name) < 4 or file_name[-4:] != ".txt":
-            file_name += ".txt"
+        if file_name is None or file_name.replace("." + log_file_type,
+                                                  "") == "":
+            file_name = time.strftime("%c").replace(":",
+                                                    ";") + "." + log_file_type
+        elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
+            file_name += "." + log_file_type
 
         if directory is None:
-            directory = project.get_dir(":logs")
+            directory = project.get_dir(log_directory)
         else:
             if directory[-1] != "/":
                 directory += "/"
             if not os.path.isdir(directory):
-                directory = project.get_dir(":logs") + directory
+                directory = project.get_dir(log_directory) + directory
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -80,53 +83,12 @@ def convert_str(string):
     return None
 
 
-def get_dir_name(directory):
-    if directory is None:
-        directory = project.get_dir(":logs")
-    elif directory == ":random":
-        directories = []
-        for local_dir in os.listdir(project.get_dir(":logs")):
-            directory = project.get_dir(":logs") + local_dir
-            if os.path.isdir(directory):
-                directories.append(directory)
-        directory = random.choice(directories)
-        print("Using directory '%s'" % directory)
-    elif os.path.isdir(project.get_dir(":logs") + directory):
-        directory = project.get_dir(":logs") + directory
-    if directory[-1] != "/":
-        directory += "/"
-    return directory
-
-
-def get_files(directory):
-    log_files = []
-    files = sorted(os.listdir(directory))
-    for file in files:
-        if len(file) >= 4 and file[-4:] == '.txt':
-            log_files.append(file)
-    return log_files
-
-
-def get_file_name(file_name, directory):
-    if type(file_name) == int:
-        # file_name is the index in the list of files in the directory
-        file_name = get_files(directory)[file_name]
-    elif type(file_name) == str:
-        if file_name == ":random":
-            file_name = random.choice(get_files(directory))
-        elif len(file_name) < 4 or file_name[-4:] != '.txt':
-            file_name += '.txt'
-    else:
-        raise ValueError("Invalid file name: " + str(file_name))
-
-    return file_name
-
-
 class Parser:
     def __init__(self, file_name, directory=None):
-        self.directory = get_dir_name(directory)
+        self.directory = project.parse_dir(directory, ":logs")
         self.local_dir = directory[self.directory.rfind("/", 0, -1) + 1:]
-        self.file_name = get_file_name(file_name, self.directory)
+        self.file_name = project.get_file_name(file_name, self.directory,
+                                               log_file_type)
 
         print("Using file named '%s'" % self.file_name)
 
@@ -190,7 +152,8 @@ class Parser:
 
             if time_index != -1 and name_index != -1 and end_index != -1:
                 timestamp = float(self.contents[index: time_index])
-                name = self.contents[time_index + len(time_name_sep): name_index]
+                name = self.contents[
+                       time_index + len(time_name_sep): name_index]
                 value_content = self.contents[
                                 name_index + len(name_values_sep):end_index]
                 values = {}
@@ -204,7 +167,8 @@ class Parser:
                 self.data.append((timestamp, name, values))
 
                 if name not in self.initial_values.keys():
-                    self.initial_values[name] = timestamp, len(self.data), values
+                    self.initial_values[name] = timestamp, len(
+                        self.data), values
 
             index = end_index + 1
 
@@ -213,7 +177,7 @@ def get_map(file_name, directory=None):
     if directory is None:
         directory = ":maps"
     directory = project.get_dir(directory)
-    file_name = get_file_name(file_name, directory)
+    file_name = project.get_file_name(file_name, directory, log_file_type)
     with open(directory + file_name, 'r') as map_file:
         contents = map_file.read()
 

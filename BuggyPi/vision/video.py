@@ -1,18 +1,15 @@
-import os
 import cv2
 
 import project
 from vision.capture import Capture
 
+
 class Video(Capture):
     def __init__(self, video_name, directory=None, enable_draw=True,
                  start_frame=0, width=None, height=None, frame_skip=0,
                  loop_video=False):
-        video_name, capture, length_msec, num_frames, self.slider_ticks, self.track_bar_name = \
-            self.load_video(video_name, directory)
-
         super(Video, self).__init__(width, height, video_name, enable_draw)
-        
+
         self.resize_width = width
         self.resize_height = height
 
@@ -23,25 +20,30 @@ class Video(Capture):
         else:
             self.resize_frame = False
 
-        self.width, self.height = int(capture.get(
-            cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(
-            cv2.CAP_PROP_FRAME_HEIGHT))
-
         if self.resize_height is None and width is not None:
             self.resize_height = int(width * self.height / self.width)
         if self.resize_width is None and height is not None:
             self.resize_width = int(height * self.width / self.height)
 
+        video_name, capture, length_msec, num_frames, self.slider_ticks, self.track_bar_name = \
+            self.load_video(video_name, directory)
+
+        self.width, self.height = int(capture.get(
+            cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(
+            cv2.CAP_PROP_FRAME_HEIGHT))
+
         self.frame_skip = frame_skip
         self.loop_video = loop_video
 
-        assert video_name.endswith('avi')
+        # assert video_name.endswith('avi')
         self.video_name = video_name
 
         self.capture = capture
-        
+
         self.video_len = num_frames
-        
+
+        self.slider_has_moved = False
+
         if start_frame > 0:
             self.set_frame(start_frame)
 
@@ -58,34 +60,17 @@ class Video(Capture):
         else:
             cv2.imshow(self.video_name, self.frame)
 
-
     def load_video(self, video_name, directory):
-        if directory is None:
-            directory = project.get_dir(":videos")
-        elif os.path.isdir(project.get_dir(":videos") + directory):
-            if directory[-1] != "/":
-                directory += "/"
-            # capture = cv2.VideoCapture(
-            #     project.get_dir(":videos") + directory + video_name)
-        else:
-            raise NotADirectoryError("Invalid directory: " + str(directory))
+        directory = project.parse_dir(directory, ":videos")
+        video_name = project.get_file_name(video_name, directory,
+                                           ['avi', 'mov', 'mp4',
+                                            'AVI', 'MOV', 'MP4'])
 
-        if type(video_name) == int:
-            files = sorted(os.listdir(directory))
-            video_files = []
-            for file in files:
-                if len(file) >= 4 and file[-4:] == '.avi':
-                    video_files.append(file)
-            # video_name is the index in the list of files in the directory
-            video_name = video_files[video_name]
-            print("Using video named '%s'" % video_name)
-        
         print("loading video into window named '" + str(
             video_name) + "'...")
-        
+
         capture = cv2.VideoCapture(directory + video_name)
-        
-##        if self.enable_draw:
+
         cv2.namedWindow(video_name)
 
         fps = capture.get(cv2.CAP_PROP_FPS)
@@ -101,7 +86,11 @@ class Video(Capture):
         print("\tlength (sec):", length_sec)
         print("\tlength (frames):", num_frames)
 
-        slider_ticks = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) // 3)
+        if not self.resize_frame:
+            slider_ticks = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) / 3)
+        else:
+            slider_ticks = int(self.resize_width / 3)
+
         if slider_ticks > num_frames:
             slider_ticks = num_frames
         track_bar_name = "frame:"
@@ -118,7 +107,7 @@ class Video(Capture):
         success, self.frame = self.capture.read()
         if not advance_frame:
             self.set_frame(self.current_pos() - 1)
-        
+
         if success is False or self.frame is None:
             if self.loop_video:
                 self.set_frame(0)
@@ -133,22 +122,30 @@ class Video(Capture):
                                     interpolation=cv2.INTER_NEAREST)
         if self.current_pos() != self.frame_num:
             self.frame_num = self.current_pos()
-            self.slider_num = int(self.frame_num * self.video_len / self.slider_ticks)
+            self.slider_num = int(
+                self.frame_num * self.slider_ticks / self.video_len)
             cv2.setTrackbarPos(self.track_bar_name, self.video_name,
                                self.slider_num)
-
         return self.frame
-    
+
     def current_pos(self):
         return int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
 
     def on_slider(self, slider_index):
+        self.slider_has_moved = True
         slider_pos = int(slider_index * self.video_len / self.slider_ticks)
         if abs(slider_pos - self.current_pos()) > 1:
             self.set_frame(slider_pos)
             self.show_frame(self.get_frame())
             self.frame_num = self.current_pos()
             self.slider_num = slider_index
+
+    def slider_moved(self):
+        if self.slider_has_moved:
+            self.slider_has_moved = False
+            return True
+        else:
+            return False
 
     def set_frame(self, position):
         if position >= self.video_len:
@@ -158,7 +155,9 @@ class Video(Capture):
 
     def increment_frame(self):
         self.get_frame()
+        self.slider_has_moved = True
 
     def decrement_frame(self):
         self.set_frame(self.current_pos() - 1)
         self.get_frame(False)
+        self.slider_has_moved = True

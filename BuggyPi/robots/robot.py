@@ -9,6 +9,9 @@ from navigation.buggypi_filter import BuggyPiFilter
 
 class Robot:
     def __init__(self, properties):
+        self.enable_draw = self.get_property(properties, 'enable_draw', True)
+        self.use_filter = self.get_property(properties, 'use_filter', True)
+
         #       ----- initial state -----
         self.initial_long = self.get_property(
             properties, 'initial_long', ('checkpoint', 0))
@@ -42,11 +45,17 @@ class Robot:
         self.right_servo_limit = self.get_property(
             properties, 'right_servo_limit', ValueError)
 
+        # take remaining properties and add them as attributes
+        for name, value in properties.items():
+            setattr(self, name, value)
+
         #       ----- map -----
         self.map_file = self.get_property(properties, 'map_file')
         self.map_dir = self.get_property(properties, 'map_dir')
 
         #       ----- checkpoints -----
+        self.use_checkpoints = self.get_property(
+            properties, 'use_checkpoints', True)
         self.checkpoints_file = self.get_property(
             properties, 'checkpoints_file', "checkpoints.txt")
         self.checkpoints_dir = self.get_property(
@@ -58,46 +67,47 @@ class Robot:
 
         #       ----- checkpoints -----
         self.checkpoint_num = 0
-        self.checkpoints = get_map(self.checkpoints_file, self.checkpoints_dir)
+        if self.use_checkpoints:
+            self.checkpoints = get_map(
+                self.checkpoints_file, self.checkpoints_dir)
+        else:
+            self.checkpoints = []
 
         # ----- Map -----
-        self.map = get_map(self.map_file, self.map_dir)
+        if self.map_file is None:
+            self.map = get_map(self.map_file, self.map_dir)
+        else:
+            self.map = None
 
         #       ----- Filter -----
-        if self.initial_long[0] == 'checkpoint':
+        if self.use_checkpoints and self.initial_long[0] == 'checkpoint':
             self.initial_long = self.checkpoints[self.initial_long[1]][0]
-        elif self.initial_long[0] == 'map':
+        elif self.map is not None and self.initial_long[0] == 'map':
             self.initial_long = self.map[self.initial_long[1]][0]
         elif self.initial_long == 'gps':
-            pass  # wait for later
+            self.initial_long = 0  # wait for later
         elif type(self.initial_long) == float:
             pass  # already assigned 
-        else:
-            raise ValueError("Please provide an initial longitude")
 
-        if self.initial_lat[0] == 'checkpoint':
+        if self.use_checkpoints and self.initial_lat[0] == 'checkpoint':
             self.initial_lat = self.checkpoints[self.initial_lat[1]][1]
-        elif self.initial_lat[0] == 'map':
+        elif self.map is not None and self.initial_lat[0] == 'map':
             self.initial_lat = self.map[self.initial_lat[1]][1]
         elif self.initial_lat == 'gps':
-            pass  # wait for later
+            self.initial_lat = 0  # wait for later
         elif type(self.initial_lat) == float:
             pass  # already assigned 
+
+        if self.use_filter:
+            self.filter = BuggyPiFilter(
+                self.initial_long, self.initial_lat, self.initial_heading,
+                self.counts_per_rotation, self.wheel_radius,
+                self.front_back_dist, self.max_speed,
+                self.left_angle_limit, self.right_angle_limit,
+                self.left_servo_limit, self.right_servo_limit
+            )
         else:
-            raise ValueError("Please provide an initial latitude")
-
-        if self.initial_long == 'gps':
-            self.initial_long = 0
-        if self.initial_lat == 'gps':
-            self.initial_lat = 0
-
-        self.filter = BuggyPiFilter(
-            self.initial_long, self.initial_lat, self.initial_heading,
-            self.counts_per_rotation, self.wheel_radius,
-            self.front_back_dist, self.max_speed,
-            self.left_angle_limit, self.right_angle_limit,
-            self.left_servo_limit, self.right_servo_limit
-        )
+            self.filter = None
 
         #       ----- Start joystick and comm threads -----
 
@@ -107,12 +117,17 @@ class Robot:
     def get_state(self):
         return self.filter.state
 
+    def add_property(self, name, value):
+        setattr(self, name, value)
+
     def get_property(self, properties, key, default=None):
         if key in properties:
             if properties[key] is None:
                 return default
             else:
-                return properties[key]
+                prop = properties[key]
+                del properties[key]
+                return prop
         elif default is ValueError:
             raise ValueError("Please provide value for property " + key)
         else:

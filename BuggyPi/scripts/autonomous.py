@@ -5,7 +5,7 @@ sys.path.insert(0, '../')
 
 from robots.realbot import RealRobot
 from robots.standard_config import *
-from navigation.pd_controller import Controller
+from navigation.controller import Controller
 
 
 def main():
@@ -19,9 +19,10 @@ def main():
         initial_heading=bearing
     )
     robot = RealRobot(properties, sensors, commands)
-    pid = Controller(1, 1, 1,
-                     robot.left_angle_limit, robot.right_angle_limit,
-                     1, 1, 1, 0, 100)
+    robot.add_property('pid', Controller(
+        1, 1, 1, robot.left_angle_limit, robot.right_angle_limit,
+        100000, 10000, 10000, 0.0, 1.0))
+
     goal_x, goal_y = robot.checkpoints[2]
     try:
         while True:
@@ -29,10 +30,15 @@ def main():
 
             if not robot.manual_mode:
                 speed_command, angle_command = \
-                    pid.update(robot.get_state(), goal_x, goal_y)
+                    robot.pid.update(robot.get_state(), goal_x, goal_y)
+                if 8 < speed_command < 40:
+                    speed_command = 40
+                elif speed_command <= 8:
+                    speed_command = 0
+
                 robot.servo.set(robot.angle_to_servo(angle_command))
-                robot.motors.set(int(speed_command))
-                robot.blue_led.set(int(speed_command))
+                robot.motors.set(int(speed_command * 100))
+                robot.blue_led.set(int(speed_command * 255))
                 print(speed_command, angle_command)
                 time.sleep(0.05)
 

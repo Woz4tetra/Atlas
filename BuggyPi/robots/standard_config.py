@@ -29,6 +29,8 @@ def button_dn(button, robot):
         robot.manual_mode = not robot.manual_mode
         print("Switching to",
               "manual mode!" if robot.manual_mode else "autonomous!")
+        if not robot.manual_mode:
+            robot.pid.reset()
     elif button == 'A':
         robot.communicator.record('checkpoint', num=robot.checkpoint_num,
                                   long=robot.gps.get("long"),
@@ -93,17 +95,23 @@ def close(robot):
 def yaw_updated(robot):
     robot.filter.update_imu(time.time() - robot.time_start,
                             robot.yaw.get('yaw'))
+    if robot.log_data:
+        robot.record("state", robot.get_state())
 
 
 def gps_updated(robot):
     if robot.gps.get("fix"):
         robot.filter.update_gps(time.time() - robot.time_start,
                                 robot.gps.get("long"), robot.gps.get("lat"))
+        if robot.log_data:
+            robot.record("state", robot.get_state())
 
 
 def encoder_updated(robot):
     robot.filter.update_encoder(time.time() - robot.time_start,
                                 robot.encoder.get("counts"))
+    if robot.log_data:
+        robot.record("state", robot.get_state())
 
 
 properties = dict(
@@ -199,11 +207,14 @@ commands = dict(
 
 def update_properties(**dictionary):
     properties.update(dictionary)
+    return properties
 
 
 def update_sensors(**dictionary):
     sensors.update(dictionary)
+    return sensors
 
 
 def update_commands(**dictionary):
     commands.update(dictionary)
+    return commands

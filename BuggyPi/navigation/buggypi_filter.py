@@ -222,6 +222,8 @@ class BuggyPiFilter:
         long, lat = self.xy_meters_to_gps(self._state[0], self._state[1])
         self.state["x"] = math.degrees(long)  # gps long
         self.state["y"] = math.degrees(lat)  # gps lat
+        self.state["x m"] = self._state[0]  # gps long in meters (from start)
+        self.state["y m"] = self._state[1]  # gps lat in meters (from start)
         self.state["angle"] = self._state[2]  # radians
         self.state["vx"] = self._state[3]  # meters / second
         self.state["vy"] = self._state[4]  # meters / second
