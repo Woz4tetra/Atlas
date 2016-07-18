@@ -1,8 +1,8 @@
 import sys
 import time
 from threading import Thread
-import cv2
 
+import cv2
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 
@@ -12,8 +12,9 @@ from vision.capture import Capture
 
 
 class Camera(Capture):
-    def __init__(self, width, height, window_name="PiCamera", enable_draw=True,
-                 pipeline=None, **args):
+    def __init__(self, width, height, update_fn, window_name="PiCamera",
+                 enable_draw=True,
+                 pipeline=None, fn_params=None, **args):
         super(Camera, self).__init__(width, height, window_name, enable_draw)
 
         self.camera = PiCamera(**args)
@@ -31,6 +32,9 @@ class Camera(Capture):
 
         self.analyzed_frame = None
         self.pipeline_results = {}
+
+        self.update_fn = update_fn
+        self.fn_params = fn_params
 
     def start(self):
         # start the thread to read frames from the video stream
@@ -67,6 +71,8 @@ class Camera(Capture):
 
             if self.recording:
                 self.record_frame()
+
+            self.update_fn(self.fn_params)
 
             self.frame_num += 1
             self.slider_num += 1

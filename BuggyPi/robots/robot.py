@@ -86,14 +86,18 @@ class Robot:
         else:
             raise ValueError("Please provide an initial latitude")
 
-        if self.initial_long != 'gps' and self.initial_lat != 'gps':
-            self.filter = BuggyPiFilter(
-                self.initial_long, self.initial_lat, self.initial_heading,
-                self.counts_per_rotation, self.wheel_radius,
-                self.front_back_dist, self.max_speed,
-                self.left_angle_limit, self.right_angle_limit,
-                self.left_servo_limit, self.right_servo_limit
-            )
+        if self.initial_long == 'gps':
+            self.initial_long = 0
+        if self.initial_lat == 'gps':
+            self.initial_lat = 0
+
+        self.filter = BuggyPiFilter(
+            self.initial_long, self.initial_lat, self.initial_heading,
+            self.counts_per_rotation, self.wheel_radius,
+            self.front_back_dist, self.max_speed,
+            self.left_angle_limit, self.right_angle_limit,
+            self.left_servo_limit, self.right_servo_limit
+        )
 
         #       ----- Start joystick and comm threads -----
 
@@ -120,6 +124,11 @@ class Robot:
         day = time.strftime("%d")
         year = time.strftime("%Y")
         return "%s %s %s" % (month, day, year)
+
+    def angle_to_servo(self, angle):
+        return int(((self.left_servo_limit - self.right_servo_limit) /
+                    (self.left_angle_limit - self.right_angle_limit) *
+                    (angle - self.right_angle_limit) + self.right_servo_limit))
 
     def __str__(self):
         return "(%0.6f, %0.6f, %0.4f)\t(%0.4f, %0.4f)" % (

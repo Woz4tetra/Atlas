@@ -13,7 +13,7 @@ if __name__ == '__main__':
         file_name = sys.argv[1]
         directory = sys.argv[2]
     else:
-        file_name = 2
+        file_name = 0
         directory = "Jul 11 2016"
         # file_name = ":random"
         # directory = ":random"

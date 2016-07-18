@@ -25,16 +25,20 @@ class RealRobot(Robot):
             properties, 'turn_display_off', False)
         self.has_autonomous = self.get_property(
             properties, 'has_autonomous', True)
+        self.manual_mode = self.get_property(
+            properties, 'manual_mode', True)
 
         #       ----- camera -----
-        self.enable_camera = self.get_property(properties, 'enable_camera',
-                                               True)
+        self.enable_camera = self.get_property(
+            properties, 'enable_camera', True)
         self.enable_draw = self.get_property(properties, 'enable_draw', True)
         self.cam_width = self.get_property(properties, 'cam_width', ValueError)
-        self.cam_height = self.get_property(properties, 'cam_height',
-                                            ValueError)
-        self.use_cv_pipeline = self.get_property(properties, 'use_cv_pipeline',
-                                                 False)
+        self.cam_height = self.get_property(
+            properties, 'cam_height', ValueError)
+        self.use_cv_pipeline = self.get_property(
+            properties, 'use_cv_pipeline', False)
+        self.update_camera_fn = self.get_property(
+            properties, 'update_camera_fn', False)
 
         #       ----- logger -----
         self.log_data = self.get_property(properties, 'log_data', True)
@@ -116,10 +120,10 @@ class RealRobot(Robot):
             pipeline = None
         if self.enable_camera:
             self.capture = Camera(
-                self.cam_width, self.cam_height,
-                enable_draw=self.enable_draw,
-                pipeline=pipeline,
-                framerate=32)
+                self.cam_width, self.cam_height, self.update_camera_fn,
+                enable_draw=self.enable_draw, pipeline=pipeline,
+                fn_params=self, framerate=32)
+        self.camera_running = True
 
         # ----- Turn display off? -----
         if not self.enable_draw:
@@ -174,34 +178,6 @@ class RealRobot(Robot):
     def get_state(self):
         return self.filter.state
 
-    def update_camera(self):
-        if self.enable_camera:
-            key = self.capture.key_pressed()
-
-            if key == 'q' or key == "esc":
-                print("quitting...")
-                return False
-            elif key == ' ':
-                if self.capture.paused:
-                    print("%0.4fs: ...Video unpaused" % (
-                        time.time() - self.time_start))
-                else:
-                    print("%0.4fs: Video paused..." % (
-                        time.time() - self.time_start))
-                self.capture.paused = not self.capture.paused
-            elif key == 's':
-                self.capture.save_frame()
-            elif key == 'v':
-                if not self.capture.recording:
-                    self.capture.start_recording()
-                else:
-                    self.capture.stop_recording()
-
-            if not self.capture.paused:
-                self.capture.show_frame()
-
-        return True  # True == don't exit program
-
     def display_backlight(self, show):
         if not self.enable_draw:
             if show is True:
@@ -226,5 +202,6 @@ class RealRobot(Robot):
         self.communicator.stop()
 
         self.display_backlight(True)
+        self.running = False
 
         self.close_fn(self)

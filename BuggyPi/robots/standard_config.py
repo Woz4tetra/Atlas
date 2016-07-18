@@ -1,26 +1,27 @@
 import math
 import time
 
+
 def axis_inactive(axis, robot):
     if robot.manual_mode:
         if axis == "left x":
             robot.servo.set(0)
-            robot.pi_filter.update_servo(0)
+            robot.filter.update_servo(0)
         if axis == "left y":
             robot.blue_led.set(0)
             robot.motors.set(0)
-            robot.pi_filter.update_motors(robot.motors.get())
+            robot.filter.update_motors(robot.motors.get())
 
 
 def axis_active(axis, value, robot):
     if robot.manual_mode:
         if axis == "left x":
-            robot.servo.set(robot.stick_to_servo(value))
-            robot.pi_filter.update_servo(robot.servo.get())
+            robot.servo.set(robot.angle_to_servo(-value))
+            robot.filter.update_servo(robot.servo.get())
         if axis == "left y":
             robot.blue_led.set(int(abs(value) * 255))
             robot.motors.set(int(-value * 100))
-            robot.pi_filter.update_motors(robot.motors.get())
+            robot.filter.update_motors(robot.motors.get())
 
 
 def button_dn(button, robot):
@@ -56,6 +57,35 @@ def get_gps_bearing(long, lat, prev_long, prev_lat):
     return math.atan2(y, x)
 
 
+def update_camera(robot):
+    if robot.enable_camera:
+        key = robot.capture.key_pressed()
+
+        if key == 'q' or key == "esc":
+            print("quitting...")
+            return False
+        elif key == ' ':
+            if robot.capture.paused:
+                print("%0.4fs: ...Video unpaused" % (
+                    time.time() - robot.time_start))
+            else:
+                print("%0.4fs: Video paused..." % (
+                    time.time() - robot.time_start))
+            robot.capture.paused = not robot.capture.paused
+        elif key == 's':
+            robot.capture.save_frame()
+        elif key == 'v':
+            if not robot.capture.recording:
+                robot.capture.start_recording()
+            else:
+                robot.capture.stop_recording()
+
+        if not robot.capture.paused:
+            robot.capture.show_frame()
+
+    return True  # True == don't exit program
+
+
 def close(robot):
     pass
 
@@ -63,6 +93,7 @@ def close(robot):
 def yaw_updated(robot):
     robot.filter.update_imu(time.time() - robot.time_start,
                             robot.yaw.get('yaw'))
+
 
 def gps_updated(robot):
     if robot.gps.get("fix"):
@@ -74,10 +105,12 @@ def encoder_updated(robot):
     robot.filter.update_encoder(time.time() - robot.time_start,
                                 robot.encoder.get("counts"))
 
+
 properties = dict(
     # ----- general properties -----
     close_fn=close,
     turn_display_off=False,
+    manual_mode=True,
 
     # ----- initial state -----
     initial_long=("checkpoint", 0),
@@ -100,6 +133,7 @@ properties = dict(
     enable_draw=True,
     cam_width=480,
     cam_height=320,
+    update_camera_fn=update_camera,
 
     # ----- logger -----
     log_file=None,
@@ -146,7 +180,9 @@ commands = dict(
             "toggle": 2
         }),
     blue_led=dict(command_id=3, range=(0, 255)),
-    servo=dict(command_id=4, range=(properties["left_servo_limit"], properties["right_servo_limit"]), #(-90, 90),
+    servo=dict(command_id=4, range=(
+    properties["left_servo_limit"], properties["right_servo_limit"]),
+               # (-90, 90),
                mapping={
                    "left": properties['left_servo_limit'],
                    "right": properties['right_servo_limit'],
