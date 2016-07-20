@@ -224,7 +224,11 @@ class BuggyPiFilter:
         self.state["y"] = math.degrees(lat)  # gps lat
         self.state["x m"] = self._state[0]  # gps long in meters (from start)
         self.state["y m"] = self._state[1]  # gps lat in meters (from start)
-        self.state["angle"] = self._state[2]  # radians
+        self.state["angle"] = self._state[2]
+        if self.state["angle"] < 0:
+            self.state["angle"] += 2 * np.pi
+        if self._state[2] > 2 * np.pi:
+            self.state["angle"] -= 2 * np.pi
         self.state["vx"] = self._state[3]  # meters / second
         self.state["vy"] = self._state[4]  # meters / second
         self.state["ang v"] = self._state[5]  # radians / second

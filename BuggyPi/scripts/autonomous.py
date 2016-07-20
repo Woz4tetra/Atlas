@@ -16,12 +16,13 @@ def main():
     update_properties(
         initial_long="gps",
         initial_lat="gps",
-        initial_heading=bearing
+        initial_heading=bearing,
+        enable_camera=False
     )
     robot = RealRobot(properties, sensors, commands)
     robot.add_property('pid', Controller(
-        1, 1, 1, robot.left_angle_limit, robot.right_angle_limit,
-        100000, 10000, 10000, 0.0, 1.0))
+##        1, 0, 0, robot.left_angle_limit, robot.right_angle_limit,
+        10000, 1000, 1000, 0.0, 1.0))
 
     goal_x, goal_y = robot.checkpoints[2]
     try:
@@ -29,17 +30,18 @@ def main():
             # print(robot)
 
             if not robot.manual_mode:
-                speed_command, angle_command = \
+                angle_command, speed_command = \
                     robot.pid.update(robot.get_state(), goal_x, goal_y)
-                if 8 < speed_command < 40:
-                    speed_command = 40
-                elif speed_command <= 8:
-                    speed_command = 0
+                if 0.08 < speed_command < 0.4:
+                    speed_command = 0.4
+                elif speed_command <= 0.08:
+                    speed_command = 0.0
 
+                print(robot.angle_to_servo(angle_command), speed_command)
                 robot.servo.set(robot.angle_to_servo(angle_command))
                 robot.motors.set(int(speed_command * 100))
                 robot.blue_led.set(int(speed_command * 255))
-                print(speed_command, angle_command)
+                
                 time.sleep(0.05)
 
             if not robot.camera_running:

@@ -45,14 +45,6 @@ class RealRobot(Robot):
         self.log_dir = self.get_property(properties, 'log_dir')
         self.record_state = self.get_property(properties, 'record_state', True)
 
-        #       ----- map -----
-        if self.has_autonomous:
-            self.map_file = self.get_property(properties, 'map_file',
-                                              ValueError)
-        else:
-            self.map_file = self.get_property(properties, 'map_file')
-        self.map_dir = self.get_property(properties, 'map_dir')
-
         #       ----- checkpoints -----
         self.checkpoints_file = self.get_property(properties,
                                                   'checkpoints_file')
@@ -163,6 +155,7 @@ class RealRobot(Robot):
                         time.sleep(0.15)
                     self.initial_lat = self.gps.get('lat')
 
+                print(self.initial_long, self.initial_lat)
                 # reinitialize filter with new data
                 self.filter = BuggyPiFilter(
                     self.initial_long, self.initial_lat, self.initial_heading,

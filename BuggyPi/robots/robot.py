@@ -85,7 +85,7 @@ class Robot:
         elif self.map is not None and self.initial_long[0] == 'map':
             self.initial_long = self.map[self.initial_long[1]][0]
         elif self.initial_long == 'gps':
-            self.initial_long = 0  # wait for later
+            pass  # wait for later
         elif type(self.initial_long) == float:
             pass  # already assigned 
 
@@ -94,11 +94,11 @@ class Robot:
         elif self.map is not None and self.initial_lat[0] == 'map':
             self.initial_lat = self.map[self.initial_lat[1]][1]
         elif self.initial_lat == 'gps':
-            self.initial_lat = 0  # wait for later
+            pass  # wait for later
         elif type(self.initial_lat) == float:
             pass  # already assigned 
 
-        if self.use_filter:
+        if self.use_filter and self.initial_long != 'gps' and self.initial_lat != 'gps':
             self.filter = BuggyPiFilter(
                 self.initial_long, self.initial_lat, self.initial_heading,
                 self.counts_per_rotation, self.wheel_radius,
