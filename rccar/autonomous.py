@@ -22,18 +22,29 @@ def get_gps_bearing(long, lat, prev_long, prev_lat):
 
 
 class Autonomous(StandardRunner):
-    def __init__(self):
+    def __init__(self, use_initial_gps):
         super(Autonomous, self).__init__(log_data=True)
 
-        while not self.gps.get('fix'):
-            print("waiting for fix...", self.gps)
-            time.sleep(0.15)
+        if use_initial_gps:
+            while not self.gps.get('fix'):
+                print("waiting for fix...", self.gps)
+                time.sleep(0.15)
 
-        bearing = get_gps_bearing(
-            -71.420864, 42.427317, -71.420795, 42.427332
-        )
+            bearing = get_gps_bearing(
+                -71.420864, 42.427317, -71.420795, 42.427332
+            )
+            initial_long = self.gps.get('long')
+            initial_lat = self.gps.get('lat')
+        else:
+            initial_long, initial_lat = self.checkpoints[-1]
+            second_long, second_lat = self.checkpoints[0]
+
+            bearing = self.robot.filter.get_gps_bearing(
+                initial_long, initial_lat, second_long, second_lat
+            )
+
         self.robot.filter.initialize_filter(
-            self.gps.get('long'), self.gps.get('lat'), bearing
+            initial_long, initial_lat, bearing
         )
 
     def main(self):
@@ -61,4 +72,4 @@ class Autonomous(StandardRunner):
             time.sleep(0.05)
 
 
-Autonomous().main()
+Autonomous(False).run()

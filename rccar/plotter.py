@@ -36,13 +36,21 @@ class Plotter(RobotPlotter):
         self.right_servo_limit = -25
 
         self.checkpoints = get_map("checkpoints")
-        initial_long, initial_lat = self.checkpoints[0]
+        initial_long, initial_lat = self.checkpoints[-1]
+        second_long, second_lat = self.checkpoints[0]
+
+        bearing = BuggyPiFilter.get_gps_bearing(
+            # -71.420864, 42.427317, -71.420795, 42.427332
+            initial_long, initial_lat, second_long, second_lat
+        )
+        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
+
         filter = BuggyPiFilter(self.counts_per_rotation, self.wheel_radius,
                                self.front_back_dist,
                                self.max_speed,
                                self.left_angle_limit, self.right_angle_limit,
                                self.left_servo_limit, self.right_servo_limit,
-                               initial_long, initial_lat, 0)
+                               initial_long, initial_lat, bearing)
 
         super(Plotter, self).__init__(filter, file_name, directory)
 

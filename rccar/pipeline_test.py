@@ -64,7 +64,7 @@ class PipelineTest:
 
         return True  # don't exit program
 
-    def main(self):
+    def run(self):
         while True:
             if not self.capture.paused or self.capture.slider_moved():
                 if self.capture.get_frame() is None:
@@ -78,4 +78,4 @@ class PipelineTest:
             if not self.update_keys():
                 break
 
-PipelineTest().main()
+PipelineTest().run()

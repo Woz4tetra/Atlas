@@ -1,6 +1,7 @@
 import time
 
 from buggypi.robot import *
+from buggypi.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
 from navigation.buggypi_filter import BuggyPiFilter
 from navigation.controller import Controller
@@ -25,6 +26,7 @@ class StandardRunner(RobotRunner):
         self.controller = Controller(25000, 0.0, 0.0, -1.0, 1.0)
         self.waypoints = Waypoints(0, self.left_angle_limit,
                                    self.right_angle_limit)
+        self.checkpoints = get_map("checkpoints")
 
         filter = BuggyPiFilter(self.counts_per_rotation, self.wheel_radius,
                                self.front_back_dist,
@@ -164,6 +166,3 @@ class StandardRunner(RobotRunner):
                                          self.encoder.get("counts"))
         if self.robot.log_data:
             self.robot.record("state", self.robot.get_state())
-
-
-Runner().main()
