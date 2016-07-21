@@ -7,10 +7,10 @@ def axis_inactive(axis, robot):
         if axis == "left x":
             robot.servo.set(0)
             robot.filter.update_servo(0)
-        if axis == "left y":
+        elif axis == "left y":
             robot.blue_led.set(0)
             robot.motors.set(0)
-            robot.filter.update_motors(robot.motors.get())
+            robot.filter.update_motors(0)
 
 
 def axis_active(axis, value, robot):
@@ -18,7 +18,7 @@ def axis_active(axis, value, robot):
         if axis == "left x":
             robot.servo.set(robot.angle_to_servo(-value))
             robot.filter.update_servo(robot.servo.get())
-        if axis == "left y":
+        elif axis == "left y":
             robot.blue_led.set(int(abs(value) * 255))
             robot.motors.set(int(-value * 100))
             robot.filter.update_motors(robot.motors.get())
@@ -43,7 +43,10 @@ def button_dn(button, robot):
         robot.goal_x, robot.goal_y = robot.waypoints.map[robot.waypoint_num]
         robot.waypoint_num += 1
         print("Setting goal to (%s, %s)" % (robot.goal_x, robot.goal_y))
-
+    elif button == 'Y':
+        robot.goal_point += 1
+        robot.goal_x, robot.goal_y = robot.checkpoints[robot.goal_point]
+        print("setting goal:", robot.goal_point, robot.goal_x, robot.goal_y)
 
 def get_gps_bearing(long, lat, prev_long, prev_lat):
     long = math.radians(long)

@@ -1,4 +1,3 @@
-
 from objects import *
 from comm import Communicator
 from libraries.rc_motors import RCmotors
