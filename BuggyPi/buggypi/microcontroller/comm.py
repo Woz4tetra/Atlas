@@ -23,7 +23,7 @@ import traceback
 
 import serial
 
-from microcontroller.logger import Logger
+from buggypi.microcontroller.logger import Logger
 
 
 class Communicator(threading.Thread):
@@ -70,10 +70,11 @@ class Communicator(threading.Thread):
         super(Communicator, self).__init__()
 
     def record(self, name, value=None, **values):
-        if value is not None or len(values) == 0:
-            self.log.enq(name, value)
-        elif value is None and len(values) > 0:
-            self.log.enq(name, values)
+        if self.log_data:
+            if value is not None or len(values) == 0:
+                self.log.enq(name, value)
+            elif value is None and len(values) > 0:
+                self.log.enq(name, values)
 
     def run(self):
         """

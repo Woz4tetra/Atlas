@@ -5,22 +5,6 @@ import time
 from standard_runner import StandardRunner
 
 
-def get_gps_bearing(long, lat, prev_long, prev_lat):
-    long = math.radians(long)
-    lat = math.radians(lat)
-    prev_long = math.radians(prev_long)
-    prev_lat = math.radians(prev_lat)
-
-    y = math.sin(long - prev_long) * math.cos(lat)
-    x = (math.cos(prev_lat) * math.sin(lat) - math.sin(
-        prev_lat) * math.cos(lat) *
-         math.cos(long - prev_long))
-
-    bearing = math.atan2(y, x)
-    bearing = (-bearing - math.pi / 2) % (2 * math.pi)
-    return bearing
-
-
 class Autonomous(StandardRunner):
     def __init__(self, use_initial_gps):
         super(Autonomous, self).__init__(log_data=True)
@@ -30,9 +14,10 @@ class Autonomous(StandardRunner):
                 print("waiting for fix...", self.gps)
                 time.sleep(0.15)
 
-            bearing = get_gps_bearing(
+            bearing = self.robot.filter.get_gps_bearing(
                 -71.420864, 42.427317, -71.420795, 42.427332
             )
+            bearing = (-bearing - math.pi / 2) % (2 * math.pi)
             initial_long = self.gps.get('long')
             initial_lat = self.gps.get('lat')
         else:
@@ -46,23 +31,25 @@ class Autonomous(StandardRunner):
         self.robot.filter.initialize_filter(
             initial_long, initial_lat, bearing
         )
+        self.robot.start()
 
     def main(self):
-        if not self.robot.manual_mode:
+        state = self.robot.filter.state
+
+        self.goal_x, self.goal_y = self.waypoints.get_goal(state)
+
+        if not self.manual_mode:
             angle_command, speed_command = \
-                self.controller.update(self.robot.get_state(), self.goal_x,
-                                       self.goal_y)
+                self.controller.update(state, self.goal_x, self.goal_y)
             if 0.1 < speed_command < 0.6:
                 speed_command = 0.6
             elif speed_command <= 0.1:
                 speed_command = 0.0
 
-            print(self.robot.filter.angle_to_servo(angle_command),
-                  speed_command)
-            state = self.robot.filter.get_state()
-            print(("%0.7f, " * 3) % (state["x"], state["y"], state["angle"]))
-            print(("%0.7f, " * 3) % (self.goal_x, self.goal_y, angle_command))
-            self.servo.set(self.robot.filter.angle_to_servo(angle_command))
+##            print(self.angle_to_servo(angle_command), speed_command)
+##            print(("%0.7f, " * 3) % (state["x"], state["y"], state["angle"]))
+##            print(("%0.7f, " * 3) % (self.goal_x, self.goal_y, angle_command))
+            self.servo.set(self.angle_to_servo(angle_command))
             self.motors.set(int(speed_command * 100))
             self.blue_led.set(int(speed_command * 255))
 

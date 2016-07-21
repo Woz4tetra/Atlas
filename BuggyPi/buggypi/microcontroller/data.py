@@ -93,8 +93,7 @@ class SensorPool:
                 sensor.parse(data)
                 sensor.current_packet = packet
 
-                if enable_callbacks:
-                    sensor.update_fn()
+                sensor.update_fn()
 
                 return sensor
 

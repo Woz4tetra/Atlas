@@ -81,9 +81,9 @@ class StandardRunner(RobotRunner):
         robot = Robot(sensors, commands, filter, joystick, pipeline, capture,
                       close_fn, log_data, log_name, log_dir)
 
-        self.gps = robot.sensor_pool['gps']
-        self.encoder = robot.sensor_pool['encoder']
-        self.yaw = robot.sensor_pool['yaw']
+        self.gps = robot.sensors['gps']
+        self.encoder = robot.sensors['encoder']
+        self.yaw = robot.sensors['yaw']
 
         self.servo = robot.commands['servo']
         self.motors = robot.commands['motors']
@@ -109,10 +109,16 @@ class StandardRunner(RobotRunner):
                 self.motors.set(0)
                 self.robot.filter.update_motors(0)
 
+    def angle_to_servo(self, angle):
+        return int(((self.left_servo_limit - self.right_servo_limit) /
+                (self.left_angle_limit - self.right_angle_limit) *
+                (angle - self.right_angle_limit) + self.right_servo_limit))
+
+    
     def axis_active(self, axis, value, params):
         if self.manual_mode:
             if axis == "left x":
-                self.servo.set(self.robot.filter.angle_to_servo(-value))
+                self.servo.set(self.angle_to_servo(-value))
                 self.robot.filter.update_servo(self.servo.get())
             elif axis == "left y":
                 self.blue_led.set(int(abs(value) * 255))

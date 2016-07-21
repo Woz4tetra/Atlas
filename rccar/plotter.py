@@ -112,4 +112,6 @@ class Plotter(RobotPlotter):
         percent = 100 * index / len(self.parser)
         print(str(int(percent)) + "%", end='\r')
 
-Plotter().static_plot(plot_recorded_state=True, plot_calculated_state=True)
+plotter = Plotter()
+plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
+plotter.write_maps(25)

@@ -1,5 +1,5 @@
-from microcontroller.comm import *
-from microcontroller.data import *
+from buggypi.microcontroller.comm import *
+from buggypi.microcontroller.data import *
 
 
 class Robot:
@@ -14,11 +14,13 @@ class Robot:
         self.close_fn = close_fn
 
         self.sensor_pool = SensorPool()
+        self.sensors = {}
         for name, sensor_properties in sensors.items():
             sensor = Sensor(sensor_properties['sensor_id'],
                             name, sensor_properties['update_fn'],
                             sensor_properties['properties'])
             self.sensor_pool.add_sensor(sensor)
+            self.sensors[name] = sensor
 
         self.log_data = log_data
         self.communicator = Communicator(
@@ -34,26 +36,34 @@ class Robot:
             if 'command_array' in command_properties:
                 command_ids = command_properties['command_array']
                 command_range = command_properties['range']
+                del command_properties['command_array']
+                del command_properties['range']
+                
                 command = CommandArray(command_ids, name, command_range,
                                        self.communicator,
                                        **command_properties)
             else:
                 command_id = command_properties['command_id']
                 command_range = command_properties['range']
+                del command_properties['command_id']
+                del command_properties['range']
+                
                 command = Command(command_id, name, command_range,
                                   self.communicator,
                                   **command_properties)
 
             self.commands[name] = command
 
+        self.time_start = time.time()
+
+    def start(self):
         self.communicator.start()
         if self.joystick is not None:
             self.joystick.start()
         if self.capture is not None:
             self.capture.start()
 
-        self.time_start = time.time()
-
+    
     def record(self, name, value=None, **values):
         self.communicator.record(name, value, **values)
 
@@ -77,7 +87,8 @@ class Robot:
 
         self.communicator.stop()
 
-        self.close_fn(self)
+        if self.close_fn is not None:
+            self.close_fn()
 
     def should_stop(self):
         if self.communicator.exit_flag:
