@@ -1,0 +1,23 @@
+The reason for splitting buggypi into its own directory is it contains modules that apply to any robot we work on, it makes projects cleaner, and it's in the spirit of installing a python module into your site-packages directory.
+
+For unix (linux and max os) computers, type the following code to add the buggypi module to your python path:
+('$' indicates that these commands should be entered into the command line)
+
+$ cd ~
+
+on linux:
+$ nano .bashrc
+on mac:
+$ nano .bash_profile
+
+scroll to the end of the file
+type:
+export PYTHONPATH=<buggypi module>
+
+where <buggypi module> is the full directory location of the module
+(for example: /home/pi/Documents/Atlas/BuggyPi/)
+!!! Notice the directory is not /home/pi/Documents/Atlas/BuggyPi/buggypi !!!
+
+
+For PyCharm, go to Preferences -> Project:<project name> -> Project Structure
+Hit the '+ Add Content Root' button. Navigate to the BuggyPi (not buggypi) directory) and add it
