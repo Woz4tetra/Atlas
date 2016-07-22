@@ -114,6 +114,10 @@ class Communicator(threading.Thread):
                 sensor = self.sensor_pool.update(packet)
                 if sensor is not None:
                     if self.log_data:
+                        # have to copy properties or else it might be
+                        # changed before the logger can record it!!
+                        # (sensor._properties is a reference not the
+                        # dictionary itself)
                         self.log.enq(sensor.name, sensor._properties.copy())
                 else:
                     if "Traceback" in packet:

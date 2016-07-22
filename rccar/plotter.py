@@ -21,18 +21,19 @@ class Plotter(RobotPlotter):
         initial_long, initial_lat = self.checkpoints[-1]
         second_long, second_lat = self.checkpoints[0]
 
-        bearing = BuggyPiFilter.get_gps_bearing(
-            # -71.420864, 42.427317, -71.420795, 42.427332
-            initial_long, initial_lat, second_long, second_lat
-        )
-        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
-
+##        bearing = BuggyPiFilter.get_gps_bearing(
+##            -71.420864, 42.427317, -71.420795, 42.427332
+####            initial_long, initial_lat, second_long, second_lat
+##        )
+##        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
+        bearing = 0
         filter = BuggyPiFilter(self.counts_per_rotation, self.wheel_radius,
                                self.front_back_dist,
                                self.max_speed,
                                self.left_angle_limit, self.right_angle_limit,
                                self.left_servo_limit, self.right_servo_limit,
                                initial_long, initial_lat, bearing)
+        print(initial_long, initial_lat, bearing)
 
         super(Plotter, self).__init__(filter, file_name, directory)
 
@@ -92,28 +93,27 @@ class Plotter(RobotPlotter):
                                        'purple', self.recording_heading_freq)
 
         percent = 100 * index / len(self.parser)
-        print(str(int(percent)) + "%", end='\r')
+        print(("%0.4f" % percent) + "%", end='\r')
 
 
-# if len(sys.argv) == 2:
-#     file_name = sys.argv[1]
-#     directory = None
-# elif len(sys.argv) == 3:
-#     file_name = sys.argv[1]
-#     directory = sys.argv[2]
-# else:
-#     file_name = 5
-#     directory = "Jul 21 2016"
-#     # file_name = ":random"
-#     # directory = ":random"
-#     # file_name = 'Mon Jul 11 19;50;34 2016.txt'
-#     # directory = 'Jul 11 2016'
-# try:
-#     file_name = int(file_name)
-# except ValueError:
-#     pass
+if len(sys.argv) == 2:
+    file_name = sys.argv[1]
+    directory = None
+elif len(sys.argv) == 3:
+    file_name = sys.argv[1]
+    directory = sys.argv[2]
+else:
+    file_name = 1
+    directory = "Jul 11 2016"
+    # file_name = ":random"
+    # directory = ":random"
+    # file_name = 'Mon Jul 11 19;50;34 2016.txt'
+    # directory = 'Jul 11 2016'
+try:
+    file_name = int(file_name)
+except ValueError:
+    pass
 
-for index in range(19):
-    plotter = Plotter(index, "Jul 21 2016")
-    plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
-    # plotter.write_maps(25)
+plotter = Plotter(file_name, directory)
+plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
+# plotter.write_maps(25)

@@ -19,7 +19,7 @@ def log_folder():
     month = time.strftime("%b")
     day = time.strftime("%d")
     year = time.strftime("%Y")
-    return "%s %s %s" % (month, day, year)
+    return "%s %s %s/" % (month, day, year)
 
 class Logger:
     def __init__(self, file_name, directory):
@@ -32,8 +32,7 @@ class Logger:
 
         if directory == ":today":
             directory = project.get_dir(log_directory) + log_folder()
-
-        if directory is None:
+        elif directory is None:
             directory = project.get_dir(log_directory)
         else:
             if directory[-1] != "/":

@@ -159,8 +159,6 @@ class StandardRunner(RobotRunner):
     def yaw_updated(self):
         self.robot.filter.update_imu(time.time() - self.robot.time_start,
                                      self.yaw.get('yaw'))
-        if self.robot.log_data:
-            self.robot.record("state", self.robot.get_state())
 
     def gps_updated(self):
         if self.gps.get("fix"):
@@ -173,5 +171,3 @@ class StandardRunner(RobotRunner):
     def encoder_updated(self):
         self.robot.filter.update_encoder(time.time() - self.robot.time_start,
                                          self.encoder.get("counts"))
-        if self.robot.log_data:
-            self.robot.record("state", self.robot.get_state())

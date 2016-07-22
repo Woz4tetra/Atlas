@@ -1,4 +1,3 @@
-import sys
 import time
 from threading import Thread
 
@@ -6,9 +5,7 @@ import cv2
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 
-sys.path.insert(0, '../')
-
-from vision.capture import Capture
+from buggypi.vision.capture import Capture
 
 
 class Camera(Capture):
@@ -55,10 +52,9 @@ class Camera(Capture):
             # preparation for the next frame
             self.frame = f.array
             self.raw_capture.truncate(0)
-
-            if self.pipeline is not None:
-                self.analyzed_frame, self.pipeline_results = \
-                    self.pipeline.update(self, self.frame)
+##            if self.pipeline is not None:
+##                self.analyzed_frame, self.pipeline_results = \
+##                    self.pipeline.update(self, self.frame)
 
             # if the thread indicator variable is set, stop the thread
             # and resource camera resources
