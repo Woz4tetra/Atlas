@@ -78,6 +78,9 @@ class StandardRunner(RobotRunner):
                         })
         )
 
+        if log_dir is None:
+            log_dir = ":today"  # today's date
+
         robot = Robot(sensors, commands, filter, joystick, pipeline, capture,
                       close_fn, log_data, log_name, log_dir)
 

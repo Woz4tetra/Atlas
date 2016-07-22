@@ -15,6 +15,12 @@ log_file_type = "txt"
 log_directory = ":logs"
 
 
+def log_folder():
+    month = time.strftime("%b")
+    day = time.strftime("%d")
+    year = time.strftime("%Y")
+    return "%s %s %s" % (month, day, year)
+
 class Logger:
     def __init__(self, file_name, directory):
         if file_name is None or file_name.replace("." + log_file_type,
@@ -23,6 +29,9 @@ class Logger:
                                                     ";") + "." + log_file_type
         elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
             file_name += "." + log_file_type
+
+        if directory == ":today":
+            directory = project.get_dir(log_directory) + log_folder()
 
         if directory is None:
             directory = project.get_dir(log_directory)

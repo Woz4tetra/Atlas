@@ -7,25 +7,7 @@ from navigation.buggypi_filter import BuggyPiFilter
 
 
 class Plotter(RobotPlotter):
-    def __init__(self):
-        if len(sys.argv) == 2:
-            file_name = sys.argv[1]
-            directory = None
-        elif len(sys.argv) == 3:
-            file_name = sys.argv[1]
-            directory = sys.argv[2]
-        else:
-            file_name = 0
-            directory = "Jul 11 2016"
-            # file_name = ":random"
-            # directory = ":random"
-            # file_name = 'Mon Jul 11 19;50;34 2016.txt'
-            # directory = 'Jul 11 2016'
-        try:
-            file_name = int(file_name)
-        except ValueError:
-            pass
-
+    def __init__(self, file_name, directory):
         self.counts_per_rotation = 6
         self.wheel_radius = 0.097
         self.front_back_dist = 0.234
@@ -112,6 +94,26 @@ class Plotter(RobotPlotter):
         percent = 100 * index / len(self.parser)
         print(str(int(percent)) + "%", end='\r')
 
-plotter = Plotter()
-plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
-plotter.write_maps(25)
+
+# if len(sys.argv) == 2:
+#     file_name = sys.argv[1]
+#     directory = None
+# elif len(sys.argv) == 3:
+#     file_name = sys.argv[1]
+#     directory = sys.argv[2]
+# else:
+#     file_name = 5
+#     directory = "Jul 21 2016"
+#     # file_name = ":random"
+#     # directory = ":random"
+#     # file_name = 'Mon Jul 11 19;50;34 2016.txt'
+#     # directory = 'Jul 11 2016'
+# try:
+#     file_name = int(file_name)
+# except ValueError:
+#     pass
+
+for index in range(19):
+    plotter = Plotter(index, "Jul 21 2016")
+    plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
+    # plotter.write_maps(25)
