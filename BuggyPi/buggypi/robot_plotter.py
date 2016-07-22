@@ -47,7 +47,7 @@ class RobotPlotter:
         self.recorded_state_heading = []
 
         self.recorded_heading_counter = 0
-        self.recording_heading_freq = 30
+        self.recording_heading_freq = 5
 
         self.heading_counter = 0
         self.heading_freq = 50
@@ -70,6 +70,7 @@ class RobotPlotter:
                           frequency):
         state_x_data.append(state["x"])
         state_y_data.append(state["y"])
+        print(state["x"], state["y"])
 
         if heading_counter % frequency == 0 and \
                         len(state_x_data) > 0 and len(state_y_data) > 0:

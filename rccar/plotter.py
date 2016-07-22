@@ -21,12 +21,11 @@ class Plotter(RobotPlotter):
         initial_long, initial_lat = self.checkpoints[-1]
         second_long, second_lat = self.checkpoints[0]
 
-##        bearing = BuggyPiFilter.get_gps_bearing(
-##            -71.420864, 42.427317, -71.420795, 42.427332
-####            initial_long, initial_lat, second_long, second_lat
-##        )
-##        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
-        bearing = 0
+        bearing = BuggyPiFilter.get_gps_bearing(
+            # -71.420864, 42.427317, -71.420795, 42.427332
+            initial_long, initial_lat, second_long, second_lat
+        )
+        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
         filter = BuggyPiFilter(self.counts_per_rotation, self.wheel_radius,
                                self.front_back_dist,
                                self.max_speed,
@@ -103,8 +102,8 @@ elif len(sys.argv) == 3:
     file_name = sys.argv[1]
     directory = sys.argv[2]
 else:
-    file_name = 1
-    directory = "Jul 11 2016"
+    file_name = 3
+    directory = "Jul 22 2016"
     # file_name = ":random"
     # directory = ":random"
     # file_name = 'Mon Jul 11 19;50;34 2016.txt'

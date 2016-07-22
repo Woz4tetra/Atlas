@@ -48,7 +48,7 @@ class StandardRunner(RobotRunner):
                          update_fn=lambda: self.encoder_updated()),
             gps=dict(sensor_id=1, properties=['long', 'lat', 'fix'],
                      update_fn=lambda: self.gps_updated()),
-            yaw=dict(sensor_id=2, properties='yaw',
+            imu=dict(sensor_id=2, properties='yaw',
                      update_fn=lambda: self.yaw_updated()),
         )
         commands = dict(
@@ -171,3 +171,5 @@ class StandardRunner(RobotRunner):
     def encoder_updated(self):
         self.robot.filter.update_encoder(time.time() - self.robot.time_start,
                                          self.encoder.get("counts"))
+        if self.robot.log_data:
+            self.robot.record("state", self.robot.get_state())
