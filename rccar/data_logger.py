@@ -37,8 +37,11 @@ class DataLogger(StandardRunner):
         )
 
     def main(self):
-        pprint(self.robot.get_state())
-        time.sleep(0.25)
+        state = self.robot.filter.state
+        print("(%0.6f, %0.6f, %0.4f), (%0.6f, %0.6f)\r",
+              state["x"], state["y"], state["angle"],
+              self.gps['long'], self.gps['lat'])
+        time.sleep(0.05)
 
 
 DataLogger().run()
