@@ -7,18 +7,19 @@ for _ in range(15):
     pyb.delay(50)
 pyb.LED(3).on()
 
+i2c_bus = 2
+
 rc_motors = RCmotors("X8", 50, 900, 50)
 
-leds = [LEDcommand(index, index + 1) for index in range(3)]
-blue_led = BlueLEDcommand(3)
-servo = ServoCommand(4, 1, start_pos=0)
-motors = MotorCommand(5, rc_motors)
+leds = PybLEDs(0)
+servo = ServoDriver(1, i2c_bus, 60)
+motors = MotorCommand(2, rc_motors)
 
 encoder = RCencoder(0, rc_motors)
 gps = GPS(1, 6, 4)
-imu = IMU(2, 2, 11)
+imu = IMU(2, i2c_bus, 11)
 
-communicator = Communicator(*leds, blue_led, servo, motors, uart_bus=1)
+communicator = Communicator(leds, servo, motors, uart_bus=1)
 
 while True:
     communicator.read_command()

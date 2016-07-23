@@ -33,25 +33,9 @@ class Robot:
 
         self.commands = {}
         for name, command_properties in commands.items():
-            if 'command_array' in command_properties:
-                command_ids = command_properties['command_array']
-                command_range = command_properties['range']
-                del command_properties['command_array']
-                del command_properties['range']
-                
-                command = CommandArray(command_ids, name, command_range,
-                                       self.communicator,
-                                       **command_properties)
-            else:
-                command_id = command_properties['command_id']
-                command_range = command_properties['range']
-                del command_properties['command_id']
-                del command_properties['range']
-                
-                command = Command(command_id, name, command_range,
-                                  self.communicator,
-                                  **command_properties)
-
+            command_id = command_properties['command_id']
+            del command_properties['command_id']
+            command = Command(command_id, name, self.communicator, **command_properties)
             self.commands[name] = command
 
         self.time_start = time.time()
@@ -63,7 +47,6 @@ class Robot:
         if self.capture is not None:
             self.capture.start()
 
-    
     def record(self, name, value=None, **values):
         self.communicator.record(name, value, **values)
 

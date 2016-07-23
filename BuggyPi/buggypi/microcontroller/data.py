@@ -11,15 +11,37 @@ Classes:
     SensorPool - parses and sorts the incoming packet by giving it to the
         correct sensor
     SerialObject - Internal. The superclass of Sensor and Command.
-    Sensor - An object containing data read from the micro-controller with
+    Sensor - An object containing data read from the microcontroller with
         the matching sensor ID
-    Command - An object that allows data to be sent to the micro-controller
+    Command - An object that allows data to be sent to the microcontroller
 
 Functions (use with python -i data.py):
     try_sensor - given a list of property names (strings), this function
         allows you to test what the output of your sensor would be
     try_command - this functions returns the packet that
         would be written to serial given typical inputs
+
+Usage
+-----
+
+from buggypi.robot import *
+
+class MyRobotRunner:
+    def __init__(self):
+        sensors = dict(
+            encoder=dict(sensor_id=0, properties='counts',
+                         update_fn=lambda: self.encoder_updated()),
+            gps=dict(sensor_id=1, properties=['long', 'lat', 'fix'],
+                     update_fn=lambda: self.gps_updated()),
+            imu=dict(sensor_id=2, properties='yaw',
+                     update_fn=lambda: self.yaw_updated()),
+        )
+        commands = dict(
+            leds=dict(command_id=0, properties=["red", "yellow", "green", "blue"]),
+            servo=dict(command_id=1),
+            motors=dict(command_id=2)
+        )
+        self.robot = Robot(sensors, commands, ...)
 """
 
 import math
@@ -32,12 +54,22 @@ from sys import maxsize as MAXINT
 
 class SensorPool:
     def __init__(self, *sensors):
+        """
+        Sensor pool constructor
+
+        :param sensors: all sensor instances being used. If sensor ID's conflict, an error is thrown
+        """
         self.sensors = {}
 
         for sensor in sensors:
             self.add_sensor(sensor)
 
     def add_sensor(self, sensor):
+        """
+        Adds a sensor to the internal dictionary
+
+        :param sensor: An instance of the Sensor class
+        """
         if sensor.object_id in list(self.sensors.keys()):
             raise Exception(
                 "Sensor ID already taken: " + str(sensor.object_id))
@@ -75,10 +107,10 @@ class SensorPool:
     def update(self, packet):
         """
         updates the sensors' data when called and, if correct, parses and
-        replaces the old sensor data
+        replaces the old sensor data. If an update function is specified, it is called.
 
         :param packet: A string that may or may not be a valid packet
-        :return: None
+        :return: the sensor that was identified. If None, the packet was invalid
         """
 
         if self.is_packet(packet):
@@ -103,62 +135,18 @@ class SensorPool:
         return len(self.sensors)
 
 
-def try_sensor(sensor_id, properties):
-    global sensor_pool
-    # sensor_id = max(sensor_pool.sensors.keys()) + 1
-    sensor_pool.sensors = {}
-    exp_sensor = Sensor(sensor_id, 'exp_sensor', properties)
-    if type(properties) is not list or type(properties) is not tuple:
-        properties = [properties]
-
-    packet = ""
-    for _ in properties:
-        data_type = random.choice(['i', 'u', 'f', 'b'])
-        if data_type == 'u' or data_type == 'i':
-            int_size = random.choice([8, 16, 32, 64])
-            data = random.randint(0, 2 << (int_size - 1) - 1)
-            packet += "%s%x\t" % (data_type, data)
-        elif data_type == 'f':
-            data = random.random() * 10000
-            packet += "%s%0.8x\t" % (data_type,
-                                     struct.unpack('<I',
-                                                   struct.pack('<f', data))[0])
-        elif data_type == 'b':
-            data = random.choice([True, False])
-            if data is True:
-                data = random.randint(1, 15)
-            else:
-                data = 0
-            packet += "%s%x\t" % (data_type, data)
-
-    exp_sensor.parse(packet[:-1])
-
-    return exp_sensor
-
-
-def try_command(command_id, data_range, data=None):
-    exp_command = Command(command_id, data_range)
-    if data is None:
-        data = random.randint(exp_command.range[0], exp_command.range[1])
-        print("data:", data)
-
-    exp_command.bound_value(data)
-    return exp_command.get_packet()
-
-
 class SerialObject:
-    def __init__(self, object_id, name):
+    def __init__(self, object_id, name, properties):
         """
         Constructor for SerialObject.
-        Takes a list of strings (properties) and creates an internal dictionary
-        in which data will be stored.
 
         :param object_id: The unique SerialObject identifier. Used for matching
             serial packets to Sensors or allowing micro-controllers to identify
             Commands.
-        :param properties: A list of strings containing the properties of the
-            object
-        :return: SerialObject
+        :param properties: The properties of the object.
+            None - assumes the name of the object is the only property.
+            a string - the object has one property
+            a list of strings - the object has multiple properties
         """
 
         self.sleep_time = 0.0
@@ -169,48 +157,68 @@ class SerialObject:
 
         self.name = name
 
-        assert (type(object_id) == int)
-
-
-class Sensor(SerialObject):
-    def __init__(self, sensor_id, name, update_fn, properties=None):
-        """
-        Constructor for Sensor. Inherits from SerialObject.
-        Adds self to sensor_pool (a module internal object)
-
-        :param sensor_id: The unique Sensor identifier. Used for matching
-            serial packets to Sensors or allowing micro-controllers to identify
-            Commands.
-        :param properties: A list of strings containing the properties of the
-            object
-        :return: Sensor
-        """
-        super(Sensor, self).__init__(sensor_id, name)
-        self._new_data_received = False
-
         if properties is None:
             properties = [self.name]
         elif type(properties) == str:
             properties = [properties]
         self._properties = self.init_properties(properties)
 
-        self.update_fn = update_fn
+    def get(self, item=None):
+        """
+        Get a property of the object. If None is provided, it is assumed that None was provided for properties
+        and the sensor's name is used instead (this is for logging purposes
+
+        :param item: The property name to get
+        :return: The value of the corresponding property
+        """
+        if item is None:
+            return self._properties[self.name]
+        else:
+            return self._properties[item]
 
     @staticmethod
     def init_properties(properties):
+        """
+        Initialize properties as an ordered dictionary
+        :param properties: a list of properties (strings)
+        :return: an ordered dictionary of the sensor's properties
+        """
         dict_props = OrderedDict()
         for props in properties:
             dict_props[props] = 0
 
         return dict_props
 
-    def get(self, item=None):  # None assuming None was provided for properties
-        if item is None:
-            return self._properties[self.name]
-        else:
-            return self._properties[item]
+
+class Sensor(SerialObject):
+    def __init__(self, sensor_id, name, update_fn, properties=None):
+        """
+        Constructor for Sensor. Inherits from SerialObject.
+
+        :param sensor_id: The unique Sensor identifier. Used for matching
+            serial packets to Sensors or allowing micro-controllers to identify
+            Commands.
+        :param properties: A list of strings containing the properties of the
+            object
+        """
+        super(Sensor, self).__init__(sensor_id, name, properties)
+
+        self._new_data_received = False
+        self.update_fn = update_fn
+
+    def update_fn(self):
+        """
+        This is called every time serial discovers that the sensor has been updated
+        :return: None
+        """
+        pass
 
     def received(self):
+        """
+        Flags as True if the sensor received new data
+
+        :return: True or False depending on if the sensor updated since the last call of this function
+        """
         if self._new_data_received:
             self._new_data_received = False
             return True
@@ -263,12 +271,10 @@ class Sensor(SerialObject):
         """
         a function to parse data, formatted into hex strings
 
-        Assuming the sensor id and carriage return has been removed from the
-        packet since SensorPool has already sorted the data to the appropriate
-        sensor.
+        Assuming the sensor id and new line have been removed from the packet.
 
         :param data_string: A string of hex characters and data type identifiers
-        :return: None
+        :return: None, updates the properties of the sensor internally
         """
 
         raw_data = data_string.split("\t")
@@ -295,208 +301,99 @@ class Sensor(SerialObject):
 class Command(SerialObject):
     used_ids = []
 
-    def __init__(self, command_id, name, data_range, communicator,
-                 mapping=None, bound_values=True, initial=None):
+    def __init__(self, command_id, name, communicator, properties=None):
+        """
+        Constructor for the Command class.
+
+        :param command_id: A unique value for the command. If there any duplicates, an error is thrown
+        :param name: The name of the command
+        :param communicator: An instance of the microcontroller.comm.Communicator class
+        :param properties: A list of strings, a string, or None signifying the properties of the command.
+            If None, the name of the command is used
+        """
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
             Command.used_ids.append(command_id)
 
-        super(Command, self).__init__(command_id, name)
+        super(Command, self).__init__(command_id, name, properties)
 
-        self.data_type, self.data_len, self.range = \
-            self.get_type_size(data_range)
-        self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
-                                         self.to_hex(self.data_len, 2))
-        self.bound = bound_values
+        self.packet_info = "%0.2x" % self.object_id
         self.communicator = communicator
+        self.prev_properties = OrderedDict()
 
-        self.prev_value = None
-        if initial is None:
-            if self.data_type == 'i' or self.data_type == 'u':
-                self.value = 0
-            elif self.data_type == 'f':
-                self.value = 0.0
-            elif self.data_type == 'b':
-                self.value = False
-
-        self.mapping = mapping
-
-    def get(self):
-        return self.value
-
-    def send_new_value(self):
-        current_time = time.time()
-
+    def send_new(self):
+        """
+        Send a full new packet with the updated data
+        :return: None
+        """
         if self.communicator.log_data:
-            self.communicator.log.enq(self.name, self.value)
+            self.communicator.log.enq(self.name, self._properties)
         self.communicator.put(self.get_packet())
         time.sleep(0.004)
 
-        self.prev_time = current_time
-        self.prev_value = self.value
+        self.prev_properties = self._properties.copy()
 
-    def send_prev_value(self):
+    def send_prev(self):
+        """
+        Send just the command ID. This tell the microcontroller to use the previous value
+        :return: None
+        """
         current_time = time.time()
-        self.communicator.put(self.get_id_packet())  # only send command ID
+        self.communicator.put(self.packet_info)  # only send command ID
         time.sleep(0.004)
         self.prev_time = current_time
 
-    def map_value(self, value):
-        if self.mapping is not None and value in self.mapping:
-            return self.mapping[value]
-        else:
-            return value
-
-    def set(self, value):
-        self.value = self.bound_value(self.map_value(value))
-        if self.value != self.prev_value:
-            self.send_new_value()
-        else:
-            self.send_prev_value()
-
-    @staticmethod
-    def wrap(num, lower, upper):
-        while num > upper:
-            num -= abs(upper - lower)
-        while num < lower:
-            num += abs(upper - lower)
-        return num
-
-    def bound_value(self, value):
-        if self.bound:  # bound by self.data_range
-            if value > self.range[1]:
-                value = self.range[1]
-            elif value < self.range[0]:
-                value = self.range[0]
-        else:  # Wraps out of bound value to self.data_range (modulo)
-            value = self.wrap(value, self.range[0], self.range[1])
-
-        return value
-
-    @staticmethod
-    def get_data_size(data_range):
+    def set(self, value=None, **values):
         """
-        Gets the number of digits of a hexidecimal number
-
-        :param data_range: The range of values as supplied by the constructor
-        :return: Number of digits of the input
+        Set the property or properties of the command and send it to the microcontroller
+        :param value: If None was specified for the command, update the single property of the command
+        :param values: If a string or list of strings was provided, update those properties
+        :return: None
         """
-        length = abs(data_range[1] - data_range[0])
-
-        if length == 0:
-            return 8
-        else:
-            int_length = int(math.log(length, 16)) + 1
-            return int_length
-
-    @staticmethod
-    def get_type_size(data_range):
-        """
-        Get the data type of the command based on the command range
-
-        :param data_range: The range of values as supplied by the constructor
-        :return: The data type, the data length, and the data range
-            (this method swaps the values if the larger value comes first)
-        """
-        assert len(data_range) == 2
-        assert type(data_range[0]) == type(data_range[1])
-        if data_range[0] > data_range[1]:
-            data_range = (data_range[1], data_range[0])
-
-        if type(data_range[0]) == int:
-            if data_range[0] < 0 or data_range[1] < 0:
-                data_type = 'i'
+        if value is not None and len(values) == 0:
+            if value != self.prev_properties[self.name]:
+                self._properties[self.name] = value
+                values_changed = True
             else:
-                data_type = 'u'
-            data_len = Command.get_data_size(data_range)
-        elif type(data_range[0]) == bool:
-            data_type = 'b'
-            data_len = Command.get_data_size(data_range)
-        elif type(data_range[0]) == float:
-            data_type = 'f'
-            data_len = 64
+                values_changed = False
         else:
-            raise ValueError("Range invalid. Invalid data type: %s",
-                             str(data_range))
-        return data_type, data_len, data_range
+            values_changed = False
+            for name, value in values.items():
+                self._properties[name] = value
+                if self._properties[name] != self.prev_properties[name]:
+                    values_changed = True
+            
+        if values_changed:
+            self.send_new()
+        else:
+            self.send_prev()
 
-    @staticmethod
-    def to_hex(decimal, length):
-        hex_format = "0.%sx" % length
-        return ("%" + hex_format) % decimal
-
-    def format_data(self, data):
+    def format_data(self):
         """
-        formats data for sending over serial
+        formats the command's properties for sending over serial
 
-        :param data: A number that matches the command's data type (exception:
-            you may supply integers for booleans. They will be interpreted
-            according to python's bool() function)
-        :return: A hex string containing the formatted number
+        :return: A hex string containing the formatted properties
         """
-
-        if self.data_type == 'b':
-            assert (type(data) == bool or type(data) == int)
-            return str(int(bool(data)))
-
-        elif self.data_type == 'u':
-            assert (type(data) == int)
-            data %= MAXINT
-            return self.to_hex(data, self.data_len)
-
-        elif self.data_type == 'i':
-            assert (type(data) == int)
-            if data < 0:
-                data += (2 << (self.data_len * 4 - 1))
-            data %= MAXINT
-            return self.to_hex(data, self.data_len)
-
-        elif self.data_type == 'f':
-            assert (type(data) == float)
-            return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
-
-        elif self.data_type == 'd':
-            assert (type(data) == float)
-            return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
+        formatted = ""
+        for value in self._properties.values():
+            if type(value) == bool:
+                formatted += "b%s\t" % str(int(value))
+            elif type(value) == int:
+                value %= MAXINT
+                formatted += "i%x\t" % value
+            elif type(value) == float:
+                formatted += "f%0.8x\t" % struct.unpack('<I', struct.pack('<f', value))[0]
+        return formatted[:-1]  # remove trailing tab
 
     def get_packet(self):
         """
         creates the packet to send
-        :return: A string containing a value packet to send over serial
+        :return: A string containing a packet to send over serial
         """
-
-        self.current_packet = self.packet_info + \
-                              self.format_data(self.value) + "\r\n"
+        self.current_packet = "%s\t%s\r\n" % (self.packet_info, self.format_data())
 
         return self.current_packet
-
-    def get_id_packet(self):
-        return "%s\r\n" % (self.to_hex(self.object_id, 2))
-
-
-class CommandArray:
-    def __init__(self, command_mapping, name, data_range, communicator,
-                 *args, **kwargs):
-        self.commands = {}
-
-        # command name to ID number or a list of command IDs
-        self.command_mapping = command_mapping
-        if type(self.command_mapping) == dict:
-            for command_name, command_id in self.command_mapping.items():
-                name += " " + command_name
-                self.commands[command_name] = \
-                    Command(command_id, name, data_range,
-                            communicator, *args, **kwargs)
-        else:
-            for command_id in self.command_mapping:
-                name += " " + str(command_id)
-                self.commands[command_id] = \
-                    Command(command_id, name, data_range,
-                            communicator, *args, **kwargs)
-
-    def __getitem__(self, item):
-        return self.commands[item]
 
 
 class PollSensor(SerialObject):

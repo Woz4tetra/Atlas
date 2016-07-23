@@ -2,31 +2,13 @@ import array
 import struct
 
 
-class SensorQueue(object):
-    def __init__(self, *sensors):
-        self.sensor_index = 0
-        self.sensors = {}
-
-        for sensor in sensors:
-            if sensor.object_id in list(self.sensors.keys()):
-                raise Exception(
-                    "Sensor ID already taken: " + str(sensor.object_id))
-            else:
-                self.sensors[sensor.object_id] = sensor
-
-        self.sensor_ids = sorted(self.sensors.keys())
-
-    def current_index(self):
-        sensor_id = self.sensor_ids[self.sensor_index]
-        self.sensor_index = (self.sensor_index + 1) % len(self.sensor_ids)
-        return sensor_id
-
-    def get(self):
-        return self.sensors[self.current_index()].get_packet()
-
-
 class CommandPool(object):
     def __init__(self, commands):
+        """
+        Constructor for the CommandPool class. This class continuously listens to what comes in over serial and updates
+        the appropriate commands.
+        :param commands:
+        """
         self.commands = {}
 
         for command in commands:
@@ -44,6 +26,11 @@ class CommandPool(object):
 
     @staticmethod
     def is_packet(packet):
+        """
+        If the packet contains valid characters and is a valid length, it is deemed a valid packet
+        :param packet: a packet string
+        :return: True or False
+        """
         if len(packet) < 2: return False
         # for index in [0, 1, 3, 4] + list(range(6, len(packet) - 1)):
         for index in range(len(packet)):
@@ -52,17 +39,21 @@ class CommandPool(object):
         return True
 
     def update(self, packet):
+        """
+        Update the appropriate command based on the given packet. Call the command's callback function
+        Assumes the new line has been stripped.
+        :param packet: a packet string
+        :return: None
+        """
         if self.is_packet(packet):
             if len(packet) == 2:  # use previously sent command
                 command_id = int(packet, 16)
-                data = self.commands[command_id].data[0]
+                data = self.commands[command_id].data
             else:
                 command_id = int(packet[0:2], 16)
-                data_len = int(packet[3:5], 16)
-                hex_data = packet[6: data_len + 6]
+                hex_data = packet[3:]
 
-                if (len(hex_data) == data_len and
-                            command_id in self.commands.keys()):
+                if command_id in self.commands.keys():
                     self.commands[command_id].current_packet = packet
                     data = self.commands[command_id].format_data(hex_data)
                 else:
@@ -72,49 +63,32 @@ class CommandPool(object):
 
 
 class SerialObject(object):
-    def __init__(self, object_id, formats):
-        if isinstance(formats, list) or isinstance(formats, tuple):
-            self.formats = formats
-        else:
-            self.formats = [formats]
-
+    def __init__(self, object_id):
+        """
+        The super class of Command and Sensor.
+        :param object_id: A unique identifier of the object (an integer >= 0)
+        """
         self.object_id = object_id
-
         self.current_packet = ""
-
         self.data = []
-        self.data_len = 0
-        self.format_len = []
-        for data_format in self.formats:
-            if data_format[0] == 'u' or data_format[0] == 'i':
-                self.data.append(0)
-                self.format_len.append(int(data_format[1:]) // 4)
-                self.data_len += int(data_format[1:])
-            elif data_format[0] == 'f':
-                self.data.append(0.0)
-                self.format_len.append(8)
-                self.data_len += 8
-            elif data_format[0] == 'd':
-                self.data.append(0.0)
-                self.format_len.append(16)
-                self.data_len += 16
-            elif data_format[0] == 'b':
-                self.data.append(False)
-                self.format_len.append(1)
-                self.data_len += 1
-            else:
-                raise ValueError("Invalid format: %s", str(data_format))
 
     def reset(self):
+        """
+        Resets the object to initial conditions (called when the main computer restarts communications)
+        :return: None
+        """
         pass
 
     def recved_data(self):
+        """
+        Flags True if new data is received
+        :return:
+        """
         pass
 
     def __repr__(self):
-        return "%s(%i, %s): %s" % (
-            self.__class__.__name__, self.object_id, str(self.formats),
-            self.data)
+        return "%s(%i, %s)" % (
+            self.__class__.__name__, self.object_id, self.data)
 
     def __str__(self):
         return str(self.data)
@@ -122,9 +96,42 @@ class SerialObject(object):
 
 class Sensor(SerialObject):
     def __init__(self, sensor_id, formats):
-        super().__init__(sensor_id, formats)
+        """
+        Parses the given formats and initializes internal data
+        :param sensor_id: Unique sensor identifier
+        :param formats: a string or list of strings.
+            i## - signed int. Write i64 to indicate a signed integer with 64 bits
+            u## - unsigned int
+            f - float (32 bit floating point)
+            b - bool
+        """
+        super().__init__(sensor_id)
+
+        if isinstance(formats, list) or isinstance(formats, tuple):
+            self.formats = formats
+        else:
+            self.formats = [formats]
+        self.format_len = []
+        for data_format in self.formats:
+            if data_format[0] == 'u' or data_format[0] == 'i':
+                self.data.append(0)
+                self.format_len.append(int(data_format[1:]) // 4)
+            elif data_format[0] == 'f':
+                self.data.append(0.0)
+                self.format_len.append(8)
+            elif data_format[0] == 'b':
+                self.data.append(False)
+                self.format_len.append(1)
+            else:
+                raise ValueError("Invalid format: %s", str(data_format))
 
     def to_hex(self, data, length=0):
+        """
+        Converts an integer to a hex string. length is for leading zeros
+        :param data: an integer
+        :param length: number of hexadecimal digits the integer has
+        :return: the converted integer
+        """
         if type(data) == int:
             if data < 0 and length > 0:
                 data += (2 << (length * 4 - 1))
@@ -140,78 +147,78 @@ class Sensor(SerialObject):
         return "%0.8x" % (struct.unpack('<I', bytes(array.array('f', [data]))))
 
     def format_data(self):
+        """
+        Formats the sensor's data according to the provided formats
+        :return:
+        """
         hex_string = ""
         # length of data should equal number of formats
         for index in range(len(self.formats)):
             hex_string += self.formats[index][0]
-            if self.formats[index][0] == 'f' or self.formats[index][0] == 'd':
+            if self.formats[index] == 'f':
                 hex_string += Sensor.float_to_hex(self.data[index])
-            elif self.formats[index][0] == 'b':
+            elif self.formats[index] == 'b':
                 hex_string += "1" if bool(self.data[index]) else "0"
             else:
-                hex_string += self.to_hex(self.data[index],
-                                          self.format_len[index])
+                hex_string += self.to_hex(self.data[index], self.format_len[index])
             hex_string += '\t'
 
         return hex_string[:-1]
 
     def update_data(self):
+        """
+        When the sensor updates, return the data to be sent over serial
+        :return: Depending on the formats provided, return a single value or a list (or tuple) of values
+        """
         pass
 
     def get_packet(self):
+        """
+        Get the hex string to be sent over serial. Format the data appropriately
+        :return:
+        """
         self.data = self.update_data()
         try:
             _ = (e for e in self.data)
         except TypeError:
             # print(self.data, 'is not iterable')
             self.data = [self.data]
-        self.current_packet = "%s\t%s\r\n" % (self.to_hex(self.object_id, 2),
-                                              self.format_data())
+        self.current_packet = "%s\t%s\r\n" % (self.to_hex(self.object_id, 2), self.format_data())
         return self.current_packet
 
 
 class Command(SerialObject):
-    def __init__(self, command_id, format):
-        self.new_data = False
-        super().__init__(command_id, [format])
+    def __init__(self, command_id):
+        super().__init__(command_id)
 
     def format_data(self, hex_string):
-        if self.formats[0] == 'b':
+        parsed_data = []
+        for value in hex_string.split("\t"):
+            data_type = value[0]
+            data = value[1:]
+            parsed_data.append(self.to_hex(data, data_type))
+        if len(parsed_data) == 1:
+            parsed_data = parsed_data[0]
+        self.data = parsed_data
+        return parsed_data
+
+    def to_hex(self, hex_string, data_format):
+        if data_format == 'b':
             data = bool(int(hex_string, 16))
 
-        elif self.formats[0][0] == 'u':
+        elif data_format == 'i':
             data = int(hex_string, 16)
 
-        elif self.formats[0][0] == 'i':
-            bin_length = len(hex_string) * 4
-            raw_int = int(hex_string, 16)
-            if (raw_int >> (bin_length - 1)) == 1:
-                raw_int -= 2 << (bin_length - 1)
-            data = int(raw_int)
-
-        elif self.formats[0][0] == 'f':
+        elif data_format[0] == 'f':
             # assure length of 8
             input_str = "0" * (8 - len(hex_string)) + hex_string
 
             data = struct.unpack('!f', bytes.fromhex(input_str))[0]
-        elif self.formats[0][0] == 'd':
-            # assure length of 16
-            input_str = "0" * (16 - len(hex_string)) + hex_string
-
-            data = struct.unpack('!d', bytes.fromhex(input_str))[0]
         else:
             raise ValueError("Invalid data type '%s' for command %s" % (
-                self.formats[0][0], repr(self)))
+                data_format[0], repr(self)))
 
-        self.data[0] = data
         return data
-
-    def recved_data(self):
-        if self.new_data:
-            self.new_data = False
-            return True
-        else:
-            return False
 
     def callback(self, data):
         pass

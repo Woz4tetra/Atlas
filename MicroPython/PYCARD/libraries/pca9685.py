@@ -1,78 +1,99 @@
-"""
-Written by Ben Warwick
-
-pca9685.py
-Version 6/7/2016
-=========
-
-A MicroPython library for the PCA9685 I2C servo controller. This library was
-adapted from Adafruit's Arduino library and contains only the essential features
-of the sensor.
-(buy it here: https://www.adafruit.com/products/815)
-
-Usage
------
 import pyb
-from libraries.pca9685 import PCA9685
+import math
 
-servos = PCA9685(2)  # imu on I2C bus 2
-
-for position range(-90, 91):  # servos have a range of -90 to 90
-    servos.set_servo(position)  # 0...15 (16 available servos)
-    pyb.delay(50)
-"""
-
-from math import floor
-
-import pyb
+PCA9685_SUBADR1 = 0x2
+PCA9685_SUBADR2 = 0x3
+PCA9685_SUBADR3 = 0x4
+PCA9685_MODE1 = 0x0
+PCA9685_PRESCALE = 0xFE
+LED0_ON_L = 0x6
+LED0_ON_H = 0x7
+LED0_OFF_L = 0x8
+LED0_OFF_H = 0x9
+ALLLED_ON_L = 0xFA
+ALLLED_ON_H = 0xFB
+ALLLED_OFF_L = 0xFC
+ALLLED_OFF_H = 0xFD
+SERVO_MAX_VALUE = 4095
+SERVO_POSSIBLE_VALUES = 4096
+SERVO_MIN_PULSE = 150
+SERVO_MAX_PULSE = 600
+SERVO_MIN = -90
+SERVO_MAX = 90
 
 
 class PCA9685:
-    register = dict(
-        LED0=0x06,
-        MODE1=0x00,
-        PRESCALE=0xfe
-    )
-    address = 0x40
-    servo_min = 150
-    servo_max = 600
-
-    def __init__(self, bus, pwm_freq=60):
+    def __init__(self, bus, pwm_freq, address=0x40):
+        self.address = address
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
         self.reset()
-        self.set_pwm_freq(pwm_freq)
 
-    def set_pwm_freq(self, freq):
+        self._set_pwm_freq(pwm_freq)
+
+    def set_servo(self, servo_num, servo_value):
+        self._set_pwm(servo_num, 0, self._map_value(servo_value))
+
+    def _map_value(self, value):
+        return int((SERVO_MAX_PULSE - SERVO_MIN_PULSE) /
+                   (SERVO_MAX - SERVO_MIN) *
+                   (value - SERVO_MIN) + SERVO_MIN_PULSE)
+
+    def _set_pwm_freq(self, freq):
         freq *= 0.9
-        prescale_val = 25000000
-        prescale_val //= 4096
-        prescale_val //= freq
-        prescale_val -= 1
+        pre_scale_val = 25000000
+        pre_scale_val /= 4096
+        pre_scale_val /= freq
+        pre_scale_val -= 1
 
-        prescale_val = floor(prescale_val + 0.5)
+        pre_scale = math.floor(pre_scale_val + 0.5)
 
-        current_mode = ord(
-            self.i2c.mem_read(1, self.address, self.register['MODE1']))
-        sleep_mode = (current_mode & 0x7f) | 0x10
-        self.i2c.mem_write(sleep_mode, self.address, self.register['MODE1'])
-        self.i2c.mem_write(prescale_val, self.address,
-                           self.register['PRESCALE'])
-        self.i2c.mem_write(current_mode, self.address, self.register['MODE1'])
+        old_mode = self.read_8(PCA9685_MODE1)
+        new_mode = (old_mode & 0x7F) | 0x10
+
+        self.write_8(PCA9685_MODE1, new_mode)
+        self.write_8(PCA9685_PRESCALE, pre_scale)
+        self.write_8(PCA9685_MODE1, old_mode)
         pyb.delay(5)
-        self.i2c.mem_write(current_mode | 0xa1, self.address,
-                           self.register['MODE1'])
+        self.write_8(PCA9685_MODE1, old_mode | 0xa1)
+
+    def _set_pwm(self, num, on, off):
+        data = [
+            LED0_ON_L + 4 * num,
+            on & 0xff,
+            on >> 8,
+            off & 0xff,
+            off >> 8
+        ]
+        self.i2c.send(data, self.address)
+
+    def _set_pin(self, num, value, invert):
+        value = min(value, SERVO_MAX_VALUE)
+        if invert:
+            if value == 0:  # Special value for signal fully on.
+                self._set_pwm(num, SERVO_POSSIBLE_VALUES, 0)
+            elif value == SERVO_MAX_VALUE:  # Special value for signal fully off.
+                self._set_pwm(num, 0, SERVO_POSSIBLE_VALUES)
+            else:
+                self._set_pwm(num, 0, SERVO_MAX_VALUE - value)
+        else:
+            if value == SERVO_MAX_VALUE:  # Special value for signal fully on.
+                self._set_pwm(num, SERVO_POSSIBLE_VALUES, 0)
+            elif value == 0:  # Special value for signal fully off.
+                self._set_pwm(num, 0, SERVO_POSSIBLE_VALUES)
+            else:
+                self._set_pwm(num, 0, value)
 
     def reset(self):
-        self.i2c.mem_write(0, self.address, self.register['MODE1'])
+        self.write_8(PCA9685_MODE1, 0x0)
 
-    def set_servo(self, servo_num, position):
-        if servo_num <= 15:
-            value = self.pos_to_pwm(position)
-            self.i2c.mem_write(bytearray([0, 0, value & 0xff, value >> 8]),
-                               self.address,
-                               self.register['LED0'] + 4 * servo_num)
+    def write_8(self, register, data):
+        return self.i2c.mem_write(data, self.address, register)
 
-    def pos_to_pwm(self, position):
-        # m * (x - x0) + y0 = y
-        return int((self.servo_max - self.servo_min) / 180 * (
-        position + 90) + self.servo_min)
+    def read_8(self, register):
+        return self.i2c.mem_read(1, self.address, register)
+
+    def read_len(self, register, length):
+        return self.i2c.mem_read(length, self.address, register)
+
+    def __len__(self):
+        return 16  # num of servos on driver
