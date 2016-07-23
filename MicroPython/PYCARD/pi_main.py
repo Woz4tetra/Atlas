@@ -1,3 +1,4 @@
+# hi
 from objects import *
 from comm import Communicator
 from libraries.rc_motors import RCmotors
@@ -23,14 +24,23 @@ communicator = Communicator(*leds, blue_led, servo, motors, uart_bus=1)
 while True:
     communicator.read_command()
 
+    sensor_updated = False
+    
     if imu.recved_data():
+        sensor_updated = True
         communicator.write_packet(imu)
 
     if gps.recved_data():
+        sensor_updated = True
         communicator.write_packet(gps)
 
     if encoder.recved_data():
+        sensor_updated = True
         communicator.write_packet(encoder)
+
+    if sensor_updated:
+        print("%0.5f, %0.6f, %0.6f, %i" % (
+            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]))
 
     if communicator.should_reset():
         gps.reset()

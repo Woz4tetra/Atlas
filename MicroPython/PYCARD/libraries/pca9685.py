@@ -22,57 +22,66 @@ for position range(-90, 91):  # servos have a range of -90 to 90
     pyb.delay(50)
 """
 
-from math import floor
-
 import pyb
+import math
 
+PCA9685_SUBADR1 = 0x2
+PCA9685_SUBADR2 = 0x3
+PCA9685_SUBADR3 = 0x4
+PCA9685_MODE1 = 0x0
+PCA9685_PRESCALE = 0xFE
+LED0_ON_L = 0x6
+LED0_ON_H = 0x7
+LED0_OFF_L = 0x8
+LED0_OFF_H = 0x9
+ALLLED_ON_L = 0xFA
+ALLLED_ON_H = 0xFB
+ALLLED_OFF_L = 0xFC
+ALLLED_OFF_H = 0xFD
+ENABLE_DEBUG_OUTPUT = False
 
-class PCA9685:
-    register = dict(
-        LED0=0x06,
-        MODE1=0x00,
-        PRESCALE=0xfe
-    )
-    address = 0x40
-    servo_min = 150
-    servo_max = 600
-
-    def __init__(self, bus, pwm_freq=60):
+class ServoDriver:
+    def __init__(self, bus, address=0x40):
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
+        self.address = address
         self.reset()
-        self.set_pwm_freq(pwm_freq)
+
+    def set_servo(self, servo_num, ):
 
     def set_pwm_freq(self, freq):
+        # Correct for overshoot in the frequency setting
         freq *= 0.9
-        prescale_val = 25000000
-        prescale_val //= 4096
-        prescale_val //= freq
-        prescale_val -= 1
+        prescaleval = 25000000
+        prescaleval /= 4096
+        prescaleval /= freq
+        prescaleval -= 1
 
-        prescale_val = floor(prescale_val + 0.5)
+        if ENABLE_DEBUG_OUTPUT:
+            print("Estimated pre-scale:", prescaleval)
 
-        current_mode = ord(
-            self.i2c.mem_read(1, self.address, self.register['MODE1']))
-        sleep_mode = (current_mode & 0x7f) | 0x10
-        self.i2c.mem_write(sleep_mode, self.address, self.register['MODE1'])
-        self.i2c.mem_write(prescale_val, self.address,
-                           self.register['PRESCALE'])
-        self.i2c.mem_write(current_mode, self.address, self.register['MODE1'])
+        prescale = math.floor(prescaleval + 0.5)
+
+        if ENABLE_DEBUG_OUTPUT:
+            print("Final pre-scale:", prescale)
+
+        old_mode = self.read_8(PCA9685_MODE1)
+        new_mode = (old_mode & 0x7F) | 0x10  # sleep
+        self.write_8(PCA9685_MODE1, new_mode)  # go to sleep
+        self.write_8(PCA9685_PRESCALE, prescale)  # set the prescaler
+        self.write_8(PCA9685_MODE1, old_mode)
         pyb.delay(5)
-        self.i2c.mem_write(current_mode | 0xa1, self.address,
-                           self.register['MODE1'])
+
+        # This sets the MODE1 register to turn on auto increment.
+        self.write_8(PCA9685_MODE1, old_mode | 0xa1)
 
     def reset(self):
-        self.i2c.mem_write(0, self.address, self.register['MODE1'])
+        self.write_8(PCA9685_MODE1, 0)
 
-    def set_servo(self, servo_num, position):
-        if servo_num <= 15:
-            value = self.pos_to_pwm(position)
-            self.i2c.mem_write(bytearray([0, 0, value & 0xff, value >> 8]),
-                               self.address,
-                               self.register['LED0'] + 4 * servo_num)
+    def write_8(self, register, data):
+        return self.i2c.mem_write(data, self.address, register)
 
-    def pos_to_pwm(self, position):
-        # m * (x - x0) + y0 = y
-        return int((self.servo_max - self.servo_min) / 180 * (
-        position + 90) + self.servo_min)
+    def read_8(self, register):
+        return self.i2c.mem_read(1, self.address, register)
+
+    def read_len(self, register, length):
+        return self.i2c.mem_read(length, self.address, register)
