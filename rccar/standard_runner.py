@@ -24,7 +24,7 @@ class StandardRunner(RobotRunner):
 
         self.goal_x, self.goal_y = 0, 0
         self.controller = Controller(25000, 0.0, 0.0, -1.0, 1.0)
-        self.waypoints = Waypoints(0, self.left_angle_limit,
+        self.waypoints = Waypoints(-1, self.left_angle_limit,
                                    self.right_angle_limit)
         self.checkpoints = get_map("checkpoints")
 
@@ -86,7 +86,7 @@ class StandardRunner(RobotRunner):
 
         self.gps = robot.sensors['gps']
         self.encoder = robot.sensors['encoder']
-        self.yaw = robot.sensors['yaw']
+        self.yaw = robot.sensors['imu']
 
         self.servo = robot.commands['servo']
         self.motors = robot.commands['motors']

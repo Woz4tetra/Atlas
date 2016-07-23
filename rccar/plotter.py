@@ -115,4 +115,4 @@ except ValueError:
 
 plotter = Plotter(file_name, directory)
 plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
-# plotter.write_maps(25)
+plotter.write_maps(25)
