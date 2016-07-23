@@ -184,6 +184,7 @@ def get_map(file_name, directory=None):
         directory = ":maps"
     directory = project.get_dir(directory)
     file_name = project.get_file_name(file_name, directory, log_file_type)
+    print("Using map named", file_name)
     with open(directory + file_name, 'r') as map_file:
         contents = map_file.read()
 
@@ -206,4 +207,5 @@ def get_map(file_name, directory=None):
 
             gps_map.append((long, lat))
 
+    print("Length of map is", len(gps_map))
     return gps_map

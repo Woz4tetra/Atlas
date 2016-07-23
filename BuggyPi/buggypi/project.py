@@ -100,7 +100,7 @@ def _get_files(directory, file_types):
     if type(file_types) == str:
         file_types = [file_types]
     log_files = []
-    files = sorted(os.listdir(directory))
+    files = sorted(os.listdir(directory), key=lambda v: v.lower())
     for file in files:
         for file_type in file_types:
             if file.endswith(file_type):
