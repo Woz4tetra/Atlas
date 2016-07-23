@@ -102,7 +102,7 @@ elif len(sys.argv) == 3:
     file_name = sys.argv[1]
     directory = sys.argv[2]
 else:
-    file_name = 3
+    file_name = -1
     directory = "Jul 22 2016"
     # file_name = ":random"
     # directory = ":random"
