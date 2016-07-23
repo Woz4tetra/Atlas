@@ -46,8 +46,12 @@ class CommandPool(object):
         :return: None
         """
         if self.is_packet(packet):
+            command_id = int(packet[0:2], 16)
+            if command_id not in self.commands:
+                print("Command ID not found: %i. Did you forget to add it to "
+                      "comm object?" % command_id)
+                return
             if len(packet) == 2:  # use previously sent command
-                command_id = int(packet, 16)
                 data = self.commands[command_id].data
             else:
                 command_id = int(packet[0:2], 16)

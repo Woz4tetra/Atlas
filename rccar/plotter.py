@@ -298,5 +298,5 @@ except ValueError:
     pass
 
 plotter = Plotter(file_name, directory)
-plotter.static_plot(plot_recorded_state=False, plot_calculated_state=True)
+plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
 # plotter.write_maps(10)
