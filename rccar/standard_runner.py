@@ -23,7 +23,7 @@ class StandardRunner(RobotRunner):
         self.manual_mode = True
 
         self.goal_x, self.goal_y = 0, 0
-        self.controller = Controller(25000, 0.0, 0.0, -1.0, 1.0)
+        self.controller = Controller(50000, 0.0, 0.0, -1.0, 1.0)
         self.waypoints = Waypoints(
             -1, self.left_angle_limit, self.right_angle_limit)
         self.checkpoints = get_map("checkpoints")

@@ -105,8 +105,8 @@ class Plotter:
         #     self.waypoint_lines.append(self.waypoint_color)
         #     self.ax.arrow(state["x"], state["y"], goal_x, goal_y, head_width=0.0000001, head_length=0.0000001, fc='k', ec='k')
             self.ax.annotate("",
-                        xy=(state["x"], state["y"]), xycoords='data',
-                        xytext=(goal_x, goal_y), textcoords='data',
+                        xy=(goal_x, goal_y), xycoords='data',
+                        xytext=(state["x"], state["y"]), textcoords='data',
                         arrowprops=dict(arrowstyle="->",
                                         connectionstyle="arc",
                                         linewidth=4),
@@ -286,8 +286,8 @@ elif len(sys.argv) == 3:
     file_name = sys.argv[1]
     directory = sys.argv[2]
 else:
-    file_name = -3
-    directory = "Jul 22 2016"
+    file_name = -1
+    directory = "Jul 24 2016"
     # file_name = ":random"
     # directory = ":random"
     # file_name = 'Mon Jul 11 19;50;34 2016.txt'
@@ -299,4 +299,4 @@ except ValueError:
 
 plotter = Plotter(file_name, directory)
 plotter.static_plot(plot_recorded_state=True, plot_calculated_state=True)
-# plotter.write_maps(10)
+plotter.write_maps(10)

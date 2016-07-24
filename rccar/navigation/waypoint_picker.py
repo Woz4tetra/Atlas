@@ -19,7 +19,7 @@ class Waypoints:
             if smallest_dist is None or dist < smallest_dist:
                 smallest_dist = dist
                 goal_index = index
-        goal_index = (goal_index - 5) % len(self.map)
+        goal_index = (goal_index + 25) % len(self.map)
         # print("%i, %0.6f, %0.6f" % (goal_index, x0, y0))
         # print("%0.6f, %0.6f" % (self.map[goal_index][0], self.map[goal_index][1]))
         return self.map[goal_index]

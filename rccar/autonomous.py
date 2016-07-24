@@ -56,7 +56,7 @@ class Autonomous(StandardRunner):
             self.blue_led.set(int(speed_command * 255))
 
 
-        time.sleep(0.01)
+        time.sleep(0.1)
 
 
 Autonomous(False).run()

@@ -61,13 +61,13 @@ class Controller:
         angle_error = self.shift_angle(goal_angle - state["angle"])
 ##        angle_command = self.angle_pid.update(angle_error)
 
-        error_dist = ((goal_x - state["x"]) ** 2 +
-                      (goal_y - state["y"]) ** 2) ** 0.5
-        speed_command = self.dist_pid.update(error_dist)
+##        error_dist = ((goal_x - state["x"]) ** 2 +
+##                      (goal_y - state["y"]) ** 2) ** 0.5
+##        speed_command = self.dist_pid.update(error_dist)
 
 ##        print(("%0.4f\t" * 5) % (goal_x, state["x"], goal_y, state["y"], state["angle"]))
 ##        print(("%0.4f\t" * 3) % (goal_angle, angle_error, error_dist))
-        return angle_error, speed_command
+        return angle_error, 1.0
 
     @staticmethod
     def shift_angle(angle):
