@@ -67,7 +67,8 @@ class BNO055:
         else:
             self.address = 0x29
 
-        self.declination = (declination[0] + declination[1] / 60) * math.pi / 180
+        self.declination = (
+                           declination[0] + declination[1] / 60) * math.pi / 180
 
         self.quat_scale = 1.0 / (1 << 14)
         self.sample_delay = 100
@@ -75,7 +76,7 @@ class BNO055:
         addresses = self.i2c.scan()
         if self.address not in addresses:
             raise Exception("Address %s not found during scan: %s" % (
-                self.address, addresses))
+            self.address, addresses))
 
         if not self.i2c.is_ready(self.address):
             raise Exception("Device not ready")

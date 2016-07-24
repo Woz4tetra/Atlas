@@ -1,3 +1,4 @@
+
 import time
 
 from buggypi.robot import *
@@ -52,9 +53,30 @@ class StandardRunner(RobotRunner):
                      update_fn=lambda: self.yaw_updated()),
         )
         commands = dict(
-            leds=dict(command_id=0, properties=["red", "yellow", "green", "blue"]),
-            servo=dict(command_id=1),
-            motors=dict(command_id=2)
+            leds=dict(command_array={
+                "red": 0,
+                "yellow": 1,
+                "green": 2,
+            }, range=(0, 2),
+                mapping={
+                    "off": 0,
+                    "on": 1,
+                    "toggle": 2
+                }),
+            blue_led=dict(command_id=3, range=(0, 255)),
+            servo=dict(command_id=4, range=(
+                self.left_servo_limit, self.right_servo_limit),
+                       mapping={
+                           "left": self.left_servo_limit,
+                           "right": self.right_servo_limit,
+                           "forward": 0
+                       }),
+            motors=dict(command_id=5, range=(-100, 100),
+                        mapping={
+                            "forward": 100,
+                            "backward": -100,
+                            "stop": 0
+                        })
         )
 
         if log_dir is None:
@@ -69,7 +91,7 @@ class StandardRunner(RobotRunner):
 
         self.servo = robot.commands['servo']
         self.motors = robot.commands['motors']
-        self.leds = robot.commands['leds']
+        self.blue_led = robot.commands['blue_led']
 
         super(StandardRunner, self).__init__(robot)
 
@@ -87,22 +109,23 @@ class StandardRunner(RobotRunner):
                 self.servo.set(0)
                 self.robot.filter.update_servo(0)
             elif axis == "left y":
-                self.leds.set("blue", 0)
+                self.blue_led.set(0)
                 self.motors.set(0)
                 self.robot.filter.update_motors(0)
 
     def angle_to_servo(self, angle):
         return int(((self.left_servo_limit - self.right_servo_limit) /
-                    (self.left_angle_limit - self.right_angle_limit) *
-                    (angle - self.right_angle_limit) + self.right_servo_limit))
+                (self.left_angle_limit - self.right_angle_limit) *
+                (angle - self.right_angle_limit) + self.right_servo_limit))
 
+    
     def axis_active(self, axis, value, params):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(self.angle_to_servo(-value))
                 self.robot.filter.update_servo(self.servo.get())
             elif axis == "left y":
-                self.leds.set("blue", int(abs(value) * 255))
+                self.blue_led.set(int(abs(value) * 255))
                 self.motors.set(int(-value * 100))
                 self.robot.filter.update_motors(self.motors.get())
 

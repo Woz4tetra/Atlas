@@ -5,7 +5,6 @@ import pyb
 from data import *
 from libraries.adafruit_gps import AdafruitGPS
 from libraries.bno055 import BNO055
-from libraries.pca9685 import PCA9685
 
 used_timers = {}
 
@@ -22,7 +21,7 @@ def add_timer(timer_num, timer_freq):
 class GPS(Sensor):
     def __init__(self, sensor_id, uart_bus, timer_num, baud_rate=9600,
                  update_rate=5):
-        super(GPS, self).__init__(sensor_id, ['f', 'f', 'b'])
+        super(GPS, self).__init__(sensor_id, ['f', 'f'])
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
@@ -31,7 +30,7 @@ class GPS(Sensor):
         return self.gps_ref.received_sentence()
 
     def update_data(self):
-        return self.gps_ref.longitude, self.gps_ref.latitude, self.gps_ref.fix
+        return self.gps_ref.longitude, self.gps_ref.latitude
 
 
 class IMU(Sensor):
@@ -67,58 +66,64 @@ class IMU(Sensor):
         self.new_data = True
 
 
-class ServoDriver(Command):
-    def __init__(self, command_id, i2c_bus, pwm_freq, initial_state=0):
-        super().__init__(command_id)
-        self.initial_state = initial_state
-        self.driver = PCA9685(i2c_bus, pwm_freq)
+class ServoCommand(Command):
+    def __init__(self, command_id, pin_num, start_pos=0):
+        super().__init__(command_id, 'i8')
+        self.start_pos = start_pos
+        self.servo_ref = pyb.Servo(pin_num)
+        if start_pos is not None:
+            self.servo_ref.angle(start_pos)
+        self.angle = start_pos
 
-        self.set_all(self.initial_state)
-
-    def set_all(self, value):
-        for servo_num in range(len(self.driver)):
-            self.driver.set_servo(servo_num, value)
-
-    def callback(self, data):
-        self.driver.set_servo(data[0], data[1])
+    def callback(self, angle):
+        self.angle = angle
+        self.servo_ref.angle(self.angle)
 
     def reset(self):
-        self.set_all(self.initial_state)
+        self.angle = self.start_pos
+        self.servo_ref.angle(self.angle)
 
 
-class PybLEDs(Command):
+class LEDcommand(Command):
+    def __init__(self, command_id, led_num, initial_state=0):
+        super().__init__(command_id, 'u4')
+        self.led = pyb.LED(led_num)
+        self.set_state(initial_state)
+
+    def set_state(self, state):
+        if state == 0:
+            self.led.off()
+        elif state == 1:
+            self.led.on()
+        elif state == 2:
+            self.led.toggle()
+
+    def callback(self, state):
+        self.set_state(state)
+
+    def reset(self):
+        self.set_state(0)
+
+
+class BlueLEDcommand(Command):
     def __init__(self, command_id, initial_state=0):
-        super().__init__(command_id)
-        self.leds = [pyb.LED(led_num) for led_num in range(1, 5)]
-        self.initial_state = initial_state
-        self.set_all(initial_state)
+        super().__init__(command_id, 'u8')
+        self.led = pyb.LED(led_num)
+        self.set_state(initial_state)
 
-    def set_all(self, state):
-        for led_num in range(1, 5):
-            self.set_state(led_num, state)
+    def set_state(self, state):
+        led.intensity(state)
 
-    def set_state(self, led_num, state):
-        led_num -= 1
-        if led_num == 3:
-            self.leds[led_num].intensity(state)
-        else:
-            if state == 0:
-                self.leds[led_num].off()
-            elif state == 1:
-                self.leds[led_num].on()
-            elif state == 2:
-                self.leds[led_num].toggle()
-
-    def callback(self, data):  # led num, value
-        self.set_state(data[0], data[1])
+    def callback(self, state):
+        self.set_state(state)
 
     def reset(self):
-        self.set_all(self.initial_state)
+        self.set_state(0)
 
 
 class MotorCommand(Command):
     def __init__(self, command_id, rc_motor):
-        super().__init__(command_id)
+        super().__init__(command_id, 'i8')
         self.rc_motor = rc_motor
 
     def callback(self, speed):

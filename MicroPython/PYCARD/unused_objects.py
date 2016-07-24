@@ -8,23 +8,6 @@ from libraries.micro_gps import MicropyGPS
 from libraries.pca9685 import PCA9685
 
 
-class PybServo(Command):
-    def __init__(self, command_id, pin_num, start_pos=0):
-        super().__init__(command_id, 'i8')
-        self.start_pos = start_pos
-        self.servo_ref = pyb.Servo(pin_num)
-        if start_pos is not None:
-            self.servo_ref.angle(start_pos)
-        self.angle = start_pos
-
-    def callback(self, angle):
-        self.angle = angle
-        self.servo_ref.angle(self.angle)
-
-    def reset(self):
-        self.angle = self.start_pos
-        self.servo_ref.angle(self.angle)
-
 class Altitude(Sensor):
     def __init__(self, sensor_id, bus, frequency=20, use_i2c=True):
         if use_i2c:
