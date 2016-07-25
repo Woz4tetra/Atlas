@@ -21,6 +21,7 @@ def log_folder():
     year = time.strftime("%Y")
     return "%s %s %s/" % (month, day, year)
 
+
 class Logger:
     def __init__(self, file_name, directory):
         if file_name is None or file_name.replace("." + log_file_type,
@@ -179,12 +180,7 @@ class Parser:
             index = end_index + 1
 
 
-def get_map(file_name, directory=None):
-    if directory is None:
-        directory = ":maps"
-    directory = project.get_dir(directory)
-    file_name = project.get_file_name(file_name, directory, log_file_type)
-    print("Using map named", file_name)
+def _get_txt_map(file_name, directory):
     with open(directory + file_name, 'r') as map_file:
         contents = map_file.read()
 
@@ -207,5 +203,44 @@ def get_map(file_name, directory=None):
 
             gps_map.append((long, lat))
 
+    return gps_map
+
+
+def _get_gpx_map(file_name, directory):
+    with open(directory + file_name, 'r') as gpx_file:
+        contents = gpx_file.read()
+
+    gps_map = []
+
+    data_start = '<trkpt'
+    start_index = contents.find(data_start) + len(data_start)
+    for line in contents[start_index:].splitlines():
+        line = line.strip(" ")
+        unparsed = line.split(" ")
+        if len(unparsed) > 1:
+            if len(unparsed) == 2:
+                lat_unparsed, long_unparsed = unparsed
+            else:
+                _, lat_unparsed, long_unparsed = unparsed
+
+            lat = float(lat_unparsed[5:-1])
+            long = float(long_unparsed[5:-10])
+
+            gps_map.append((long, lat))
+
+    return gps_map
+
+
+def get_map(file_name, directory=None):
+    if directory is None:
+        directory = ":maps"
+    directory = project.get_dir(directory)
+    file_name = project.get_file_name(file_name, directory, [log_file_type, 'gpx'])
+    print("Using map named", file_name)
+
+    if file_name.endswith('gpx'):
+        gps_map = _get_gpx_map(file_name, directory)
+    else:
+        gps_map = _get_txt_map(file_name, directory)
     print("Length of map is", len(gps_map))
     return gps_map
