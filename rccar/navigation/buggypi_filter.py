@@ -223,7 +223,7 @@ class BuggyPiFilter:
         # covariance should be >= 1 TODO: experiment with different curves
         if self.prev_gps_t is not None:
             gps_covariance = (timestamp - self.prev_gps_t + 1) * 10000 # int((math.exp(timestamp - self.prev_gps_t) - 1) * 1000000) + 1000
-            bearing_covariance = (timestamp - self.prev_gps_t + 1) * 10000#/ (timestamp - self.prev_gps_t + 1) + 1  # (timestamp - self.prev_gps_t) * 100000 + 10000000000
+            bearing_covariance = (timestamp - self.prev_gps_t + 1) * 1000#/ (timestamp - self.prev_gps_t + 1) + 1  # (timestamp - self.prev_gps_t) * 100000 + 10000000000
 
             if gps_covariance < MAX_INT:  # prevent overflow error
                 self.measurement_covariance[0][0] = gps_covariance

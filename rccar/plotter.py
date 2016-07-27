@@ -5,30 +5,13 @@ from matplotlib import pyplot as plt
 from buggypi.microcontroller.logger import *
 from navigation.buggypi_filter import BuggyPiFilter
 from navigation.waypoint_picker import Waypoints
-
-standard_params = dict(
-    counts_per_rotation=6,
-    wheel_radius=0.097,
-    front_back_dist=0.234,
-    max_speed=1,  # 0.88
-
-    # physical limit of the servo in radians
-    left_angle_limit=0.81096,
-    right_angle_limit=-0.53719,
-
-    # physical limit of the servo in servo counts
-    left_servo_limit=35,
-    right_servo_limit=-25,
-
-    # the servo value at which the robot can't drive forward because it's turned too much
-    left_turning_limit=25,
-    right_turning_limit=-15
-)
+from standard_params import standard_params
+from collections import defaultdict
 
 
 class Plotter:
     def __init__(self, file_name, directory, map_name, map_dir=None, **plot_options):
-        self.robot_params = standard_params
+        self.robot_params = defaultdict(lambda: False, **standard_params)
 
         self.map_name = map_name
         self.map_dir = map_dir
@@ -93,7 +76,7 @@ class Plotter:
         self.recorded_state_heading = []
 
         self.recorded_heading_counter = 0
-        self.recording_heading_freq = 5
+        self.recorded_heading_freq = 10
 
         self.heading_counter = 0
         self.heading_freq = 50
@@ -215,7 +198,7 @@ class Plotter:
                                            self.recorded_state_y,
                                            self.recorded_state_heading,
                                            self.recorded_heading_counter,
-                                           'purple', self.recording_heading_freq)
+                                           'purple', self.recorded_heading_freq)
                 if self.plot_options["waypoints"]:
                     self.record_waypoints(values)
 
@@ -333,8 +316,8 @@ elif len(sys.argv) == 5:
     file_name, directory, map_name, map_dir = sys.argv[1:]
 
 else:
-    file_name = ':random'
-    directory = 'Jul 24 2016'
+    file_name = 7
+    directory = 'Jul 22 2016'
     map_name = "test goal track.gpx"
     map_dir = ":gpx"
 
@@ -350,4 +333,4 @@ plotter = Plotter(
     plot_state_gps_dots=False
 )
 plotter.static_plot()
-# plotter.write_maps(10)#, plotter.long_data, plotter.lat_data)
+plotter.write_maps(300)#, plotter.long_data, plotter.lat_data)
