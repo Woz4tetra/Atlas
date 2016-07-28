@@ -39,15 +39,6 @@ class BuggyPiFilter:
         self.state_transition = np.eye(6)
         self.control_matrix = np.eye(6)
 
-        self.measurement_covariance = np.array([
-            [10000, 0, 0, 0, 0, 0],  # GPS long (will change during update)
-            [0, 10000, 0, 0, 0, 0],  # GPS lat (changes)
-            [0, 0, 10000, 0, 0, 0],  # GPS bearing (changes)
-            [0, 0, 0, 1, 0, 0],  # encoder vx
-            [0, 0, 0, 0, 1, 0],  # encoder vy
-            [0, 0, 0, 0, 0, 1],  # imu angular velocity
-        ])
-
         self.process_error_covariance = np.eye(6)
 
         self.observation_matrix = np.array([
@@ -58,8 +49,15 @@ class BuggyPiFilter:
             [0, 0, 0, 0, 1, 0],
             [0, 0, 0, 0, 0, 1],
             [0, 0, 1, 0, 0, 0],
+            [1, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
         ])
         self.measurement_covariance = np.eye(len(self.observation_matrix))
+        self.measurement_covariance[0][0] = 20  # gps long
+        self.measurement_covariance[1][1] = 20  # gps lat
+        self.measurement_covariance[2][2] = 200  # gps bearing
+        # self.measurement_covariance[4][4] = 0.001  # encoder vx
+        # self.measurement_covariance[5][5] = 0.001  # encoder vy
 
         self.initial_state = np.array(
             [self.initial_long_rad, self.initial_lat_rad, self.initial_heading,
@@ -89,7 +87,7 @@ class BuggyPiFilter:
         self.prev_extrapolate_t = None
 
         self.enc_vx, self.enc_vy = 0.0, 0.0
-        self.enc_speed = 0.0
+        self.enc_x, self.enc_y = 0.0, 0.0
         self.prev_enc = None
 
         self.imu_ang_v = 0.0
@@ -123,8 +121,11 @@ class BuggyPiFilter:
             return self.state
         else:
             dt = timestamp - self.prev_enc_t
-            self.enc_vx, self.enc_vy, self.enc_speed = self.get_velocity(
+            self.enc_vx, self.enc_vy = self.get_velocity(
                 enc_counts, self.prev_enc, self.state["angle"], dt)
+
+            self.enc_x += self.enc_vx * dt
+            self.enc_y += self.enc_vy * dt
 
             self.prev_enc_t = timestamp
             self.prev_enc = enc_counts
@@ -133,24 +134,25 @@ class BuggyPiFilter:
 
             return self.update_filter(timestamp)
 
+    def adjust_yaw(self, imu_yaw):
+        return ((imu_yaw - self.start_imu) + self.initial_heading) % (2 * math.pi)
+
     def update_imu(self, timestamp, imu_yaw):
         if self.prev_imu_t is None:
             self.prev_imu_t = timestamp
             self.imu_yaw = imu_yaw
-            self.start_imu = imu_yaw
-            self.prev_imu = (imu_yaw - self.start_imu) + self.initial_heading
+            self.start_imu = self.imu_yaw % (2 * math.pi)
+            self.prev_imu = self.adjust_yaw(self.imu_yaw)
 
             return self.state
         else:
             dt = timestamp - self.prev_imu_t
-            self.imu_yaw = (imu_yaw - self.start_imu) + self.initial_heading
+            self.imu_yaw = self.adjust_yaw(imu_yaw)
             self.imu_ang_v = (self.imu_yaw - self.prev_imu) / dt
-            # self.gps_bearing += imu_yaw - self.prev_imu
 
             self.prev_imu_t = timestamp
             self.prev_imu = self.imu_yaw
 
-            # self.extrapolate_gps(timestamp)
             self.update_covariances(timestamp)
 
             return self.update_filter(timestamp)
@@ -169,11 +171,10 @@ class BuggyPiFilter:
                 self.gps_to_xy_meters(gps_long, gps_lat)
 
             if gps_long != self.prev_gps_long or gps_lat != self.prev_gps_lat:
-                self.gps_bearing = self.get_gps_bearing(
+                self.gps_bearing = (self.get_gps_bearing(
                     gps_long, gps_lat,
                     self.prev_gps_long, self.prev_gps_lat
-                )
-                self.gps_bearing = (-self.gps_bearing + math.pi / 2) % (2 * math.pi)
+                ) + math.pi) % (2 * math.pi)
 
             self.prev_gps_t = timestamp
             self.update_covariances(timestamp)
@@ -195,7 +196,8 @@ class BuggyPiFilter:
         self._state = self.filter.update(
             self.get_command_vector(self.motor_speed, self.servo_angle),
             np.array([self.gps_x_meters, self.gps_y_meters, self.gps_bearing,
-                      self.enc_vx, self.enc_vy, self.imu_ang_v, self.imu_yaw]),
+                      self.enc_vx, self.enc_vy, self.imu_ang_v, self.imu_yaw,
+                      self.enc_x, self.enc_y]),
             self.control_matrix, self.measurement_covariance,
         )
 
@@ -220,28 +222,14 @@ class BuggyPiFilter:
         self.state["ang v"] = self._state[5]  # radians / second
 
     def update_covariances(self, timestamp):
-        # covariance should be >= 1 TODO: experiment with different curves
-        if self.prev_gps_t is not None:
-            gps_covariance = (timestamp - self.prev_gps_t + 1) * 10000 # int((math.exp(timestamp - self.prev_gps_t) - 1) * 1000000) + 1000
-            bearing_covariance = (timestamp - self.prev_gps_t + 1) * 1000#/ (timestamp - self.prev_gps_t + 1) + 1  # (timestamp - self.prev_gps_t) * 100000 + 10000000000
-
-            if gps_covariance < MAX_INT:  # prevent overflow error
-                self.measurement_covariance[0][0] = gps_covariance
-                self.measurement_covariance[1][1] = gps_covariance
-            if bearing_covariance < MAX_INT:
-                self.measurement_covariance[2][2] = bearing_covariance
-
+        # if self.prev_gps_t is not None:
+        #     self.measurement_covariance[2][2] = 250 / timestamp + 1
+            # print(self.measurement_covariance[2][2])
         if self.prev_enc_t is not None:
             # if encoders haven't updated for more than 0.25 seconds, the robot's probably not moving
             if timestamp - self.prev_enc_t > 0.25:
                 self.enc_vx = 0
                 self.enc_vy = 0
-            else:
-                vel_covariance = (timestamp - self.prev_enc_t) * 100 + 1
-
-                if vel_covariance < MAX_INT:
-                    self.measurement_covariance[3][3] = vel_covariance
-                    self.measurement_covariance[4][4] = vel_covariance
 
         if self.prev_imu_t is not None:
             ang_v_covariance = (timestamp - self.prev_imu_t) + 1
@@ -265,9 +253,10 @@ class BuggyPiFilter:
     def get_velocity(self, counts, prev_count, heading, dt):
         current_speed = self.enc_to_meters(counts - prev_count) / dt
 
-        vx = current_speed * math.cos(heading)
-        vy = current_speed * math.sin(heading)
-        return vx, vy, current_speed
+        # reversed on purpose
+        vy = current_speed * math.cos(heading)
+        vx = current_speed * math.sin(heading)
+        return vx, vy
 
     def enc_to_meters(self, counts):
         return counts * self.wheel_radius / self.rotation * math.pi
@@ -306,7 +295,7 @@ class BuggyPiFilter:
 
         dist = self.earth_radius * c
 
-        bearing = self.get_gps_bearing(long2, lat2, long1, lat1)
+        bearing = self.get_gps_bearing(long2, lat2, long1, lat1, my_convention=False)
 
         x = dist * math.cos(bearing)
         y = dist * math.sin(bearing)
@@ -318,7 +307,7 @@ class BuggyPiFilter:
                 (servo_value - self.right_value) + self.right_angle)
 
     @staticmethod
-    def get_gps_bearing(long, lat, prev_long, prev_lat):
+    def get_gps_bearing(long, lat, prev_long, prev_lat, my_convention=True):
         long = math.radians(long)
         lat = math.radians(lat)
         prev_long = math.radians(prev_long)
@@ -329,4 +318,7 @@ class BuggyPiFilter:
             prev_lat) * math.cos(lat) *
              math.cos(long - prev_long))
 
-        return math.atan2(y, x)
+        bearing = math.atan2(y, x)
+        if my_convention:
+            bearing = (-bearing - math.pi / 2) % (2 * math.pi)
+        return bearing
