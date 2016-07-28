@@ -1,6 +1,7 @@
-
 import pyb
+
 from objects import *
+
 
 class Communicator(object):
     def __init__(self, *commands, uart_bus=None):
@@ -20,8 +21,6 @@ class Communicator(object):
         self.buffer = ""
 
     def write_packet(self, sensor):
-        packet = sensor.get_packet()
-##        print(packet)
         self.serial_ref.write(sensor.get_packet())
         pyb.delay(1)
 
@@ -34,7 +33,7 @@ class Communicator(object):
                     self.serial_ref.write("ready!\r\n")
                 else:
                     self.command_pool.update(packet)
-                    
+
     def read_packets(self):
         incoming = self.serial_ref.read(self.serial_ref.any())
         self.buffer += incoming.decode('ascii')
@@ -44,7 +43,7 @@ class Communicator(object):
             self.buffer = packets.pop(-1)
         else:
             self.buffer = ""
-        return packets 
+        return packets
 
     def should_reset(self):
         if self.reset:
@@ -52,6 +51,6 @@ class Communicator(object):
             return True
         else:
             return False
-        
+
     def close(self):
         self.serial_ref.close()

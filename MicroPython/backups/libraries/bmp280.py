@@ -1,5 +1,3 @@
-import math
-
 import pyb
 
 
@@ -117,7 +115,7 @@ class BMP280:
         var2 += ((var1 * self.calib['P5']) << 17)
         var2 += (self.calib['P4'] << 35)
         var1 = ((var1 * var1 * self.calib['P3'] >> 8) + (
-        (var1 * self.calib['P2']) << 12))
+            (var1 * self.calib['P2']) << 12))
         var1 = ((1 << 47) + var1) * (self.calib['P1']) >> 33
 
         if var1 == 0:

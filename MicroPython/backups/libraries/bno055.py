@@ -24,38 +24,38 @@ while True:
     pyb.delay(1)
 """
 
-import pyb
-import struct
 import math
+
+import pyb
 
 
 class BNO055:
     reg = dict(
-        VECTOR_ACCELEROMETER = 0x08,
-        VECTOR_MAGNETOMETER = 0x0e,
-        VECTOR_GYROSCOPE = 0x14,
-        VECTOR_EULER = 0x1a,
-        VECTOR_LINEARACCEL = 0x28,
-        VECTOR_GRAVITY = 0x2e,
-        QUATERNION_DATA = 0x20,
-        TEMPERATURE = 0x34,
+        VECTOR_ACCELEROMETER=0x08,
+        VECTOR_MAGNETOMETER=0x0e,
+        VECTOR_GYROSCOPE=0x14,
+        VECTOR_EULER=0x1a,
+        VECTOR_LINEARACCEL=0x28,
+        VECTOR_GRAVITY=0x2e,
+        QUATERNION_DATA=0x20,
+        TEMPERATURE=0x34,
 
-        CHIP_ID = 0x00,
-        SYS_TRIGGER = 0x3f,
-        OPR_MODE = 0x3d,
-        PAGE_ID = 0x07,
-        PWR_MODE = 0x3e,
+        CHIP_ID=0x00,
+        SYS_TRIGGER=0x3f,
+        OPR_MODE=0x3d,
+        PAGE_ID=0x07,
+        PWR_MODE=0x3e,
     )
 
     modes = dict(
-        CONFIG = 0x00,
-        NDOF = 0x0c,
+        CONFIG=0x00,
+        NDOF=0x0c,
     )
 
     power_modes = dict(
-        NORMAL = 0x00,
-        LOW = 0x01,
-        SUSPEND = 0x02
+        NORMAL=0x00,
+        LOW=0x01,
+        SUSPEND=0x02
     )
 
     BNO055_ID = 0xa0
@@ -67,14 +67,16 @@ class BNO055:
         else:
             self.address = 0x29
 
-        self.declination = (declination[0] + declination[1] / 60) * math.pi / 180
+        self.declination = (
+                           declination[0] + declination[1] / 60) * math.pi / 180
 
         self.quat_scale = 1.0 / (1 << 14)
         self.sample_delay = 100
 
         addresses = self.i2c.scan()
         if self.address not in addresses:
-            raise Exception("Address %s not found during scan: %s" % (self.address, addresses))
+            raise Exception("Address %s not found during scan: %s" % (
+            self.address, addresses))
 
         if not self.i2c.is_ready(self.address):
             raise Exception("Device not ready")
@@ -145,7 +147,6 @@ class BNO055:
         x, y, z = self.get_vector('VECTOR_EULER')
         # return x, y, z
         return x / 16.0, y / 16.0, z / 16.0
-
 
     def get_temp(self):
         return ord(self.read_8(self.reg['TEMPERATURE']))

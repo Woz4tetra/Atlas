@@ -21,7 +21,7 @@ def add_timer(timer_num, timer_freq):
 class GPS(Sensor):
     def __init__(self, sensor_id, uart_bus, timer_num, baud_rate=9600,
                  update_rate=5):
-        super(GPS, self).__init__(sensor_id, ['f', 'f'])
+        super(GPS, self).__init__(sensor_id, ['f', 'f', 'b'])
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
@@ -30,7 +30,7 @@ class GPS(Sensor):
         return self.gps_ref.received_sentence()
 
     def update_data(self):
-        return self.gps_ref.longitude, self.gps_ref.latitude
+        return self.gps_ref.longitude, self.gps_ref.latitude, self.gps_ref.fix
 
 
 class IMU(Sensor):
@@ -48,7 +48,7 @@ class IMU(Sensor):
         add_timer(timer_num, self.timer.freq())
 
     def get_yaw(self):
-        return self.bno.get_euler()[0] * pi / 180
+        return -self.bno.get_euler()[0] * pi / 180
 
     def recved_data(self):
         if self.new_data:
@@ -97,6 +97,22 @@ class LEDcommand(Command):
             self.led.on()
         elif state == 2:
             self.led.toggle()
+
+    def callback(self, state):
+        self.set_state(state)
+
+    def reset(self):
+        self.set_state(0)
+
+
+class BlueLEDcommand(Command):
+    def __init__(self, command_id, initial_state=0):
+        super().__init__(command_id, 'u8')
+        self.led = pyb.LED(4)
+        self.set_state(initial_state)
+
+    def set_state(self, state):
+        self.led.intensity(state)
 
     def callback(self, state):
         self.set_state(state)
