@@ -235,8 +235,6 @@ class Tetris():
 					sys.exit()
 				elif event.type == KEYDOWN:
 					self.keyBindings(event)
-					if event.key == K_SPACE:
-						self.newFallingPiece()
 			self.step()
 			if self.gameOver == True:
 				self.drawEnd()
