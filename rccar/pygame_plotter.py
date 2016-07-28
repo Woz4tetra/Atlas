@@ -163,7 +163,7 @@ class Plotter:
         if self.plot_options["plot_map"]:
             # gps_map = np.array(self.waypoints.map)
             # pygame.draw.lines(surface, color, closed, pointlist, width) 
-            pygame.draw.lines(self.surface,pygame.Color('fuschia'), False, self.waypoints.map)
+            pygame.draw.lines(self.surface,pygame.Color('purple'), False, self.waypoints.map)
 
         if self.plot_options["plot_gps"]:
             pygame.draw.lines(self.surface,pygame.Color('red'), False, self.gps_data)
