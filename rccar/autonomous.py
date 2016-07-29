@@ -10,8 +10,8 @@ class Autonomous(StandardRunner):
         super(Autonomous, self).__init__(map_name="test goal track.gpx",
                                          map_dir=":gpx", log_data=True)
 
-        initial_long, initial_lat = self.checkpoints[0]
-        second_long, second_lat = self.checkpoints[1]
+        initial_long, initial_lat = self.checkpoints[1]
+        second_long, second_lat = self.checkpoints[2]
 
         bearing = self.robot.filter.get_gps_bearing(
             initial_long, initial_lat, second_long, second_lat
@@ -20,6 +20,8 @@ class Autonomous(StandardRunner):
         self.robot.filter.initialize_filter(
             initial_long, initial_lat, bearing
         )
+        self.robot.record("initial conditions", initial_long=initial_long, initial_lat=initial_lat, initial_heading=bearing)
+        self.checkpoint_num = 1
         self.robot.start()
 
     def button_dn(self, button, params):

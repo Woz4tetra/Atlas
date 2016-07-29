@@ -100,9 +100,9 @@ class StandardRunner(RobotRunner):
                 self.robot.filter.update_motors(0)
 
     def angle_to_servo(self, angle):
-        return int(((self.robot_params['left_servo_limit'] - self.robot_params['right_servo_limit']) /
-                    (self.robot_params['left_angle_limit'] - self.robot_params['right_angle_limit']) *
-                    (angle - self.robot_params['right_angle_limit']) + self.robot_params['right_servo_limit']))
+        return int(((standard_params['left_servo_limit'] - standard_params['right_servo_limit']) /
+                    (standard_params['left_angle_limit'] - standard_params['right_angle_limit']) *
+                    (angle - standard_params['right_angle_limit']) + standard_params['right_servo_limit']))
 
     def axis_active(self, axis, value, params):
         if self.manual_mode:

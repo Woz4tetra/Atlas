@@ -171,10 +171,10 @@ class BuggyPiFilter:
                 self.gps_to_xy_meters(gps_long, gps_lat)
 
             if gps_long != self.prev_gps_long or gps_lat != self.prev_gps_lat:
-                self.gps_bearing = (self.get_gps_bearing(
+                self.gps_bearing = self.get_gps_bearing(
                     gps_long, gps_lat,
                     self.prev_gps_long, self.prev_gps_lat
-                ) + math.pi) % (2 * math.pi)
+                )# + math.pi) % (2 * math.pi)
 
             self.prev_gps_t = timestamp
             self.update_covariances(timestamp)

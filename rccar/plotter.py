@@ -20,8 +20,8 @@ class Plotter:
             self.map_name, map_dir=map_dir
         )
 
-        initial_long, initial_lat = self.checkpoints[0]
-        second_long, second_lat = self.checkpoints[1]
+        initial_long, initial_lat = self.checkpoints[1]
+        second_long, second_lat = self.checkpoints[2]
 
         bearing = BuggyPiFilter.get_gps_bearing(
             initial_long, initial_lat, second_long, second_lat
