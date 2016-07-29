@@ -86,6 +86,9 @@ class Plotter:
         self.waypoint_counter = 0
         self.waypoint_freq = 75
 
+        self.percent = 0
+        self.prev_percent = 0
+
         # ----- initialize figures -----
 
         self.fig = plt.figure(0)
@@ -203,7 +206,10 @@ class Plotter:
                     self.record_waypoints(values)
 
         percent = 100 * index / len(self.parser)
-        print(("%0.4f" % percent) + "%", end='\r')
+        self.percent = int(percent * 10)
+        if self.percent != self.prev_percent:
+            self.prev_percent = self.percent
+            print(("%0.1f" % percent) + "%", end='\r')
 
     def static_plot(self):
         for index, timestamp, name, values in self.parser:
@@ -298,6 +304,8 @@ class Plotter:
 
             print("Map created successfully!", map_dir)
             print("GPX map created successfully!", gpx_map_dir)
+        else:
+            print("Skipping map creation")
 
 
 if len(sys.argv) == 2:
