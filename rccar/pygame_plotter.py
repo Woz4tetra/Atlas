@@ -12,7 +12,7 @@ from collections import defaultdict
 
 
 class Plotter:
-    def __init__(self, file_name, directory, map_name, map_dir=None, width=800, height=800,**plot_options):
+    def __init__(self, file_name, directory, map_name, map_dir=None, width=800, height=600,**plot_options):
         self.robot_params = defaultdict(lambda: False, **standard_params)
 
         self.map_name = map_name
@@ -79,34 +79,44 @@ class Plotter:
         self.heading_counter = 0
         self.heading_freq = 50
 
-        self.waypoint_lines = []
-        self.waypoint_color = 'burlywood'
-        self.waypoint_counter = 0
-        self.waypoint_freq = 75
+        # self.waypoint_lines = []
+        # self.waypoint_color = 'burlywood'
+        # self.waypoint_counter = 0
+        # self.waypoint_freq = 75
 
         self.boardwidth = width
         self.boardheight = height
 
+        self.blue = (0,0,255)
+        self.black = (0,0,0)
+        self.green = (0,255,0)
+        self.red = (255,0,0)
+        self.purple = (128,0,128)
+        self.white =(255,255,255)
+        self.yellow = (255,255,0)
+        self.orange = (255,165,0)
+
         self.surface = pygame.display.set_mode((self.boardwidth,self.boardheight))
 
 
+############### This code is not used #####################
 
-    def record_waypoints(self, state):
-        if self.waypoint_counter % self.waypoint_freq == 0:
-            goal_x, goal_y = self.waypoints.get_goal(state)
-            #     self.waypoint_lines.append((state["x"], goal_x))
-            #     self.waypoint_lines.append((state["y"], goal_y))
-            #     self.waypoint_lines.append(self.waypoint_color)
-            #     self.ax.arrow(state["x"], state["y"], goal_x, goal_y, head_width=0.0000001, head_length=0.0000001, fc='k', ec='k')
-            self.ax.annotate("",
-                             xy=(goal_x, goal_y), xycoords='data',
-                             xytext=(state["x"], state["y"]), textcoords='data',
-                             arrowprops=dict(arrowstyle="->",
-                                             connectionstyle="arc",
-                                             linewidth=1),
-                             )
+    # def record_waypoints(self, state):
+    #     if self.waypoint_counter % self.waypoint_freq == 0:
+    #         goal_x, goal_y = self.waypoints.get_goal(state)
+    #             self.waypoint_lines.append((state["x"], goal_x))
+    #             self.waypoint_lines.append((state["y"], goal_y))
+    #             self.waypoint_lines.append(self.waypoint_color)
+    #             self.ax.arrow(state["x"], state["y"], goal_x, goal_y, head_width=0.0000001, head_length=0.0000001, fc='k', ec='k')
+    #         self.ax.annotate("",
+    #                          xy=(goal_x, goal_y), xycoords='data',
+    #                          xytext=(state["x"], state["y"]), textcoords='data',
+    #                          arrowprops=dict(arrowstyle="->",
+    #                                          connectionstyle="arc",
+    #                                          linewidth=1),
+    #                          )
 
-        self.waypoint_counter += 1
+    #     self.waypoint_counter += 1
 
 
     def step(self, index, timestamp, name, values):
@@ -151,47 +161,48 @@ class Plotter:
                 #     self.record_waypoints(values)
 
         percent = 100 * index / len(self.parser)
-        print(("%0.4f" % percent) + "%", end='\r')
+        print(("%0.4f" % percent) + "%")
 
     def static_plot(self):
-        pygame.draw.rect(self.surface, pygame.Color('white'), (0,0, self.boardwidth,self.boardheight), 0)
+        pygame.draw.rect(self.surface, self.white, (0,0, self.boardwidth,self.boardheight), 0)
         
         for index, timestamp, name, values in self.parser:
             self.step(index, timestamp, name, values)
 
+#within each plot_option, edit the info
         print("plotting...")
         if self.plot_options["plot_map"]:
             # gps_map = np.array(self.waypoints.map)
             # pygame.draw.lines(surface, color, closed, pointlist, width) 
-            pygame.draw.lines(self.surface,pygame.Color('purple'), False, self.waypoints.map)
+            pygame.draw.lines(self.surface, self.purple, False, self.waypoints.map)
 
-        if self.plot_options["plot_gps"]:
-            pygame.draw.lines(self.surface,pygame.Color('red'), False, self.gps_data)
-            # plt.plot(*self.bearing_data)
+#         if self.plot_options["plot_gps"]:
+#             pygame.draw.lines(self.surface, self.red, False, self.gps_data)
+#             # plt.plot(*self.bearing_data)
 
-        if self.plot_options["plot_checkpoints"]:
-            # checkpoints_map = np.array(self.checkpoints)
-            for x,y in self.checkpoints:
-                pygame.draw.circle(self.surface, pygame.Color('blue'), (x,y), .005, 1)
+#         if self.plot_options["plot_checkpoints"]:
+#             # checkpoints_map = np.array(self.checkpoints)
+#             for x,y in self.checkpoints:
+#                 pygame.draw.circle(self.surface, self.blue, (x,y), .005, 1)
 
-        if self.plot_options["plot_calculated_state"]:
-            if self.plot_options["plot_state_gps_dots"]:
-                for index in range(len(self.state_x_gps)):
-                    pygame.draw.circle(self.surface, pygame.Color('red'), (self.state_x_gps[index], self.state_y_gps[index]), 0.005, 1)
-            pygame.draw.lines(self.surface,pygame.Color('green'), False, self.state)
+#         if self.plot_options["plot_calculated_state"]:
+#             if self.plot_options["plot_state_gps_dots"]:
+#                 for index in range(len(self.state_x_gps)):
+#                     pygame.draw.circle(self.surface, self.red, (self.state_x_gps[index], self.state_y_gps[index]), 0.005, 1)
+#             pygame.draw.lines(self.surface, self.green, False, self.state)
 
-        if self.plot_options["plot_recorded_state"]:
-            pygame.draw.lines(self.surface,pygame.Color('orange'), False, self.recorded_state)
+#         if self.plot_options["plot_recorded_state"]:
+#             pygame.draw.lines(self.surface, self.orange, False, self.recorded_state)
 
+        while True:
+            pygame.display.update()
 
-        pygame.display.update()
-
-        for event in pygame.event.get():
-                if event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
-        # if self.plot_options["waypoints"]:
-        #     plt.plot(*self.waypoint_lines)
+            for event in pygame.event.get():
+                    if event.type == QUIT:
+                        pygame.quit()
+                        sys.exit()
+            # if self.plot_options["waypoints"]:
+            #     plt.plot(*self.waypoint_lines)
 
 
     def write_maps(self, skip=1, map_source_x=None, map_source_y=None):
