@@ -11,29 +11,26 @@ from collections import defaultdict
 
 class Plotter:
     def __init__(self, file_name, directory, map_name, map_dir=None, **plot_options):
-        self.robot_params = defaultdict(lambda: False, **standard_params)
-
         self.map_name = map_name
         self.map_dir = map_dir
-        self.plot_options = plot_options
+        self.plot_options = defaultdict(lambda: False, **plot_options)
 
         self.checkpoints = get_map("checkpoints.txt")
         self.waypoints = Waypoints(
-            self.map_name, 1, map_dir
+            self.map_name, map_dir=map_dir
         )
 
-        initial_long, initial_lat = self.checkpoints[0]
-        second_long, second_lat = self.checkpoints[1]
+        initial_long, initial_lat = self.checkpoints[1]
+        second_long, second_lat = self.checkpoints[2]
 
         bearing = BuggyPiFilter.get_gps_bearing(
             initial_long, initial_lat, second_long, second_lat
         )
-        bearing = (-bearing - math.pi / 2) % (2 * math.pi)
         self.filter = BuggyPiFilter(
-            self.robot_params['counts_per_rotation'], self.robot_params['wheel_radius'],
-            self.robot_params['front_back_dist'], self.robot_params['max_speed'],
-            self.robot_params['left_angle_limit'], self.robot_params['right_angle_limit'],
-            self.robot_params['left_servo_limit'], self.robot_params['right_servo_limit'],
+            standard_params['counts_per_rotation'], standard_params['wheel_radius'],
+            standard_params['front_back_dist'], standard_params['max_speed'],
+            standard_params['left_angle_limit'], standard_params['right_angle_limit'],
+            standard_params['left_servo_limit'], standard_params['right_servo_limit'],
             initial_long, initial_lat, bearing
         )
         print(initial_long, initial_lat, bearing)
@@ -46,7 +43,7 @@ class Plotter:
         self.dt_enc = None
         self.dt_imu = None
 
-        self.heading_arrow_len = 0.00002
+        self.heading_arrow_len = 0.00005
         self.arrow_color = 'orange'
 
         self.bearing_arrow_len = 0.000005
@@ -85,6 +82,9 @@ class Plotter:
         self.waypoint_color = 'burlywood'
         self.waypoint_counter = 0
         self.waypoint_freq = 75
+        self.percent = 0
+        self.prev_percent = 0
+        self.checkpoint_lines = []
 
         # ----- initialize figures -----
 
@@ -119,7 +119,7 @@ class Plotter:
         state_y_data.append(state["y"])
 
         if heading_counter % frequency == 0 and \
-                        len(state_x_data) > 0 and len(state_y_data) > 0:
+                        len(state_x_data) > 0 and len(state_y_data) > 0 and self.plot_options["plot_heading_lines"]:
             x0 = state_x_data[-1]
             y0 = state_y_data[-1]
             speed = (state["vx"] ** 2 + state["vy"] ** 2) ** 0.5
@@ -173,7 +173,7 @@ class Plotter:
                                            self.state_heading, self.heading_counter,
                                            self.arrow_color, self.heading_freq)
 
-                if self.plot_options["waypoints"]:
+                if self.plot_options["plot_waypoints"]:
                     self.record_waypoints(state)
         elif name == "encoder":
             if self.plot_options["plot_calculated_state"]:
@@ -182,7 +182,7 @@ class Plotter:
                     self.record_state_data(state, self.state_x, self.state_y,
                                            self.state_heading, self.heading_counter,
                                            self.arrow_color, self.heading_freq)
-                if self.plot_options["waypoints"]:
+                if self.plot_options["plot_waypoints"]:
                     self.record_waypoints(state)
 
         elif name == "servo":
@@ -201,9 +201,16 @@ class Plotter:
                                            'purple', self.recorded_heading_freq)
                 if self.plot_options["waypoints"]:
                     self.record_waypoints(values)
+        elif name == "checkpoint":
+            self.checkpoint_lines.append((self.checkpoints[values['num']][0], self.state_x[-1]))
+            self.checkpoint_lines.append((self.checkpoints[values['num']][1], self.state_y[-1]))
+            self.checkpoint_lines.append('blue')
 
         percent = 100 * index / len(self.parser)
-        print(("%0.4f" % percent) + "%", end='\r')
+        self.percent = int(percent * 10)
+        if self.percent != self.prev_percent:
+            self.prev_percent = self.percent
+            print(("%0.1f" % percent) + "%", end='\r')
 
     def static_plot(self):
         for index, timestamp, name, values in self.parser:
@@ -228,15 +235,21 @@ class Plotter:
                 plt.plot(self.state_x_gps, self.state_y_gps, "ro",
                          label="GPS updated",
                          markersize=4)
-            plt.plot(self.state_x, self.state_y, 'g', label="state xy")
-            plt.plot(*self.state_heading)
+            plt.plot(self.state_x, self.state_y, 'g', label="state")
+            if self.plot_options["plot_heading_lines"]:
+                plt.plot(*self.state_heading)
+
         if self.plot_options["plot_recorded_state"]:
             plt.plot(self.recorded_state_x, self.recorded_state_y, 'g',
-                     label="state xy")
-            plt.plot(*self.recorded_state_heading)
+                     label="recorded state")
+            if self.plot_options["plot_heading_lines"]:
+                plt.plot(*self.recorded_state_heading)
 
-        if self.plot_options["waypoints"]:
+        if self.plot_options["plot_waypoints"]:
             plt.plot(*self.waypoint_lines)
+
+        if self.plot_options["plot_checkpoint_lines"]:
+            plt.plot(*self.checkpoint_lines)
 
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
@@ -298,6 +311,8 @@ class Plotter:
 
             print("Map created successfully!", map_dir)
             print("GPX map created successfully!", gpx_map_dir)
+        else:
+            print("Skipping map creation")
 
 
 if len(sys.argv) == 2:
@@ -316,8 +331,8 @@ elif len(sys.argv) == 5:
     file_name, directory, map_name, map_dir = sys.argv[1:]
 
 else:
-    file_name = 7
-    directory = 'Jul 22 2016'
+    file_name = 0
+    directory = "Jul 22 2016"
     map_name = "test goal track.gpx"
     map_dir = ":gpx"
 
@@ -328,9 +343,9 @@ except ValueError:
 
 plotter = Plotter(
     file_name, directory, map_name, map_dir,
-    plot_map=True, plot_gps=True, plot_checkpoints=True,
-    plot_calculated_state=True, plot_recorded_state=False, waypoints=True,
-    plot_state_gps_dots=False
+    plot_map=True, plot_gps=False, plot_checkpoints=True,
+    plot_calculated_state=True, plot_recorded_state=False, plot_waypoints=False,
+    plot_state_gps_dots=False, plot_checkpoint_lines=True, plot_heading_lines=False
 )
 plotter.static_plot()
-plotter.write_maps(300)#, plotter.long_data, plotter.lat_data)
+# plotter.write_maps(300)#, plotter.long_data, plotter.lat_data)

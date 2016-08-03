@@ -11,20 +11,20 @@ from standard_params import standard_params
 class StandardRunner(RobotRunner):
     def __init__(self, pipeline=None, capture=None, map_name=-1, map_dir=None, log_data=True, log_name=None,
                  log_dir=None):
-        self.robot_params = standard_params
         self.manual_mode = True
 
         self.goal_x, self.goal_y = 0, 0
         self.controller = Controller()
         self.checkpoints = get_map("checkpoints.txt")
+        self.checkpoint_num = 0
         self.waypoints = Waypoints(
             map_name, 1, map_dir
         )
-        filter = BuggyPiFilter(self.robot_params['counts_per_rotation'], self.robot_params['wheel_radius'],
-                               self.robot_params['front_back_dist'],
-                               self.robot_params['max_speed'],
-                               self.robot_params['left_angle_limit'], self.robot_params['right_angle_limit'],
-                               self.robot_params['left_servo_limit'], self.robot_params['right_servo_limit'])
+        filter = BuggyPiFilter(standard_params['counts_per_rotation'], standard_params['wheel_radius'],
+                               standard_params['front_back_dist'],
+                               standard_params['max_speed'],
+                               standard_params['left_angle_limit'], standard_params['right_angle_limit'],
+                               standard_params['left_servo_limit'], standard_params['right_servo_limit'])
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button, params: self.button_dn(
@@ -56,10 +56,10 @@ class StandardRunner(RobotRunner):
                 }),
             blue_led=dict(command_id=3, range=(0, 255)),
             servo=dict(command_id=4, range=(
-                self.robot_params['left_servo_limit'], self.robot_params['right_servo_limit']),
+                standard_params['left_servo_limit'], standard_params['right_servo_limit']),
                        mapping={
-                           "left": self.robot_params['left_turning_limit'],
-                           "right": self.robot_params['right_turning_limit'],
+                           "left": standard_params['left_turning_limit'],
+                           "right": standard_params['right_turning_limit'],
                            "forward": 0
                        }),
             motors=dict(command_id=5, range=(-100, 100),
@@ -87,12 +87,7 @@ class StandardRunner(RobotRunner):
         super(StandardRunner, self).__init__(robot)
 
     def button_dn(self, button, params):
-        if button == 'B':
-            self.manual_mode = not self.manual_mode
-            print("Switching to",
-                  "manual mode!" if self.manual_mode else "autonomous!")
-            if not self.manual_mode:
-                self.motors.set(100)
+        pass
 
     def axis_inactive(self, axis, params):
         if self.manual_mode:
@@ -105,9 +100,9 @@ class StandardRunner(RobotRunner):
                 self.robot.filter.update_motors(0)
 
     def angle_to_servo(self, angle):
-        return int(((self.robot_params['left_servo_limit '] - self.robot_params['right_servo_limit']) /
-                    (self.robot_params['left_angle_limit '] - self.robot_params['right_angle_limit']) *
-                    (angle - self.robot_params['right_angle_limit']) + self.robot_params['right_servo_limit']))
+        return int(((standard_params['left_servo_limit'] - standard_params['right_servo_limit']) /
+                    (standard_params['left_angle_limit'] - standard_params['right_angle_limit']) *
+                    (angle - standard_params['right_angle_limit']) + standard_params['right_servo_limit']))
 
     def axis_active(self, axis, value, params):
         if self.manual_mode:
