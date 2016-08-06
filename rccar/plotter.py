@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from matplotlib import pyplot as plt
+from pykalman import KalmanFilter
 
 from buggypi.microcontroller.logger import *
 from navigation.buggypi_filter import BuggyPiFilter
@@ -10,7 +11,8 @@ from collections import defaultdict
 
 
 class Plotter:
-    def __init__(self, file_name, directory, map_name, map_dir=None, **plot_options):
+    def __init__(self, file_name, directory, map_name, map_dir=None,
+                 **plot_options):
         self.map_name = map_name
         self.map_dir = map_dir
         self.plot_options = defaultdict(lambda: False, **plot_options)
@@ -24,13 +26,18 @@ class Plotter:
         second_long, second_lat = self.checkpoints[2]
 
         bearing = BuggyPiFilter.get_gps_bearing(
-            initial_long, initial_lat, second_long, second_lat
+            second_long, second_lat, initial_long, initial_lat
         )
+
         self.filter = BuggyPiFilter(
-            standard_params['counts_per_rotation'], standard_params['wheel_radius'],
-            standard_params['front_back_dist'], standard_params['max_speed'],
-            standard_params['left_angle_limit'], standard_params['right_angle_limit'],
-            standard_params['left_servo_limit'], standard_params['right_servo_limit'],
+            standard_params['counts_per_rotation'],
+            standard_params['wheel_radius'],
+            standard_params['front_back_dist'],
+            standard_params['max_speed'],
+            standard_params['left_angle_limit'],
+            standard_params['right_angle_limit'],
+            standard_params['left_servo_limit'],
+            standard_params['right_servo_limit'],
             initial_long, initial_lat, bearing
         )
         print(initial_long, initial_lat, bearing)
@@ -52,18 +59,13 @@ class Plotter:
 
         self.state_x = [self.filter.initial_long]
         self.state_y = [self.filter.initial_lat]
-        # self.state_heading = [(self.filter.initial_long - 0.0001,
-        #                        self.filter.initial_long - 0.0001 +
-        #                        self.heading_arrow_len),
-        #                       (self.filter.initial_lat + 0.0001,
-        #                        self.filter.initial_lat + 0.0001),
-        #                       'darkgreen']
         self.state_heading = []
 
         self.lat_data, self.long_data = [], []  # all gps data
         self.check_lat, self.check_long = [], []  # checkpoint gps points
 
-        self.state_x_gps = [self.filter.initial_long]  # put red dots on the state line where the GPS updated
+        # put red dots on the state line where the GPS updated
+        self.state_x_gps = [self.filter.initial_long]
         self.state_y_gps = [self.filter.initial_lat]
 
         self.bearing_data = []
@@ -86,22 +88,31 @@ class Plotter:
         self.prev_percent = 0
         self.checkpoint_lines = []
 
+        self.encoder_x_data = []
+        self.encoder_y_data = []
+        self.encoder_color = 'darkblue'
+
+        self.measurement = np.ma.array(np.zeros(len(
+            self.filter.observation_matrix)))
+        self.pykf_measurements = np.ma.array(self.measurement)
+
+        self.sensors_updated = False
+        self.gps_updated = False
+        self.imu_updated = False
+        self.enc_updated = False
+
         # ----- initialize figures -----
 
         self.fig = plt.figure(0)
         self.ax = self.fig.gca()
-        self.ax.plot(self.filter.initial_long, self.filter.initial_lat, 'o', color='black', markersize=10)
+        self.ax.plot(self.filter.initial_long, self.filter.initial_lat, 'o',
+                     color='black', markersize=10)
         self.fig.canvas.set_window_title(
             self.parser.local_dir + self.parser.file_name[:-4])
-
 
     def record_waypoints(self, state):
         if self.waypoint_counter % self.waypoint_freq == 0:
             goal_x, goal_y = self.waypoints.get_goal(state)
-            #     self.waypoint_lines.append((state["x"], goal_x))
-            #     self.waypoint_lines.append((state["y"], goal_y))
-            #     self.waypoint_lines.append(self.waypoint_color)
-            #     self.ax.arrow(state["x"], state["y"], goal_x, goal_y, head_width=0.0000001, head_length=0.0000001, fc='k', ec='k')
             self.ax.annotate("",
                              xy=(goal_x, goal_y), xycoords='data',
                              xytext=(state["x"], state["y"]), textcoords='data',
@@ -119,7 +130,8 @@ class Plotter:
         state_y_data.append(state["y"])
 
         if heading_counter % frequency == 0 and \
-                        len(state_x_data) > 0 and len(state_y_data) > 0 and self.plot_options["plot_heading_lines"]:
+                        len(state_x_data) > 0 and len(state_y_data) > 0 and \
+                self.plot_options["plot_heading_lines"]:
             x0 = state_x_data[-1]
             y0 = state_y_data[-1]
             speed = (state["vx"] ** 2 + state["vy"] ** 2) ** 0.5
@@ -136,54 +148,95 @@ class Plotter:
 
         return heading_counter + 1
 
+    def update_gps(self, timestamp, values):
+        if self.plot_options["plot_calculated_state"]:
+            state = self.filter.update_gps(
+                timestamp, values["long"], values["lat"])
+
+            self.heading_counter = \
+                self.record_state_data(state, self.state_x, self.state_y,
+                                       self.state_heading,
+                                       self.heading_counter,
+                                       self.arrow_color, self.heading_freq)
+
+            if self.plot_options["plot_state_gps_dots"]:
+                self.state_x_gps.append(state["x"])
+                self.state_y_gps.append(state["y"])
+
+            if self.plot_options["determine_matrices"]:
+                self.measurement[0] = self.filter.measurement[0]
+                self.measurement[1] = self.filter.measurement[1]
+                self.measurement[2] = self.filter.measurement[2]
+
+        if self.plot_options["plot_gps"]:
+            self.long_data.append(values["long"])
+            self.lat_data.append(values["lat"])
+
+            x0 = values["long"]
+            y0 = values["lat"]
+            x1 = x0 + self.bearing_arrow_len * math.cos(
+                self.filter.gps_bearing)
+            y1 = y0 + self.bearing_arrow_len * math.sin(
+                self.filter.gps_bearing)
+            self.bearing_data.append((x0, x1))
+            self.bearing_data.append((y0, y1))
+            self.bearing_data.append('orange')
+
+        self.sensors_updated = True
+        self.gps_updated = True
+
+    def update_imu(self, timestamp, values):
+        if self.plot_options["plot_calculated_state"]:
+            state = self.filter.update_imu(timestamp, values["yaw"])
+            self.heading_counter = \
+                self.record_state_data(state, self.state_x, self.state_y,
+                                       self.state_heading,
+                                       self.heading_counter,
+                                       self.arrow_color, self.heading_freq)
+
+            if self.plot_options["plot_waypoints"]:
+                self.record_waypoints(state)
+
+            if self.plot_options["determine_matrices"]:
+                self.measurement[5] = self.filter.measurement[5]
+
+        self.sensors_updated = True
+        self.imu_updated = True
+
+    def update_encoder(self, timestamp, values):
+        if self.plot_options["plot_calculated_state"]:
+            state = self.filter.update_encoder(timestamp, values["counts"])
+            self.heading_counter = \
+                self.record_state_data(state, self.state_x, self.state_y,
+                                       self.state_heading,
+                                       self.heading_counter,
+                                       self.arrow_color, self.heading_freq)
+            if self.plot_options["plot_encoder_position"]:
+                x, y = self.filter.xy_meters_to_gps(self.filter.enc_x,
+                                                    self.filter.enc_y)
+                self.encoder_x_data.append(math.degrees(x))
+                self.encoder_y_data.append(math.degrees(y))
+            if self.plot_options["plot_waypoints"]:
+                self.record_waypoints(state)
+
+            if self.plot_options["determine_matrices"]:
+                self.measurement[3] = self.filter.measurement[3]
+                self.measurement[4] = self.filter.measurement[4]
+                self.measurement[6] = self.filter.measurement[6]
+                self.measurement[7] = self.filter.measurement[7]
+
+        self.sensors_updated = True
+        self.enc_updated = True
+
     def step(self, index, timestamp, name, values):
         if name == "gps":
-            if self.plot_options["plot_calculated_state"]:
-                state = self.filter.update_gps(
-                    timestamp, values["long"], values["lat"])
-
-                self.heading_counter = \
-                    self.record_state_data(state, self.state_x, self.state_y,
-                                           self.state_heading, self.heading_counter,
-                                           self.arrow_color, self.heading_freq)
-
-                if self.plot_options["plot_state_gps_dots"]:
-                    self.state_x_gps.append(state["x"])
-                    self.state_y_gps.append(state["y"])
-
-            if self.plot_options["plot_gps"]:
-                self.long_data.append(values["long"])
-                self.lat_data.append(values["lat"])
-
-                x0 = values["long"]
-                y0 = values["lat"]
-                x1 = x0 + self.bearing_arrow_len * math.cos(
-                    self.filter.gps_bearing)
-                y1 = y0 + self.bearing_arrow_len * math.sin(
-                    self.filter.gps_bearing)
-                self.bearing_data.append((x0, x1))
-                self.bearing_data.append((y0, y1))
-                self.bearing_data.append('orange')
+            self.update_gps(timestamp, values)
 
         elif name == "imu":
-            if self.plot_options["plot_calculated_state"]:
-                state = self.filter.update_imu(timestamp, values["yaw"])
-                self.heading_counter = \
-                    self.record_state_data(state, self.state_x, self.state_y,
-                                           self.state_heading, self.heading_counter,
-                                           self.arrow_color, self.heading_freq)
+            self.update_imu(timestamp, values)
 
-                if self.plot_options["plot_waypoints"]:
-                    self.record_waypoints(state)
         elif name == "encoder":
-            if self.plot_options["plot_calculated_state"]:
-                state = self.filter.update_encoder(timestamp, values["counts"])
-                self.heading_counter = \
-                    self.record_state_data(state, self.state_x, self.state_y,
-                                           self.state_heading, self.heading_counter,
-                                           self.arrow_color, self.heading_freq)
-                if self.plot_options["plot_waypoints"]:
-                    self.record_waypoints(state)
+            self.update_encoder(timestamp, values)
 
         elif name == "servo":
             if self.plot_options["plot_calculated_state"]:
@@ -202,9 +255,24 @@ class Plotter:
                 if self.plot_options["waypoints"]:
                     self.record_waypoints(values)
         elif name == "checkpoint":
-            self.checkpoint_lines.append((self.checkpoints[values['num']][0], self.state_x[-1]))
-            self.checkpoint_lines.append((self.checkpoints[values['num']][1], self.state_y[-1]))
+            self.checkpoint_lines.append(
+                (self.checkpoints[values['num']][0], self.state_x[-1]))
+            self.checkpoint_lines.append(
+                (self.checkpoints[values['num']][1], self.state_y[-1]))
             self.checkpoint_lines.append('blue')
+
+        if self.sensors_updated:
+            if self.plot_options["determine_matrices"]:
+                self.pykf_measurements = np.vstack((self.pykf_measurements,
+                                                    self.measurement))
+                # if not self.gps_updated:
+                #     self.pykf_measurements[-1] = np.ma.masked
+                #     print(repr(self.pykf_measurements))
+
+            self.sensors_updated = False
+            self.gps_updated = False
+            self.imu_updated = False
+            self.enc_updated = False
 
         percent = 100 * index / len(self.parser)
         self.percent = int(percent * 10)
@@ -250,6 +318,22 @@ class Plotter:
 
         if self.plot_options["plot_checkpoint_lines"]:
             plt.plot(*self.checkpoint_lines)
+
+        if self.plot_options["plot_encoder_position"]:
+            plt.plot(self.encoder_x_data, self.encoder_y_data,
+                     self.encoder_color)
+
+        if self.plot_options["determine_matrices"]:
+            np.delete(self.pykf_measurements, 0)
+            np.delete(self.pykf_measurements, 0)
+            pykfilter = KalmanFilter(
+                initial_state_mean=self.filter.initial_state,
+                observation_matrices=self.filter.observation_matrix,
+                transition_covariance=self.filter.process_error_covariance,
+                observation_covariance=self.filter.measurement_covariance,
+            )
+            result = pykfilter.em(X=self.pykf_measurements, n_iter=5)
+            print(result.transition_covariance, result.observation_covariance)
 
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
@@ -331,8 +415,8 @@ elif len(sys.argv) == 5:
     file_name, directory, map_name, map_dir = sys.argv[1:]
 
 else:
-    file_name = 0
-    directory = "Jul 22 2016"
+    file_name = 2
+    directory = "Jul 29 2016"
     map_name = "test goal track.gpx"
     map_dir = ":gpx"
 
@@ -343,9 +427,17 @@ except ValueError:
 
 plotter = Plotter(
     file_name, directory, map_name, map_dir,
-    plot_map=True, plot_gps=False, plot_checkpoints=True,
-    plot_calculated_state=True, plot_recorded_state=False, plot_waypoints=False,
-    plot_state_gps_dots=False, plot_checkpoint_lines=True, plot_heading_lines=False
+    plot_map=True,
+    plot_gps=True,
+    plot_checkpoints=True,
+    plot_calculated_state=True,
+    plot_recorded_state=False,
+    plot_waypoints=False,
+    plot_state_gps_dots=False,
+    plot_checkpoint_lines=True,
+    plot_heading_lines=True,
+    plot_encoder_position=True,
+    determine_matrices=False,
 )
 plotter.static_plot()
 # plotter.write_maps(300)#, plotter.long_data, plotter.lat_data)

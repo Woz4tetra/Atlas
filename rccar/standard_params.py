@@ -2,7 +2,7 @@ standard_params = dict(
     counts_per_rotation=6,
     wheel_radius=0.097,
     front_back_dist=0.234,
-    max_speed=1.5,
+    max_speed=1.0,
 
     # physical limit of the servo in radians
     left_angle_limit=0.81096,

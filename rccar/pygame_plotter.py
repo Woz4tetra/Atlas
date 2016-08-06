@@ -279,7 +279,7 @@ elif len(sys.argv) == 5:
     file_name, directory, map_name, map_dir = sys.argv[1:]
 
 else:
-    file_name = 7
+    file_name = -1
     directory = 'Jul 22 2016'
     map_name = "test goal track.gpx"
     map_dir = ":gpx"
