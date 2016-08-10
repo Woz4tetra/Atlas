@@ -3,14 +3,15 @@ import numpy as np
 
 class KalmanFilter:
     def __init__(self, initial_state, initial_probability,
-                 observation_matrix_h, process_error_covariance_q):
+                 process_error_covariance_q):
         self.state = initial_state  # current state estimate
         self.prob = initial_probability  # current covariance estimate
-        self.H = observation_matrix_h  # converts state to a measurement
         self.Q = process_error_covariance_q
 
     def update(self, control_vector, measurement, control_b,
-               measurement_error_covariance_r, state_transition_a):
+               measurement_error_covariance_r, state_transition_a,
+               observation_matrix_h):
+        self.H = observation_matrix_h  # converts state to a measurement
         self.A = state_transition_a
 
         # Prediction step. Where will I be next update?
