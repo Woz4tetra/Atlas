@@ -1,9 +1,8 @@
 import math
 import time
-from pprint import pprint
 
 from buggypi.vision.camera import Camera
-from vision.pipeline import Pipeline
+from pipeline import Pipeline
 from standard_runner import StandardRunner
 
 

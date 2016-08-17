@@ -1,18 +1,37 @@
+"""
+A general class for handling all the properties, communications, and
+algorithms of the robot
+"""
+
 from buggypi.microcontroller.comm import *
 from buggypi.microcontroller.data import *
+from buggypi import project
 
 
 class Robot:
-    def __init__(self, sensors, commands, filter=None, joystick=None,
-                 pipeline=None, capture=None, close_fn=None, log_data=True,
-                 log_name=None, log_dir=None):
+    def __init__(self, sensors, commands, project_name, filter=None,
+                 joystick=None, pipeline=None, capture=None, close_fn=None,
+                 log_data=True, log_name=None, log_dir=None):
+        # set the project name (so that maps and logs and be found)
+        project.set_project_dir(project_name)
+
+        # a class that contains (as opposed to an instance of) the
+        # KalmanFilter class
         self.filter = filter
+
+        # an instance of BuggyJoystick
         self.joystick = joystick
+
+        # a class that handles all the computer vision algorithms
         self.pipeline = pipeline
+
+        # an instance of Capture. Can be a video or a live feed
         self.capture = capture
 
+        # a function specifying extra closing behavior
         self.close_fn = close_fn
 
+        # Initialize all sensors given in the sensor properties dictionary
         self.sensor_pool = SensorPool()
         self.sensors = {}
         for name, sensor_properties in sensors.items():
@@ -22,6 +41,7 @@ class Robot:
             self.sensor_pool.add_sensor(sensor)
             self.sensors[name] = sensor
 
+        # Initialize communications with the micropython board
         self.log_data = log_data
         self.communicator = Communicator(
             self.sensor_pool, address='/dev/ttyAMA0',
@@ -31,6 +51,9 @@ class Robot:
         if not self.communicator.initialized:
             raise Exception("Communicator not initialized...")
 
+        # Initialize all commands given in the command properties dictionary
+        # Commands require a Communicator class and the Communicator class
+        # requires a SensorPool class
         self.commands = {}
         for name, command_properties in commands.items():
             if 'command_array' in command_properties:
@@ -38,7 +61,7 @@ class Robot:
                 command_range = command_properties['range']
                 del command_properties['command_array']
                 del command_properties['range']
-                
+
                 command = CommandArray(command_ids, name, command_range,
                                        self.communicator,
                                        **command_properties)
@@ -47,7 +70,7 @@ class Robot:
                 command_range = command_properties['range']
                 del command_properties['command_id']
                 del command_properties['range']
-                
+
                 command = Command(command_id, name, command_range,
                                   self.communicator,
                                   **command_properties)
@@ -57,40 +80,50 @@ class Robot:
         self.time_start = time.time()
 
     def start(self):
+        """Initialize all threads (communications, joystick, and capture)"""
         self.communicator.start()
         if self.joystick is not None:
             self.joystick.start()
         if self.capture is not None:
             self.capture.start()
 
-    
     def record(self, name, value=None, **values):
+        """Log data to the current log file"""
         self.communicator.record(name, value, **values)
 
     def get_state(self):
+        """Return the robot's current state as determined by the filter"""
         if self.filter is not None:
             return self.filter.state
         else:
             return None
 
     def close(self):
+        """All method calls necessary to shutdown the robot cleanly"""
+
+        # stop the motors and reset the servo (they won't do it on their own!)
         self.commands['motors'].set(0)
         self.commands['servo'].set(0)
 
+        # stop the capture feed if it was initialized
         if self.capture is not None:
             self.capture.stop()
         time.sleep(0.005)
 
+        # stop the joystick thread if it was initialized
         if self.joystick is not None:
             self.joystick.stop()
         time.sleep(0.005)
 
+        # end communications with the micropython board
         self.communicator.stop()
 
+        # an extra closing behavior as defined by the user
         if self.close_fn is not None:
             self.close_fn()
 
     def should_stop(self):
+        """Check if the robot's threads are still running"""
         if self.communicator.exit_flag:
             return True
         if self.capture is not None and \
@@ -104,6 +137,12 @@ class Robot:
 
 
 class RobotRunner:
+    """
+    An abstract runner class that utilizes the Robot class.
+    It defines special running behaviors (if the program suddenly crashes,
+    the close methods still need to be called)
+    """
+
     def __init__(self, robot):
         self.robot = robot
 

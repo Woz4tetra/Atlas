@@ -1,3 +1,8 @@
+"""
+A basic, but flexible Kalman filter.
+Its implementation is based on Greg Czerniak's tutorial:
+http://greg.czerniak.info/guides/kalman1/
+"""
 import numpy as np
 
 

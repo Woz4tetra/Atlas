@@ -294,7 +294,6 @@ class BuggyPiFilter:
             heading = (gps_bearing * (1 - self.imu_angle_weight) + imu_yaw * self.imu_angle_weight) % (2 * math.pi)
         else:
             heading = imu_yaw
-        print(heading)
         vx = current_speed * math.cos(heading)
         vy = current_speed * math.sin(heading)
         return vx, vy

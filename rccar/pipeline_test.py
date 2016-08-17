@@ -2,7 +2,7 @@ import sys
 import time
 
 from buggypi.vision.video import Video
-from vision.pipeline import Pipeline
+from pipeline import Pipeline
 
 
 class PipelineTest:
@@ -48,7 +48,7 @@ class PipelineTest:
         elif key == 's':
             self.capture.save_frame()
         elif key == 'v':
-            if not self.capture.recording:
+            if not self.capture.is_recording:
                 self.capture.start_recording()
             else:
                 self.capture.stop_recording()

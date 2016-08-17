@@ -1,25 +1,17 @@
 """
-Written by Ben Warwick
-
-data.py, written for BuggyPi
-Version 6/6/2016
-=========
-
 Handles sensor data sorting, the command queue, and raw data storage.
 
 Classes:
     SensorPool - parses and sorts the incoming packet by giving it to the
         correct sensor
     SerialObject - Internal. The superclass of Sensor and Command.
-    Sensor - An object containing data read from the micro-controller with
+    Sensor - An object containing data read from the microcontroller with
         the matching sensor ID
-    Command - An object that allows data to be sent to the micro-controller
+    Command - An object that allows data to be sent to the microcontroller
 
 Functions (use with python -i data.py):
-    try_sensor - given a list of property names (strings), this function
-        allows you to test what the output of your sensor would be
-    try_command - this functions returns the packet that
-        would be written to serial given typical inputs
+    try_sensor - try out a given sensor configuration
+    try_command - with a given command, see what is sent over serial
 """
 
 import math
@@ -38,6 +30,9 @@ class SensorPool:
             self.add_sensor(sensor)
 
     def add_sensor(self, sensor):
+        """
+        Adds the sensor to the pool if its sensor ID hasn't been taken already
+        """
         if sensor.object_id in list(self.sensors.keys()):
             raise Exception(
                 "Sensor ID already taken: " + str(sensor.object_id))
@@ -57,9 +52,6 @@ class SensorPool:
         characters f, i, b, or u at index 3
 
         If any of these conditions are invalid, the packet is invalid
-
-        :param packet: A string that may or may not be a valid packet
-        :return: True or False depending on if the packet is valid
         """
 
         if len(packet) < 5:
@@ -74,11 +66,8 @@ class SensorPool:
 
     def update(self, packet):
         """
-        updates the sensors' data when called and, if correct, parses and
-        replaces the old sensor data
-
-        :param packet: A string that may or may not be a valid packet
-        :return: None
+        Takes an incoming packet and, if it's a valid packet, gives it to the
+        corresponding sensor for parsing and calls its callback function.
         """
 
         if self.is_packet(packet):
@@ -90,10 +79,10 @@ class SensorPool:
                 sensor.sleep_time = time.time() - sensor.prev_time
                 sensor.prev_time = time.time()
 
-                sensor.parse(data)
-                sensor.current_packet = packet
+                sensor.parse(data, packet)
 
-                sensor.update_fn()
+                if sensor.update_fn is not None:
+                    sensor.update_fn()
 
                 return sensor
 
@@ -103,13 +92,14 @@ class SensorPool:
         return len(self.sensors)
 
 
-def try_sensor(sensor_id, properties):
-    global sensor_pool
-    # sensor_id = max(sensor_pool.sensors.keys()) + 1
-    sensor_pool.sensors = {}
-    exp_sensor = Sensor(sensor_id, 'exp_sensor', properties)
-    if type(properties) is not list or type(properties) is not tuple:
-        properties = [properties]
+def try_sensor(*properties, sensor_id=0):
+    """
+    See what a sensor will return given random data. To test this sensor,
+    try (in terminal):
+    python3 -i data.py
+    try_sensor(["property1", "property2", "property3",])
+    """
+    exp_sensor = Sensor(sensor_id, 'trial_sensor', properties=properties)
 
     packet = ""
     for _ in properties:
@@ -131,34 +121,47 @@ def try_sensor(sensor_id, properties):
                 data = 0
             packet += "%s%x\t" % (data_type, data)
 
-    exp_sensor.parse(packet[:-1])
+    data_string = packet[:-1]
+    packet = "%0.2x\t%s\r\n" % (sensor_id, data_string)
+    exp_sensor.parse(data_string, packet)
+    print("packet:", repr(exp_sensor.current_packet))
 
     return exp_sensor
 
 
-def try_command(command_id, data_range, data=None):
-    exp_command = Command(command_id, data_range)
+def try_command(data_range, data=None):
+    """
+    See what a command packet would look like. To test this command,
+    try (in terminal):
+    python3 -i data.py
+    try_command((-90, 90))
+    try_command((False, True))
+    import math
+    try_command((-math.pi, math.pi))
+    """
+    if len(Command.used_ids) == 0:
+        command_id = 0
+    else:
+        command_id = Command.used_ids[-1] + 1
+    exp_command = Command(command_id, "trial_command", data_range, None)
     if data is None:
-        data = random.randint(exp_command.range[0], exp_command.range[1])
+        if exp_command.data_type == 'u' or exp_command.data_type == 'i':
+            data = random.randint(exp_command.range[0], exp_command.range[1])
+        else:
+            data = \
+                random.random() * (exp_command.range[1] -
+                                   exp_command.range[0]) + exp_command.range[0]
         print("data:", data)
 
-    exp_command.bound_value(data)
+    exp_command.value = exp_command.bound_value(data)
     return exp_command.get_packet()
 
 
 class SerialObject:
     def __init__(self, object_id, name):
         """
-        Constructor for SerialObject.
-        Takes a list of strings (properties) and creates an internal dictionary
-        in which data will be stored.
-
-        :param object_id: The unique SerialObject identifier. Used for matching
-            serial packets to Sensors or allowing micro-controllers to identify
-            Commands.
-        :param properties: A list of strings containing the properties of the
-            object
-        :return: SerialObject
+        The super class to Sensor and Command. Holds the properties that are
+        common between them.
         """
 
         self.sleep_time = 0.0
@@ -173,16 +176,28 @@ class SerialObject:
 
 
 class Sensor(SerialObject):
-    def __init__(self, sensor_id, name, update_fn, properties=None):
+    def __init__(self, sensor_id, name, update_fn=None, properties=None):
         """
         Constructor for Sensor. Inherits from SerialObject.
-        Adds self to sensor_pool (a module internal object)
+        Initializes the sensor's properties
+
+        Here's an example packet:
+        00\tf4609b3c8\tb0\r\n
+        00: the sensor ID
+        f4609b3c8: the first piece of data. It has the data type float
+            4609b3c8 is the hexadecimal representation of 8812.9453125
+        b0: the second piece of data. It has the data type bool and has the
+            value False
 
         :param sensor_id: The unique Sensor identifier. Used for matching
-            serial packets to Sensors or allowing micro-controllers to identify
-            Commands.
-        :param properties: A list of strings containing the properties of the
-            object
+            serial packets to Sensors
+        :param name: the name of the sensor. Used for logging
+        :param properties: A list of strings or a single string
+            containing the properties of the object. If None, the only
+            property will its own name. When calling get, a property name
+            doesn't need to be provided
+        :param update_fn: when the sensor gets new data from serial,
+            this function is called if not None
         :return: Sensor
         """
         super(Sensor, self).__init__(sensor_id, name)
@@ -193,24 +208,28 @@ class Sensor(SerialObject):
         elif type(properties) == str:
             properties = [properties]
         self._properties = self.init_properties(properties)
-
+        
         self.update_fn = update_fn
 
     @staticmethod
     def init_properties(properties):
+        """Converts a list to an OrderedDict of None"""
         dict_props = OrderedDict()
         for props in properties:
-            dict_props[props] = 0
+            dict_props[props] = None
 
         return dict_props
 
-    def get(self, item=None):  # None assuming None was provided for properties
+    def get(self, item=None):
+        # If item is None, it is assumed None was given for properties.
+        # This means there is only one property and it should be returned
         if item is None:
             return self._properties[self.name]
         else:
             return self._properties[item]
 
     def received(self):
+        """If new data from serial arrived, this will become True"""
         if self._new_data_received:
             self._new_data_received = False
             return True
@@ -259,30 +278,35 @@ class Sensor(SerialObject):
             # raise ValueError("Invalid data type: %s", str(data_format))
             return None
 
-    def parse(self, data_string):
+    def parse(self, data_string, packet):
         """
-        a function to parse data, formatted into hex strings
+        Parses the data portion of a serial packet into meaningful data
 
         Assuming the sensor id and carriage return has been removed from the
         packet since SensorPool has already sorted the data to the appropriate
         sensor.
 
         :param data_string: A string of hex characters and data type identifiers
+        :param packet: The full packet. This is what current_packet is set to
         :return: None
         """
 
         raw_data = data_string.split("\t")
+        
+        # this is why _properties is an ordered dictionary. The properties are
+        # matched based on the order they come in
         for index, key in enumerate(self._properties.keys()):
             if index < len(raw_data):
                 data_type, raw_datum = raw_data[index][0], raw_data[index][1:]
                 new_datum = self.format_hex(raw_datum, data_type)
                 if new_datum is not None:
                     self._properties[key] = new_datum
+        self.current_packet = packet
 
     def __repr__(self):
-        str_formats = str(self._properties)[1:-1]
+        data = str(self._properties)[12:-1]  # remove OrderedDict from string 
         return "%s(%s, %s)" % (self.__class__.__name__, self.object_id,
-                               str_formats)
+                               data)
 
     def __str__(self):
         to_string = "["
@@ -297,21 +321,61 @@ class Command(SerialObject):
 
     def __init__(self, command_id, name, data_range, communicator,
                  mapping=None, bound_values=True, initial=None):
+        """
+        Constructor for Command. Inherits from SerialObject.
+        Initializes the command's properties
+
+        Here's an example packet if (-90, 90) is given for data range:
+        00\t02\tc7\r\n
+        00: the command ID
+        02: the length of the data (number of characters)
+        c7: the data to send. The microcontroller determines how to interpret
+            it. Data range is only used to convert it to the correct hex format
+
+        :param command_id: The unique Command identifier. Used for matching
+            packets sent to the microcontroller
+        :param name: the name of the command. Used for logging
+        :param data_range: the possible range of values that can be sent.
+            It should be a tuple of size 2. Both values should be of the same
+            data type. It doesn't matter what order you put them in. The
+            program will swap them to the correct order.
+        :param communicator: An instance of the Communicator class. This is so
+            Commands can put their data directly to serial
+        :param mapping: map specific names to specific values
+        :param bound_values: If a value greater than the maximum value
+            or less than the minimum value is given, the command will
+            cap the value at the maximum or minimum if bound_values is True
+            or wrap the value around (similar to modulo) if False
+        :param initial: initial value of the command
+        :return: Command
+        """
+        
+        # throw an error if a command ID is taken
         if command_id in Command.used_ids:
             raise ValueError("Command ID already in use:", command_id)
         else:
             Command.used_ids.append(command_id)
 
         super(Command, self).__init__(command_id, name)
-
+        
+        # determine the data length, type, and correct range of the command
         self.data_type, self.data_len, self.range = \
             self.get_type_size(data_range)
+        
+        # to save time, generate the beginning part of the packet
         self.packet_info = "%s\t%s\t" % (self.to_hex(self.object_id, 2),
                                          self.to_hex(self.data_len, 2))
+
+        # this packet tells the microcontroller to use the previous value
+        # it received
+        self.packet_use_prev = "%s\r\n" % (self.to_hex(self.object_id, 2))
+
         self.bound = bound_values
         self.communicator = communicator
-
+        
         self.prev_value = None
+        
+        # set the initial value if None is given
         if initial is None:
             if self.data_type == 'i' or self.data_type == 'u':
                 self.value = 0
@@ -319,13 +383,14 @@ class Command(SerialObject):
                 self.value = 0.0
             elif self.data_type == 'b':
                 self.value = False
-
+        
         self.mapping = mapping
 
     def get(self):
         return self.value
 
     def send_new_value(self):
+        """Send the whole command packet and log it"""
         current_time = time.time()
 
         if self.communicator.log_data:
@@ -337,18 +402,26 @@ class Command(SerialObject):
         self.prev_value = self.value
 
     def send_prev_value(self):
+        """Only send the command ID. Don't log anything"""
         current_time = time.time()
-        self.communicator.put(self.get_id_packet())  # only send command ID
+        self.communicator.put(self.packet_use_prev)
         time.sleep(0.004)
         self.prev_time = current_time
 
     def map_value(self, value):
+        """
+        Map the value if mapping is not None and if the value is in mapping
+        """
         if self.mapping is not None and value in self.mapping:
             return self.mapping[value]
         else:
             return value
 
     def set(self, value):
+        """
+        Bound the value and send it over serial. If the value is the same
+        as the previous sent value, only send the command ID
+        """
         self.value = self.bound_value(self.map_value(value))
         if self.value != self.prev_value:
             self.send_new_value()
@@ -357,6 +430,7 @@ class Command(SerialObject):
 
     @staticmethod
     def wrap(num, lower, upper):
+        """Modulo-like wrapping"""
         while num > upper:
             num -= abs(upper - lower)
         while num < lower:
@@ -364,6 +438,7 @@ class Command(SerialObject):
         return num
 
     def bound_value(self, value):
+        """Bound the value based on self.bound and self.range"""
         if self.bound:  # bound by self.data_range
             if value > self.range[1]:
                 value = self.range[1]
@@ -377,16 +452,19 @@ class Command(SerialObject):
     @staticmethod
     def get_data_size(data_range):
         """
-        Gets the number of digits of a hexidecimal number
+        Determines number of hexadecimal characters the data range occupies
 
         :param data_range: The range of values as supplied by the constructor
-        :return: Number of digits of the input
+        :return: Number of hexadecimal digits of the input
         """
         length = abs(data_range[1] - data_range[0])
 
         if length == 0:
-            return 8
+            # math.log can't handle 0. This occurs if there is only one value
+            # the command can send
+            return 1
         else:
+            # determine number of hexadecimal digits
             int_length = int(math.log(length, 16)) + 1
             return int_length
 
@@ -399,11 +477,15 @@ class Command(SerialObject):
         :return: The data type, the data length, and the data range
             (this method swaps the values if the larger value comes first)
         """
+        
+        # swap the data range to the correct order
+        # 1: larger value
+        # 0: smaller value
         assert len(data_range) == 2
         assert type(data_range[0]) == type(data_range[1])
         if data_range[0] > data_range[1]:
             data_range = (data_range[1], data_range[0])
-
+            
         if type(data_range[0]) == int:
             if data_range[0] < 0 or data_range[1] < 0:
                 data_type = 'i'
@@ -415,7 +497,7 @@ class Command(SerialObject):
             data_len = Command.get_data_size(data_range)
         elif type(data_range[0]) == float:
             data_type = 'f'
-            data_len = 64
+            data_len = 8  # floats occupy 8 hex characters
         else:
             raise ValueError("Range invalid. Invalid data type: %s",
                              str(data_range))
@@ -423,12 +505,16 @@ class Command(SerialObject):
 
     @staticmethod
     def to_hex(decimal, length):
+        """
+        Convert number to hexadecimal string with a certain number of trailing
+        zeros
+        """
         hex_format = "0.%sx" % length
         return ("%" + hex_format) % decimal
 
     def format_data(self, data):
         """
-        formats data for sending over serial
+        Converts incoming data to a command packet
 
         :param data: A number that matches the command's data type (exception:
             you may supply integers for booleans. They will be interpreted
@@ -456,9 +542,9 @@ class Command(SerialObject):
             assert (type(data) == float)
             return "%0.8x" % struct.unpack('<I', struct.pack('<f', data))[0]
 
-        elif self.data_type == 'd':
-            assert (type(data) == float)
-            return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
+        # elif self.data_type == 'd':
+        #     assert (type(data) == float)
+        #     return "%0.16x" % struct.unpack('<Q', struct.pack('<d', data))[0]
 
     def get_packet(self):
         """
@@ -471,13 +557,22 @@ class Command(SerialObject):
 
         return self.current_packet
 
-    def get_id_packet(self):
-        return "%s\r\n" % (self.to_hex(self.object_id, 2))
-
 
 class CommandArray:
     def __init__(self, command_mapping, name, data_range, communicator,
                  *args, **kwargs):
+        """
+        Commands on their own don't support sending multiple values. This is
+        a wrapper class that supports this.
+
+        :param command_mapping: Map names to command IDs
+        :param name: name of the command array
+        :param data_range: the data range of the command array. It's assumed
+            all commands in this array have the same data range
+        :param communicator: An instance of the Communicator class
+        :param args: Any extra arguments that Command needs
+        :param kwargs: Any extra keyword arguments that Command needs
+        """
         self.commands = {}
 
         # command name to ID number or a list of command IDs
@@ -499,6 +594,7 @@ class CommandArray:
         return self.commands[item]
 
 
-class PollSensor(SerialObject):
-    pass
-    # TODO: implement poll based sensors. It has a command and sensor. The command is used to tell the sensor to return data
+# class PollSensor(SerialObject):
+#     pass
+    # TODO: implement poll based sensors. It has a command and sensor.
+    # The command is used to tell the sensor to return data

@@ -1,18 +1,11 @@
 """
-Written by Ben Warwick
-
-comm.py, written for RoboQuasar3.0
-Version 3/6/2016
-=========
-
 Handles direct serial communications with the micro-controller.
 
-This class is a subclass of threading.Thread. It's internally used by
-data.py. It continually updates the passed in SensorPool object with
-what ever sensor data comes in.
+Using multi-threading, it continuously listens to data from a microcontroller
+via a serial connection and passes it to a SensorPool object for parsing.
 
-This library follows a home-baked serial packet protocol. data.py handles
-all data conversion.
+This class only supports one microcontroller at a time (i.e. a one-to-one
+connection)
 """
 
 import glob
@@ -27,23 +20,12 @@ from buggypi.microcontroller.logger import Logger
 
 
 class Communicator(threading.Thread):
-    # Flag used to kill all running threads (mainly the serial thread in
-    # Communicator)
+    # Flag used to kill the serial thread
     exit_flag = False
 
     def __init__(self, sensors_pool, address=None, baud_rate=115200, log_data=True,
                  log_name=None, log_dir=None, handshake=True):
-        """
-        Constructor for Communicator
-
-        :param baud_rate: Data communication rate. Make sure it matches your
-            device's baud rate! (For MicroPython it doesn't matter)
-        :param sensors_pool: The SensorPool object in which to put the sensor
-            data
-        :param use_handshake: For Arduino boards or any micro-controller that
-            reboots when a program connects over serial.
-        :return: Communicator object
-        """
+        # if no address is provided, search for possible candidates
         if address is None:
             self.serial_ref, self.address = self.find_port(baud_rate)
         else:
@@ -52,17 +34,23 @@ class Communicator(threading.Thread):
                                             baudrate=baud_rate,
                                             timeout=1)
 
+        # tell the microcontroller that we're starting
         if handshake:
             self.initialized = self.handshake()
         else:
             self.initialized = False
 
         self.sensor_pool = sensors_pool
+
+        # Where serial dumps EVERYTHING that it currently sees
+        # It is parsed at the thread's most convenient time
         self.buffer = ""
 
-        self.time0 = time.time()
+        # a timer to make sure the thread is running (used in is_alive())
+        self.start_time = time.time()
         self.thread_time = 0
 
+        # initialize the data logger
         self.log_data = log_data
         if self.log_data and self.initialized and len(self.sensor_pool) > 0:
             self.log = Logger(log_name, log_dir)
@@ -70,6 +58,10 @@ class Communicator(threading.Thread):
         super(Communicator, self).__init__()
 
     def record(self, name, value=None, **values):
+        """
+        A wrapper for Logger's record method. Record any data with this
+        method
+        """
         if self.log_data:
             if value is not None or len(values) == 0:
                 self.log.enq(name, value)
@@ -78,19 +70,19 @@ class Communicator(threading.Thread):
 
     def run(self):
         """
-        Runs and constantly, updates packets for different sensors
+        Constantly parses packets and hands the data to the corresponding
+        sensors
 
-        see "self.log.enq(sensor.name, sensor._properties.copy())"
+        bug fix: "self.log.enq(sensor.name, sensor._properties.copy())":
             super important to copy()! sensor._properties is passed by reference
             otherwise and may change before being recorded.
-        :return: None
         """
         if len(self.sensor_pool) == 0:
             print("No sensors! Will only send commands")
             return
         try:
             while not Communicator.exit_flag:
-                self.thread_time = round(time.time() - self.time0)
+                self.thread_time = round(time.time() - self.start_time)
                 if self.serial_ref.inWaiting() > 0:
                     packets, status = self.read_packets()
                     if status is False:
@@ -108,7 +100,15 @@ class Communicator(threading.Thread):
             self.log.close()
         self.serial_ref.close()
 
+    def is_alive(self):
+        """A way to check if serial is hanging the thread"""
+        return abs(round(time.time() - self.start_time) - self.thread_time) < 1
+
     def parse_packets(self, packets):
+        """
+        Give all parsed packets to the correct sensors and log them if
+        log_data is True
+        """
         for packet in packets:
             if len(packet) > 0:
                 sensor = self.sensor_pool.update(packet)
@@ -125,21 +125,30 @@ class Communicator(threading.Thread):
                     print("-- ", packet)
 
     def read_packets(self):
+        """
+        Read all available data on serial and split them into packets as
+        indicated by the characters \r\n. If serial crashes, the method
+        returns False indicating that the communicator thread should be stopped.
+        """
         try:
-            incoming = self.serial_ref.read(self.serial_ref.inWaiting())
-            self.buffer += incoming.decode('ascii')
-            packets = self.buffer.split('\r\n')
+            if self.serial_ref.inWaiting() > 0:
+                incoming = self.serial_ref.read(self.serial_ref.inWaiting())
+                self.buffer += incoming.decode('ascii')
+                packets = self.buffer.split('\r\n')
 
-            if self.buffer[-2:] != '\r\n':
-                self.buffer = packets.pop(-1)
+                if self.buffer[-2:] != '\r\n':
+                    self.buffer = packets.pop(-1)
+                else:
+                    self.buffer = ""
+                return packets, True
             else:
-                self.buffer = ""
-            return packets, True
+                return [], True
         except:
             traceback.print_exc()
             return [], False
 
     def write_byte(self, data):
+        """Safely write a byte over serial"""
         if not Communicator.exit_flag:
             try:
                 self.serial_ref.write(data)
@@ -150,22 +159,15 @@ class Communicator(threading.Thread):
 
     def put(self, packet):
         """
-        Directly puts a string into serial. This was revised from having a
-        command queue (the queue would fill faster than it would empty).
+        Directly puts a string into serial.
         For use in data.py by Command objects.
 
-        :param packet: A string formed by a Command object
-        :return: None
+        packet should be a string
         """
         self.write_byte(bytearray(packet, 'ascii'))
 
     def handshake(self):
-        """
-        Ensures communication between serial and Arduino (or any
-        micro-controller that needs it, MicroPython does not)
-
-        :return: None
-        """
+        """Signals to the microcontroller that the program is ready"""
         print("Waiting for ready flag from %s..." % self.address)
 
         signal = 'ready?\r\n'
@@ -190,16 +192,13 @@ class Communicator(threading.Thread):
             self.stop()
             return False
 
-        print("Ready flag received!")
+        # print("Ready flag received!")
         return True
 
     def find_port(self, baud_rate):
         """
-        Tries all possible addresses as found by _possibleAddresses() until
+        Tries all possible addresses as found by possible_addrs() until
         a serial connection is established.
-
-        :param baud_rate: The baud rate of the serial connection
-        :return: serial.Serial - instance of the serial object
         """
         address = None
         serial_ref = None
@@ -221,12 +220,7 @@ class Communicator(threading.Thread):
 
     @staticmethod
     def possible_addrs():
-        """
-        Returns all addresses that could be a micro-controller.
-        TODO: Figure out how to implement multiple board support
-
-        :return: A list of strings containing all likely addresses
-        """
+        """Returns all addresses that could be a microcontroller."""
         if sys.platform.startswith('darwin'):  # OS X
             return glob.glob('/dev/tty.usbmodem[0-9]*') + \
                    glob.glob('/dev/cu.usbmodem[0-9]*')
@@ -243,9 +237,7 @@ class Communicator(threading.Thread):
 
     def stop(self):
         """
-        Sets the exit_flag to True. Stops the serial read thread
-
-        :return: None
+        Sets the exit_flag to True indicating that the communication thread
+        should be stopped
         """
-        print("")
         Communicator.exit_flag = True

@@ -13,6 +13,8 @@ from collections import defaultdict
 class Plotter:
     def __init__(self, file_name, directory, map_name, map_dir=None,
                  *plot_options):
+        project.set_project_dir("rccar")
+
         self.map_name = map_name
         self.map_dir = map_dir
 
@@ -459,10 +461,10 @@ elif len(sys.argv) == 5:
     file_name, directory, map_name, map_dir = sys.argv[1:]
 
 else:
-    file_name = ":random"
-    directory = ':random'
-    map_name = "test goal track.gpx"
-    map_dir = ":gpx"
+    file_name = 0  #":random"
+    directory = "Jul 22 2016"  #':random'
+    map_name = "test goal track"
+    map_dir = None
 
 try:
     file_name = int(file_name)

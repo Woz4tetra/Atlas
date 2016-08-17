@@ -1,10 +1,4 @@
 """
-Written by Ben Warwick
-
-diagnose_system.py, written for RoboQuasar3.0
-Version 3/10/2015
-=========
-
 Contains functions that return important project directories
 """
 
@@ -12,32 +6,66 @@ import os
 import random
 import sys
 
-PROJECTDIR = os.path.dirname(os.path.realpath(__file__))
+BUGGYPI_DIR = os.path.dirname(os.path.realpath(__file__))
+PROJECT_DIR = BUGGYPI_DIR
 
+ROOT_DIR_NAME = "Atlas"
+ROOT_DIR = BUGGYPI_DIR[:BUGGYPI_DIR.rfind(ROOT_DIR_NAME) + len(ROOT_DIR_NAME)]
 
-def _arduino_dir():
-    root_dir_name = "Atlas"
-    root_dir = PROJECTDIR[:PROJECTDIR.rfind(root_dir_name) + len(root_dir_name)]
-    return root_dir + "/Arduino/"
-
-
+# dictionary of important directories. "--" indicates a project directory
 project_dirs = {
-    'arduino': _arduino_dir(),
-    'microcontroller': PROJECTDIR + "/microcontroller/",
-    'logs': PROJECTDIR + "/logs/",
-    'maps': PROJECTDIR + "/maps/",
-    'gpx': PROJECTDIR + "/maps/gpx/",
-    'vision': PROJECTDIR + "/vision/",
-    'videos': PROJECTDIR + "/vision/videos/",
-    'images': PROJECTDIR + "/vision/images/",
-    'scripts': PROJECTDIR + "/scripts/",
-    'test': PROJECTDIR + "/tests/",
-    'tunes': PROJECTDIR + "/sound/tunes/",
-    'project': PROJECTDIR + "/",
+    'arduino': ROOT_DIR + "/Arduino/",
+    'microcontroller': BUGGYPI_DIR + "/microcontroller/",
+    'logs': "--/logs/",
+    'maps': "--/maps/",
+    'pickle': "--/pickled/",
+    'gpx': "--/maps/gpx/",
+    'vision': BUGGYPI_DIR + "/vision/",
+    'videos': "--/videos/",
+    'images': "--/images/",
+    'scripts': BUGGYPI_DIR + "/scripts/",
+    'test': "--/tests/",
+    'joysticks': "--/joysticks/",
+    'project': "--/",
 }
 
 
+def set_project_dir(project_name=None):
+    """
+    Sets the project directory that project_dirs should use. One benefit of this
+    is each project (or robot) can have its own set of log files and maps
+    """
+    global PROJECT_DIR
+    if project_name is not None:  # if None, use the BuggyPi project directory
+        # walk through all directories from the top down until the project name
+        # is found
+        for root, dirs, files in os.walk(ROOT_DIR):
+            if project_name in dirs:
+                PROJECT_DIR = ROOT_DIR + "/" + project_name
+                break
+
+    # update project_dirs
+    for name, directory in project_dirs.items():
+        if directory[0:2] == "--":
+            project_dirs[name] = PROJECT_DIR + directory[2:]
+
+    return PROJECT_DIR
+
+
+def add_project_dirs(**new_project_dirs):
+    """Add any special project directories"""
+    for name, local_dir in project_dirs.items():
+        if new_project_dirs[name][0] != "/":
+            project_dirs[name] = PROJECT_DIR + "/" + new_project_dirs[name]
+        else:
+            project_dirs[name] = PROJECT_DIR + new_project_dirs[name]
+
+        if project_dirs[name][-1] != "/":
+            project_dirs[name][-1] += "/"
+
+
 def get_platform():
+    """Use for platform specific operations"""
     if sys.platform.startswith('darwin'):  # OS X
         return "mac"
     elif (sys.platform.startswith('linux') or sys.platform.startswith(
@@ -50,6 +78,10 @@ def get_platform():
 
 
 def get_dir(directory=""):
+    """
+    Search project_dirs and format the directory into an absolute
+    directory. If the directory doesn't exist, make it
+    """
     if len(directory) > 0 and directory[0] == ':':
         shortcut_start = directory.find(":") + 1
         shortcut_end = directory.find("/", shortcut_start)
@@ -58,14 +90,18 @@ def get_dir(directory=""):
             abs_directory = project_dirs[key]
         else:
             key = directory[shortcut_start: shortcut_end]
-            abs_directory = project_dirs[key] + directory[shortcut_end + 1:]
+            abs_directory = os.path.join(project_dirs[key], directory[shortcut_end + 1:])
 
     elif len(directory) > 0 and directory[0] == '/':
         abs_directory = directory
-
     else:
-        abs_directory = PROJECTDIR + "/" + directory
+        abs_directory = os.path.join(BUGGYPI_DIR, directory) + "/"
 
+    if abs_directory[0:2] == "--":
+        raise NotADirectoryError(
+            "Make sure to set your project name. It must be a directory inside "
+            "the Atlas github repository: project.set_project_dir"
+            "('project name')")
     if not os.path.isdir(abs_directory):
         os.mkdir(abs_directory)
 
@@ -74,7 +110,13 @@ def get_dir(directory=""):
 
 def parse_dir(directory, default):
     """
-    Takes an directory name and converts it to an absolute directory
+    Formats the input directory using get_dir. The 'default' argument is the
+    directory to start in. It should be a project directory flag. Useful if
+    the user doesn't provide a specific directory but you know what kind of
+    file in the project you are looking for.
+
+    If :random is provided for the directory, a directory will selected at
+    random from within the default directory
     """
     if directory is None:
         directory = get_dir(default)
@@ -96,6 +138,7 @@ def parse_dir(directory, default):
 def _get_files(directory, file_types):
     """
     Gets all file names of the specified file type in a directory
+    file_types can be a list of file types or a string containing one file type
     """
     if type(file_types) == str:
         file_types = [file_types]
@@ -112,7 +155,7 @@ def get_file_name(file_name, directory, file_types):
     """
     Gets a file within a directory. The file name can be the index of the file
     in the directory ordered by name, the name of the file, or a random file
-    (specified by suppling :random for file_name.
+    (specified by suppling :random for file_name).
 
     file_type is the desired file extension (for example: 'txt', 'avi')
         don't put in the '.' before the extension!!
