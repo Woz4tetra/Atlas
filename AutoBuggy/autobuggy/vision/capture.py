@@ -3,7 +3,7 @@ import time
 
 import cv2
 
-from buggypi import project
+from autobuggy import project
 
 
 class Capture:
@@ -137,6 +137,7 @@ class Capture:
         """
         if self.enable_draw:
             if frame is not None:
+                print(self.window_name)
                 cv2.imshow(self.window_name, frame)
             elif self.frame is not None:
                 cv2.imshow(self.window_name, self.frame)

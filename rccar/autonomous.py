@@ -1,4 +1,3 @@
-import math
 import time
 # from pprint import pprint
 
@@ -20,7 +19,8 @@ class Autonomous(StandardRunner):
         self.robot.filter.initialize_filter(
             initial_long, initial_lat, bearing
         )
-        self.robot.record("initial conditions", initial_long=initial_long, initial_lat=initial_lat, initial_heading=bearing)
+        self.robot.record("initial conditions", initial_long=initial_long,
+                          initial_lat=initial_lat, initial_heading=bearing)
         self.checkpoint_num = 1
         self.robot.start()
 
@@ -43,7 +43,8 @@ class Autonomous(StandardRunner):
         if not self.manual_mode:
             state = self.robot.filter.state
 
-            angle_command = self.controller.update(state, self.goal_x, self.goal_y)
+            angle_command = self.controller.update(state, self.goal_x,
+                                                   self.goal_y)
             self.goal_x, self.goal_y = self.waypoints.get_goal(state)
 
             self.servo.set(self.angle_to_servo(angle_command))

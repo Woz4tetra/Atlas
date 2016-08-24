@@ -377,7 +377,7 @@ if __name__ == '__main__':
                 module_name = module_name.replace(" ", "")
 
                 content_string = """
-from buggypi.buggy_joystick import BuggyJoystick
+from autobuggy.buggy_joystick import BuggyJoystick
 
 
 class %s(BuggyJoystick):

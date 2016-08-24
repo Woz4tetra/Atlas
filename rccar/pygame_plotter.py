@@ -4,8 +4,8 @@ import numpy as np
 import pygame
 from pygame.locals import *
 
-from buggypi.microcontroller.logger import *
-from navigation.buggypi_filter import BuggyPiFilter
+from autobuggy.microcontroller.logger import *
+from navigation.rccar_filter import RcCarFilter
 from navigation.waypoint_picker import Waypoints
 from standard_params import standard_params
 from collections import defaultdict
@@ -27,11 +27,11 @@ class Plotter:
         initial_long, initial_lat = self.checkpoints[0]
         second_long, second_lat = self.checkpoints[1]
 
-        bearing = BuggyPiFilter.get_gps_bearing(
+        bearing = RcCarFilter.get_gps_bearing(
             initial_long, initial_lat, second_long, second_lat
         )
         bearing = (-bearing - math.pi / 2) % (2 * math.pi)
-        self.filter = BuggyPiFilter(
+        self.filter = RcCarFilter(
             self.robot_params['counts_per_rotation'], self.robot_params['wheel_radius'],
             self.robot_params['front_back_dist'], self.robot_params['max_speed'],
             self.robot_params['left_angle_limit'], self.robot_params['right_angle_limit'],

@@ -3,8 +3,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from pykalman import KalmanFilter
 
-from buggypi.microcontroller.logger import *
-from navigation.buggypi_filter import BuggyPiFilter
+from autobuggy.microcontroller.logger import *
+from navigation.rccar_filter import RcCarFilter
 from navigation.waypoint_picker import Waypoints
 from standard_params import standard_params
 from collections import defaultdict
@@ -30,11 +30,11 @@ class Plotter:
         initial_long, initial_lat = self.checkpoints[0]
         second_long, second_lat = self.checkpoints[1]
 
-        initial_heading = BuggyPiFilter.get_gps_bearing(
+        initial_heading = RcCarFilter.get_gps_bearing(
             second_long, second_lat, initial_long, initial_lat
         )
 
-        self.filter = BuggyPiFilter(
+        self.filter = RcCarFilter(
             standard_params['counts_per_rotation'],
             standard_params['wheel_radius'],
             standard_params['front_back_dist'],

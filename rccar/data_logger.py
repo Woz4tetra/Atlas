@@ -1,7 +1,7 @@
 import math
 import time
 
-from buggypi.vision.camera import Camera
+from autobuggy.vision.picamera import PiCamera
 from pipeline import Pipeline
 from standard_runner import StandardRunner
 
@@ -12,8 +12,8 @@ class DataLogger(StandardRunner):
         self.cam_height = 320
 
         pipeline = Pipeline(self.cam_width, self.cam_height, False)
-        capture = Camera(self.cam_width, self.cam_height,
-                         update_fn=lambda params: self.update_camera())
+        capture = PiCamera(self.cam_width, self.cam_height,
+                           update_fn=lambda params: self.update_camera())
 
         super(DataLogger, self).__init__(pipeline, capture, log_data=True)
 
@@ -40,7 +40,8 @@ class DataLogger(StandardRunner):
 
         print("(%0.6f, %0.6f, %0.4f), (%0.6f, %0.6f)" % (
             state["x"], state["y"], state["angle"],
-            self.robot.sensors['gps'].get('long'), self.robot.sensors['gps'].get('lat')), end="\r")
+            self.robot.sensors['gps'].get('long'),
+            self.robot.sensors['gps'].get('lat')), end="\r")
         time.sleep(0.05)
 
 

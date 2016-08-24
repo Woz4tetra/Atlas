@@ -1,4 +1,4 @@
-from buggypi.buggy_joystick import *
+from autobuggy.buggy_joystick import *
 
 
 class WiiUJoystick(BuggyJoystick):

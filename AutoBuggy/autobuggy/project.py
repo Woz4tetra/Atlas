@@ -6,24 +6,24 @@ import os
 import random
 import sys
 
-BUGGYPI_DIR = os.path.dirname(os.path.realpath(__file__))
-PROJECT_DIR = BUGGYPI_DIR
+autobuggy_dir = os.path.dirname(os.path.realpath(__file__))
+project_dir = autobuggy_dir
 
 ROOT_DIR_NAME = "Atlas"
-ROOT_DIR = BUGGYPI_DIR[:BUGGYPI_DIR.rfind(ROOT_DIR_NAME) + len(ROOT_DIR_NAME)]
+ROOT_DIR = autobuggy_dir[:autobuggy_dir.rfind(ROOT_DIR_NAME) + len(ROOT_DIR_NAME)]
 
 # dictionary of important directories. "--" indicates a project directory
 project_dirs = {
     'arduino': ROOT_DIR + "/Arduino/",
-    'microcontroller': BUGGYPI_DIR + "/microcontroller/",
+    'microcontroller': autobuggy_dir + "/microcontroller/",
     'logs': "--/logs/",
     'maps': "--/maps/",
     'pickle': "--/pickled/",
     'gpx': "--/maps/gpx/",
-    'vision': BUGGYPI_DIR + "/vision/",
+    'vision': autobuggy_dir + "/vision/",
     'videos': "--/videos/",
     'images': "--/images/",
-    'scripts': BUGGYPI_DIR + "/scripts/",
+    'scripts': autobuggy_dir + "/scripts/",
     'test': "--/tests/",
     'joysticks': "--/joysticks/",
     'project': "--/",
@@ -35,30 +35,30 @@ def set_project_dir(project_name=None):
     Sets the project directory that project_dirs should use. One benefit of this
     is each project (or robot) can have its own set of log files and maps
     """
-    global PROJECT_DIR
-    if project_name is not None:  # if None, use the BuggyPi project directory
+    global project_dir
+    if project_name is not None:  # if None, use the AutoBuggy project directory
         # walk through all directories from the top down until the project name
         # is found
         for root, dirs, files in os.walk(ROOT_DIR):
             if project_name in dirs:
-                PROJECT_DIR = ROOT_DIR + "/" + project_name
+                project_dir = ROOT_DIR + "/" + project_name
                 break
 
     # update project_dirs
     for name, directory in project_dirs.items():
         if directory[0:2] == "--":
-            project_dirs[name] = PROJECT_DIR + directory[2:]
+            project_dirs[name] = project_dir + directory[2:]
 
-    return PROJECT_DIR
+    return project_dir
 
 
 def add_project_dirs(**new_project_dirs):
     """Add any special project directories"""
     for name, local_dir in project_dirs.items():
         if new_project_dirs[name][0] != "/":
-            project_dirs[name] = PROJECT_DIR + "/" + new_project_dirs[name]
+            project_dirs[name] = project_dir + "/" + new_project_dirs[name]
         else:
-            project_dirs[name] = PROJECT_DIR + new_project_dirs[name]
+            project_dirs[name] = project_dir + new_project_dirs[name]
 
         if project_dirs[name][-1] != "/":
             project_dirs[name][-1] += "/"
@@ -95,7 +95,7 @@ def get_dir(directory=""):
     elif len(directory) > 0 and directory[0] == '/':
         abs_directory = directory
     else:
-        abs_directory = os.path.join(BUGGYPI_DIR, directory) + "/"
+        abs_directory = os.path.join(autobuggy_dir, directory) + "/"
 
     if abs_directory[0:2] == "--":
         raise NotADirectoryError(

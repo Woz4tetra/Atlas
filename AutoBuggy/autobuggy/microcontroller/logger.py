@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 import pickle
 
-from buggypi import project
+from autobuggy import project
 
 # log file data separators (end markers)
 time_name_sep = ":\t"  # timestamp

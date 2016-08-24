@@ -1,7 +1,7 @@
 import cv2
 
-from buggypi import project
-from buggypi.vision.capture import Capture
+from autobuggy import project
+from autobuggy.vision.capture import Capture
 
 
 class Video(Capture):

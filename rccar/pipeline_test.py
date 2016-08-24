@@ -1,7 +1,7 @@
 import sys
 import time
 
-from buggypi.vision.video import Video
+from autobuggy.vision.video import Video
 from pipeline import Pipeline
 
 

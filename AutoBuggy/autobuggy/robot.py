@@ -3,15 +3,16 @@ A general class for handling all the properties, communications, and
 algorithms of the robot
 """
 
-from buggypi.microcontroller.comm import *
-from buggypi.microcontroller.data import *
-from buggypi import project
+from autobuggy.microcontroller.comm import *
+from autobuggy.microcontroller.data import *
+from autobuggy import project
 
 
 class Robot:
-    def __init__(self, sensors, commands, project_name, filter=None,
-                 joystick=None, pipeline=None, capture=None, close_fn=None,
-                 log_data=True, log_name=None, log_dir=None):
+    def __init__(self, sensors, commands, project_name, address=None,
+                 exclude_addresses=None, filter=None, joystick=None,
+                 pipeline=None, capture=None, close_fn=None, log_data=True,
+                 log_name=None, log_dir=None):
         # set the project name (so that maps and logs and be found)
         project.set_project_dir(project_name)
 
@@ -44,10 +45,9 @@ class Robot:
         # Initialize communications with the micropython board
         self.log_data = log_data
         self.communicator = Communicator(
-            self.sensor_pool, address='/dev/ttyAMA0',
-            log_data=self.log_data,
-            log_name=log_name,
-            log_dir=log_dir)
+            self.sensor_pool, address=address,
+            exclude_addresses=exclude_addresses, log_data=self.log_data,
+            log_name=log_name, log_dir=log_dir)
         if not self.communicator.initialized:
             raise Exception("Communicator not initialized...")
 

@@ -16,18 +16,20 @@ import traceback
 
 import serial
 
-from buggypi.microcontroller.logger import Logger
+from autobuggy.microcontroller.logger import Logger
 
 
 class Communicator(threading.Thread):
     # Flag used to kill the serial thread
     exit_flag = False
 
-    def __init__(self, sensors_pool, address=None, baud_rate=115200, log_data=True,
+    def __init__(self, sensors_pool, address=None, exclude_addresses=None,
+                 baud_rate=115200, log_data=True,
                  log_name=None, log_dir=None, handshake=True):
         # if no address is provided, search for possible candidates
         if address is None:
-            self.serial_ref, self.address = self.find_port(baud_rate)
+            self.serial_ref, self.address = self.find_port(
+                baud_rate, exclude_addresses)
         else:
             self.address = address
             self.serial_ref = serial.Serial(port=self.address,
@@ -195,7 +197,7 @@ class Communicator(threading.Thread):
         # print("Ready flag received!")
         return True
 
-    def find_port(self, baud_rate):
+    def find_port(self, baud_rate, exclude_addresses):
         """
         Tries all possible addresses as found by possible_addrs() until
         a serial connection is established.
@@ -203,6 +205,9 @@ class Communicator(threading.Thread):
         address = None
         serial_ref = None
         for possible_address in self.possible_addrs():
+            if exclude_addresses is not None and \
+                    possible_address in exclude_addresses:
+                continue
             try:
                 serial_ref = serial.Serial(port=possible_address,
                                            baudrate=baud_rate,

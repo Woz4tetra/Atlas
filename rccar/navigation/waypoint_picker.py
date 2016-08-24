@@ -1,4 +1,4 @@
-from buggypi.microcontroller.logger import get_map
+from autobuggy.microcontroller.logger import get_map
 
 
 class Waypoints:

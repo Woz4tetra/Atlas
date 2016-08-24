@@ -1,9 +1,7 @@
-import time
-
-from buggypi.robot import *
-from buggypi.microcontroller.logger import get_map
+from autobuggy.robot import *
+from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
-from navigation.buggypi_filter import BuggyPiFilter
+from navigation.rccar_filter import RcCarFilter
 from navigation.controller import Controller
 from navigation.waypoint_picker import Waypoints
 from standard_params import standard_params
@@ -22,14 +20,14 @@ class StandardRunner(RobotRunner):
         self.waypoints = Waypoints(
             map_name, 1, map_dir
         )
-        filter = BuggyPiFilter(standard_params['counts_per_rotation'],
-                               standard_params['wheel_radius'],
-                               standard_params['front_back_dist'],
-                               standard_params['max_speed'],
-                               standard_params['left_angle_limit'],
-                               standard_params['right_angle_limit'],
-                               standard_params['left_servo_limit'],
-                               standard_params['right_servo_limit'])
+        filter = RcCarFilter(standard_params['counts_per_rotation'],
+                             standard_params['wheel_radius'],
+                             standard_params['front_back_dist'],
+                             standard_params['max_speed'],
+                             standard_params['left_angle_limit'],
+                             standard_params['right_angle_limit'],
+                             standard_params['left_servo_limit'],
+                             standard_params['right_servo_limit'])
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button, params: self.button_dn(
@@ -79,7 +77,8 @@ class StandardRunner(RobotRunner):
         if log_dir is None:
             log_dir = ":today"  # today's date
 
-        robot = Robot(sensors, commands, "rccar", filter, joystick, pipeline,
+        robot = Robot(sensors, commands, "rccar", '/dev/ttyAMA0',
+                      filter, joystick, pipeline,
                       capture, self.close, log_data, log_name, log_dir)
 
         self.gps = robot.sensors['gps']

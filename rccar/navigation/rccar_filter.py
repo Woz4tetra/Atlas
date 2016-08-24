@@ -1,12 +1,11 @@
+"""An implementation of the kalman filter tailored for the BuggyPi rc car."""
+
 import math
-from sys import maxsize as MAX_INT
-
 import numpy as np
+from autobuggy.kalman_filter import KalmanFilter
 
-from buggypi.kalman_filter import KalmanFilter
 
-
-class BuggyPiFilter:
+class RcCarFilter:
     # retrieved from http://www.geomidpoint.com/destination/
     earth_radius = 6372797.6
 
@@ -14,6 +13,23 @@ class BuggyPiFilter:
                  max_speed, left_angle_limit, right_angle_limit,
                  left_servo_limit, right_servo_limit,
                  initial_long=None, initial_lat=None, initial_heading=None):
+        """
+        If initial conditions aren't provided, initialize_filter should be
+        called later before the filter can be used.
+
+        :param counts_per_rotation: Number of encoder counts per rotation
+        :param wheel_radius: Radius of the wheel the encoder is on
+        :param front_back_dist: Distance between the front and back axle
+        :param max_speed: Maximum speed in meters/second of the robot
+        :param left_angle_limit: Left steering limit in radians
+        :param right_angle_limit: Right steering limit in radians
+        :param left_servo_limit: Left steering limit in servo values
+        :param right_servo_limit: Right steering limit in servo values
+        :param initial_long: Initial longitude (x) of the robot in GPS degrees
+        :param initial_lat: Initial latitude (y) of the robot in GPS degrees
+        :param initial_heading: Initial direction of the robot in radians
+        """
+
         # ----- filter related variables -----
         self.rotation = counts_per_rotation
         self.wheel_radius = wheel_radius
@@ -25,12 +41,13 @@ class BuggyPiFilter:
         self.left_servo_limit = left_servo_limit
         self.right_servo_limit = right_servo_limit
 
-        if initial_long is not None and \
-                        initial_lat is not None and \
+        if initial_long is not None or \
+                        initial_lat is not None or \
                         initial_heading is not None:
             self.initialize_filter(initial_long, initial_lat, initial_heading)
 
     def initialize_filter(self, initial_long, initial_lat, initial_heading):
+        """Initialize all filter matrices"""
         self.initial_long = initial_long
         self.initial_lat = initial_lat
         self.initial_heading = initial_heading  # assumed radians
@@ -41,6 +58,7 @@ class BuggyPiFilter:
         self.state_transition = np.eye(6)  # updated in update_state_transition
         self.control_matrix = np.eye(6)  # updated in update_filter
 
+        # amount of error between each filter update
         self.process_error_covariance = np.array([
             [1, 0, 0, 0, 0, 0],
             [0, 1, 0, 0, 0, 0],
@@ -50,6 +68,9 @@ class BuggyPiFilter:
             [0, 0, 0, 0, 0, 1],
         ])
 
+        # Translates state vectors into the format of a measurement vector.
+        # The rccar has one measurement for each value in the state vector,
+        # so it's one to one
         self.observation_matrix = np.array([
             [1, 0, 0, 0, 0, 0],
             [0, 1, 0, 0, 0, 0],
@@ -61,7 +82,12 @@ class BuggyPiFilter:
             # [1, 0, 0, 0, 0, 0],
             # [0, 1, 0, 0, 0, 0],
         ])
+
+        # a measurement vector:
+        # [gps x, gps y, gps bearing, encoder vx, encoder vy, imu angular v]
         self.measurement = np.zeros(len(self.observation_matrix))
+
+        # The error of each sensor
         self.measurement_covariance = np.eye(len(self.observation_matrix))
         self.measurement_covariance[0][0] = 10000  # gps long
         self.measurement_covariance[1][1] = 10000  # gps lat
@@ -72,14 +98,15 @@ class BuggyPiFilter:
         # self.measurement_covariance[6][6] = 1.5
         # self.measurement_covariance[7][7] = 1.5
 
+        # state uses meters and always starts at 0, 0
         self.initial_state = np.array(
             [0.0, 0.0, self.initial_heading, 0.0, 0.0, 0.0]
         )
         self.initial_probability = np.eye(6)
 
         self._state = self.initial_state
-        self.state = {}
-        self.update_state_dict()
+        self.state = {}  # meters are converted to gps degrees
+        self.update_state_dict()  # put state vector into dictionary
 
         self.filter = KalmanFilter(self.initial_state,
                                    self.initial_probability,
@@ -112,6 +139,7 @@ class BuggyPiFilter:
         self.prev_gps_x_meters, self.prev_gps_y_meters = 0.0, 0.0
         self.gps_bearing = 0.0  # 0.0 == east
 
+        # how much to weigh the IMU when calculating GPS bearing
         self.imu_angle_weight = 0.5
 
         self.motor_speed = 0.0
@@ -120,12 +148,21 @@ class BuggyPiFilter:
         # ----- update sensors and commands -----
 
     def update_motors(self, motor_value):
+        """
+        Call this if the motor value changed. Must be a value from
+        -100...100
+        """
         self.motor_speed = motor_value / 100 * self.max_speed
 
     def update_servo(self, servo_value):
+        """
+        Call this if the servo value changed. Must be a value from
+        -90...90
+        """
         self.servo_angle = self.servo_to_angle(servo_value)
 
     def update_encoder(self, timestamp, enc_counts):
+        """Call this if the encoder value changed"""
         if self.prev_enc_t is None:
             self.prev_enc_t = timestamp
             self.prev_enc = enc_counts
@@ -134,7 +171,8 @@ class BuggyPiFilter:
         else:
             dt = timestamp - self.prev_enc_t
             self.enc_vx, self.enc_vy = self.get_velocity(
-                enc_counts, self.prev_enc, self.gps_bearing, self.imu_yaw, dt, timestamp)
+                enc_counts, self.prev_enc, self.gps_bearing, self.imu_yaw, dt,
+                timestamp)
             self.enc_x += self.enc_vx * dt
             self.enc_y += self.enc_vy * dt
 
@@ -146,7 +184,8 @@ class BuggyPiFilter:
             # return self.update_filter(timestamp)
 
     def adjust_yaw(self, imu_yaw):
-        return ((imu_yaw - self.start_imu) + self.initial_heading) % (2 * math.pi)
+        return ((imu_yaw - self.start_imu) + self.initial_heading) % (
+            2 * math.pi)
 
     def update_imu(self, timestamp, imu_yaw):
         if imu_yaw is not None:
@@ -162,9 +201,9 @@ class BuggyPiFilter:
                 self.prev_imu_t = timestamp
                 self.prev_imu = self.imu_yaw
 
-            # self.update_covariances(timestamp)
+                # self.update_covariances(timestamp)
 
-            # return self.update_filter(timestamp)
+                # return self.update_filter(timestamp)
 
     def update_gps(self, timestamp, gps_long, gps_lat):
         if self.prev_gps_t is None:
@@ -251,8 +290,8 @@ class BuggyPiFilter:
         self.state["vy"] = self._state[4]  # meters / second
         self.state["ang v"] = self._state[5]  # radians / second
 
-    # def update_covariances(self, timestamp):
-    #     pass
+        # def update_covariances(self, timestamp):
+        #     pass
         # if self.prev_gps_t is not None:
         #     gps_covariance = \
         #         math.exp((timestamp - self.prev_gps_t) * 100) + 1
@@ -288,10 +327,13 @@ class BuggyPiFilter:
 
         # ----- conversion methods -----
 
-    def get_velocity(self, counts, prev_count, gps_bearing, imu_yaw, dt, timestamp):
+    def get_velocity(self, counts, prev_count, gps_bearing, imu_yaw, dt,
+                     timestamp):
         current_speed = self.enc_to_meters(counts - prev_count) / dt
-        if current_speed > 0.2:# and timestamp > 10:
-            heading = (gps_bearing * (1 - self.imu_angle_weight) + imu_yaw * self.imu_angle_weight) % (2 * math.pi)
+        if current_speed > 0.2:  # and timestamp > 10:
+            heading = (gps_bearing * (
+                1 - self.imu_angle_weight) + imu_yaw * self.imu_angle_weight) % (
+                          2 * math.pi)
         else:
             heading = imu_yaw
         vx = current_speed * math.cos(heading)
@@ -370,10 +412,10 @@ class BuggyPiFilter:
             prev_lat = math.radians(prev_lat)
 
         if my_convention:
-            return BuggyPiFilter.my_atan2(lat - prev_lat, long - prev_long)
+            return RcCarFilter.my_atan2(lat - prev_lat, long - prev_long)
         else:
             y = math.sin(long - prev_long) * math.cos(lat)
             x = (math.cos(prev_lat) * math.sin(lat) - math.sin(
                 prev_lat) * math.cos(lat) * math.cos(long - prev_long))
 
-            return BuggyPiFilter.my_atan2(y, x)
+            return RcCarFilter.my_atan2(y, x)
