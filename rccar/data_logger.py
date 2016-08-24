@@ -3,10 +3,10 @@ import time
 
 from autobuggy.vision.picamera import PiCamera
 from pipeline import Pipeline
-from standard_runner import StandardRunner
+from standard_robot import StandardRobot
 
 
-class DataLogger(StandardRunner):
+class DataLogger(StandardRobot):
     def __init__(self):
         self.cam_width = 480
         self.cam_height = 320

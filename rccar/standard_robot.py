@@ -1,4 +1,5 @@
-from autobuggy.robot import *
+import time
+from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
 from navigation.rccar_filter import RcCarFilter
@@ -7,7 +8,7 @@ from navigation.waypoint_picker import Waypoints
 from standard_params import standard_params
 
 
-class StandardRunner(RobotRunner):
+class StandardRobot(Robot):
     def __init__(self, pipeline=None, capture=None, map_name=-1, map_dir=None,
                  log_data=True, log_name=None,
                  log_dir=None):
@@ -77,19 +78,18 @@ class StandardRunner(RobotRunner):
         if log_dir is None:
             log_dir = ":today"  # today's date
 
-        robot = Robot(sensors, commands, "rccar", '/dev/ttyAMA0',
-                      filter, joystick, pipeline,
-                      capture, self.close, log_data, log_name, log_dir)
+        super(StandardRobot, self).__init__(
+            sensors, commands, "rccar", '/dev/ttyAMA0', None,
+            filter, joystick, pipeline,
+            capture, self.close_fn, log_data, log_name, log_dir)
 
-        self.gps = robot.sensors['gps']
-        self.encoder = robot.sensors['encoder']
-        self.yaw = robot.sensors['imu']
+        self.gps = self.sensors['gps']
+        self.encoder = self.sensors['encoder']
+        self.yaw = self.sensors['imu']
 
-        self.servo = robot.commands['servo']
-        self.motors = robot.commands['motors']
-        self.blue_led = robot.commands['blue_led']
-
-        super(StandardRunner, self).__init__(robot)
+        self.servo = self.commands['servo']
+        self.motors = self.commands['motors']
+        self.blue_led = self.commands['blue_led']
 
     def button_dn(self, button, params):
         pass
@@ -98,11 +98,11 @@ class StandardRunner(RobotRunner):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(0)
-                self.robot.filter.update_servo(0)
+                self.filter.update_servo(0)
             elif axis == "left y":
                 self.blue_led.set(0)
                 self.motors.set(0)
-                self.robot.filter.update_motors(0)
+                self.filter.update_motors(0)
 
     def angle_to_servo(self, angle):
         return int(((standard_params['left_servo_limit'] - standard_params[
@@ -116,57 +116,61 @@ class StandardRunner(RobotRunner):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(self.angle_to_servo(-value))
-                self.robot.filter.update_servo(self.servo.get())
+                self.filter.update_servo(self.servo.get())
             elif axis == "left y":
                 self.blue_led.set(int(abs(value) * 255))
                 self.motors.set(int(-value * 100))
-                self.robot.filter.update_motors(self.motors.get())
+                self.filter.update_motors(self.motors.get())
 
     def update_camera(self):
-        if self.robot.capture is not None:
-            key = self.robot.capture.key_pressed()
+        if self.capture is not None:
+            key = self.capture.key_pressed()
 
             if key == 'q' or key == "esc":
                 print("quitting...")
                 return False  # exit program
             elif key == ' ':
-                if self.robot.capture.paused:
+                if self.capture.paused:
                     print("%0.4fs: ...Video unpaused" % (
-                        time.time() - self.robot.time_start))
+                        time.time() - self.time_start))
                 else:
                     print("%0.4fs: Video paused..." % (
-                        time.time() - self.robot.time_start))
-                    self.robot.capture.paused = not self.robot.capture.paused
+                        time.time() - self.time_start))
+                    self.capture.paused = not self.capture.paused
             elif key == 's':
-                self.robot.capture.save_frame()
+                self.capture.save_frame()
             elif key == 'v':
-                if not self.robot.capture.recording:
-                    self.robot.capture.start_recording()
+                if not self.capture.recording:
+                    self.capture.start_recording()
                 else:
-                    self.robot.capture.stop_recording()
+                    self.capture.stop_recording()
 
-            if not self.robot.capture.paused:
-                self.robot.capture.show_frame()
+            if not self.capture.paused:
+                self.capture.show_frame()
 
         return True  # don't exit program
 
     def yaw_updated(self):
-        self.robot.filter.parse_imu(time.time() - self.robot.time_start,
-                                    self.yaw.get('yaw'))
+        self.filter.parse_imu(time.time() - self.time_start,
+                              self.yaw.get('yaw'))
 
     def gps_updated(self):
         if self.gps.get("fix"):
-            self.robot.filter.parse_gps(time.time() - self.robot.time_start,
-                                        self.gps.get("long"),
-                                        self.gps.get("lat"))
-            if self.robot.log_data:
-                self.robot.record("state", self.robot.get_state())
+            self.filter.parse_gps(time.time() - self.time_start,
+                                  self.gps.get("long"),
+                                  self.gps.get("lat"))
+            if self.log_data:
+                self.record("state", self.get_state())
 
     def encoder_updated(self):
-        self.robot.filter.parse_encoder(time.time() - self.robot.time_start,
-                                        self.encoder.get("counts"))
-        if self.robot.log_data:
-            self.robot.record("state", self.robot.get_state())
+        self.filter.parse_encoder(time.time() - self.time_start,
+                                  self.encoder.get("counts"))
+        if self.log_data:
+            self.record("state", self.get_state())
 
-    def close(self):
+    def close_fn(self):
+        # stop the motors and reset the servo (they won't do it on their own!)
+        self.motors.set(0)
+        self.servo.set(0)
+
         self.blue_led.set(0)

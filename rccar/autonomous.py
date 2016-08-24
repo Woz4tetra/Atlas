@@ -1,10 +1,10 @@
 import time
 # from pprint import pprint
 
-from standard_runner import StandardRunner
+from standard_robot import StandardRobot
 
 
-class Autonomous(StandardRunner):
+class Autonomous(StandardRobot):
     def __init__(self):
         super(Autonomous, self).__init__(map_name="test goal track.gpx",
                                          map_dir=":gpx", log_data=True)
@@ -12,17 +12,17 @@ class Autonomous(StandardRunner):
         initial_long, initial_lat = self.checkpoints[1]
         second_long, second_lat = self.checkpoints[2]
 
-        bearing = self.robot.filter.get_gps_bearing(
+        bearing = self.filter.get_gps_bearing(
             initial_long, initial_lat, second_long, second_lat
         )
 
-        self.robot.filter.initialize_filter(
+        self.filter.initialize_filter(
             initial_long, initial_lat, bearing
         )
-        self.robot.record("initial conditions", initial_long=initial_long,
-                          initial_lat=initial_lat, initial_heading=bearing)
+        self.record("initial conditions", initial_long=initial_long,
+                    initial_lat=initial_lat, initial_heading=bearing)
         self.checkpoint_num = 1
-        self.robot.start()
+        self.start()
 
     def button_dn(self, button, params):
         if button == 'B':
@@ -35,17 +35,16 @@ class Autonomous(StandardRunner):
             else:
                 self.motors.set(100)
         elif button == 'A':
-            self.robot.record('checkpoint', num=self.checkpoint_num)
+            self.record('checkpoint', num=self.checkpoint_num)
             print("Checkpoint %i recorded!" % self.checkpoint_num)
             self.checkpoint_num += 1
 
     def main(self):
         if not self.manual_mode:
-            state = self.robot.filter.state
-
-            angle_command = self.controller.update(state, self.goal_x,
-                                                   self.goal_y)
-            self.goal_x, self.goal_y = self.waypoints.get_goal(state)
+            angle_command = self.controller.update(
+                self.filter.state, self.goal_x, self.goal_y)
+            self.goal_x, self.goal_y = self.waypoints.get_goal(
+                self.filter.state)
 
             self.servo.set(self.angle_to_servo(angle_command))
 

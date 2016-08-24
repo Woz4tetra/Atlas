@@ -101,10 +101,6 @@ class Robot:
     def close(self):
         """All method calls necessary to shutdown the robot cleanly"""
 
-        # stop the motors and reset the servo (they won't do it on their own!)
-        self.commands['motors'].set(0)
-        self.commands['servo'].set(0)
-
         # stop the capture feed if it was initialized
         if self.capture is not None:
             self.capture.stop()
@@ -135,27 +131,16 @@ class Robot:
 
         return False
 
-
-class RobotRunner:
-    """
-    An abstract runner class that utilizes the Robot class.
-    It defines special running behaviors (if the program suddenly crashes,
-    the close methods still need to be called)
-    """
-
-    def __init__(self, robot):
-        self.robot = robot
-
     def run(self):
         try:
             while True:
                 self.main()
-                if self.robot.should_stop():
+                if self.should_stop():
                     break
         except:
             traceback.print_exc()
         finally:
-            self.robot.close()
+            self.close()
 
     def main(self):
         pass
