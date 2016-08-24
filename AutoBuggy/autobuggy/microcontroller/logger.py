@@ -23,7 +23,7 @@ log_file_type = "txt"  # easily change file types (not that you should need to)
 pickle_file_type = "pkl"
 
 log_directory = ":logs"
-pickle_directory = ":pickle"
+pickle_directory = ":pickled"
 
 
 def log_folder():

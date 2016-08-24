@@ -12,21 +12,16 @@ project_dir = autobuggy_dir
 ROOT_DIR_NAME = "Atlas"
 ROOT_DIR = autobuggy_dir[:autobuggy_dir.rfind(ROOT_DIR_NAME) + len(ROOT_DIR_NAME)]
 
-# dictionary of important directories. "--" indicates a project directory
+# dictionary of important local project directories
 project_dirs = {
-    'arduino': ROOT_DIR + "/Arduino/",
-    'microcontroller': autobuggy_dir + "/microcontroller/",
-    'logs': "--/logs/",
-    'maps': "--/maps/",
-    'pickle': "--/pickled/",
-    'gpx': "--/maps/gpx/",
-    'vision': autobuggy_dir + "/vision/",
-    'videos': "--/videos/",
-    'images': "--/images/",
-    'scripts': autobuggy_dir + "/scripts/",
-    'test': "--/tests/",
-    'joysticks': "--/joysticks/",
-    'project': "--/",
+    'logs': "logs/",
+    'maps': "maps/",
+    'pickled': "pickled/",
+    'gpx': "maps/gpx/",
+    'videos': "videos/",
+    'images': "images/",
+    'joysticks': "joysticks/",
+    'project': "",
 }
 
 
@@ -41,13 +36,12 @@ def set_project_dir(project_name=None):
         # is found
         for root, dirs, files in os.walk(ROOT_DIR):
             if project_name in dirs:
-                project_dir = ROOT_DIR + "/" + project_name
+                project_dir = os.path.join(root, project_name)
                 break
 
     # update project_dirs
     for name, directory in project_dirs.items():
-        if directory[0:2] == "--":
-            project_dirs[name] = project_dir + directory[2:]
+        project_dirs[name] = os.path.join(project_dir, directory)
 
     return project_dir
 
@@ -56,9 +50,9 @@ def add_project_dirs(**new_project_dirs):
     """Add any special project directories"""
     for name, local_dir in project_dirs.items():
         if new_project_dirs[name][0] != "/":
-            project_dirs[name] = project_dir + "/" + new_project_dirs[name]
+            project_dirs[name] = os.path.join(project_dir, new_project_dirs[name])
         else:
-            project_dirs[name] = project_dir + new_project_dirs[name]
+            project_dirs[name] = os.path.join(project_dir, new_project_dirs[name])
 
         if project_dirs[name][-1] != "/":
             project_dirs[name][-1] += "/"
