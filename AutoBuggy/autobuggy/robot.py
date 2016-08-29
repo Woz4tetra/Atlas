@@ -9,13 +9,10 @@ from autobuggy import project
 
 
 class Robot:
-    def __init__(self, sensors, commands, project_name, address=None,
+    def __init__(self, sensors, commands, address=None,
                  exclude_addresses=None, filter=None, joystick=None,
                  pipeline=None, capture=None, close_fn=None, log_data=True,
                  log_name=None, log_dir=None):
-        # set the project name (so that maps and logs and be found)
-        project.set_project_dir(project_name)
-
         # a class that contains (as opposed to an instance of) the
         # KalmanFilter class
         self.filter = filter

@@ -1,8 +1,8 @@
 import time
 
 from autobuggy.vision.base_camera import BaseCamera
-from autobuggy.vision.picamera import PiCamera
-from autobuggy.vision.picamera import PiRGBArray
+from picamera.array import PiRGBArray
+from picamera import PiCamera
 
 
 class RcCamera(BaseCamera):

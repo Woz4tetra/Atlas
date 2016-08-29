@@ -1,4 +1,5 @@
 import time
+from autobuggy import project
 from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
@@ -12,6 +13,9 @@ class StandardRobot(Robot):
     def __init__(self, pipeline=None, capture=None, map_name=-1, map_dir=None,
                  log_data=True, log_name=None,
                  log_dir=None):
+        # set the project name (so that maps and logs and be found)
+        project.set_project_dir("rccar")
+
         self.manual_mode = True
 
         self.goal_x, self.goal_y = 0, 0
@@ -21,14 +25,15 @@ class StandardRobot(Robot):
         self.waypoints = Waypoints(
             map_name, 1, map_dir
         )
-        filter = RcCarFilter(standard_params['counts_per_rotation'],
-                             standard_params['wheel_radius'],
-                             standard_params['front_back_dist'],
-                             standard_params['max_speed'],
-                             standard_params['left_angle_limit'],
-                             standard_params['right_angle_limit'],
-                             standard_params['left_servo_limit'],
-                             standard_params['right_servo_limit'])
+        # filter = RcCarFilter(standard_params['counts_per_rotation'],
+        #                      standard_params['wheel_radius'],
+        #                      standard_params['front_back_dist'],
+        #                      standard_params['max_speed'],
+        #                      standard_params['left_angle_limit'],
+        #                      standard_params['right_angle_limit'],
+        #                      standard_params['left_servo_limit'],
+        #                      standard_params['right_servo_limit'])
+        filter = None
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button, params: self.button_dn(
@@ -41,11 +46,11 @@ class StandardRobot(Robot):
 
         sensors = dict(
             encoder=dict(sensor_id=0, properties='counts',
-                         update_fn=lambda: self.encoder_updated()),
+                         update_fn=None),#lambda: self.encoder_updated()),
             gps=dict(sensor_id=1, properties=['long', 'lat', 'fix'],
-                     update_fn=lambda: self.gps_updated()),
+                     update_fn=None),#lambda: self.gps_updated()),
             imu=dict(sensor_id=2, properties='yaw',
-                     update_fn=lambda: self.yaw_updated()),
+                     update_fn=None),#lambda: self.yaw_updated()),
         )
         commands = dict(
             leds=dict(command_array={
@@ -79,7 +84,7 @@ class StandardRobot(Robot):
             log_dir = ":today"  # today's date
 
         super(StandardRobot, self).__init__(
-            sensors, commands, "rccar", '/dev/ttyAMA0', None,
+            sensors, commands, '/dev/ttyAMA0', None,
             filter, joystick, pipeline,
             capture, self.close_fn, log_data, log_name, log_dir)
 
@@ -98,11 +103,11 @@ class StandardRobot(Robot):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(0)
-                self.filter.update_servo(0)
+                # self.filter.update_servo(0)
             elif axis == "left y":
                 self.blue_led.set(0)
                 self.motors.set(0)
-                self.filter.update_motors(0)
+                # self.filter.update_motors(0)
 
     def angle_to_servo(self, angle):
         return int(((standard_params['left_servo_limit'] - standard_params[
@@ -116,11 +121,11 @@ class StandardRobot(Robot):
         if self.manual_mode:
             if axis == "left x":
                 self.servo.set(self.angle_to_servo(-value))
-                self.filter.update_servo(self.servo.get())
+                # self.filter.update_servo(self.servo.get())
             elif axis == "left y":
                 self.blue_led.set(int(abs(value) * 255))
                 self.motors.set(int(-value * 100))
-                self.filter.update_motors(self.motors.get())
+                # self.filter.update_motors(self.motors.get())
 
     def update_camera(self):
         if self.capture is not None:

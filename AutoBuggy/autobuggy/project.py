@@ -38,6 +38,7 @@ def set_project_dir(project_name=None):
             if project_name in dirs:
                 project_dir = os.path.join(root, project_name)
                 break
+    print("Project directory is", project_dir)
 
     # update project_dirs
     for name, directory in project_dirs.items():

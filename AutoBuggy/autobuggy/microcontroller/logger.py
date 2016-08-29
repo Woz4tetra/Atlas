@@ -342,10 +342,11 @@ def get_map(file_name, directory=None):
     file name. If no directory and no file extension is given, gpx is assumed
     """
 
-    if file_name.endswith('gpx'):
-        directory = ":gpx"
-    elif file_name.endswith(log_file_type):
-        directory = ":maps"
+    if type(file_name) == str:
+        if file_name.endswith('gpx'):
+            directory = ":gpx"
+        elif file_name.endswith(log_file_type):
+            directory = ":maps"
 
     if directory is None:
         directory = ":gpx"

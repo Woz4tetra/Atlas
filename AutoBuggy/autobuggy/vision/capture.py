@@ -5,7 +5,6 @@ import cv2
 
 from autobuggy import project
 
-
 class Capture:
     """A general class for reading from live cameras or video files"""
     def __init__(self, width, height, window_name, enable_draw, update_fn=None,
