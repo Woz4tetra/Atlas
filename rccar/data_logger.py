@@ -16,7 +16,7 @@ class DataLogger(StandardRobot):
         pipeline = None
         capture = None
 
-        super(DataLogger, self).__init__(pipeline, capture, log_data=True)
+        super(DataLogger, self).__init__(pipeline, capture, log_data=False)
 
         # while not self.gps.get('fix'):
         #     print("waiting for fix...", self.gps)

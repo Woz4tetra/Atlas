@@ -156,7 +156,7 @@ class AdafruitGPS:
             elif packet_type == "GPRMC":
                 self.parse_rmc_sentence(sentence)
 ##            else:
-##                print(packet_type, sentence)
+##            print(packet_type, sentence)
 
             return True
         else:
@@ -198,6 +198,9 @@ class AdafruitGPS:
         geoid_height, geoid_height_units = \
             sentence.split(",")[0:12]
 
+        if len(fix_quality) > 0:
+            self.fix = int(fix_quality) != 0
+        
         self.parse_time(time)
 
         self.parse_latitude(latitude, lat_direction)
