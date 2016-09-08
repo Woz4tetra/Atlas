@@ -113,10 +113,12 @@ class RcCarFilter:
                                    self.process_error_covariance)
         # ----- unit conversion related variables -----
 
-        self.left_angle = self.left_angle_limit
-        self.right_angle = self.right_angle_limit
-        self.left_value = self.left_servo_limit
-        self.right_value = self.right_servo_limit
+        # Use shorter names for servo limits
+        self.left_angle = self.left_angle_limit  # radians
+        self.right_angle = self.right_angle_limit  # radians
+        self.left_value = self.left_servo_limit  # servo counts
+        self.right_value = self.right_servo_limit  # servo counts
+
 
         self.prev_time = 0
         self.prev_enc_t = None

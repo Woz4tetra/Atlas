@@ -9,8 +9,8 @@ import sys
 autobuggy_dir = os.path.dirname(os.path.realpath(__file__))
 project_dir = autobuggy_dir
 
-ROOT_DIR_NAME = "Atlas"
-ROOT_DIR = autobuggy_dir[:autobuggy_dir.rfind(ROOT_DIR_NAME) + len(ROOT_DIR_NAME)]
+root_dir_name = "Atlas"
+root_dir = autobuggy_dir[:autobuggy_dir.rfind(root_dir_name) + len(root_dir_name)]
 
 # dictionary of important local project directories
 project_dirs = {
@@ -34,7 +34,7 @@ def set_project_dir(project_name=None):
     if project_name is not None:  # if None, use the AutoBuggy project directory
         # walk through all directories from the top down until the project name
         # is found
-        for root, dirs, files in os.walk(ROOT_DIR):
+        for root, dirs, files in os.walk(root_dir):
             if project_name in dirs:
                 project_dir = os.path.join(root, project_name)
                 break
