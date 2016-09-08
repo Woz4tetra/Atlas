@@ -65,6 +65,7 @@ class RCmotors():
                     self.enc_dist += 1
                 else:
                     self.enc_dist -= 1
+                print(self.enc_dist)
 
                 self.data_recved = True
             elif not self.in_range and (average <= self.lower):
