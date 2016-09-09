@@ -77,7 +77,17 @@ class StandardRobot(Robot):
                             "forward": 100,
                             "backward": -100,
                             "stop": 0
-                        })
+                        }),
+            tilt_servo=dict(command_id=6, range=(-90, 90),
+                        mapping={
+                            "angle 1": -20,
+                            "angle 2": 20
+                        }),
+            pan_servo=dict(command_id=7, range=(-90, 90),
+                        mapping={
+                            "angle 1": -20,
+                            "angle 2": 20
+                        }),
         )
 
         if log_dir is None:
@@ -95,6 +105,8 @@ class StandardRobot(Robot):
         self.servo = self.commands['servo']
         self.motors = self.commands['motors']
         self.blue_led = self.commands['blue_led']
+        self.tilt_servo = self.commands['tilt_servo']
+        self.pan_servo = self.commands['pan_servo']
 
     def button_dn(self, button, params):
         pass
@@ -108,6 +120,11 @@ class StandardRobot(Robot):
                 self.blue_led.set(0)
                 self.motors.set(0)
                 # self.filter.update_motors(0)
+            elif axis == "right x":
+                self.pan_servo.set(0)
+            elif axis == "right y":
+                self.tilt_servo.set(0)
+
 
     def angle_to_servo(self, angle):
         return int(((standard_params['left_servo_limit'] - standard_params[
@@ -126,6 +143,10 @@ class StandardRobot(Robot):
                 self.blue_led.set(int(abs(value) * 255))
                 self.motors.set(int(-value * 100))
                 # self.filter.update_motors(self.motors.get())
+            elif axis == "right x":
+                self.pan_servo.set(self.angle_to_servo(-value))
+            elif axis == "right y":
+                self.tilt_servo.set(self.angle_to_servo(value))
 
     def update_camera(self):
         if self.capture is not None:
