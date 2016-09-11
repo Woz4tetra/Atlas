@@ -23,9 +23,9 @@ void setup()
 	pinMode(PHASE_A_, OUTPUT);
 	pinMode(PHASE_B, OUTPUT);
 	pinMode(PHASE_B_, OUTPUT);
-  myScreen.begin();
-  myScreen.background(0, 0, 240);
-  myScreen.println(F("Arduino TFT Bitmap Example"));
+  // myScreen.begin();
+  // myScreen.background(0, 0, 240);
+  // myScreen.println(F("Arduino TFT Bitmap Example"));
 }
 void loop()
 {while(true){
@@ -50,7 +50,7 @@ void loop()
         stepper_pins = stepper_sequence[i % 8];
 	//stepper_pins = (stepper_pins << 1);
         //stepper_pins = (stepper_pins | (stepper_pins >> 4)) & 0xF;
-        delay(10);
+        delay(50);  // stepper speed
         if(millis() % 1000 < 500)
                 digitalWrite(13, HIGH);
         else
