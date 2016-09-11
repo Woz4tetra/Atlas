@@ -14,15 +14,12 @@ leds = [LEDcommand(index, index + 1) for index in range(3)]
 blue_led = BlueLEDcommand(3)
 servo = ServoCommand(4, 1, start_pos=0)
 motors = MotorCommand(5, rc_motors)
-tilt_servo = ServoCommand(6, 2, start_pos=0)
-pan_servo = ServoCommand(7, 3, start_pos=0)
-
 
 encoder = RCencoder(0, rc_motors)
 gps = GPS(1, 6, 4)
 imu = IMU(2, 2, 11)
 
-communicator = Communicator(*leds, blue_led, servo, motors, pan_servo, tilt_servo, uart_bus=1)
+communicator = Communicator(*leds, blue_led, servo, motors, uart_bus=1)
 
 while True:
     communicator.read_command()

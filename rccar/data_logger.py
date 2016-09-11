@@ -1,8 +1,8 @@
 import math
 import time
 
-# from autobuggy.vision.rccamera import RcCamera
-# from pipeline import Pipeline
+from autobuggy.vision.rccamera import RcCamera
+from pipeline import Pipeline
 from standard_robot import StandardRobot
 
 
@@ -41,6 +41,7 @@ class DataLogger(StandardRobot):
         #     time.time() - self.time_start, self.encoder.get("counts"),
         #     self.yaw.get("yaw"), self.gps.get("long"), self.gps.get("lat"))
         # state = self.filter.state
+        print("%4.0i\t%0.4f\t(%0.6f\t%0.6f)   " % (self.encoder.get("counts"), self.yaw.get("yaw"), self.gps.get("long"), self.gps.get("lat")), end='\r')
 
         time.sleep(0.05)
 

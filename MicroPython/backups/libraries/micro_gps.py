@@ -144,7 +144,7 @@ class MicropyGPS(object):
         """Attempts to write the last valid NMEA sentence character to the active file handler
         """
         try:
-            self.log_handle.write_8(log_string)
+            self.log_handle.write(log_string)
         except TypeError:
             return False
         return True

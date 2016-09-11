@@ -213,10 +213,10 @@ class Sensor(SerialObject):
 
     @staticmethod
     def init_properties(properties):
-        """Converts a list to an OrderedDict of None"""
+        """Converts a list to an OrderedDict of 0"""
         dict_props = OrderedDict()
         for props in properties:
-            dict_props[props] = None
+            dict_props[props] = 0
 
         return dict_props
 
