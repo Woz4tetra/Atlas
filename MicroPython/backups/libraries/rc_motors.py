@@ -28,12 +28,12 @@ class RCmotors():
 
         # ----- motor pin inits -----
         self.timer8 = pyb.Timer(8, freq=1000)
-        self.timer2 = pyb.Timer(2, freq=1000)
+        self.timer1 = pyb.Timer(1, freq=1000)
 
         self.timers = {
             12: self.timer12,
             8: self.timer8,
-            2: self.timer2
+            1: self.timer1
         }
 
         width = 16000
@@ -42,10 +42,10 @@ class RCmotors():
                                         pulse_width=width)
         self.pin2 = self.timer8.channel(2, pyb.Timer.PWM, pin=pyb.Pin.board.Y11,
                                         pulse_width=width)
-        self.pin3 = self.timer2.channel(4, pyb.Timer.PWM, pin=pyb.Pin.board.X4,
+        self.pin3 = self.timer1.channel(2, pyb.Timer.PWM, pin=pyb.Pin.board.Y7,  # X4 -> Y7
                                         pulse_width=width)
-        self.pin4 = self.timer2.channel(3, pyb.Timer.PWM, pin=pyb.Pin.board.X3,
-                                        pulse_width=width)
+        self.pin4 = self.timer1.channel(3, pyb.Timer.PWM, pin=pyb.Pin.board.Y8,
+                                        pulse_width=width)  # X3 -> Y8
 
         self.speed = 0
         self.min_speed = min_speed
