@@ -113,6 +113,7 @@ def parse_dir(directory, default):
     If :random is provided for the directory, a directory will selected at
     random from within the default directory
     """
+    print(os.path.isdir(get_dir(default) + directory), get_dir(default) + directory)
     if directory is None:
         directory = get_dir(default)
     elif directory == ":random":

@@ -30,26 +30,12 @@ class Video(Capture):
         self.resize_width = width
         self.resize_height = height
 
-        video_name, capture, length_msec, num_frames, self.slider_ticks, self.track_bar_name = \
-            self.load_video(video_name, directory)
+        video_name, capture, length_msec, num_frames, self.slider_ticks, \
+            self.track_bar_name = self.load_video(video_name, directory)
 
-        self.width, self.height = int(capture.get(
-            cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(
-            cv2.CAP_PROP_FRAME_HEIGHT))
-
-        # only resize the frame if the width and height of the video don't
-        # match the given width and height
-        if (self.resize_width is not None or self.resize_height is not None and
-                (self.width, self.height) != (
-                    self.resize_width, self.resize_height)):
-            self.resize_frame = True
-        else:
-            self.resize_frame = False
-
-        if self.resize_height is None and width is not None:
-            self.resize_height = int(width * self.height / self.width)
-        if self.resize_width is None and height is not None:
-            self.resize_width = int(height * self.width / self.height)
+        self.width, self.height, self.resize_width, self.resize_height, \
+            self.resize_frame = self.init_dimensions(
+                self.resize_width, self.resize_height, capture)
 
         # other video properties
         self.frame_skip = frame_skip
@@ -65,6 +51,27 @@ class Video(Capture):
 
         if start_frame > 0:
             self.set_frame(start_frame)
+
+    def init_dimensions(self, resize_width, resize_height, capture):
+        width, height = int(capture.get(
+            cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(
+            cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # only resize the frame if the width and height of the video don't
+        # match the given width and height
+        if (resize_width is not None or resize_height is not None and
+                (width, height) != (
+                    resize_width, resize_height)):
+            resize_frame = True
+        else:
+            resize_frame = False
+
+        if resize_height is None and width is not None:
+            resize_height = int(width * height / width)
+        if resize_width is None and height is not None:
+            resize_width = int(height * width / height)
+
+        return width, height, resize_width, resize_height, resize_frame
 
     def show_frame(self, frame=None):
         """
@@ -105,10 +112,7 @@ class Video(Capture):
         print("\tlength (frames):", num_frames)
 
         # initialize the track bar and the number of ticks it has
-        if not self.resize_frame:
-            slider_ticks = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) / 3)
-        else:
-            slider_ticks = int(self.resize_width / 3)
+        slider_ticks = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) / 3)
 
         if slider_ticks > num_frames:
             slider_ticks = num_frames

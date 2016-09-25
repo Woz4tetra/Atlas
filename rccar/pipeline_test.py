@@ -2,11 +2,13 @@ import sys
 import time
 
 from autobuggy.vision.video import Video
+from autobuggy import project
 from pipeline import Pipeline
 
 
 class PipelineTest:
     def __init__(self):
+        project.set_project_dir("rccar")
         if len(sys.argv) == 2:
             file_name = sys.argv[1]
             directory = None
@@ -44,7 +46,7 @@ class PipelineTest:
             else:
                 print("%0.4fs: Video paused..." % (
                     time.time() - self.time_start))
-                self.capture.paused = not self.capture.paused
+            self.capture.paused = not self.capture.paused
         elif key == 's':
             self.capture.save_frame()
         elif key == 'v':
