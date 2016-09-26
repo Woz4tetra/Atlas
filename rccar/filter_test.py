@@ -1,6 +1,7 @@
 import sys
 import math
 import numpy as np
+# from autobuggy import project
 
 from autobuggy.simulator import Simulator
 from navigation.rccar_filter import RcCarFilter
@@ -12,6 +13,7 @@ from autobuggy.microcontroller.logger import get_map
 class FilterTest(Simulator):
     def __init__(self, file_name, directory, map_name, map_dir, FilterClass,
                  **plot_info):
+        # project.set_project_dir("rccar")
         self.checkpoints = get_map("checkpoints.txt")
         self.waypoints = Waypoints(
             map_name, map_dir=map_dir

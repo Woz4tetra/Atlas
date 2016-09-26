@@ -14,7 +14,7 @@ class StandardRobot(Robot):
                  log_data=True, log_name=None,
                  log_dir=None):
         # set the project name (so that maps and logs and be found)
-        project.set_project_dir("rccar")
+        # project.set_project_dir("rccar")
 
         self.manual_mode = True
 

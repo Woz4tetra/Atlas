@@ -2,13 +2,13 @@ import sys
 import time
 
 from autobuggy.vision.video import Video
-from autobuggy import project
+# from autobuggy import project
 from pipeline import Pipeline
 
 
 class PipelineTest:
     def __init__(self):
-        project.set_project_dir("rccar")
+        # project.set_project_dir("rccar")
         if len(sys.argv) == 2:
             file_name = sys.argv[1]
             directory = None
