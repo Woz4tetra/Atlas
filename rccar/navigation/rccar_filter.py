@@ -169,8 +169,8 @@ class RcCarFilter:
             self.prev_enc_t = timestamp
             self.prev_enc = enc_counts
 
-            # return self.state
-        else:
+            return self.state
+        elif timestamp - self.prev_enc_t > 0:
             dt = timestamp - self.prev_enc_t
             self.enc_vx, self.enc_vy = self.get_velocity(
                 enc_counts, self.prev_enc, self.gps_bearing, self.imu_yaw, dt,
@@ -183,7 +183,7 @@ class RcCarFilter:
 
             # self.update_covariances(timestamp)
 
-            # return self.update_filter(timestamp)
+            return self.update_filter(timestamp)
 
     def adjust_yaw(self, imu_yaw):
         return ((imu_yaw - self.start_imu) + self.initial_heading) % (
@@ -194,8 +194,8 @@ class RcCarFilter:
             if self.prev_imu_t is None:
                 self.prev_imu_t = timestamp
                 self.start_imu = imu_yaw
-                # return self.state
-            else:
+                return self.state
+            elif timestamp - self.prev_imu_t > 0:
                 dt = timestamp - self.prev_imu_t
                 self.imu_yaw = self.adjust_yaw(imu_yaw)
                 self.imu_ang_v = (self.imu_yaw - self.prev_imu) / dt
@@ -205,7 +205,7 @@ class RcCarFilter:
 
                 # self.update_covariances(timestamp)
 
-                # return self.update_filter(timestamp)
+                return self.update_filter(timestamp)
 
     def update_gps(self, timestamp, gps_long, gps_lat):
         if self.prev_gps_t is None:
@@ -215,7 +215,7 @@ class RcCarFilter:
             if gps_lat != self.prev_gps_lat:
                 self.prev_gps_lat = gps_lat
 
-                # return self.state
+            return self.state
         else:
             self.gps_x_meters, self.gps_y_meters = \
                 self.gps_to_xy_meters(gps_long, gps_lat)
@@ -239,7 +239,7 @@ class RcCarFilter:
                 self.prev_gps_lat = gps_lat
                 self.prev_gps_y_meters = self.gps_y_meters
 
-                # return self.update_filter(timestamp)
+            return self.update_filter(timestamp)
 
     # ----- update state and filter -----
 

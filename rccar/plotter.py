@@ -2,6 +2,7 @@ import math
 import numpy as np
 from matplotlib import pyplot as plt
 from pykalman import KalmanFilter
+import time
 
 from autobuggy.microcontroller.logger import *
 from navigation.rccar_filter import RcCarFilter
@@ -199,45 +200,45 @@ class Plotter:
         self.gps_updated = True
 
     def parse_imu(self, timestamp, values):
-        # if self.plot_options["plot_calculated_state"]:
-        #     state = self.filter.update_imu(timestamp, values["yaw"])
-        #     self.heading_counter = \
-        #         self.record_state_data(state, self.state_x, self.state_y,
-        #                                self.state_heading,
-        #                                self.heading_counter,
-        #                                self.arrow_color, self.heading_freq)
-        #
-        #     if self.plot_options["plot_waypoints"]:
-        #         self.record_waypoints(state)
-        #
-        #     if self.plot_options["determine_matrices"]:
-        #         self.measurement[5] = self.filter.measurement[5]
+        if self.plot_options["plot_calculated_state"]:
+            state = self.filter.update_imu(timestamp, values["yaw"])
+            self.heading_counter = \
+                self.record_state_data(state, self.state_x, self.state_y,
+                                       self.state_heading,
+                                       self.heading_counter,
+                                       self.arrow_color, self.heading_freq)
+
+            if self.plot_options["plot_waypoints"]:
+                self.record_waypoints(state)
+
+            if self.plot_options["determine_matrices"]:
+                self.measurement[5] = self.filter.measurement[5]
         self.current_yaw = values["yaw"]
 
         self.sensors_updated = True
         self.imu_updated = True
 
     def parse_encoder(self, timestamp, values):
-        # if self.plot_options["plot_calculated_state"]:
-        #     state = self.filter.update_encoder(timestamp, values["counts"])
-        #     self.heading_counter = \
-        #         self.record_state_data(state, self.state_x, self.state_y,
-        #                                self.state_heading,
-        #                                self.heading_counter,
-        #                                self.arrow_color, self.heading_freq)
-        #     if self.plot_options["plot_encoder_position"]:
-        #         x, y = self.filter.xy_meters_to_gps(self.filter.enc_x,
-        #                                             self.filter.enc_y)
-        #         self.encoder_x_data.append(math.degrees(x))
-        #         self.encoder_y_data.append(math.degrees(y))
-        #     if self.plot_options["plot_waypoints"]:
-        #         self.record_waypoints(state)
-        #
-        #     if self.plot_options["determine_matrices"]:
-        #         self.measurement[3] = self.filter.measurement[3]
-        #         self.measurement[4] = self.filter.measurement[4]
-        #         self.measurement[6] = self.filter.measurement[6]
-        #         self.measurement[7] = self.filter.measurement[7]
+        if self.plot_options["plot_calculated_state"]:
+            state = self.filter.update_encoder(timestamp, values["counts"])
+            self.heading_counter = \
+                self.record_state_data(state, self.state_x, self.state_y,
+                                       self.state_heading,
+                                       self.heading_counter,
+                                       self.arrow_color, self.heading_freq)
+            if self.plot_options["plot_encoder_position"]:
+                x, y = self.filter.xy_meters_to_gps(self.filter.enc_x,
+                                                    self.filter.enc_y)
+                self.encoder_x_data.append(math.degrees(x))
+                self.encoder_y_data.append(math.degrees(y))
+            if self.plot_options["plot_waypoints"]:
+                self.record_waypoints(state)
+
+            if self.plot_options["determine_matrices"]:
+                self.measurement[3] = self.filter.measurement[3]
+                self.measurement[4] = self.filter.measurement[4]
+                self.measurement[6] = self.filter.measurement[6]
+                self.measurement[7] = self.filter.measurement[7]
 
         self.current_enc = values["counts"]
 
@@ -327,8 +328,16 @@ class Plotter:
             print(("%0.1f" % percent) + "%", end='\r')
 
     def static_plot(self):
+        t_sum = 0
+        counter = 0
         for index, timestamp, name, values in self.parser:
+            t0 = time.time()
             self.step(index, timestamp, name, values)
+            t1 = time.time()
+            t_sum += t1 - t0
+            counter += 1
+
+        print(t_sum / counter)
 
         print("plotting...")
         if self.plot_options["plot_map"]:

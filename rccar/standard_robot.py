@@ -3,7 +3,7 @@ from autobuggy import project
 from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
-from navigation.rccar_filter import RcCarFilter
+# from navigation.rccar_filter import RcCarFilter
 from navigation.controller import Controller
 from navigation.waypoint_picker import Waypoints
 from standard_params import standard_params

@@ -13,8 +13,7 @@ class Robot:
                  exclude_addresses=None, filter=None, joystick=None,
                  pipeline=None, capture=None, close_fn=None, log_data=True,
                  log_name=None, log_dir=None):
-        # a class that contains (as opposed to an instance of) the
-        # KalmanFilter class
+        # an instance of a filter class. For generic use
         self.filter = filter
 
         # an instance of BuggyJoystick
