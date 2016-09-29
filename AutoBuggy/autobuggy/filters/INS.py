@@ -43,7 +43,9 @@ class INS:
 
         self.state = StateVector()
         self.temp = []  # this will hold the 10 interim state vecotrs
-        self.time = timestamp  # this will be used to calculate the time needed for dt
+
+        # this will be used to calculate the time needed for dt
+        self.time = timestamp
 
     def update(self, ax, ay, yaw, timestamp):
         """
@@ -85,8 +87,10 @@ class INS:
             self.state.ay = float((avg_ay + self.state.ay) / 2.0)
             self.state.vx += self.state.ax * dt
             self.state.vy += self.state.ay * dt
-            self.state.x = self.state.x + self.state.vx * dt + 0.5 * self.state.ax * dt * dt
-            self.state.y = self.state.y + self.state.vy * dt + 0.5 * self.state.ay * dt * dt
+            self.state.x = (self.state.x + self.state.vx * dt +
+                            0.5 * self.state.ax * dt * dt)
+            self.state.y = (self.state.y + self.state.vy * dt +
+                            0.5 * self.state.ay * dt * dt)
             self.state.yaw = float((avg_yaw + self.state.yaw) / 2.0)
 
             # now we need to reset things
@@ -97,15 +101,41 @@ class INS:
         return (
             "ax = %2.2f, ay = %2.2f, vx = %2.2f, vy = %2.2f, x = %2.2f, y = "
             "%2.2f, yaw = %2.2f" % (
-            self.state.ax, self.state.ay, self.state.vx, self.state.vy,
-            self.state.x, self.state.y, self.state.yaw))
+                self.state.ax, self.state.ay, self.state.vx, self.state.vy,
+                self.state.x, self.state.y, self.state.yaw))
 
-    def test(self, ax, ay, yaw, time):
-        for i in range(10):
-            self.update(ax, ay, yaw, time + i)
-        print(self)
 
-# ins = INS(0)
+# TODO: change to make it where it uses an inputted t, ignoring it
+# TODO: unless its used (every 10)
+# TODO: figure out how to reconcile the starting position with the
+# TODO: absolute position of ned (north east down) RESEARCH
 
-# TODO: change to make it where it uses an inputted t, ignoring it unless its used (every 10)
-# TODO: figure out how to reconcile the starting position with the absolute position of ned (north east down) RESEARCH
+if __name__ == '__main__':
+    def run_10_updates(ins, ax, ay, yaw, time):
+        for t in range(10):
+            ins.update(ax, ay, yaw, time + t)
+        print(ins)
+
+    def test_all():
+        test_ins = INS(0)
+        # dummy, conceivable data for ax, ay
+        run_10_updates(test_ins, 0, 0, 0, 0)
+        run_10_updates(test_ins, 1, 1, 0, 10)
+        run_10_updates(test_ins, 1, 1, 0, 20)
+        run_10_updates(test_ins, 0, 0, 0, 30)
+
+        test_ins = INS(0)
+        # dummy, conceivable data for w, yaw
+        run_10_updates(test_ins, 0, 0, 1, 0)
+        run_10_updates(test_ins, 0, 0, 1, 10)
+        run_10_updates(test_ins, 0, 0, 5, 0)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+        run_10_updates(test_ins, 0, 0, 10, 10)
+
+    test_all()
