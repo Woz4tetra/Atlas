@@ -148,8 +148,8 @@ def parse_arguments():
         file_name, directory, map_name, map_dir = sys.argv[1:]
 
     else:
-        file_name = 0
-        directory = "Jul 22 2016"
+        file_name = -1
+        directory = "Jul 29 2016"
         map_name = "test goal track"
         map_dir = None
 
@@ -166,11 +166,11 @@ def run():
 
     plotter = FilterTest(
         file_name, directory, map_name, map_dir, RcCarFilter,
-        # map_plot=dict(color='fuchsia', label="map", log_based_plot=False),
+        map_plot=dict(color='fuchsia', label="map", log_based_plot=False),
         checkpoints_plot=dict(color='o', label="checkpoints",
                               log_based_plot=False, markersize=4),
 
-        # gps_plot=dict(color='r', label="GPS"),
+        gps_plot=dict(color='r', label="GPS"),
 
         # waypoints_plot=dict(color='purple', line_segments=True,
         #                     line_seg_freq=100),
@@ -185,7 +185,7 @@ def run():
 
         checkpoint_lines_plot=dict(line_segments=True, color='darkgreen'),
 
-        encoder_position_plot=dict(color='r', label="encoder position"),
+        # encoder_position_plot=dict(color='r', label="encoder position"),
     )
 
     plotter.run()

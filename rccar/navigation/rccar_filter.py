@@ -1,8 +1,10 @@
 """An implementation of the kalman filter tailored for the BuggyPi rc car."""
 
 import math
+
 import numpy as np
-from autobuggy.kalman_filter import KalmanFilter
+
+from autobuggy.filters.kalman_filter import KalmanFilter
 
 
 class RcCarFilter:
