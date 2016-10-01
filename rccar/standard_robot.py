@@ -1,5 +1,5 @@
 import time
-from autobuggy import project
+# from autobuggy import project
 from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick

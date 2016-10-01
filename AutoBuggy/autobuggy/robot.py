@@ -75,13 +75,19 @@ class Robot:
 
         self.time_start = time.time()
 
+        self.started = False
+
     def start(self):
         """Initialize all threads (communications, joystick, and capture)"""
         self.communicator.start()
         if self.joystick is not None:
+            print("Starting joystick")
             self.joystick.start()
         if self.capture is not None:
+            print("Starting capture")
             self.capture.start()
+
+        self.started = True
 
     def record(self, name, value=None, **values):
         """Log data to the current log file"""
@@ -128,6 +134,8 @@ class Robot:
         return False
 
     def run(self):
+        if not self.started:
+            self.start()
         try:
             while True:
                 self.main()
