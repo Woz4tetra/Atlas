@@ -1,0 +1,179 @@
+0.007015228271484375:	gps;	long,	-79.94983673095703|	lat,	40.44731521606445|	fix,	False
+0.01061391830444336:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.01591777801513672:	encoder;	counts,	0
+0.02118206024169922:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.09053659439086914:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.19176268577575684:	gps;	long,	-79.94983673095703|	lat,	40.44731521606445|	fix,	False
+0.2006237506866455:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.391420841217041:	gps;	long,	-79.94983673095703|	lat,	40.44731521606445|	fix,	False
+0.4009850025177002:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.4111335277557373:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.4214191436767578:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.4315972328186035:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.5913949012756348:	gps;	long,	-79.94983673095703|	lat,	40.44731521606445|	fix,	False
+0.6014871597290039:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.6117267608642578:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.6220154762268066:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.6316986083984375:	imu;	yaw,	-0.07090400159358978|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.791212797164917:	gps;	long,	-79.94983673095703|	lat,	40.44731521606445|	fix,	False
+1.4926400184631348:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	True
+1.5022861957550049:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	True
+1.592078685760498:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	True
+1.7909982204437256:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	True
+1.9913899898529053:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+2.070280075073242:	imu;	yaw,	-0.06217735633254051|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.1913299560546875:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+2.391669988632202:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+2.591478109359741:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+2.7406089305877686:	imu;	yaw,	-0.05999569222331047|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.9917237758636475:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+3.1912271976470947:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+3.260680675506592:	imu;	yaw,	-0.05017821490764618|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.300431728363037:	imu;	yaw,	-0.05017821490764618|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.3105077743530273:	imu;	yaw,	-0.0512690506875515|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.393888473510742:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+3.5104382038116455:	imu;	yaw,	-0.05890486389398575|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.591005563735962:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+3.7303178310394287:	imu;	yaw,	-0.06435901671648026|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.2917962074279785:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+4.3001086711883545:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.307970285415649:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+4.3910298347473145:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+4.400753021240234:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.591844797134399:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+4.604249954223633:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.610533952713013:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.62009334564209:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.770766258239746:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.791453838348389:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+4.80113673210144:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.850532054901123:	imu;	yaw,	-6.229734897613525|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.991347312927246:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+5.040186643600464:	imu;	yaw,	-6.245006561279297|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.110228538513184:	imu;	yaw,	-6.271186828613281|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.19168496131897:	gps;	long,	-79.95025634765625|	lat,	40.44727325439453|	fix,	False
+5.34071946144104:	imu;	yaw,	-0.07308566570281982|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.392387866973877:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+5.41042160987854:	imu;	yaw,	-0.08617563545703888|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.591930627822876:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+5.791880369186401:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+5.860516309738159:	imu;	yaw,	-0.08617563545703888|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.950499057769775:	imu;	yaw,	-0.08399397134780884|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.99129581451416:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+6.192126989364624:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+6.891353607177734:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+6.902214527130127:	imu;	yaw,	-0.03708824887871742|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.909347057342529:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+6.991379976272583:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+7.001112222671509:	imu;	yaw,	-0.011999139562249184|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.110602855682373:	imu;	yaw,	-0.0|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.192185163497925:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+7.391940355300903:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+7.592351198196411:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+7.791736841201782:	gps;	long,	-79.9503402709961|	lat,	40.447265625|	fix,	True
+7.992563962936401:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+8.191921710968018:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+8.360865831375122:	imu;	yaw,	-0.0719948336482048|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.391885757446289:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+8.581440448760986:	imu;	yaw,	-0.06981316953897476|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.59119439125061:	imu;	yaw,	-0.06981316953897476|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.598149538040161:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.294480800628662:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.304642915725708:	imu;	yaw,	-0.06981316953897476|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.3123619556427:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.391947031021118:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.450815439224243:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.521143436431885:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.592289209365845:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.791841745376587:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+9.880538940429688:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.890427350997925:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.96075987815857:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.991816759109497:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+10.191457748413086:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+10.250720739364624:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.39242148399353:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+10.591503381729126:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+10.792579650878906:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+10.80099081993103:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.811670303344727:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.821335315704346:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.831093311309814:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.991103649139404:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+11.001784324645996:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.012004375457764:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.021932125091553:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.032378911972046:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.192386627197266:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+11.201263427734375:	imu;	yaw,	-0.06872234493494034|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.891767263412476:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+11.904439449310303:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+11.913345098495483:	imu;	yaw,	-0.08399397134780884|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.920311450958252:	imu;	yaw,	-0.08399397134780884|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.991652965545654:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+12.192391157150269:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+12.200603485107422:	imu;	yaw,	-0.054541539400815964|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+12.391809463500977:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+12.490853786468506:	imu;	yaw,	-0.06217735633254051|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+12.594717502593994:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+12.79128885269165:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+12.992504119873047:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+13.191384077072144:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+13.380714893341064:	imu;	yaw,	-0.05890486389398575|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+13.391453266143799:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+13.591856002807617:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+13.70067834854126:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.292057037353516:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+14.303564548492432:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+14.402223587036133:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+14.595895051956177:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+14.601925134658813:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.792282104492188:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+14.801557064056396:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.8206787109375:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.83118987083435:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.910757303237915:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.921238422393799:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.931685209274292:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.941733837127686:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.951450109481812:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+14.993288040161133:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+15.002586364746094:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.13085126876831:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.141521692276001:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.15257978439331:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.1924467086792:	gps;	long,	-79.9503402709961|	lat,	40.447269439697266|	fix,	True
+15.20285439491272:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.393115043640137:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+15.404122829437256:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.592810869216919:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+15.60073208808899:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+15.792658805847168:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+15.994175910949707:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+16.19244909286499:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+16.220791816711426:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+16.310555696487427:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+16.391555070877075:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+17.092796564102173:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+17.101851224899292:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.108908891677856:	gps;	long,	-79.95034790039062|	lat,	40.447265625|	fix,	True
+17.19453263282776:	gps;	long,	-79.95038604736328|	lat,	40.447261810302734|	fix,	True
+17.20261812210083:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.211548328399658:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.39182472229004:	gps;	long,	-79.95038604736328|	lat,	40.447261810302734|	fix,	True
+17.403305768966675:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.412761688232422:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.5933575630188:	gps;	long,	-79.95038604736328|	lat,	40.447261810302734|	fix,	True
+17.70119881629944:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+17.79147434234619:	gps;	long,	-79.95038604736328|	lat,	40.447261810302734|	fix,	True
+17.992608785629272:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+18.020790100097656:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+18.192030429840088:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+18.391497373580933:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+18.56076431274414:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+18.59172248840332:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+18.79168963432312:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+19.49261999130249:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+19.5030517578125:	imu;	yaw,	-0.05781403183937073|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+19.510443687438965:	gps;	long,	-79.95040130615234|	lat,	40.4472541809082|	fix,	True
+19.548548221588135:	motors;	0

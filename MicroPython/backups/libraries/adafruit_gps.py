@@ -152,26 +152,40 @@ class AdafruitGPS:
                 if sum != 0:
                     # bad checksum :(
                     return False
-            packet_type = sentence[:6]
-            sentence = sentence[7:-3]  # remove packet type and checksum
-
-            if packet_type == "$GPGGA":
+            packet_type = sentence[1:6]
+            
+            if packet_type == "GPGGA":
                 self.parse_gga_sentence(sentence)
-            elif packet_type == "$GPRMC":
+            elif packet_type == "GPRMC":
                 self.parse_rmc_sentence(sentence)
-            elif packet_type == "$GPVTG":
+            elif packet_type == "GPVTG":
                 self.parse_vtg_sentence(sentence)
-            elif packet_type == "$GPGSA":
+            elif packet_type == "GPGSA":
                 self.parse_gsa_sentence(sentence)
-            elif packet_type == "$GPGSV":
+            elif packet_type == "GPGSV":
                 # self.parse_gsv_sentence(sentence)
                 pass # not tracking each satellite's info
             else:
-                print(packet_type, sentence)
+                print("Unrecognized packet:", packet_type, sentence)
 
             return True
         else:
             return False
+    
+    def parse_sentence(self, sentence, expected_num):
+        # remove packet type and checksum
+        split = sentence[7:-3].split(",")
+        
+        if len(split) != expected_num:
+            print("Mismatched parameter number:", sentence)
+            if len(split) < expected_num:  # fill missing with None
+                return split + (None,) * (expected_num - len(split))
+            else:
+                return split[0:expected_num]
+        else:
+            return split
+            
+            
     
     def parse_vtg_sentence(self, sentence):
         """
@@ -185,8 +199,8 @@ class AdafruitGPS:
         010.2,K      Ground speed, Kilometers per hour
         *48          Checksum
         """
-        track_angle_true, _, track_angle_magnetic, _, speed_knots, \
-            speed_kmph = sentence.split(",")[0:8]
+        track_angle_true, _, track_angle_magnetic, _, speed_knots, _, \
+            speed_kmph = self.parse_sentence(sentence, 7)
         
         self.track_angle_true = track_angle_true
         self.track_angle_magnetic = track_angle_magnetic
@@ -211,7 +225,7 @@ class AdafruitGPS:
         2.1      Vertical dilution of precision (VDOP)
         *39      the checksum data, always begins with *
         """
-        parsed = sentence.split(",")[0:17]
+        parsed = self.parse_sentence(sentence, 17)
         # fix_selection, fix_3d = parsed[0:2]
         # satellite_prns = parsed[2:14]  # not tracking each satellite's info
         self.pdop, self.hdop, self.vdop = parsed[14:17]
@@ -269,7 +283,7 @@ class AdafruitGPS:
         time, latitude, lat_direction, longitude, long_direction, \
         fix_quality, num_satellites, hdop, altitude, altitude_units, \
         geoid_height, geoid_height_units = \
-            sentence.split(",")[0:12]
+            self.parse_sentence(sentence, 12)
 
         if len(fix_quality) > 0:
             self.fix = int(fix_quality) != 0
@@ -307,7 +321,7 @@ class AdafruitGPS:
         """
         time, fix_status, latitude, lat_direction, longitude, \
         long_direction, speed_knots, bearing, date, mag_variation, \
-        mag_direction = sentence.split(",")
+        mag_direction = self.parse_sentence(sentence, 11)
 
         self.parse_time(time)
 
