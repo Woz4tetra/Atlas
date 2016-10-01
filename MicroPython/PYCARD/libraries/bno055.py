@@ -124,15 +124,17 @@ class BNO055:
         self.set_mode(self.modes['NDOF'])
         pyb.delay(20)
 
-    def get_lin_accel(self):
+    def get_lin_accel(self):  # acceleration in m/s^2 (excluding gravity)
         x, y, z = self.get_vector('VECTOR_LINEARACCEL')
         return x / 100.0, y / 100.0, z / 100.0
 
-    def get_gyro(self):
+    def get_gyro(self):  # angular velocity in rotations per second
         x, y, z = self.get_vector('VECTOR_GYROSCOPE')
         return x / 900.0, y / 900.0, z / 900.0
 
     def get_quat(self):
+        # quaternion vector (see: https://en.wikipedia.org/wiki/Quaternion)
+        
         buf = self.read_len(self.reg['QUATERNION_DATA'], 8)
         w = (buf[1] << 8) | buf[0]
         x = (buf[3] << 8) | buf[2]
@@ -143,27 +145,26 @@ class BNO055:
                 y * self.quat_scale,
                 z * self.quat_scale)
 
-    def get_euler(self):
-        x, y, z = self.get_vector('VECTOR_EULER')
-        # return x, y, z
-        return x / 16.0, y / 16.0, z / 16.0
+    def get_euler(self):  # yaw, pitch, roll in degrees
+        z, y, x = self.get_vector('VECTOR_EULER')
+        return z / 16.0, y / 16.0, x / 16.0
 
-    def get_temp(self):
+    def get_temp(self):  # get temperature in degrees celsius
         return ord(self.read_8(self.reg['TEMPERATURE']))
 
-    def get_accel(self):
+    def get_accel(self):  # acceleration in m/s^2 (including gravity)
         x, y, z = self.get_vector('VECTOR_ACCELEROMETER')
         return x / 100.0, y / 100.0, z / 100.0
 
-    def get_grav(self):
+    def get_grav(self):  # gravity vector in m/s^2
         x, y, z = self.get_vector('VECTOR_GRAVITY')
         return x / 100.0, y / 100.0, z / 100.0
 
-    def get_mag(self):
+    def get_mag(self):  # magnetic field strength in micro-Teslas
         x, y, z = self.get_vector('VECTOR_MAGNETOMETER')
         return x / 16.0, y / 16.0, z / 16.0
 
-    def get_vector(self, vector_type):
+    def get_vector(self, vector_type):  # get an x, y, z data array from I2C
         buf = self.read_len(self.reg[vector_type], 6)
         data = []
         for index in range(0, len(buf), 2):
@@ -174,6 +175,8 @@ class BNO055:
         return data
 
     def get_heading(self):
+        # compass heading in radians (be sure to get the correct declination)
+        
         x, y, z = self.get_mag()
         heading = math.atan2(y, x)
         heading += self.declination

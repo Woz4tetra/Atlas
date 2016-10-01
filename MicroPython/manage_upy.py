@@ -26,7 +26,7 @@ def get_upy_sd_dir(upy_sd_name):
     if platform == "mac":
         return os.path.join("/Volumes", upy_sd_name)
     elif platform == "linux":
-        return os.path.join("/media", get_username(), upy_sd_name)
+        return os.path.join("/media", upy_sd_name)
     else:
         raise NotImplementedError
 
@@ -37,22 +37,26 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
 
     backup_dir = os.path.join(project.root_dir, "MicroPython/backups")
     main_dir = os.path.join(project.root_dir, "MicroPython/PYCARD")
+    
+    if os.path.isdir(upy_sd_dir):
+        if os.path.isdir(backup_dir):
+            shutil.rmtree(backup_dir)
+        copy_anything(upy_sd_dir, backup_dir)
+        for f in os.listdir(upy_sd_dir):
+            abs_path = os.path.join(upy_sd_dir, f)
+            if os.path.isdir(abs_path):
+                shutil.rmtree(abs_path)
+            else:
+                os.remove(abs_path)
 
-    shutil.rmtree(backup_dir)
-    copy_anything(upy_sd_dir, backup_dir)
-    for f in os.listdir(upy_sd_dir):
-        abs_path = os.path.join(upy_sd_dir, f)
-        if os.path.isdir(abs_path):
-            shutil.rmtree(abs_path)
-        else:
-            os.remove(abs_path)
-
-    for f in os.listdir(main_dir):
-        abs_path = os.path.join(main_dir, f)
-        if os.path.isdir(abs_path):
-            copy_anything(abs_path, os.path.join(upy_sd_dir, f))
-        else:
-            copy_anything(abs_path, upy_sd_dir)
+        for f in os.listdir(main_dir):
+            abs_path = os.path.join(main_dir, f)
+            if os.path.isdir(abs_path):
+                copy_anything(abs_path, os.path.join(upy_sd_dir, f))
+            else:
+                copy_anything(abs_path, upy_sd_dir)
+    else:
+        raise FileNotFoundError("MicroPython SD card not found...")
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

@@ -1,0 +1,14 @@
+0.00994873046875:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.01449894905090332:	imu;	yaw,	-3.1372294425964355
+0.02109551429748535:	encoder;	counts,	0
+0.030723094940185547:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.26425957679748535:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.423311710357666:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.6227166652679443:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.823474645614624:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.0236215591430664:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.2545249462127686:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.4232697486877441:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.6233158111572266:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.8228306770324707:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.8627538681030273:	motors;	0

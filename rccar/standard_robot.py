@@ -10,7 +10,7 @@ from standard_params import standard_params
 
 
 class StandardRobot(Robot):
-    def __init__(self, pipeline=None, capture=None, map_name=-1, map_dir=None,
+    def __init__(self, pipeline=None, capture=None, map_name=-1, map_dir=":gpx",
                  log_data=True, log_name=None,
                  log_dir=None):
         # set the project name (so that maps and logs and be found)
@@ -49,7 +49,8 @@ class StandardRobot(Robot):
                          update_fn=None),#lambda: self.encoder_updated()),
             gps=dict(sensor_id=1, properties=['long', 'lat', 'fix'],
                      update_fn=None),#lambda: self.gps_updated()),
-            imu=dict(sensor_id=2, properties='yaw',
+            imu=dict(sensor_id=2, properties=['yaw', 'accel_x', 'accel_y',
+                                              'compass', 'ang_vx', 'ang_vy'],
                      update_fn=None),#lambda: self.yaw_updated()),
         )
         commands = dict(

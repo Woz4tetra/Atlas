@@ -36,14 +36,16 @@ while True:
     if gps.recved_data():
         sensor_updated = True
         communicator.write_packet(gps)
+        pyb.LED(3).toggle()
 
     if encoder.recved_data():
         sensor_updated = True
         communicator.write_packet(encoder)
+        pyb.LED(2).toggle()
 
-    if sensor_updated:
-        print("%0.5f, %0.6f, %0.6f, %i" % (
-            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]))
+#    if sensor_updated:
+#        print("%0.5f, %0.6f, %0.6f, %i" % (
+#            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]))
 
     if communicator.should_reset():
         gps.reset()

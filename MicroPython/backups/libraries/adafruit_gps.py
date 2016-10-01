@@ -77,7 +77,7 @@ class AdafruitGPS:
         self.long_direction = 'W'
 
         self.num_satellites = 0
-        self.hdop = 0.0
+        self.pdop, self.hdop, self.vdop = 0.0, 0.0, 0.0
 
         self.altitude = 0.0
         self.geoid_height = 0.0
@@ -85,9 +85,13 @@ class AdafruitGPS:
         self.fix = False
 
         self.speed_knots = 0.0
+        self.speed_kmph = 0.0
 
         self.magnetic_variation = 0.0
         self.mag_var_direction = 'W'
+        
+        self.track_angle_true = 0.0
+        self.track_angle_magnetic = 0.0
 
         self.paused = False
 
@@ -149,19 +153,88 @@ class AdafruitGPS:
                     # bad checksum :(
                     return False
             packet_type = sentence[:6]
-            sentence = sentence[7:-3]
+            sentence = sentence[7:-3]  # remove packet type and checksum
 
             if packet_type == "$GPGGA":
                 self.parse_gga_sentence(sentence)
-            elif packet_type == "GPRMC":
+            elif packet_type == "$GPRMC":
                 self.parse_rmc_sentence(sentence)
-##            else:
-##            print(packet_type, sentence)
+            elif packet_type == "$GPVTG":
+                self.parse_vtg_sentence(sentence)
+            elif packet_type == "$GPGSA":
+                self.parse_gsa_sentence(sentence)
+            elif packet_type == "$GPGSV":
+                # self.parse_gsv_sentence(sentence)
+                pass # not tracking each satellite's info
+            else:
+                print(packet_type, sentence)
 
             return True
         else:
             return False
+    
+    def parse_vtg_sentence(self, sentence):
+        """
+        example:
+        $GPVTG,054.7,T,034.4,M,005.5,N,010.2,K*48
+        
+        VTG          Track made good and ground speed
+        054.7,T      True track made good (degrees)
+        034.4,M      Magnetic track made good
+        005.5,N      Ground speed, knots
+        010.2,K      Ground speed, Kilometers per hour
+        *48          Checksum
+        """
+        track_angle_true, _, track_angle_magnetic, _, speed_knots, \
+            speed_kmph = sentence.split(",")[0:8]
+        
+        self.track_angle_true = track_angle_true
+        self.track_angle_magnetic = track_angle_magnetic
+        
+        self.speed_knots = speed_knots
+        self.speed_kmph = speed_kmph
+        
+    
+    def parse_gsa_sentence(self, sentence):
+        """
+        example:
+        $GPGSA,A,3,04,05,,09,12,,,24,,,,,2.5,1.3,2.1*39
 
+        GSA      Satellite status
+        A        Auto selection of 2D or 3D fix (M = manual) 
+        3        3D fix - values include: 1 = no fix
+                                          2 = 2D fix
+                                          3 = 3D fix
+        04,05... PRNs of satellites used for fix (space for 12) 
+        2.5      PDOP (dilution of precision) 
+        1.3      Horizontal dilution of precision (HDOP) 
+        2.1      Vertical dilution of precision (VDOP)
+        *39      the checksum data, always begins with *
+        """
+        parsed = sentence.split(",")[0:17]
+        # fix_selection, fix_3d = parsed[0:2]
+        # satellite_prns = parsed[2:14]  # not tracking each satellite's info
+        self.pdop, self.hdop, self.vdop = parsed[14:17]
+    
+    def parse_gsv_sentence(self, sentence):
+        """
+        example:
+        $GPGSV,2,1,08,01,40,083,46,02,17,308,41,12,07,344,39,14,22,228,45*75
+        
+        GSV          Satellites in view
+        2            Number of sentences for full data
+        1            sentence 1 of 2
+        08           Number of satellites in view
+
+        01           Satellite PRN number
+        40           Elevation, degrees
+        083          Azimuth, degrees
+        46           SNR - higher is better for up to 4 satellites per sentence
+        *75          the checksum data, always begins with *
+        """
+        
+        pass  # not tracking each satellite's info
+        
 
     def parse_gga_sentence(self, sentence):
         """
