@@ -41,10 +41,10 @@ while True:
 #        communicator.write_packet(encoder)
 #        pyb.LED(2).toggle()
 
-    if sensor_updated:
-        sensor_updated = False
-        print("%0.5f, %0.6f, %0.6f, %0.6i" % (
-            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]), end='\r')
+#    if sensor_updated:
+#        sensor_updated = False
+#        print("%0.5f, %0.6f, %0.6f, %0.6i" % (
+#            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]), end='\r')
 
     if communicator.should_reset():
         gps.reset()

@@ -64,7 +64,8 @@ class RCcarRunner(StandardRobot):
                 self.filter.state)
 
             self.servo.set(self.angle_to_servo(angle_command))
-        print("%4.0i\t%0.4f\t(%0.6f\t%0.6f)   " % (self.encoder.get("counts"), self.yaw.get("yaw"), self.gps.get("long"), self.gps.get("lat")), end='\r')
+#        print(self.yaw.get(all=True, as_tuple=False))
+#        print("%4.0i\t%0.4f\t(%0.6f\t%0.6f)   " % (self.encoder.get("counts"), self.yaw.get("yaw"), self.gps.get("long"), self.gps.get("lat")), end='\r')
 
         time.sleep(0.1)
 
