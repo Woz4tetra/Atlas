@@ -200,7 +200,7 @@ class AdafruitGPS:
         *48          Checksum
         """
         track_angle_true, _, track_angle_magnetic, _, speed_knots, _, \
-            speed_kmph = self.parse_sentence(sentence, 7)
+            speed_kmph, _, _ = self.parse_sentence(sentence, 9)
         
         self.track_angle_true = track_angle_true
         self.track_angle_magnetic = track_angle_magnetic
@@ -282,8 +282,8 @@ class AdafruitGPS:
         
         time, latitude, lat_direction, longitude, long_direction, \
         fix_quality, num_satellites, hdop, altitude, altitude_units, \
-        geoid_height, geoid_height_units = \
-            self.parse_sentence(sentence, 12)
+        geoid_height, geoid_height_units, _, _ = \
+            self.parse_sentence(sentence, 14)
 
         if len(fix_quality) > 0:
             self.fix = int(fix_quality) != 0
@@ -320,8 +320,8 @@ class AdafruitGPS:
          *6A          The checksum data, always begins with *
         """
         time, fix_status, latitude, lat_direction, longitude, \
-        long_direction, speed_knots, bearing, date, mag_variation, \
-        mag_direction = self.parse_sentence(sentence, 11)
+        long_direction, speed_knots, bearing, date, _, mag_variation, \
+        mag_direction = self.parse_sentence(sentence, 12)
 
         self.parse_time(time)
 

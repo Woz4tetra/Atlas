@@ -1,4 +1,4 @@
-# hi
+
 from objects import *
 from comm import Communicator
 from libraries.rc_motors import RCmotors
@@ -8,7 +8,7 @@ for _ in range(15):
     pyb.delay(50)
 pyb.LED(3).on()
 
-rc_motors = RCmotors("X8", 50, 900, 50)
+rc_motors = RCmotors("X8", 200, 320, 50)
 
 leds = [LEDcommand(index, index + 1) for index in range(3)]
 blue_led = BlueLEDcommand(3)
@@ -26,8 +26,6 @@ communicator = Communicator(*leds, blue_led, servo, motors, pan_servo, tilt_serv
 
 while True:
     communicator.read_command()
-
-    sensor_updated = False
     
     if imu.recved_data():
         sensor_updated = True
@@ -38,14 +36,15 @@ while True:
         communicator.write_packet(gps)
         pyb.LED(3).toggle()
 
-    if encoder.recved_data():
-        sensor_updated = True
-        communicator.write_packet(encoder)
-        pyb.LED(2).toggle()
+#    if encoder.recved_data():
+#        sensor_updated = True
+#        communicator.write_packet(encoder)
+#        pyb.LED(2).toggle()
 
-#    if sensor_updated:
-#        print("%0.5f, %0.6f, %0.6f, %i" % (
-#            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]))
+    if sensor_updated:
+        sensor_updated = False
+        print("%0.5f, %0.6f, %0.6f, %0.6i" % (
+            imu.data[0], gps.data[0], gps.data[1], encoder.data[0]), end='\r')
 
     if communicator.should_reset():
         gps.reset()

@@ -1,0 +1,256 @@
+0.014135599136352539:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.01740860939025879:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.025707721710205078:	encoder;	counts,	0
+0.036515235900878906:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.04471325874328613:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.05600762367248535:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.06743216514587402:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.07738542556762695:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.08732843399047852:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.09671258926391602:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.10742068290710449:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.11705183982849121:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.12719202041625977:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.13797235488891602:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.1459803581237793:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.16126036643981934:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.30705833435058594:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.3184185028076172:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.506859302520752:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.518625020980835:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.70697021484375:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.719257116317749:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+0.9065182209014893:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+0.914492130279541:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.0629677772521973:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.107017993927002:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.114750623703003:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.122588872909546:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.3066039085388184:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.3134069442749023:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.3232953548431396:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.3335840702056885:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.3430516719818115:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5073251724243164:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.5149407386779785:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5241591930389404:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5342707633972168:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5443246364593506:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5530502796173096:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.564469575881958:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5740020275115967:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.584021806716919:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.5947721004486084:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.603583812713623:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.6143083572387695:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.624279499053955:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.6403653621673584:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7067255973815918:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+1.7154910564422607:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.725315809249878:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7350003719329834:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.745162010192871:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.754805326461792:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7649881839752197:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7751150131225586:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7853984832763672:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.7955849170684814:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8042607307434082:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8149890899658203:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.825747013092041:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.835561990737915:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8457608222961426:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8539669513702393:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8655009269714355:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8757333755493164:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8851642608642578:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.8955142498016357:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.904301404953003:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9156231880187988:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.925809621810913:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9356539249420166:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9457740783691406:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9552783966064453:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9659876823425293:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9765422344207764:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9859108924865723:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+1.9963293075561523:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0058155059814453:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.016058921813965:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0263054370880127:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0367271900177:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.046396493911743:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0552210807800293:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.066087484359741:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0764825344085693:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.0867855548858643:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.096951484680176:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.1063811779022217:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.116940498352051:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+2.12672758102417:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.137173652648926:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.146947145462036:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.1602838039398193:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.2224340438842773:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.3067636489868164:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+2.3174943923950195:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.3280866146087646:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.337843179702759:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.3481030464172363:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.5072951316833496:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+2.5181806087493896:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.7067043781280518:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+2.7188706398010254:	imu;	yaw,	-6.277731895446777|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.9077415466308594:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+2.915572166442871:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.926934003829956:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.9380452632904053:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+2.9508259296417236:	imu;	yaw,	-6.27882194519043|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.1066086292266846:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+3.1135904788970947:	imu;	yaw,	-6.277731895446777|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.3077034950256348:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+3.3147714138031006:	imu;	yaw,	-6.258096694946289|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.3223958015441895:	imu;	yaw,	-6.258096694946289|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.5063021183013916:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+3.5137557983398438:	imu;	yaw,	-6.226462364196777|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.5225625038146973:	imu;	yaw,	-6.22428035736084|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.533175468444824:	imu;	yaw,	-6.2220988273620605|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.5432798862457275:	imu;	yaw,	-6.219917297363281|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.553316593170166:	imu;	yaw,	-6.218826770782471|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.7470130920410156:	encoder;	counts,	1
+3.907606363296509:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+3.91498064994812:	imu;	yaw,	-0.013089969754219055|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.9229984283447266:	imu;	yaw,	-0.01636246219277382|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.9353816509246826:	imu;	yaw,	-0.019634954631328583|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.9455666542053223:	imu;	yaw,	-0.021816616877913475|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.955490827560425:	imu;	yaw,	-0.023998279124498367|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+3.962759017944336:	imu;	yaw,	-0.02617993950843811|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.108090877532959:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+4.113873243331909:	imu;	yaw,	-0.03490658476948738|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.132648468017578:	imu;	yaw,	-0.03381575644016266|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.143099784851074:	imu;	yaw,	-0.03163409233093262|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.155336856842041:	imu;	yaw,	-0.030543264001607895|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.162759304046631:	imu;	yaw,	-0.030543264001607895|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.306530952453613:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+4.314075708389282:	imu;	yaw,	-0.04145156964659691|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.5073418617248535:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+4.514785051345825:	imu;	yaw,	-0.046905722469091415|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.706450700759888:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+4.713812828063965:	imu;	yaw,	-0.02617993950843811|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.907168865203857:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+4.914575815200806:	imu;	yaw,	-0.046905722469091415|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+4.926551580429077:	encoder;	counts,	2
+5.10654878616333:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+5.1139304637908936:	imu;	yaw,	-0.054541539400815964|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.163861989974976:	imu;	yaw,	-0.05563237518072128|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.257292985916138:	encoder;	counts,	3
+5.307081937789917:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+5.315088987350464:	imu;	yaw,	-0.04145156964659691|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.322632312774658:	imu;	yaw,	-0.04145156964659691|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.506476879119873:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+5.514015197753906:	imu;	yaw,	-0.04908738657832146|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.907304525375366:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+5.915803909301758:	imu;	yaw,	-0.06108652800321579|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.921865224838257:	encoder;	counts,	4
+5.953848600387573:	imu;	yaw,	-0.06326818466186523|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+5.964785575866699:	imu;	yaw,	-0.06326818466186523|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.106757879257202:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+6.115953207015991:	imu;	yaw,	-0.04581489413976669|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.124893665313721:	imu;	yaw,	-0.04363323375582695|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.178056955337524:	encoder;	counts,	5
+6.30789589881897:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+6.317314386367798:	imu;	yaw,	-0.03272492438554764|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.3249077796936035:	imu;	yaw,	-0.03163409233093262|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.477035284042358:	encoder;	counts,	6
+6.506383180618286:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+6.517894744873047:	imu;	yaw,	-0.0359974168241024|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.525204420089722:	imu;	yaw,	-0.0359974168241024|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.682735443115234:	imu;	yaw,	-0.03817908093333244|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.697461128234863:	imu;	yaw,	-0.03817908093333244|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.708269357681274:	imu;	yaw,	-0.03817908093333244|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.860882759094238:	encoder;	counts,	7
+6.907362699508667:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+6.919058084487915:	imu;	yaw,	-0.039269909262657166|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+6.982604026794434:	imu;	yaw,	-0.03708824887871742|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.002721309661865:	imu;	yaw,	-0.03708824887871742|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.051395893096924:	encoder;	counts,	8
+7.107238531112671:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+7.117786645889282:	imu;	yaw,	-0.03490658476948738|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.1253368854522705:	imu;	yaw,	-0.03490658476948738|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.191429853439331:	encoder;	counts,	9
+7.30778169631958:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+7.318314075469971:	imu;	yaw,	-0.03708824887871742|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.359138011932373:	encoder;	counts,	10
+7.506335496902466:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+7.513731479644775:	imu;	yaw,	-0.02508910745382309|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.522613525390625:	imu;	yaw,	-0.02508910745382309|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.906881093978882:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+7.915038108825684:	imu;	yaw,	-0.005454154219478369|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+7.924039125442505:	imu;	yaw,	-0.005454154219478369|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.106528997421265:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+8.11539602279663:	imu;	yaw,	-0.004363323096185923|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.12483525276184:	imu;	yaw,	-0.003272492438554764|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.132349491119385:	imu;	yaw,	-0.003272492438554764|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.30752158164978:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+8.317185401916504:	imu;	yaw,	-0.003272492438554764|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.326650142669678:	imu;	yaw,	-0.0021816615480929613|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.333734273910522:	imu;	yaw,	-0.0021816615480929613|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.506819009780884:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+8.516737937927246:	imu;	yaw,	-6.264641761779785|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.526657104492188:	imu;	yaw,	-6.263550281524658|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.533589363098145:	imu;	yaw,	-6.262459754943848|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+8.907403469085693:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+8.918325185775757:	imu;	yaw,	-6.227553367614746|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.106709480285645:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+9.118184566497803:	imu;	yaw,	-6.22100830078125|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.30711579322815:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+9.318110466003418:	imu;	yaw,	-6.207918167114258|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.32997727394104:	imu;	yaw,	-6.206827163696289|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.507439851760864:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+9.518611192703247:	imu;	yaw,	-6.192646503448486|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.706919431686401:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+9.713884115219116:	imu;	yaw,	-6.157740116119385|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.723234415054321:	imu;	yaw,	-6.157740116119385|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.732309103012085:	imu;	yaw,	-6.156649589538574|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.907156467437744:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+9.914634466171265:	imu;	yaw,	-6.11410665512085|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.923524856567383:	imu;	yaw,	-6.11410665512085|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+9.933621644973755:	imu;	yaw,	-6.115197658538818|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.106980323791504:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+10.115318298339844:	imu;	yaw,	-6.123924255371094|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.124696016311646:	imu;	yaw,	-6.126106262207031|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.134088277816772:	imu;	yaw,	-6.127196788787842|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.307003259658813:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+10.315274477005005:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.324965953826904:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.335403680801392:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.342867612838745:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.50678277015686:	gps;	long,	0.0|	lat,	0.0|	fix,	False
+10.523565292358398:	imu;	yaw,	-6.135923385620117|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.535181283950806:	imu;	yaw,	-6.135923385620117|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.544668912887573:	imu;	yaw,	-6.135923385620117|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.555458784103394:	imu;	yaw,	-6.135923385620117|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.56561279296875:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.575978517532349:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.586371421813965:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.59509825706482:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.606008052825928:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.616628170013428:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.626076459884644:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.636449575424194:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.645966291427612:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.656246662139893:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.666347980499268:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.676712989807129:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.686753749847412:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.6951265335083:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.706444025039673:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.717037677764893:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.727329730987549:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.737565755844116:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.746859073638916:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.757012844085693:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.767954111099243:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.777427434921265:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+10.787996292114258:	imu;	yaw,	-6.134832859039307|	accel_x,	0|	accel_y,	0|	compass,	0|	ang_vx,	0|	ang_vy,	0
+11.090712785720825:	motors;	0
