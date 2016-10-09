@@ -69,6 +69,7 @@ class Simulator:
 
         print("plotting...")
         self.plot()
+        self.close()
 
     def angled_line_segment(self, plot_option, x0, y0, angle, length,
                             vx=None, vy=None, v_scale=None):
@@ -126,3 +127,6 @@ class Simulator:
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
         plt.show()
+
+    def close(self):
+        pass

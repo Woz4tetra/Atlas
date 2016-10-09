@@ -137,8 +137,9 @@ class Parser:
         self.local_dir = self.directory[self.directory.rfind("/", 0, -1) + 1:]
 
         # parse the file name. Get the full directory of the file
-        self.file_name = project.get_file_name(file_name, self.directory,
-                                               log_file_type)
+        self.file_name = project.get_file_name(
+            file_name, self.directory, log_file_type)
+        self.file_name_no_ext = self.file_name.split(".")[0]
 
         print("Using file named '%s'" % self.file_name)
 
