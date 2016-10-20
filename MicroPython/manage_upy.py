@@ -6,6 +6,7 @@ import errno
 
 from autobuggy import project
 
+default_sd_name = get_default_sd_name()
 
 def copy_anything(src, dst):
     try:
@@ -29,6 +30,17 @@ def get_upy_sd_dir(upy_sd_name):
         return os.path.join("/media", upy_sd_name)
     else:
         raise NotImplementedError
+
+
+def get_default_sd_name():
+    with open("default_sd.txt", 'r') as default_file:
+        name = default_file.read()
+    return name
+
+
+def set_default_sd_name(name):
+    with open("default_sd.txt", 'w+') as default_file:
+        default_file.write(name)
 
 
 def update_upy(upy_sd_name, upy_sd_dir=None):
@@ -61,8 +73,9 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         upy_sd_name = sys.argv[1]
+        set_default_sd_name(upy_sd_name)
     else:
-        upy_sd_name = "PYCARD"
+        upy_sd_name = default_sd_name
     print("SD card name:", upy_sd_name)
 
     update_upy(upy_sd_name)
