@@ -37,7 +37,7 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
 
     backup_dir = os.path.join(project.root_dir, "MicroPython/backups")
     main_dir = os.path.join(project.root_dir, "MicroPython/PYCARD")
-    
+
     if os.path.isdir(upy_sd_dir):
         if os.path.isdir(backup_dir):
             shutil.rmtree(backup_dir)
@@ -63,4 +63,6 @@ if __name__ == '__main__':
         upy_sd_name = sys.argv[1]
     else:
         upy_sd_name = "PYCARD"
+    print("SD card name:", upy_sd_name)
+
     update_upy(upy_sd_name)

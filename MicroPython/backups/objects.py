@@ -35,7 +35,7 @@ class GPS(Sensor):
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus, timer_num):
-        super(IMU, self).__init__(sensor_id, 'f')
+        super(IMU, self).__init__(sensor_id, ['f', 'f', 'f', 'f', 'f', 'f'])
         self.bus = bus
         self.bno = BNO055(self.bus)
 
