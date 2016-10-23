@@ -47,17 +47,10 @@ def set_project_dir(project_name=None):
     return project_dir
 
 
-def add_project_dirs(**new_project_dirs):
+def add_project_dirs(*new_project_dirs):
     """Add any special project directories"""
-    for name, local_dir in project_dirs.items():
-        if new_project_dirs[name][0] != "/":
-            project_dirs[name] = os.path.join(project_dir, new_project_dirs[name])
-        else:
-            project_dirs[name] = os.path.join(project_dir, new_project_dirs[name])
-
-        if project_dirs[name][-1] != "/":
-            project_dirs[name][-1] += "/"
-
+    for local_dir in new_project_dirs:
+        project_dirs[local_dir] = os.path.join(project_dir, local_dir) + "/"
 
 def get_platform():
     """Use for platform specific operations"""
@@ -92,11 +85,6 @@ def get_dir(directory=""):
     else:
         abs_directory = os.path.join(autobuggy_dir, directory) + "/"
 
-    if abs_directory[0:2] == "--":
-        raise NotADirectoryError(
-            "Make sure to set your project name. It must be a directory inside "
-            "the Atlas github repository: project.set_project_dir"
-            "('project name')")
     if not os.path.isdir(abs_directory):
         os.mkdir(abs_directory)
 

@@ -205,9 +205,24 @@ class Communicator(threading.Thread):
         address = None
         serial_ref = None
         for possible_address in self.possible_addrs():
-            if exclude_addresses is not None and \
-                    possible_address in exclude_addresses:
-                continue
+            if exclude_addresses is not None:
+                skip_address = False
+                for excluded_address in exclude_addresses:
+                    # if * is present, then only search up to that index
+                    if "*" in excluded_address:
+                        end_index = excluded_address.find("*")
+
+                        # if end indices don't match, addresses aren't the same
+                        if len(possible_address) >= end_index:
+                            # compare truncated addresses
+                            if possible_address[0:end_index] == \
+                                    excluded_address[0:end_index]:
+                                skip_address = True
+                    elif excluded_address == possible_address:
+                        skip_address = True
+                if skip_address:
+                    print("skipping:", possible_address)
+                    continue
             try:
                 serial_ref = serial.Serial(port=possible_address,
                                            baudrate=baud_rate,
@@ -245,4 +260,6 @@ class Communicator(threading.Thread):
         Sets the exit_flag to True indicating that the communication thread
         should be stopped
         """
+        if not self.is_alive():
+            print("Communicator thread wasn't running. Nothing to stop.")
         Communicator.exit_flag = True

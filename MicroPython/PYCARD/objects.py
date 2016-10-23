@@ -35,34 +35,44 @@ class GPS(Sensor):
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus, timer_num):
-        super(IMU, self).__init__(sensor_id, 'f')
+        super(IMU, self).__init__(sensor_id, ['f', 'f', 'f', 'f', 'f', 'f'])
         self.bus = bus
         self.bno = BNO055(self.bus)
 
         self.new_data = False
-        self.prev_yaw = 0.0
+        
+        self.yaw = 0.0
+        self.accel_x, self.accel_y = 0.0, 0.0
+        self.compass = 0.0
+        self.ang_vx, self.ang_vy = 0.0, 0.0
 
         self.timer = pyb.Timer(timer_num, freq=100)
         self.timer.callback(lambda _: self.callback())
 
         add_timer(timer_num, self.timer.freq())
 
-    def get_yaw(self):
-        return -self.bno.get_euler()[0] * pi / 180
-
     def recved_data(self):
         if self.new_data:
             self.new_data = False
-            self.yaw = self.get_yaw()
-            if self.prev_yaw != self.yaw:
-                self.prev_yaw = self.yaw
-                return True
-        return False
+            
+            self.yaw = -self.bno.get_euler()[0] * pi / 180  # radians
+            
+            accel = self.bno.get_lin_accel()  # m/s^2
+            self.accel_x = accel[0]
+            self.accel_y = accel[1]
+            
+            self.compass = self.bno.get_heading()  # radians
+            
+            ang_v = self.bno.get_gyro()  # rotations per second
+            self.ang_vx = ang_v[0] * 2 * pi # radians per second
+            self.ang_vy = ang_v[1] * 2 * pi
+            
+        return self.new_data
 
     def update_data(self):
-        return self.yaw
+        return self.yaw, self.accel_x, self.accel_y, self.compass, self.ang_vx, self.ang_vy
 
-    def callback(self):
+    def callback(self):  # check for data every 100 Hz
         self.new_data = True
 
 

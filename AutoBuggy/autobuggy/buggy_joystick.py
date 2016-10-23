@@ -35,6 +35,8 @@ class BuggyJoystick(threading.Thread):
         assert type(axes_mapping) == list or type(axes_mapping) == tuple
         assert type(axes_dead_zones) == list or type(axes_dead_zones) == tuple
         assert type(button_mapping) == list or type(button_mapping) == tuple
+        
+        assert len(axes_dead_zones) == len(axes_mapping)
 
         self.axis_to_name = axes_mapping
         self.button_to_name = button_mapping

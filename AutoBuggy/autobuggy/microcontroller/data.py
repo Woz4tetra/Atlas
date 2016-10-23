@@ -220,9 +220,15 @@ class Sensor(SerialObject):
 
         return dict_props
 
-    def get(self, item=None):
+    def get(self, item=None, all=False, as_tuple=True):
         # If item is None, it is assumed None was given for properties.
         # This means there is only one property and it should be returned
+        if all:
+            if as_tuple:
+                return tuple(self._properties.values())
+            else:
+                return self._properties
+
         if item is None:
             return self._properties[self.name]
         else:
