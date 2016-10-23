@@ -10,11 +10,9 @@ from autobuggy import project
 
 class Robot:
     def __init__(self, sensors, commands, address=None,
-                 exclude_addresses=None, filter=None, joystick=None,
+                 exclude_addresses=None, joystick=None,
                  pipeline=None, capture=None, close_fn=None, log_data=True,
                  log_name=None, log_dir=None):
-        # an instance of a filter class. For generic use
-        self.filter = filter
 
         # an instance of BuggyJoystick
         self.joystick = joystick
@@ -92,13 +90,6 @@ class Robot:
     def record(self, name, value=None, **values):
         """Log data to the current log file"""
         self.communicator.record(name, value, **values)
-
-    def get_state(self):
-        """Return the robot's current state as determined by the filter"""
-        if self.filter is not None:
-            return self.filter.state
-        else:
-            return None
 
     def close(self):
         """All method calls necessary to shutdown the robot cleanly"""

@@ -108,13 +108,13 @@ class KF(object):
         self.imu_data = []
         #imu_data is of the form [accel, gyro], where both of these are 1x3 matrices
 
-    def update_imu(self,data):
+    def update_imu(self, data):
         """
-data is in the from [accel, gyro]
+        data is in the from [accel, gyro]
 
-where accel = [ax,ay,az]
-where gyro = [r,p,y]
-"""
+        where accel = [ax,ay,az]
+        where gyro = [r,p,y]
+        """
         self.imu_data.append(data)
 
     def update_gps(self, GNSS_pos_ecef, GNSS_vel_ecef, tor_s, GNSS_pdop):
@@ -321,7 +321,9 @@ where gyro = [r,p,y]
 
         self.est_IMU_bias -= self.x[9:15]
         return new_P, corrections
-            
+        
+    def get_position(self):
+        return self.est_pos_ecef
                       
         
 
