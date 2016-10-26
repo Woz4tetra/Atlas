@@ -21,7 +21,7 @@ def add_timer(timer_num, timer_freq):
 class GPS(Sensor):
     def __init__(self, sensor_id, uart_bus, timer_num, baud_rate=9600,
                  update_rate=5):
-        super(GPS, self).__init__(sensor_id, ['f', 'f', 'b'])
+        super(GPS, self).__init__(sensor_id, ['f', 'f', 'b', 'f', 'f', 'f', 'f', 'f', 'f'])
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
@@ -30,7 +30,10 @@ class GPS(Sensor):
         return self.gps_ref.received_sentence()
 
     def update_data(self):
-        return self.gps_ref.longitude, self.gps_ref.latitude, self.gps_ref.fix
+        return (self.gps_ref.longitude, self.gps_ref.latitude, self.gps_ref.fix,
+                self.gps_ref.pdop, self.gps_ref.hdop, self.gps_ref.vdop,
+                self.gps_ref.speed_kmph, self.gps_ref.magnetic_variation,
+                self.gps_ref.altitude)
 
 
 class IMU(Sensor):
@@ -46,34 +49,23 @@ class IMU(Sensor):
         self.compass = 0.0
         self.ang_vx, self.ang_vy = 0.0, 0.0
 
-        self.timer = pyb.Timer(timer_num, freq=100)
-        self.timer.callback(lambda _: self.callback())
-
-        add_timer(timer_num, self.timer.freq())
-
     def recved_data(self):
-        if self.new_data:
-            self.new_data = False
-            
-            self.yaw = -self.bno.get_euler()[0] * pi / 180  # radians
-            
-            accel = self.bno.get_lin_accel()  # m/s^2
-            self.accel_x = accel[0]
-            self.accel_y = accel[1]
-            
-            self.compass = self.bno.get_heading()  # radians
-            
-            ang_v = self.bno.get_gyro()  # rotations per second
-            self.ang_vx = ang_v[0] * 2 * pi # radians per second
-            self.ang_vy = ang_v[1] * 2 * pi
-            
-        return self.new_data
+        self.yaw = -self.bno.get_euler()[0] * pi / 180  # radians
+        
+        accel = self.bno.get_lin_accel()  # m/s^2
+        self.accel_x = accel[0]
+        self.accel_y = accel[1]
+        
+        self.compass = self.bno.get_heading()  # radians
+        
+        ang_v = self.bno.get_gyro()  # rotations per second
+        self.ang_vx = ang_v[0] * 2 * pi # radians per second
+        self.ang_vy = ang_v[1] * 2 * pi
+        
+        return True
 
     def update_data(self):
         return self.yaw, self.accel_x, self.accel_y, self.compass, self.ang_vx, self.ang_vy
-
-    def callback(self):  # check for data every 100 Hz
-        self.new_data = True
 
 
 class ServoCommand(Command):

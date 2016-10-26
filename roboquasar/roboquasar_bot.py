@@ -6,14 +6,14 @@ from joysticks.wiiu_joystick import WiiUJoystick
 
 
 class RoboQuasarBot(Robot):
-    def __init__(self, log_data=True):
+    def __init__(self, checkpoints_name=None, log_data=True):
         # set the project name (so that maps and logs and be found)
         project.set_project_dir("roboquasar")
 
         self.manual_mode = True
 
         self.goal_x, self.goal_y = 0, 0
-        self.checkpoints = get_map("checkpoints.txt")
+        self.checkpoints = get_map(checkpoints_name)
         self.checkpoint_num = 0
 
         joystick = WiiUJoystick(
@@ -26,7 +26,7 @@ class RoboQuasarBot(Robot):
         )
 
         sensors = dict(
-            gps=dict(sensor_id=1, properties=['long', 'lat', 'fix'],
+            gps=dict(sensor_id=1, properties=['long', 'lat', 'fix', 'pdop', 'hdop', 'vdop', 'speed_kmph', 'magnetic_variation', 'altitude'],
                      update_fn=lambda: self.gps_updated()),
             imu=dict(sensor_id=2, properties=['yaw', 'accel_x', 'accel_y',
                                               'compass', 'ang_vx', 'ang_vy'],
@@ -67,7 +67,7 @@ class RoboQuasarBot(Robot):
         pass
 
     def imu_updated(self):
-        print(self.imu)
+        print("yaw: %2.4f, accel_x: %2.4f, accel_y: %2.4f, compass: %2.4f, ang_vx: %2.4f, ang_vy: %2.4f" % self.imu.get(all=True))
 
     def gps_updated(self):
         print(self.gps)

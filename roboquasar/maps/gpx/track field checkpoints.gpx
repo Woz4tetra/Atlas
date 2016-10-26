@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>track field checkpoints</name>
+  <desc></desc>
+  <author><name>WTracks - Online GPX track editor</name></author>
+  <link href="https://wtracks.appspot.com/">
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2016-10-26T08-11-55Z</time>
+<bounds minlat="40.442704048003534" minlon="-79.94215478707144" maxlat="40.44419418682036" maxlon="-79.93830849934409"/></metadata>
+<rte><name>track field checkpoints</name>
+  <rtept lat="40.443580049150825" lon="-79.94060844182968"></rtept>
+  <rtept lat="40.44361475093712" lon="-79.94071707129478"></rtept>
+  <rtept lat="40.44362291606071" lon="-79.94074925780296"></rtept>
+  <rtept lat="40.44362699862213" lon="-79.9408270418644"></rtept>
+  <rtept lat="40.44363210182356" lon="-79.94089812040329"></rtept>
+  <rtept lat="40.44362903990276" lon="-79.94097054004669"></rtept>
+  <rtept lat="40.44361475093712" lon="-79.9410429596901"></rtept>
+  <rtept lat="40.44359535876463" lon="-79.94110867381096"></rtept>
+  <rtept lat="40.4434126638123" lon="-79.94123876094818"></rtept>
+  <rtept lat="40.443131986242136" lon="-79.94117572903633"></rtept>
+  <rtept lat="40.4431064700413" lon="-79.94113147258759"></rtept>
+  <rtept lat="40.443078912533494" lon="-79.9410992860794"></rtept>
+  <rtept lat="40.44304829306712" lon="-79.94103893637657"></rtept>
+  <rtept lat="40.44303400397803" lon="-79.94100138545036"></rtept>
+  <rtept lat="40.44301257033872" lon="-79.94092628359795"></rtept>
+  <rtept lat="40.44300338449122" lon="-79.94089141488075"></rtept>
+  <rtept lat="40.44288192705609" lon="-79.94038313627243"></rtept>
+  <rtept lat="40.44279415095796" lon="-79.93998482823372"></rtept>
+  <rtept lat="40.44278190312121" lon="-79.93994191288948"></rtept>
+  <rtept lat="40.4427676139755" lon="-79.93986815214157"></rtept>
+  <rtept lat="40.442761490054984" lon="-79.93983462452888"></rtept>
+  <rtept lat="40.442750262865935" lon="-79.93975549936295"></rtept>
+  <rtept lat="40.4427492422123" lon="-79.93971928954124"></rtept>
+  <rtept lat="40.44295949653578" lon="-79.93931159377098"></rtept>
+  <rtept lat="40.443192204437764" lon="-79.93932634592056"></rtept>
+  <rtept lat="40.443271814850874" lon="-79.9393866956234"></rtept>
+  <rtept lat="40.443333053566015" lon="-79.9394765496254"></rtept>
+  <rtept lat="40.443366734835564" lon="-79.93958383798599"></rtept>
+  <rtept lat="40.4434790056122" lon="-79.94005724787712"></rtept>
+  <rtept lat="40.44352697579593" lon="-79.94027718901634"></rtept>
+  <rtept lat="40.44359944132775" lon="-79.94060575962067"></rtept>
+</rte></gpx>

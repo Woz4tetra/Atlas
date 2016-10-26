@@ -374,15 +374,16 @@ class AdafruitGPS:
         return int(char, 16)
 
     def received_sentence(self):
+        print(self.uart.any())
         if self.recved_flag is True:
             self.recved_flag = False
+            
             if self.uart.any():
 ##                self.current_line += self.uart.readline()
 ##                print(self.current_line)
 ##                if b'\n' in self.current_line[-1]:
 ##                    self.previous_line = self.current_line
 ##                    self.current_line = b''
-                    
                     self.parse(self.uart.readline())
                     return True
         return False
