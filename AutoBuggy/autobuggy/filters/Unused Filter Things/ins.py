@@ -39,8 +39,8 @@ class INS:
     then averages them and uses that to update its state.
     """
 
-    def __init__(self, timestamp):
-        self.max = 10  # max number of datasets
+    def __init__(self, timestamp, num_inputs):
+        self.max = num_inputs  # max number of datasets
 
         self.state = StateVector()
         self.temp = []  # this will hold the 10 interim state vecotrs
