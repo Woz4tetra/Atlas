@@ -27,7 +27,7 @@ class KF(object):
         self.gps_correction = [0, -0.1783567, -1.5190381]
         self.gyro_noise_PSD = (30 * deg_to_rad/60)**2
         self.accel_noise_PSD = (1000 * mug_to_mps2)**2
-        self.accel_bias_PSD = 1 * 10**(-10)
+        self.accel_bias_PSD = 1 * 10**(-10)  # 1e-10
         self.gyro_bias_PSD = 1 * 10**(-10)
 
         #used for bounding of covariances
