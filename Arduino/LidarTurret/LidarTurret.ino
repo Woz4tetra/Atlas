@@ -103,7 +103,7 @@ unsigned int find_enc_long_thresh()
         checkEncoder();
     }
 
-    while ((millis() - start_time) < 3000)
+    while ((millis() - start_time) < 1000)
     {
         if (checkEncoder())
         {
@@ -117,7 +117,7 @@ unsigned int find_enc_long_thresh()
         }
     }
 
-    longThreshold = (max_dt + min_dt) / 2;
+    longThreshold = (max_dt + min_dt) / 2 - 1000;
     encoderCounts = 0;
     encoderRotations = 0;
 }

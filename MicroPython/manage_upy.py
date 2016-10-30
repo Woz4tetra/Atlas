@@ -22,7 +22,7 @@ default_sd_name = get_default_sd_name()
 
 def copy_anything(src, dst):
     try:
-        shutil.copytree(src, dst)
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns(".*"))
     except OSError as exc:  # python >2.5
         if exc.errno == errno.ENOTDIR:
             shutil.copy(src, dst)
