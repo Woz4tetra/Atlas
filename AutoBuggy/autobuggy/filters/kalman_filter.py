@@ -1,7 +1,6 @@
 import numpy as np
 from numpy import linalg
 
-
 np.set_printoptions(precision=4)
 
 
@@ -32,7 +31,10 @@ class KalmanFilterEpoch:
             np.zeros((6, 15)))  # H_matrix in the matlab code
         self.noise_covariance_matrix = np.matrix(
             np.zeros((6, 6)))  # R_matrix in the matlab code
-        # self.kalman_gain =
+        self.kalman_gain = np.zeros(
+            (6, 6))  # TODO: figure out the dimension of this
+        self.kalman_gain = np.zeros(
+            (6, 6))  # TODO: figure out the dimension of this
 
         self.measurement_innovation = np.matrix(np.zeros((6, 1)))
 
@@ -217,8 +219,8 @@ class KalmanFilterEpoch:
         :return:
         """
         # P_matrix_new, P_matrix in the matlab code
-        self.state_transition = (np.matrix(np.eye(
-            15)) - self.kalman_gain * self.measurement) * \
+        self.state_transition = (np.matrix(
+            np.eye(15)) - self.kalman_gain * self.measurement) * \
                                 self.propagated_noise_est
 
     def correct_estimates(self):
@@ -226,18 +228,17 @@ class KalmanFilterEpoch:
         CLOSED-LOOP CORRECTION in the matlab code
         :return:
         """
-        self.ins_frame_transformer = (
-                                         np.matrix(
-                                             np.eye(3)) - self.skew_symmetric(
-                                             self.propagated_state_est[
-                                             0:3])) * self.ins_frame_transformer
+        self.ins_frame_transformer = (np.matrix(
+            np.eye(3)) - self.skew_symmetric(
+            self.propagated_state_est[0:3])) * self.ins_frame_transformer
         self.estimated_velocity -= self.propagated_state_est[3:6]
         self.estimated_position -= self.propagated_state_est[6:9]
         self.estimated_imu_bias -= self.propagated_state_est[9:15]
 
     # ----- Helper functions -----
 
-    def skew_symmetric(self, m):
+    @staticmethod
+    def skew_symmetric(m):
         """
         creates a 3v3 skew_symmetric matrix from a 1x3 matrix
         """
