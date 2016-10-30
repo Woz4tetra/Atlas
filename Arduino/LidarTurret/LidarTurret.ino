@@ -7,11 +7,6 @@
 bool paused = false;
 
 SoftwareSerial softSerial(10, 11);  // Rx, Tx
-volatile bool shouldCheckSerial = false;
-char character = '\0';
-bool typeFound = false;
-String commandType = "";
-String command = "";
 
 LIDARLite myLidarLite;
 int distance = 0;
@@ -77,17 +72,9 @@ bool checkEncoder()
         if (dt > longThreshold) {  // 1 full rotation event
             encoderCounts = 0;
             encoderRotations++;
-
-            // Serial.print('\t');
-            // Serial.print(encoderRotations);
-            // Serial.print('\t');
-            // Serial.println(dt);
         }
         else {  // regular count
             encoderCounts++;
-            // Serial.print(encoderCounts);
-            // Serial.print('\t');
-            // Serial.println(dt);
         }
 
         writeData();
@@ -148,69 +135,6 @@ void setMotorSpeed(boolean direction, int speed)
     analogWrite(out_A_PWM, speed);
 }
 
-void readCommand()
-{
-    if (softSerial.available())
-    {
-        typeFound = false;
-        commandType = "";
-        command = "";
-        character = '\0';
-
-        while (character != '\n' && softSerial.available()) {
-            character = softSerial.read();
-            Serial.println(character);
-            Serial.println(character, DEC);
-            if (character == '\t') {
-                typeFound = true;
-                continue;
-            }
-
-            if (!typeFound) {
-                commandType += character;
-            }
-            else {
-                command += character;
-            }
-        }
-
-        if (character == '\n') {
-            if (commandType.equals("M"))
-            {
-                motorDirection = (bool)(command.substring(0, 1).toInt());
-                motorSpeed = command.substring(1).toInt();
-
-                if (0 <= motorSpeed && motorSpeed <= 255) {
-                    setMotorSpeed(motorDirection, motorSpeed);
-                }
-            }
-            else if (commandType.equals("P")) {
-                paused = (bool)(command.toInt());
-                if (paused) {
-                    setMotorSpeed(motorDirection, 0);
-                }
-                else {
-                    setMotorSpeed(motorDirection, motorSpeed);
-                }
-            }
-        }
-    }
-}
-
-void shouldRead() {
-    shouldCheckSerial = true;
-}
-
-void initSerial()
-{
-    // check serial every 0.25 seconds
-    Timer1.initialize(250000);
-    Timer1.attachInterrupt(shouldRead);
-
-    softSerial.begin(9600);
-}
-
-
 void writeData()
 {
     softSerial.print(encoderCounts);
@@ -224,6 +148,8 @@ void writeData()
 void setup()
 {
     Serial.begin(115200);
+    softSerial.begin(9600);
+
     myLidarLite.begin(0, true); // Set configuration to default and I2C to 400 kHz
     myLidarLite.configure(0);  // default configuration
 
@@ -239,8 +165,6 @@ void setup()
 
     encoderLow = analogRead(ENCODER_PIN) < ENCODER_HIGH_VALUE;
 
-    initSerial();
-
     find_enc_long_thresh();
 
     setMotorSpeed(motorDirection, motorSpeed);
@@ -252,10 +176,5 @@ void loop()
 {
     if (!paused) {
         checkEncoder();
-    }
-
-    if (shouldCheckSerial) {
-        shouldCheckSerial = false;
-        readCommand();
     }
 }
