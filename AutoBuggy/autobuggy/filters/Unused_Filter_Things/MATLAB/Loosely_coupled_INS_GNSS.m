@@ -3,7 +3,7 @@ function [out_profile,out_errors,out_IMU_bias_est,out_clock,out_KF_SD] =...
     IMU_errors,GNSS_config,LC_KF_config)
 %Loosely_coupled_INS_GNSS - Simulates inertial navigation using ECEF
 % navigation equations and kinematic model, GNSS using a least-squares
-% positioning algorithm, and loosely-coupled INS/GNSS integration. 
+% positioning algorithm, and loosely-coupled INS/GNSS integration.
 %
 % Software for use with "Principles of GNSS, Inertial, and Multisensor
 % Integrated Navigation Systems," Second Edition.
@@ -22,8 +22,8 @@ function [out_profile,out_errors,out_IMU_bias_est,out_clock,out_KF_SD] =...
 %     .b_a              Accelerometer biases (m/s^2)
 %     .b_g              Gyro biases (rad/s)
 %     .M_a              Accelerometer scale factor and cross coupling errors
-%     .M_g              Gyro scale factor and cross coupling errors            
-%     .G_g              Gyro g-dependent biases (rad-sec/m)             
+%     .M_g              Gyro scale factor and cross coupling errors
+%     .G_g              Gyro g-dependent biases (rad-sec/m)
 %     .accel_noise_root_PSD   Accelerometer noise root PSD (m s^-1.5)
 %     .gyro_noise_root_PSD    Gyro noise root PSD (rad s^-0.5)
 %     .accel_quant_level      Accelerometer quantization level (m/s^2)
@@ -140,13 +140,13 @@ true_C_b_n = Euler_to_CTM(true_eul_nb)';
 
 % Determine satellite positions and velocities
 [sat_r_es_e,sat_v_es_e] = Satellite_positions_and_velocities(old_time,...
-    GNSS_config);
+    GNSS_config);  % might want this
 
-% Initialize the GNSS biases. Note that these are assumed constant throughout 
-% the simulation and are based on the initial elevation angles. Therefore, 
+% Initialize the GNSS biases. Note that these are assumed constant throughout
+% the simulation and are based on the initial elevation angles. Therefore,
 % this function is unsuited to simulations longer than about 30 min.
 GNSS_biases = Initialize_GNSS_biases(sat_r_es_e,old_true_r_eb_e,true_L_b,...
-    true_lambda_b,GNSS_config);
+    true_lambda_b,GNSS_config);  % want this
 
 % Generate GNSS measurements
 [GNSS_measurements,no_GNSS_meas] = Generate_GNSS_measurements(old_time,...
@@ -155,7 +155,7 @@ GNSS_biases = Initialize_GNSS_biases(sat_r_es_e,old_true_r_eb_e,true_L_b,...
 
 % Determine Least-squares GNSS position solution and use to initialize INS
 [GNSS_r_eb_e,GNSS_v_eb_e,est_clock] = GNSS_LS_position_velocity(...
-    GNSS_measurements,no_GNSS_meas,GNSS_config.init_est_r_ea_e,[0;0;0]);
+    GNSS_measurements,no_GNSS_meas,GNSS_config.init_est_r_ea_e,[0;0;0]); % want this
 old_est_r_eb_e = GNSS_r_eb_e;
 old_est_v_eb_e = GNSS_v_eb_e;
 [old_est_L_b,old_est_lambda_b,old_est_h_b,old_est_v_eb_n] =...
@@ -165,7 +165,7 @@ est_L_b = old_est_L_b;
 % Initialize estimated attitude solution
 old_est_C_b_n = Initialize_NED_attitude(true_C_b_n,initialization_errors);
 [temp1,temp2,old_est_C_b_e] = NED_to_ECEF(old_est_L_b,...
-    old_est_lambda_b,old_est_h_b,old_est_v_eb_n,old_est_C_b_n);
+    old_est_lambda_b,old_est_h_b,old_est_v_eb_n,old_est_C_b_n); % want this
 
 % Initialize output profile record and errors record
 out_profile = zeros(no_epochs,10);
@@ -189,11 +189,11 @@ out_errors(1,5:7) = delta_v_eb_n';
 out_errors(1,8:10) = delta_eul_nb_n';
 
 % Initialize Kalman filter P matrix and IMU bias states
-P_matrix = Initialize_LC_P_matrix(LC_KF_config);
+P_matrix = Initialize_LC_P_matrix(LC_KF_config);  % want this
 est_IMU_bias = zeros(6,1);
 
 % Initialize IMU quantization residuals
-quant_residuals = [0;0;0;0;0;0];
+quant_residuals = [0;0;0;0;0;0]; % might want this
 
 % Generate IMU bias and clock output records
 out_IMU_bias_est(1,1) = old_time;
@@ -228,8 +228,8 @@ for epoch = 2:no_epochs
         progress_epoch = epoch;
         fprintf(strcat(rewind,bars(1:progress_mark),...
             dots(1:(20 - progress_mark))));
-    end % if epoch    
-    
+    end % if epoch
+
     % Input data from motion profile
     time = in_profile(epoch,1);
     true_L_b = in_profile(epoch,2);
@@ -243,19 +243,20 @@ for epoch = 2:no_epochs
 
     % Time interval
     tor_i = time - old_time;
-    
+
+    % check what these functions do
     % Calculate specific force and angular rate
     [true_f_ib_b,true_omega_ib_b] = Kinematics_ECEF(tor_i,true_C_b_e,...
         old_true_C_b_e,true_v_eb_e,old_true_v_eb_e,old_true_r_eb_e);
-        
+
      % Simulate IMU errors
     [meas_f_ib_b,meas_omega_ib_b,quant_residuals] = IMU_model(tor_i,...
         true_f_ib_b,true_omega_ib_b,IMU_errors,quant_residuals);
-    
+
     % Correct IMU errors
     meas_f_ib_b = meas_f_ib_b - est_IMU_bias(1:3);
     meas_omega_ib_b = meas_omega_ib_b - est_IMU_bias(4:6);
-    
+
     % Update estimated navigation solution
     [est_r_eb_e,est_v_eb_e,est_C_b_e] = Nav_equations_ECEF(tor_i,...
         old_est_r_eb_e,old_est_v_eb_e,old_est_C_b_e,meas_f_ib_b,...
@@ -266,7 +267,7 @@ for epoch = 2:no_epochs
         GNSS_epoch = GNSS_epoch + 1;
         tor_s = time - time_last_GNSS;  % KF time interval
         time_last_GNSS = time;
-   
+
         % Determine satellite positions and velocities
         [sat_r_es_e,sat_v_es_e] = Satellite_positions_and_velocities(time,...
             GNSS_config);
@@ -299,7 +300,7 @@ for epoch = 2:no_epochs
         end % for i
 
     end % if time    
-    
+
     % Convert navigation solution to NED
     [est_L_b,est_lambda_b,est_h_b,est_v_eb_n,est_C_b_n] =...
         ECEF_to_NED(est_r_eb_e,est_v_eb_e,est_C_b_e);
@@ -311,7 +312,7 @@ for epoch = 2:no_epochs
     out_profile(epoch,4) = est_h_b;
     out_profile(epoch,5:7) = est_v_eb_n';
     out_profile(epoch,8:10) = CTM_to_Euler(est_C_b_n')';
-    
+
     % Determine errors and generate output record
     [delta_r_eb_n,delta_v_eb_n,delta_eul_nb_n] = Calculate_errors_NED(...
         est_L_b,est_lambda_b,est_h_b,est_v_eb_n,est_C_b_n,true_L_b,...
@@ -320,7 +321,7 @@ for epoch = 2:no_epochs
     out_errors(epoch,2:4) = delta_r_eb_n';
     out_errors(epoch,5:7) = delta_v_eb_n';
     out_errors(epoch,8:10) = delta_eul_nb_n';
-    
+
     % Reset old values
     old_time = time;
     old_true_r_eb_e = true_r_eb_e;

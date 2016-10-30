@@ -112,12 +112,12 @@ unsigned int find_enc_long_thresh()
 void motor_speed(boolean direction, int speed)
 { //speed from 0 to 255
     if (direction) {
-        digitalWrite(out_A_IN1,HIGH);
-        digitalWrite(out_A_IN2,LOW);
+        digitalWrite(out_A_IN1, HIGH);
+        digitalWrite(out_A_IN2, LOW);
     }
     else {
-        digitalWrite(out_A_IN1,LOW);
-        digitalWrite(out_A_IN2,HIGH);
+        digitalWrite(out_A_IN1, LOW);
+        digitalWrite(out_A_IN2, HIGH);
     }
     analogWrite(out_A_PWM, speed);
 }

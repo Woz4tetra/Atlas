@@ -6,7 +6,7 @@
 
 bool paused = false;
 
-SoftwareSerial softSerial(10, 11);  // Rx, Tx
+SoftwareSerial softSerial(11, 12);  // Rx, Tx
 
 LIDARLite myLidarLite;
 int distance = 0;
@@ -72,9 +72,11 @@ bool checkEncoder()
         if (dt > longThreshold) {  // 1 full rotation event
             encoderCounts = 0;
             encoderRotations++;
+            setColor(skyBlue);
         }
         else {  // regular count
             encoderCounts++;
+            setColor(orange);
         }
 
         writeData();
@@ -89,6 +91,8 @@ bool checkEncoder()
 
 unsigned int find_enc_long_thresh()
 {
+    setColor(red);
+
     setMotorSpeed(false, 255);
     delay(100);
 
@@ -116,6 +120,8 @@ unsigned int find_enc_long_thresh()
             }
         }
     }
+
+    setColor(green);
 
     longThreshold = (max_dt + min_dt) / 2 - 1000;
     encoderCounts = 0;
@@ -153,9 +159,9 @@ void setup()
     myLidarLite.begin(0, true); // Set configuration to default and I2C to 400 kHz
     myLidarLite.configure(0);  // default configuration
 
-    // pinMode(RED_PIN, OUTPUT);
-    // pinMode(GREEN_PIN, OUTPUT);
-    // pinMode(BLUE_PIN, OUTPUT);
+    pinMode(RED_PIN, OUTPUT);
+    pinMode(GREEN_PIN, OUTPUT);
+    pinMode(BLUE_PIN, OUTPUT);
 
     pinMode(ENCODER_PIN, INPUT);
 
