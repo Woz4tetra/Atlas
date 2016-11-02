@@ -234,6 +234,7 @@ def Initialize_NED_attitude(C_b_n, initialization_errors):
 	est_C_b_n: body-to-NED coordinate transformation matrix solution
 
 	"""
+	delta_C_b_n = np.matrix(np.zeros(3,3)) # Initialize delta_C_b_n matrix
 	delta_C_b_n = Euler_to_CTM(-initialization_errors.delta_eul_nb_n)
 	est_C_b_n = delta_C_b_n * C_b_n
 
