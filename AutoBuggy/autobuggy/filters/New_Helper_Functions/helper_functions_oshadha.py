@@ -20,6 +20,12 @@ omega_ie = 7.292115E-5  # Earth rotation rate in rad/s
 
 def GNSS_LS_position_velocity(GNSS_measurements,no_GNSS_meas,predicted_r_ea_e,predicted_v_ea_e):
 	"""
+	Purpose
+	----------
+	Calculates position, velocity, clock offset, and clock drift using
+	unweighted iterated least squares. Separate calculations are implemented
+	for position and clock offset and for velocity and clock drift
+
 	Parameters
 	---------- 
 	GNSS_measurements: GNSS measurement data:
@@ -152,6 +158,8 @@ def GNSS_LS_position_velocity(GNSS_measurements,no_GNSS_meas,predicted_r_ea_e,pr
 
 def Skew_symmetric(a):
 	"""
+	Purpose
+	----------
 	Calculates a skew-symmetric matrix
 
 	Parameters
@@ -161,6 +169,7 @@ def Skew_symmetric(a):
 	Outputs
 	----------
 	A: 3x3 matrix
+	
 	"""
 
 	A = np.matrix(np.zeros((3,3))) #Initialize
@@ -173,3 +182,97 @@ def Skew_symmetric(a):
 
 	return A
 
+# Initialize_LC_P_matrix.m
+# -----------------------------------------------
+
+def Initialize_LC_P_matrix(LC_KF_config):
+	"""
+	Purpose
+	----------
+	Initializes the loosely coupled INS/GNSS KF error covariance matrix
+
+	Parameters
+	---------- 
+    TC_KF_config
+      .init_att_unc           Initial attitude uncertainty per axis (rad)
+      .init_vel_unc           Initial velocity uncertainty per axis (m/s)
+      .init_pos_unc           Initial position uncertainty per axis (m)
+      .init_b_a_unc           Initial accel. bias uncertainty (m/s^2)
+      .init_b_g_unc           Initial gyro. bias uncertainty (rad/s)	
+
+    Outputs
+	---------- 
+    P_matrix: state estimateion error covariance matrix
+
+	"""
+	P_matrix = np.matrix(np.zeros((15,15)))
+	P_matrix[0:3,0:3] = np.matrix(np.eye(3)) * LC_KF_config.init_att_unc**2
+	P_matrix[3:6,3:6] = np.matrix(np.eye(3)) * LC_KF_config.init_vel_unc**2
+	P_matrix[6:9,6:9] = np.matrix(np.eye(3)) * LC_KF_config.init_pos_unc**2
+	P_matrix[9:12,9:12] = np.matrix(np.eye(3)) * LC_KF_config.init_b_a_unc**2
+	P_matrix[12:15,12:15] = np.matrix(np.eye(3)) * LC_KF_config.init_b_g_unc**2
+
+	return P_matrix
+
+# Initialize_LC_P_matrix.m
+# -----------------------------------------------
+
+def Initialize_NED_attitude(C_b_n, initialization_errors):
+	"""
+	Purpose
+	----------
+	Initializes the attitude solution by adding errors to the truth
+
+	Parameters
+	----------
+	C_b_n: true body-to-NED coordinate transformation matrix
+	initialization_errors
+		.delta_eul_nb_n: attitude errors as NED Euler angles (rad)
+
+	Output
+	----------
+	est_C_b_n: body-to-NED coordinate transformation matrix solution
+
+	"""
+	delta_C_b_n = Euler_to_CTM(-initialization_errors.delta_eul_nb_n)
+	est_C_b_n = delta_C_b_n * C_b_n
+
+	return est_C_b_n
+
+def Euler_to_CTM(eul):
+	"""
+	Purpose
+	----------
+	Converts a set of Euler angles to the corresponding coordinate transformation matrix
+
+	Parameters
+	----------
+	eul: Euler angles describing the rotation from beta to alpha in the order (roll, pitch, yaw)
+
+	Output
+	----------
+	C: coordinate transformation matrix describing transformation from beta to alpha
+
+	"""
+
+	# precalculate sines and cosines of the Euler angles
+	sin_phi = np.sin(eul[0])
+	cos_phi = np.cos(eul[0])
+	sin_theta = np.sin(eul[1])
+	cos_theta = np.cos(eul[1])
+	sin_psi = np.sin(eul[2])
+	cos_psi = np.cos(eul[2])
+
+	# calculate transformation matrix 
+	C = np.matrix(np.zeros((3,3)))
+	C[0,0] = cos_theta * cos_psi
+	C[0,1] = cos_theta * sin_psi
+	C[0,2] = -sin_theta
+	C[1,0] = -cos_phi * sin_psi + sin_phi * sin_theta * cos_psi
+	C[1,1] = cos_phi * cos_psi + sin_phi * sin_theta * sin_psi
+	C[1,2] = sin_phi * cos_theta
+	C[2,0] = sin_phi * sin_psi + cos_phi * sin_theta * cos_psi
+	C[2,1] = -sin_phi * cos_psi + cos_phi * sin_theta * sin_psi
+	C[2,2] = cos_phi * cos_theta
+
+	return C
