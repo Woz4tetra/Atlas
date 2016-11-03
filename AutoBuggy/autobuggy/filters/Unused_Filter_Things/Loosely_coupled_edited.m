@@ -129,14 +129,6 @@ function [out_profile,out_errors,out_IMU_bias_est,out_clock,out_KF_SD] =...
 
 % Initialize true navigation solution
 old_time = in_profile(1,1);
-true_L_b = in_profile(1,2);
-true_lambda_b = in_profile(1,3);
-true_h_b = in_profile(1,4);
-true_v_eb_n = in_profile(1,5:7)';
-true_eul_nb = in_profile(1,8:10)';
-true_C_b_n = Euler_to_CTM(true_eul_nb)';
-[old_true_r_eb_e,old_true_v_eb_e,old_true_C_b_e] =...
-    NED_to_ECEF(true_L_b,true_lambda_b,true_h_b,true_v_eb_n,true_C_b_n);
 
 % Determine satellite positions and velocities
 [sat_r_es_e,sat_v_es_e] = Satellite_positions_and_velocities(old_time,...
@@ -168,25 +160,10 @@ old_est_C_b_n = Initialize_NED_attitude(true_C_b_n,initialization_errors);
     old_est_lambda_b,old_est_h_b,old_est_v_eb_n,old_est_C_b_n); % want this
 
 % Initialize output profile record and errors record
-out_profile = zeros(no_epochs,10);
-out_errors = zeros(no_epochs,10);
 
 % Generate output profile record
-out_profile(1,1) = old_time;
-out_profile(1,2) = old_est_L_b;
-out_profile(1,3) = old_est_lambda_b;
-out_profile(1,4) = old_est_h_b;
-out_profile(1,5:7) = old_est_v_eb_n';
-out_profile(1,8:10) = CTM_to_Euler(old_est_C_b_n')';
 
 % Determine errors and generate output record
-[delta_r_eb_n,delta_v_eb_n,delta_eul_nb_n] = Calculate_errors_NED(...
-    old_est_L_b,old_est_lambda_b,old_est_h_b,old_est_v_eb_n,old_est_C_b_n,...
-    true_L_b,true_lambda_b,true_h_b,true_v_eb_n,true_C_b_n);
-out_errors(1,1) = old_time;
-out_errors(1,2:4) = delta_r_eb_n';
-out_errors(1,5:7) = delta_v_eb_n';
-out_errors(1,8:10) = delta_eul_nb_n';
 
 % Initialize Kalman filter P matrix and IMU bias states
 P_matrix = Initialize_LC_P_matrix(LC_KF_config);  % want this
@@ -196,50 +173,24 @@ est_IMU_bias = zeros(6,1);
 quant_residuals = [0;0;0;0;0;0]; % might want this
 
 % Generate IMU bias and clock output records
-out_IMU_bias_est(1,1) = old_time;
-out_IMU_bias_est(1,2:7) = est_IMU_bias';
-out_clock(1,1) = old_time;
-out_clock(1,2:3) = est_clock;
+
 
 % Generate KF uncertainty record
-out_KF_SD(1,1) = old_time;
-for i =1:15
-    out_KF_SD(1,i+1) = sqrt(P_matrix(i,i));
-end % for i
 
 % Initialize GNSS model timing
 time_last_GNSS = old_time;
 GNSS_epoch = 1;
 
 % Progress bar
-dots = '....................';
-bars = '||||||||||||||||||||';
-rewind = '\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b';
-fprintf(strcat('Processing: ',dots));
-progress_mark = 0;
-progress_epoch = 0;
 
 % Main loop
 for epoch = 2:no_epochs
 
     % Update progress bar
-    if (epoch - progress_epoch) > (no_epochs/20)
-        progress_mark = progress_mark + 1;
-        progress_epoch = epoch;
-        fprintf(strcat(rewind,bars(1:progress_mark),...
-            dots(1:(20 - progress_mark))));
-    end % if epoch
+
 
     % Input data from motion profile
     time = in_profile(epoch,1);
-    true_L_b = in_profile(epoch,2);
-    true_lambda_b = in_profile(epoch,3);
-    true_h_b = in_profile(epoch,4);
-    true_v_eb_n = in_profile(epoch,5:7)';
-    true_eul_nb = in_profile(epoch,8:10)';
-    true_C_b_n = Euler_to_CTM(true_eul_nb)';
-    [true_r_eb_e,true_v_eb_e,true_C_b_e] =...
-        NED_to_ECEF(true_L_b,true_lambda_b,true_h_b,true_v_eb_n,true_C_b_n);
 
     % Time interval
     tor_i = time - old_time;
@@ -288,16 +239,8 @@ for epoch = 2:no_epochs
             est_L_b,LC_KF_config);
 
         % Generate IMU bias and clock output records
-        out_IMU_bias_est(GNSS_epoch,1) = time;
-        out_IMU_bias_est(GNSS_epoch,2:7) = est_IMU_bias';
-        out_clock(GNSS_epoch,1) = time;
-        out_clock(GNSS_epoch,2:3) = est_clock;
 
         % Generate KF uncertainty output record
-        out_KF_SD(GNSS_epoch,1) = time;
-        for i =1:15
-            out_KF_SD(GNSS_epoch,i+1) = sqrt(P_matrix(i,i));
-        end % for i
 
     end % if time
 
@@ -306,34 +249,14 @@ for epoch = 2:no_epochs
         ECEF_to_NED(est_r_eb_e,est_v_eb_e,est_C_b_e);
 
     % Generate output profile record
-    out_profile(epoch,1) = time;
-    out_profile(epoch,2) = est_L_b;
-    out_profile(epoch,3) = est_lambda_b;
-    out_profile(epoch,4) = est_h_b;
-    out_profile(epoch,5:7) = est_v_eb_n';
-    out_profile(epoch,8:10) = CTM_to_Euler(est_C_b_n')';
 
     % Determine errors and generate output record
-    [delta_r_eb_n,delta_v_eb_n,delta_eul_nb_n] = Calculate_errors_NED(...
-        est_L_b,est_lambda_b,est_h_b,est_v_eb_n,est_C_b_n,true_L_b,...
-        true_lambda_b,true_h_b,true_v_eb_n,true_C_b_n);
-    out_errors(epoch,1) = time;
-    out_errors(epoch,2:4) = delta_r_eb_n';
-    out_errors(epoch,5:7) = delta_v_eb_n';
-    out_errors(epoch,8:10) = delta_eul_nb_n';
+
 
     % Reset old values
-    old_time = time;
-    old_true_r_eb_e = true_r_eb_e;
-    old_true_v_eb_e = true_v_eb_e;
-    old_true_C_b_e = true_C_b_e;
-    old_est_r_eb_e = est_r_eb_e;
-    old_est_v_eb_e = est_v_eb_e;
-    old_est_C_b_e = est_C_b_e;
 
 end %epoch
 
 % Complete progress bar
-fprintf(strcat(rewind,bars,'\n'));
 
 % Ends

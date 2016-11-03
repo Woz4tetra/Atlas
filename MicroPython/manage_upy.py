@@ -17,18 +17,20 @@ def set_default_sd_name(name):
     with open("default_sd.txt", 'w+') as default_file:
         default_file.write(name)
 
+def remove_directory(directory):
+    shutil.rmtree(directory)
+
+def copy_files(src, dest):
+    try:
+        shutil.copytree(src, dest)
+    except OSError as e:
+        # If the error was caused because the source wasn't a directory
+        if e.errno == errno.ENOTDIR:
+            shutil.copy(src, dest)
+        else:
+            print('Directory not copied. Error: %s' % e)
 
 default_sd_name = get_default_sd_name()
-
-def copy_anything(src, dst):
-    try:
-        shutil.copytree(src, dst, ignore=shutil.ignore_patterns(".*"))
-    except OSError as exc:  # python >2.5
-        if exc.errno == errno.ENOTDIR:
-            shutil.copy(src, dst)
-        else:
-            raise
-
 
 def get_username():
     return pwd.getpwuid(os.getuid())[0]
@@ -52,22 +54,32 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
     main_dir = os.path.join(project.root_dir, "MicroPython/PYCARD")
 
     if os.path.isdir(upy_sd_dir):
+        # delete everything in backup directory
         if os.path.isdir(backup_dir):
-            shutil.rmtree(backup_dir)
-        copy_anything(upy_sd_dir, backup_dir)
-        for f in os.listdir(upy_sd_dir):
-            abs_path = os.path.join(upy_sd_dir, f)
-            if os.path.isdir(abs_path):
-                shutil.rmtree(abs_path)
-            else:
-                os.remove(abs_path)
+            remove_directory(backup_dir)
+        os.mkdir(backup_dir)
 
+        # backup the current PYCARD files
+        for f in os.listdir(upy_sd_dir):
+            if f[0] != ".":
+                sub_path = os.path.join(upy_sd_dir, f)
+                copy_files(sub_path, os.path.join(backup_dir, f))
+        
+        # remove everything in SD card
+        for f in os.listdir(upy_sd_dir):
+            if f[0] != ".":
+                sub_path = os.path.join(upy_sd_dir, f)
+                if os.path.isdir(sub_path):
+                    # if errors happen, ignore the file
+                    shutil.rmtree(sub_path, onerror=lambda *x: x)
+                else:
+                    os.remove(sub_path)
+        
+        # copy files in MicroPython/PYCARD to SD card
         for f in os.listdir(main_dir):
-            abs_path = os.path.join(main_dir, f)
-            if os.path.isdir(abs_path):
-                copy_anything(abs_path, os.path.join(upy_sd_dir, f))
-            else:
-                copy_anything(abs_path, upy_sd_dir)
+            if f[0] != ".":
+                sub_path = os.path.join(main_dir, f)
+                copy_files(sub_path, os.path.join(upy_sd_dir, f))
     else:
         raise FileNotFoundError("MicroPython SD card not found...")
 
