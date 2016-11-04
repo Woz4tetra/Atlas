@@ -3,7 +3,7 @@ import numpy as np
 from math import *
 
 
-def ECEF_to_NED(pos, vel, C_b_e):
+def ECEF_to_NED(x,y z):
     """
 HAS A SUPER STUPID FLOATING POINT ERROR
 %   pos        Cartesian position of body frame w.r.t. ECEF frame, resolved
@@ -29,11 +29,11 @@ earth_rotation_rate = 0.00007292115 #Earth rotation rate (rad/s)
 gravitational_constant = 3.986004418 * 10**14 
 J_2 = 1.082627*10**(-3)
 
-    lambda_b = atan2(pos[1],pos[0])
+    lambda_b = atan2(y,x)
 
-    k1 = sqrt(1 - e**2) * abs(pos[2])
-    k2 = e**2 * earth_radius
-    beta = sqrt(pos[0]**2 + pos[1]**2)
+    k1 = sqrt(1 - eccentricity**2) * abs(z)
+    k2 = eccentricity**2 * earth_radius
+    beta = sqrt(x**2 + y**2)
     E = (k1 - k2) / beta
     F = (k1 + k2) / beta
 
@@ -51,20 +51,7 @@ J_2 = 1.082627*10**(-3)
 
     h_b = ((beta - earth_radius * T) * cos(L_b) + (pos[2] - sign(pos[2]) *
            earth_radius * sqrt(1-eccentricity**2)) * sin(L_b))
-
-    # Calculate ECEF to NED coordinate transformation matrix
-    cos_lat = cos(L_b)
-    sin_lat = sin(L_b)
-    cos_long = cos(lambda_b)
-    sin_long = sin(lambda_b)
-
-    C_e_n = np.matrix([[-sin_lat * cos_long, -sin_lat * sin_long, cos_lat],
-                      [-sin_long, cos_long, 0],
-                      [-cos_lat*cos_long, -cos_lat*sin_long, -sin_lat]])
-
-    v_eb_n = C_e_n * (vel)
-    C_b_n = C_e_n * (C_b_e)
-    return C_b_n
+    return lambda_b,L_b,h_b
 
 
 def sign(x):
