@@ -23,7 +23,7 @@ def add_timer(timer_num, timer_freq):
 class GPS(Sensor):
     def __init__(self, sensor_id, uart_bus, timer_num, baud_rate=9600,
                  update_rate=5):
-        super(GPS, self).__init__(sensor_id, ['f', 'f', 'f', 'f', 'b'])
+        super(GPS, self).__init__(sensor_id, ['f'] * 7 + ['b'])
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
@@ -32,76 +32,64 @@ class GPS(Sensor):
         return self.gps_ref.received_sentence()
 
     def update_data(self):
-        return (self.gps_ref.longitude, self.gps_ref.latitude, 
+        return (self.gps_ref.longitude, self.gps_ref.latitude,
                 self.gps_ref.altitude, self.gps_ref.geoid_height,
-                self.gps_ref.fix,)
+                self.gps_ref.pdop, self.gps_ref.hdop, self.gps_ref.vdop,
+                self.gps_ref.fix)
 
 
 class IMU(Sensor):
     def __init__(self, sensor_id, bus, timer_num):
-        super(IMU, self).__init__(sensor_id, ['f', 'f', 'f', 'f', 'f', 'f', 'f'])
+        super(IMU, self).__init__(sensor_id,
+                                  ['f', 'f', 'f', 'f', 'f', 'f', 'f'] +
+                                  ['u8'] * 11)
         self.bus = bus
         self.bno = BNO055(self.bus)
 
         self.new_data = False
-        
+
         self.yaw = 0.0
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
-        
 
     def recved_data(self):
         self.yaw = self.bno.get_euler()[0] * pi / 180  # radians
-        
+
         self.accel_x, self.accel_y, self.accel_z = self.bno.get_lin_accel()  # m/s^2
-        
+
         ang_v = self.bno.get_gyro()  # rotations per second
-        self.ang_vx = ang_v[0] * 2 * pi # radians per second
+        self.ang_vx = ang_v[0] * 2 * pi  # radians per second
         self.ang_vy = ang_v[1] * 2 * pi
         self.ang_vz = ang_v[2] * 2 * pi
-        
+
+        self.bno.update_offsets()
+
         return True
 
     def update_data(self):
-        return self.yaw, self.accel_x, self.accel_y, self.accel_z, \
-            self.ang_vx, self.ang_vy, self.ang_vz
+        return (self.yaw, self.accel_x, self.accel_y, self.accel_z,
+                self.ang_vx, self.ang_vy, self.ang_vz,
+                ) + tuple(self.bno.offsets.items())
 
 
 class StepperCommand(Command):
     def __init__(self, command_id, pins):
         super().__init__(command_id, 'i16')
-        
+
         self.stepper = Stepper(200, *pins)
         self.stepper.set_speed(60)
-        
+
         self.time0 = time.ticks_ms()
         self.delay = self.stepper.step_delay / 2000
-    
+
     def callback(self, steps):
-        if time.ticks_diff(self.time0, time.ticks_ms()) > self.delay: 
+        if time.ticks_diff(self.time0, time.ticks_ms()) > self.delay:
             self.stepper.step(steps)
             self.time0 = time.ticks_ms()
-    
+
     def reset(self):
         # recalibrate with delimiter
         pass
-
-class ServoCommand(Command):
-    def __init__(self, command_id, pin_num, start_pos=0):
-        super().__init__(command_id, 'i8')
-        self.start_pos = start_pos
-        self.servo_ref = pyb.Servo(pin_num)
-        if start_pos is not None:
-            self.servo_ref.angle(start_pos)
-        self.angle = start_pos
-
-    def callback(self, angle):
-        self.angle = angle
-        self.servo_ref.angle(self.angle)
-
-    def reset(self):
-        self.angle = self.start_pos
-        self.servo_ref.angle(self.angle)
 
 
 class LEDcommand(Command):
@@ -140,32 +128,3 @@ class BlueLEDcommand(Command):
     def reset(self):
         self.set_state(0)
 
-
-class MotorCommand(Command):
-    def __init__(self, command_id, rc_motor):
-        super().__init__(command_id, 'i8')
-        self.rc_motor = rc_motor
-
-    def callback(self, speed):
-        self.rc_motor.set_speed(speed)
-
-    def reset(self):
-        self.rc_motor.set_speed(0)
-
-
-class RCencoder(Sensor):
-    def __init__(self, sensor_id, rc_motor):
-        super().__init__(sensor_id, 'i64')
-        self.rc_motor = rc_motor
-
-        for timer_num, timer in self.rc_motor.timers.items():
-            add_timer(timer_num, timer.freq())
-
-    def reset(self):
-        self.rc_motor.enc_dist = 0
-
-    def update_data(self):
-        return self.rc_motor.enc_dist
-
-    def recved_data(self):
-        return self.rc_motor.new_encoder_data()
