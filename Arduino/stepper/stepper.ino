@@ -7,7 +7,7 @@
 #define RED 10
 #define ORANGE 11
 #define YELLOW 12
-#define PHASE_A BROWN
+#define PHASE_A BROWN 
 #define PHASE_A_ ORANGE
 #define PHASE_B RED
 #define PHASE_B_ YELLOW

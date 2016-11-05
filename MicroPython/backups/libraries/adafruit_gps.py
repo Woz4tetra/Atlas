@@ -95,9 +95,11 @@ class AdafruitGPS:
 
         self.paused = False
 
-        self.current_line = b''
-        self.previous_line = b''
+#        self.current_line = b''
+#        self.previous_line = b''
         self.recved_flag = True
+        
+        self.sentence = ""
 
         self.in_standby_mode = False
 
@@ -140,6 +142,7 @@ class AdafruitGPS:
     def parse(self, sentence):
         # do checksum, first look if we have one
         if len(sentence) > 6:
+            self.sentence = sentence
             sentence = sentence[:-2].decode('ascii')
             if sentence[-3] == b'*':
                 sum = self.parse_hex(sentence[-2]) * 16
@@ -374,7 +377,6 @@ class AdafruitGPS:
         return int(char, 16)
 
     def received_sentence(self):
-        print(self.uart.any())
         if self.recved_flag is True:
             self.recved_flag = False
             

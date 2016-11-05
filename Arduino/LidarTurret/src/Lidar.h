@@ -3,6 +3,7 @@
 #include <LIDARLite.h>
 #include <SoftwareSerial.h>
 
+
 #define DEBUG_LIDAR_TURRET
 
 class Lidar {
@@ -12,10 +13,13 @@ public:
     bool update();
     void checkSerial();
     void setMotorSpeed(int speed);
+    void stopMotor();
+    void setMotorDirection(bool direction);
     void setColor(int r, int g, int b);
     void setColor(int *rgb);
     unsigned int getEncoderCounts();
     unsigned int getEncoderRotations();
+    void writeDistance();
 
     int red[3];
     int green[3];
@@ -34,12 +38,12 @@ private:
     SoftwareSerial *_softSerial;
     LIDARLite *_lidarLite;
 
-    unsigned int _encoderCounts;
-    unsigned int _encoderRotations;
+    int _encoderCounts;
+    int _encoderRotations;
     int _distance;
-    unsigned long _enc_t1;
-    unsigned long _enc_dt;
-    unsigned long _enc_t0;
+    unsigned long _enc_t1, _enc_dt, _enc_t0;
+    unsigned long _serial_t0;
+    unsigned long _distance_t0;
 
     bool _paused;
     char _commandType;
@@ -47,8 +51,15 @@ private:
     char _character;
 
     int _motorSpeed;
+    bool _motorDirection;
+
+    float _kp, _kd, _ki;
+
+    float _prev_error, _sum_error;
 
     void initColors();
-    void writeToSerial();
+    void writeEncoder();
     void calibrate();
+
+    bool goToTick(int goal);
 };

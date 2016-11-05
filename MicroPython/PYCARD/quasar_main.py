@@ -7,13 +7,14 @@ for _ in range(15):
     pyb.delay(50)
 pyb.LED(3).on()
 
-leds = [LEDcommand(index, index + 1) for index in range(3)]
+leds = [LEDcommand(index, index + 1) for index in range(3)]  # 3 normal LEDs
 blue_led = BlueLEDcommand(3)
+stepper = StepperCommand(4, ["X3", "X4", "X5", "X6"])
 
-gps = GPS(1, 2, 4)
+gps = GPS(1, 1, 4)
 imu = IMU(2, 2, 11)
 
-communicator = Communicator(*leds, blue_led, uart_bus=1)
+communicator = Communicator(*leds, blue_led, stepper, uart_bus=6)
 
 sensor_updated = False
 
@@ -34,7 +35,7 @@ while True:
        print("%0.5f, %0.6f, %0.6f" % (
            imu.data[0], gps.data[0], gps.data[1]), end='\r')
 
-#    pyb.delay(1)
+    pyb.delay(1)
 
     if communicator.should_reset():
         gps.reset()

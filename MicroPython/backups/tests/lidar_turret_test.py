@@ -1,7 +1,7 @@
 import pyb
 from libraries.lidar_turret import LidarTurret
 
-lidar = LidarTurret(2)
+lidar = LidarTurret(4)
 
 while True:
     if lidar.received():

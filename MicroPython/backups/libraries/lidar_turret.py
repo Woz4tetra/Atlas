@@ -3,7 +3,7 @@ from math import pi
 
 
 class LidarTurret():
-    def __init__(self, uart_bus, ticks_per_rotation=40, baud_rate=9600):
+    def __init__(self, uart_bus, ticks_per_rotation=38, baud_rate=9600):
         self.uart = pyb.UART(uart_bus, baud_rate, read_buf_len=255)
         self.ticks_per_rotation = ticks_per_rotation
         

@@ -67,11 +67,13 @@ class BNO055:
         else:
             self.address = 0x29
 
-        self.declination = (
-                           declination[0] + declination[1] / 60) * math.pi / 180
+        self.declination = \
+            (declination[0] + declination[1] / 60) * math.pi / 180
 
         self.quat_scale = 1.0 / (1 << 14)
         self.sample_delay = 100
+        
+        pyb.delay(1000)
 
         addresses = self.i2c.scan()
         if self.address not in addresses:
@@ -80,6 +82,7 @@ class BNO055:
 
         if not self.i2c.is_ready(self.address):
             raise Exception("Device not ready")
+        
         pyb.delay(50)
         chip_id = self.read_8(self.reg['CHIP_ID'])
         if ord(chip_id) != self.BNO055_ID:
@@ -108,6 +111,8 @@ class BNO055:
         pyb.delay(100)
 
         self.set_ext_crystal_use()
+
+        pyb.delay(100)
 
     def set_mode(self, mode):
         self.write_8(self.reg['OPR_MODE'], mode)
@@ -195,4 +200,7 @@ class BNO055:
         return self.i2c.mem_read(1, self.address, register)
 
     def read_len(self, register, length):
-        return self.i2c.mem_read(length, self.address, register)
+#        try:
+            return self.i2c.mem_read(length, self.address, register)
+#        except OSError:
+#            return b''

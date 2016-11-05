@@ -27,8 +27,8 @@ def copy_files(src, dest):
         # If the error was caused because the source wasn't a directory
         if e.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
-        else:
-            print('Directory not copied. Error: %s' % e)
+#        else:
+#            print('Directory not copied. Error: %s' % e)
 
 default_sd_name = get_default_sd_name()
 
@@ -58,12 +58,14 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
         if os.path.isdir(backup_dir):
             remove_directory(backup_dir)
         os.mkdir(backup_dir)
+        print("backup dir removed")
 
         # backup the current PYCARD files
         for f in os.listdir(upy_sd_dir):
             if f[0] != ".":
                 sub_path = os.path.join(upy_sd_dir, f)
                 copy_files(sub_path, os.path.join(backup_dir, f))
+        print("moved SD card content to backup")
         
         # remove everything in SD card
         for f in os.listdir(upy_sd_dir):
@@ -74,12 +76,14 @@ def update_upy(upy_sd_name, upy_sd_dir=None):
                     shutil.rmtree(sub_path, onerror=lambda *x: x)
                 else:
                     os.remove(sub_path)
+        print("deleted SD card content")
         
         # copy files in MicroPython/PYCARD to SD card
         for f in os.listdir(main_dir):
             if f[0] != ".":
                 sub_path = os.path.join(main_dir, f)
                 copy_files(sub_path, os.path.join(upy_sd_dir, f))
+        print("copied local PYCARD files to SD card")
     else:
         raise FileNotFoundError("MicroPython SD card not found...")
 
