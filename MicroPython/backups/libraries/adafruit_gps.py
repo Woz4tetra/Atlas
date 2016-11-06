@@ -155,19 +155,22 @@ class AdafruitGPS:
                     # bad checksum :(
                     return False
             packet_type = sentence[1:6]
-
-            if packet_type == "GPGGA":
-                self.parse_gga_sentence(sentence)
-            elif packet_type == "GPRMC":
-                self.parse_rmc_sentence(sentence)
-            elif packet_type == "GPVTG":
-                self.parse_vtg_sentence(sentence)
-            elif packet_type == "GPGSA":
-                self.parse_gsa_sentence(sentence)
-            elif packet_type == "GPGSV":
-                # self.parse_gsv_sentence(sentence)
-                pass  # not tracking each satellite's info
-            else:
+            
+            try:
+                if packet_type == "GPGGA":
+                    self.parse_gga_sentence(sentence)
+                elif packet_type == "GPRMC":
+                    self.parse_rmc_sentence(sentence)
+                elif packet_type == "GPVTG":
+                    self.parse_vtg_sentence(sentence)
+                elif packet_type == "GPGSA":
+                    self.parse_gsa_sentence(sentence)
+                elif packet_type == "GPGSV":
+                    # self.parse_gsv_sentence(sentence)
+                    pass  # not tracking each satellite's info
+                else:
+                    print("Unrecognized packet:", packet_type, sentence)
+            except:
                 print("Unrecognized packet:", packet_type, sentence)
 
             return True

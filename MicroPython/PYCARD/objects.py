@@ -82,15 +82,10 @@ class StepperCommand(Command):
         super().__init__(command_id, 'i16')
 
         self.stepper = Stepper(200, *pins)
-        self.stepper.set_speed(60)
-
-        self.time0 = time.ticks_ms()
-        self.delay = self.stepper.step_delay / 2000
+        self.stepper.set_speed(25)
 
     def callback(self, steps):
-        if time.ticks_diff(self.time0, time.ticks_ms()) > self.delay:
-            self.stepper.step(steps)
-            self.time0 = time.ticks_ms()
+        self.stepper.step(steps)
 
     def reset(self):
         # recalibrate with delimiter
