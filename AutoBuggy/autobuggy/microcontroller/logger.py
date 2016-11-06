@@ -320,7 +320,7 @@ def _get_gpx_map(file_name, directory):
     for line in contents[start_index:].splitlines():
         line = line.strip(" ")
         unparsed = line.split(" ")
-        print(unparsed)
+        
         if len(unparsed) > 1:
             if len(unparsed) == 2:
                 lat_unparsed, long_unparsed = unparsed
