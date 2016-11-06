@@ -48,20 +48,20 @@ class Stepper:
         if this_step == 0:  # 1010
             self.motor_pin_1.high()
             self.motor_pin_2.low()
-            self.motor_pin_3.high()
+            self.motor_pin_3.low()
             self.motor_pin_4.low()
         elif this_step == 1:  # 0110
             self.motor_pin_1.low()
             self.motor_pin_2.high()
-            self.motor_pin_3.high()
+            self.motor_pin_3.low()
             self.motor_pin_4.low()
         elif this_step == 2:  # 0101
             self.motor_pin_1.low()
-            self.motor_pin_2.high()
-            self.motor_pin_3.low()
-            self.motor_pin_4.high()
+            self.motor_pin_2.low()
+            self.motor_pin_3.high()
+            self.motor_pin_4.low()
         elif this_step == 3:  # 1001
-            self.motor_pin_1.high()
+            self.motor_pin_1.low()
             self.motor_pin_2.low()
             self.motor_pin_3.low()
             self.motor_pin_4.high()
