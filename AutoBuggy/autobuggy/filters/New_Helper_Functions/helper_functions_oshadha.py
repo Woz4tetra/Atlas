@@ -61,7 +61,7 @@ def GNSS_LS_position_velocity(GNSS_measurements,no_GNSS_meas,predicted_r_ea_e,pr
 		for k in range(1,no_GNSS_meas+1):
 			# predict approx. range
 			delta_r = np.subtract(np.transpose(GNSS_measurements[k-1,2:5]),x_pred)
-			approx_range = math.sqrt(np.dot(delta_r.T, delta_r))
+			approx_range = math.sqrt(delta_r.T * delta_r)
 
 			# Calculate frame rotation during signal transit time
 			C_e_I = np.matrix('1,0,0;0,1,0;0,0,1') # Initialize matrix and change values in following lines
