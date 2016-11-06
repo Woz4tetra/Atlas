@@ -16,7 +16,8 @@ class Stepper:
         
     def set_speed(self, speed):  # in rpm
         self.step_delay = int(6E7 / self.step_num / speed)
-        
+    
+    
     def step(self, num_steps):
         steps_left = abs(num_steps)
         

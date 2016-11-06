@@ -32,7 +32,7 @@ class GPS(Sensor):
         return self.gps_ref.received_sentence()
 
     def update_data(self):
-        return (self.gps_ref.longitude, self.gps_ref.latitude,
+        return (self.gps_ref.latitude, self.gps_ref.longitude,
                 self.gps_ref.altitude, self.gps_ref.geoid_height,
                 self.gps_ref.pdop, self.gps_ref.hdop, self.gps_ref.vdop,
                 self.gps_ref.fix)
@@ -41,8 +41,8 @@ class GPS(Sensor):
 class IMU(Sensor):
     def __init__(self, sensor_id, bus, timer_num):
         super(IMU, self).__init__(sensor_id,
-                                  ['f', 'f', 'f', 'f', 'f', 'f', 'f'] +
-                                  ['u8'] * 11)
+                                  ['f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'])
+#                                  + ['u8'] * 11)
         self.bus = bus
         self.bno = BNO055(self.bus)
 
@@ -51,6 +51,7 @@ class IMU(Sensor):
         self.yaw = 0.0
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
+        self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
 
     def recved_data(self):
         self.yaw = self.bno.get_euler()[0] * pi / 180  # radians
@@ -61,15 +62,19 @@ class IMU(Sensor):
         self.ang_vx = ang_v[0] * 2 * pi  # radians per second
         self.ang_vy = ang_v[1] * 2 * pi
         self.ang_vz = ang_v[2] * 2 * pi
+        
+        self.mag_x, self.mag_y, self.mag_z = self.bno.get_mag()
 
-        self.bno.update_offsets()
+#        self.bno.update_offsets()
 
         return True
 
     def update_data(self):
+    
         return (self.yaw, self.accel_x, self.accel_y, self.accel_z,
                 self.ang_vx, self.ang_vy, self.ang_vz,
-                ) + tuple(self.bno.offsets.items())
+                self.mag_x, self.mag_y, self.mag_z
+                ) # + tuple(self.bno.offsets.values())
 
 
 class StepperCommand(Command):

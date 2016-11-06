@@ -165,9 +165,6 @@ class Parser:
         self.data = []  # the parsed data of the file
         self.iter_index = 0  # the character index of the file
 
-        # hold onto the initial values of each data type
-        self.initial_values = {}
-
         pickle_file_name = self.file_name[:-len(log_file_type)] + pickle_file_type
         log_pickle_dir = project.get_dir(pickle_directory) + self.local_dir
 
@@ -217,16 +214,14 @@ class Parser:
 
     def get(self, sensor_name, instance_num=0):
         """Get the nth occurrence of a particular type of data"""
-        if instance_num == 0:
-            return self.initial_values[sensor_name]
-        else:
-            counter = 0
-            # iterate until the nth instance is found
-            for index, (timestamp, name, values) in enumerate(self.data):
-                if name == sensor_name:
-                    counter += 1
-                    if counter == instance_num:
-                        return timestamp, index, values
+        counter = 0
+        # iterate until the nth instance is found
+        for index, (timestamp, name, values) in enumerate(self.data):
+            if name == sensor_name:
+                if counter == instance_num:
+                    return timestamp, index, values
+                counter += 1
+        raise ValueError("Sensor '%s' not found in log file..." % sensor_name)
 
     def create_data(self):
         """Using the separator flags, parse the file and put it in self.data"""
@@ -265,10 +260,6 @@ class Parser:
                 # put it in self.data
                 self.data.append((timestamp, name, values))
 
-                if name not in self.initial_values.keys():
-                    self.initial_values[name] = timestamp, len(
-                        self.data), values
-
             index = end_index + 1
 
 
@@ -299,10 +290,10 @@ def _get_txt_map(file_name, directory):
     for line in split:
         line_data = line.split(",")
         if len(line_data) == 2:
-            long, lat = float(line_data[long_index]), float(
-                line_data[lat_index])
+            lat, long = float(line_data[lat_index]), float(
+                line_data[long_index])
 
-            gps_map.append((long, lat))
+            gps_map.append((lat, long))
 
     return gps_map
 
@@ -320,7 +311,7 @@ def _get_gpx_map(file_name, directory):
     for line in contents[start_index:].splitlines():
         line = line.strip(" ")
         unparsed = line.split(" ")
-        print(unparsed)
+        
         if len(unparsed) > 1:
             if len(unparsed) == 2:
                 lat_unparsed, long_unparsed = unparsed
@@ -330,7 +321,7 @@ def _get_gpx_map(file_name, directory):
             lat = float(lat_unparsed[5:-1])
             long = float(long_unparsed[5:-10])
 
-            gps_map.append((long, lat))
+            gps_map.append((lat, long))
 
     return gps_map
 

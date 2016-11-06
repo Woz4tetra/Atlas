@@ -14,7 +14,7 @@ stepper = StepperCommand(4, ["X3", "X4", "X5", "X6"])
 gps = GPS(1, uart_bus=1, timer_num=4)
 imu = IMU(2, bus=2, timer_num=11)
 
-communicator = Communicator(*leds, blue_led, stepper, uart_bus=6)
+communicator = Communicator(*leds, blue_led, stepper, uart_bus=4)
 
 sensor_updated = False
 

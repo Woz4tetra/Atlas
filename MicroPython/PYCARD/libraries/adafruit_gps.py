@@ -155,19 +155,22 @@ class AdafruitGPS:
                     # bad checksum :(
                     return False
             packet_type = sentence[1:6]
-
-            if packet_type == "GPGGA":
-                self.parse_gga_sentence(sentence)
-            elif packet_type == "GPRMC":
-                self.parse_rmc_sentence(sentence)
-            elif packet_type == "GPVTG":
-                self.parse_vtg_sentence(sentence)
-            elif packet_type == "GPGSA":
-                self.parse_gsa_sentence(sentence)
-            elif packet_type == "GPGSV":
-                # self.parse_gsv_sentence(sentence)
-                pass  # not tracking each satellite's info
-            else:
+            
+            try:
+                if packet_type == "GPGGA":
+                    self.parse_gga_sentence(sentence)
+                elif packet_type == "GPRMC":
+                    self.parse_rmc_sentence(sentence)
+                elif packet_type == "GPVTG":
+                    self.parse_vtg_sentence(sentence)
+                elif packet_type == "GPGSA":
+                    self.parse_gsa_sentence(sentence)
+                elif packet_type == "GPGSV":
+                    # self.parse_gsv_sentence(sentence)
+                    pass  # not tracking each satellite's info
+                else:
+                    print("Unrecognized packet:", packet_type, sentence)
+            except:
                 print("Unrecognized packet:", packet_type, sentence)
 
             return True
@@ -227,7 +230,13 @@ class AdafruitGPS:
         parsed = self.parse_sentence(sentence, 17)
         # fix_selection, fix_3d = parsed[0:2]
         # satellite_prns = parsed[2:14]  # not tracking each satellite's info
-        self.pdop, self.hdop, self.vdop = parsed[14:17]
+        pdop, hdop, vdop = parsed[14:17]
+        if len(pdop) > 0:
+            self.pdop = float(pdop)
+        if len(hdop) > 0:
+            self.hdop = float(hdop)
+        if len(vdop) > 0:
+            self.vdop = float(vdop)
 
     def parse_gsv_sentence(self, sentence):
         """

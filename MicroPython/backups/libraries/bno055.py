@@ -28,6 +28,8 @@ import math
 
 import pyb
 
+from ucollections import OrderedDict
+
 
 class BNO055:
     reg = dict(
@@ -45,6 +47,10 @@ class BNO055:
         OPR_MODE=0x3d,
         PAGE_ID=0x07,
         PWR_MODE=0x3e,
+
+        ACCEL_OFFSET_X_LSB_ADDR=0x55,
+        CALIB_STAT_ADDR=0x35,
+
     )
 
     modes = dict(
@@ -59,6 +65,7 @@ class BNO055:
     )
 
     BNO055_ID = 0xa0
+    NUM_BNO055_OFFSET_REGISTERS = 22
 
     def __init__(self, bus, default_address=True, declination=(0, 0)):
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
@@ -72,17 +79,36 @@ class BNO055:
 
         self.quat_scale = 1.0 / (1 << 14)
         self.sample_delay = 100
-        
+
+        self.default_mode = self.modes['NDOF']
+
+        self.offsets = OrderedDict(
+            accel_offset_x=0,
+            accel_offset_y=0,
+            accel_offset_z=0,
+
+            mag_offset_x=0,
+            mag_offset_y=0,
+            mag_offset_z=0,
+            
+            gyro_offset_x=0,
+            gyro_offset_y=0,
+            gyro_offset_z=0,
+
+            accel_radius=0,
+            mag_radius=0
+        )
+
         pyb.delay(1000)
 
         addresses = self.i2c.scan()
         if self.address not in addresses:
             raise Exception("Address %s not found during scan: %s" % (
-            self.address, addresses))
+                self.address, addresses))
 
         if not self.i2c.is_ready(self.address):
             raise Exception("Device not ready")
-        
+
         pyb.delay(50)
         chip_id = self.read_8(self.reg['CHIP_ID'])
         if ord(chip_id) != self.BNO055_ID:
@@ -105,7 +131,7 @@ class BNO055:
         self.write_8(self.reg['SYS_TRIGGER'], 0x0)
         pyb.delay(10)
 
-        self.set_mode(self.modes['NDOF'])
+        self.set_mode(self.default_mode)
         pyb.delay(20)
 
         pyb.delay(100)
@@ -126,7 +152,7 @@ class BNO055:
         self.write_8(self.reg['SYS_TRIGGER'], 0x80)
         pyb.delay(10)
 
-        self.set_mode(self.modes['NDOF'])
+        self.set_mode(self.default_mode)
         pyb.delay(20)
 
     def get_lin_accel(self):  # acceleration in m/s^2 (excluding gravity)
@@ -139,7 +165,7 @@ class BNO055:
 
     def get_quat(self):
         # quaternion vector (see: https://en.wikipedia.org/wiki/Quaternion)
-        
+
         buf = self.read_len(self.reg['QUATERNION_DATA'], 8)
         w = (buf[1] << 8) | buf[0]
         x = (buf[3] << 8) | buf[2]
@@ -179,9 +205,43 @@ class BNO055:
             data.append(datum)
         return data
 
+    def get_calibration(self):
+        calib_status = ord(self.read_8(self.reg['CALIB_STAT_ADDR']))
+        system = (calib_status >> 6) & 0x03
+        gyro = (calib_status >> 4) & 0x03
+        accel = (calib_status >> 2) & 0x03
+        mag = calib_status & 0x03
+
+        return system, gyro, accel, mag
+
+    def is_fully_calibrated(self):
+        print(self.get_calibration())
+        for status in self.get_calibration()[1:]:
+            if status < 3:
+                return False
+        return True
+
+    def update_offsets(self):
+        if self.is_fully_calibrated():
+            self.set_mode(self.modes['CONFIG'])
+
+            calib_data = self.read_len(self.reg['ACCEL_OFFSET_X_LSB_ADDR'],
+                                       self.NUM_BNO055_OFFSET_REGISTERS)
+                                       
+            self.set_mode(self.default_mode)
+
+            index = 0
+            for offset in self.offsets.keys():
+                self.offsets[offset] = (calib_data[index + 1] << 8) | calib_data[index]
+                index += 2
+#            print(self.offsets)
+            return True
+        else:
+            return False
+
     def get_heading(self):
         # compass heading in radians (be sure to get the correct declination)
-        
+
         x, y, z = self.get_mag()
         heading = math.atan2(y, x)
         heading += self.declination
@@ -200,7 +260,8 @@ class BNO055:
         return self.i2c.mem_read(1, self.address, register)
 
     def read_len(self, register, length):
-#        try:
-            return self.i2c.mem_read(length, self.address, register)
-#        except OSError:
+        #        try:
+        return self.i2c.mem_read(length, self.address, register)
+
+# except OSError:
 #            return b''

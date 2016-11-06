@@ -6,9 +6,7 @@ from autobuggy.microcontroller.logger import *
 
 class Simulator:
     # TODO: Add integration for CV pipelines
-    def __init__(self, file_name, directory, filter, plot_info):
-        # an instance of a filter class. For generic use
-        self.filter = filter
+    def __init__(self, file_name, directory, max_speed, plot_info):
 
         self.plot_data = {}
         self.plot_info = plot_info
@@ -38,15 +36,19 @@ class Simulator:
         self.timestamps = []
 
         self.prev_percent = 0
+        
+        self.max_speed = max_speed
 
         # ----- initialize figures -----
 
         self.fig = plt.figure(0)
         self.ax = self.fig.gca()
-        self.ax.plot(self.filter.initial_long, self.filter.initial_lat, 'o',
-                     color='black', markersize=10)
         self.fig.canvas.set_window_title(
             self.parser.local_dir + self.parser.file_name[:-4])
+    
+    def draw_starting_dot(self, initial_lat, initial_long):
+        self.ax.plot(initial_lat, initial_long, 'o',
+                     color='black', markersize=10)
 
     def set_default_value(self, data_name, key, default):
         if key not in self.plot_info[data_name].keys():
@@ -81,8 +83,9 @@ class Simulator:
                     speed = (vx ** 2 + vy ** 2) ** 0.5
                     speed = speed * v_scale + v_scale
                     percent_speed = abs(
-                        self.filter.max_speed - speed) / self.filter.max_speed
+                        self.max_speed - speed) / self.max_speed
                     length *= percent_speed
+                length *= 1E-4  # scale down to GPS size
                 x1 = x0 + length * math.cos(angle)
                 y1 = y0 + length * math.sin(angle)
                 self.xy_line_segment(plot_option, x0, y0, x1, y1, cycler)

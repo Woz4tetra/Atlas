@@ -4,7 +4,6 @@ from autobuggy import project
 from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
-from autobuggy.filters.groves_kf import KF
 
 
 class RoboQuasarBot(Robot):
@@ -25,13 +24,15 @@ class RoboQuasarBot(Robot):
                 axis, value, params),
             axis_inactive_fn=lambda axis, params: self.axis_inactive(
                 axis, params),
+            joy_hat_fn=lambda direction, params: self.dpad(direction, params)
         )
 
         sensors = dict(
-            gps=dict(sensor_id=1, properties=['long', 'lat', 'fix', 'pdop', 'hdop', 'vdop', 'speed_kmph', 'magnetic_variation', 'altitude'],
+            gps=dict(sensor_id=1, properties=['lat', 'long', 'altitude', 'geoid_height',
+                'pdop', 'hdop', 'vdop', 'fix'],
                      update_fn=lambda: self.gps_updated()),
-            imu=dict(sensor_id=2, properties=['ax', 'ay', 'az',
-                                              'gx', 'gy', 'gz'],
+            imu=dict(sensor_id=2, properties=[
+                'yaw', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'mx', 'my', 'mz'],
                      update_fn=lambda: self.imu_updated()),
         )
 
@@ -47,10 +48,8 @@ class RoboQuasarBot(Robot):
                     "toggle": 2
                 }),
             blue_led=dict(command_id=3, range=(0, 255)),
+            stepper=dict(command_id=4, range=(-32768, 32767)),
         )
-
-        self.filter = KF()
-        # filter.get_position()
 
         super(RoboQuasarBot, self).__init__(
             sensors, commands, '/dev/ttyUSB0', joystick=joystick,
@@ -61,6 +60,8 @@ class RoboQuasarBot(Robot):
         self.gps = self.sensors['gps']
 
         self.blue_led = self.commands['blue_led']
+        
+        self.stepper = self.commands['stepper']
 
         self.prev_time = time.time()
 
@@ -72,28 +73,20 @@ class RoboQuasarBot(Robot):
 
     def axis_active(self, axis, value, params):
         pass
+    
+    def dpad(self, direction, params):
+        if direction[0] == 1:
+            self.stepper.set(20)
+        elif direction[0] == -1:
+            self.stepper.set(-20)
+            
 
     def imu_updated(self):
-        print("yaw: %2.4f, accel_x: %2.4f, accel_y: %2.4f, compass: %2.4f, ang_vx: %2.4f, ang_vy: %2.4f" % self.imu.get(all=True))
+        pass
 
     def gps_updated(self):
-        x_ecef = self.gps.get('long')
-        y_ecef = self.gps.get('lat')
-        z_ecef = self.gps.get('altitude')
-
-        vx_ecef = self.gps.get('speed')
-        vy_ecef = self.gps.get('speed')
-        vz_ecef = self.gps.get('speed')
-
-        self.filter.update_gps(
-            [x_ecef, y_ecef, z_ecef],
-            [vx_ecef, vy_ecef, vz_ecef],
-            time.time() - self.prev_time,
-            self.gps.get('pdop')
-        )  # [x, y, z], [vx, vy, vz], dt, pdop
-
-        self.prev_time = time.time()
-        print(self.gps.get(all=True))
+        pass
+              
 
     def close_fn(self):
         self.blue_led.set(0)

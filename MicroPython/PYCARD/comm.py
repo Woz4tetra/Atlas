@@ -4,10 +4,10 @@ from objects import *
 
 
 class Communicator(object):
-    def __init__(self, *commands, uart_bus=None):
+    def __init__(self, *commands, uart_bus=None, baud=115200):
         if uart_bus is not None:
             self.using_usb = False
-            self.serial_ref = pyb.UART(uart_bus, 115200, read_buf_len=1000,
+            self.serial_ref = pyb.UART(uart_bus, baud, read_buf_len=1000,
                                        timeout_char=10000)
             print("Initialized! Ready to go!")
         else:

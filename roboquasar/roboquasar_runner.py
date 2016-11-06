@@ -7,6 +7,8 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.checkpoint_num = 0
         
         self.start()
+        
+        self.time0 = time.time()
     
     def button_dn(self, button, params):
         if button == 'A':
@@ -14,6 +16,15 @@ class RoboQuasarRunner(RoboQuasarBot):
             print("Checkpoint %i recorded!" % self.checkpoint_num)
             
             self.checkpoint_num += 1
+    
+    def gps_updated(self):
+        print("yaw: %2.4f\nax: %2.4f, ay: %2.4f, az: %2.4f\n"
+                  "gx: %2.4f, gy: %2.4f, gz: %2.4f\n"
+                  "mx: %2.4f, my: %2.4f, mz: %2.4f\n" % self.imu.get(all=True))
+    
+        data = self.gps.get(all=True)
+        data = tuple(data[:3]) + (data[-1],)
+        print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
     
     def main(self):
         time.sleep(0.1)

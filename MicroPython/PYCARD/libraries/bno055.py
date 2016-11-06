@@ -87,13 +87,13 @@ class BNO055:
             accel_offset_y=0,
             accel_offset_z=0,
 
-            gyro_offset_x=0,
-            gyro_offset_y=0,
-            gyro_offset_z=0,
-
             mag_offset_x=0,
             mag_offset_y=0,
             mag_offset_z=0,
+            
+            gyro_offset_x=0,
+            gyro_offset_y=0,
+            gyro_offset_z=0,
 
             accel_radius=0,
             mag_radius=0
@@ -206,7 +206,7 @@ class BNO055:
         return data
 
     def get_calibration(self):
-        calib_status = self.read_8(self.reg['CALIB_STAT_ADDR'])
+        calib_status = ord(self.read_8(self.reg['CALIB_STAT_ADDR']))
         system = (calib_status >> 6) & 0x03
         gyro = (calib_status >> 4) & 0x03
         accel = (calib_status >> 2) & 0x03
@@ -215,7 +215,8 @@ class BNO055:
         return system, gyro, accel, mag
 
     def is_fully_calibrated(self):
-        for status in self.get_calibration():
+        print(self.get_calibration())
+        for status in self.get_calibration()[1:]:
             if status < 3:
                 return False
         return True
@@ -226,12 +227,14 @@ class BNO055:
 
             calib_data = self.read_len(self.reg['ACCEL_OFFSET_X_LSB_ADDR'],
                                        self.NUM_BNO055_OFFSET_REGISTERS)
+                                       
             self.set_mode(self.default_mode)
 
             index = 0
             for offset in self.offsets.keys():
                 self.offsets[offset] = (calib_data[index + 1] << 8) | calib_data[index]
                 index += 2
+#            print(self.offsets)
             return True
         else:
             return False

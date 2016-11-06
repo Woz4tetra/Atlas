@@ -89,17 +89,16 @@ class AdafruitGPS:
 
         self.magnetic_variation = 0.0
         self.mag_var_direction = 'W'
-        
+
         self.track_angle_true = 0.0
         self.track_angle_magnetic = 0.0
 
         self.paused = False
 
-#        self.current_line = b''
-#        self.previous_line = b''
         self.recved_flag = True
-        
-        self.sentence = ""
+
+        self.sentence = b''
+        self.previous_sentence = b''
 
         self.in_standby_mode = False
 
@@ -156,7 +155,7 @@ class AdafruitGPS:
                     # bad checksum :(
                     return False
             packet_type = sentence[1:6]
-            
+
             if packet_type == "GPGGA":
                 self.parse_gga_sentence(sentence)
             elif packet_type == "GPRMC":
@@ -167,18 +166,18 @@ class AdafruitGPS:
                 self.parse_gsa_sentence(sentence)
             elif packet_type == "GPGSV":
                 # self.parse_gsv_sentence(sentence)
-                pass # not tracking each satellite's info
+                pass  # not tracking each satellite's info
             else:
                 print("Unrecognized packet:", packet_type, sentence)
 
             return True
         else:
             return False
-    
+
     def parse_sentence(self, sentence, expected_num):
         # remove packet type and checksum
         split = sentence[7:-3].split(",")
-        
+
         if len(split) != expected_num:
             print("Mismatched parameter number:", sentence)
             if len(split) < expected_num:  # fill missing with None
@@ -187,9 +186,7 @@ class AdafruitGPS:
                 return split[0:expected_num]
         else:
             return split
-            
-            
-    
+
     def parse_vtg_sentence(self, sentence):
         """
         example:
@@ -203,15 +200,14 @@ class AdafruitGPS:
         *48          Checksum
         """
         track_angle_true, _, track_angle_magnetic, _, speed_knots, _, \
-            speed_kmph, _, _ = self.parse_sentence(sentence, 9)
-        
+        speed_kmph, _, _ = self.parse_sentence(sentence, 9)
+
         self.track_angle_true = track_angle_true
         self.track_angle_magnetic = track_angle_magnetic
-        
+
         self.speed_knots = speed_knots
         self.speed_kmph = speed_kmph
-        
-    
+
     def parse_gsa_sentence(self, sentence):
         """
         example:
@@ -231,8 +227,14 @@ class AdafruitGPS:
         parsed = self.parse_sentence(sentence, 17)
         # fix_selection, fix_3d = parsed[0:2]
         # satellite_prns = parsed[2:14]  # not tracking each satellite's info
-        self.pdop, self.hdop, self.vdop = parsed[14:17]
-    
+        pdop, hdop, vdop = parsed[14:17]
+        if len(pdop) > 0:
+            self.pdop = float(pdop)
+        if len(hdop) > 0:
+            self.hdop = float(hdop)
+        if len(vdop) > 0:
+            self.vdop = float(vdop)
+
     def parse_gsv_sentence(self, sentence):
         """
         example:
@@ -249,9 +251,8 @@ class AdafruitGPS:
         46           SNR - higher is better for up to 4 satellites per sentence
         *75          the checksum data, always begins with *
         """
-        
+
         pass  # not tracking each satellite's info
-        
 
     def parse_gga_sentence(self, sentence):
         """
@@ -282,7 +283,7 @@ class AdafruitGPS:
 
         see http://www.gpsinformation.org/dale/nmea.htm#GGA for more
         """
-        
+
         time, latitude, lat_direction, longitude, long_direction, \
         fix_quality, num_satellites, hdop, altitude, altitude_units, \
         geoid_height, geoid_height_units, _, _ = \
@@ -290,7 +291,7 @@ class AdafruitGPS:
 
         if len(fix_quality) > 0:
             self.fix = int(fix_quality) != 0
-        
+
         self.parse_time(time)
 
         self.parse_latitude(latitude, lat_direction)
@@ -379,15 +380,11 @@ class AdafruitGPS:
     def received_sentence(self):
         if self.recved_flag is True:
             self.recved_flag = False
-            
+
             if self.uart.any():
-##                self.current_line += self.uart.readline()
-##                print(self.current_line)
-##                if b'\n' in self.current_line[-1]:
-##                    self.previous_line = self.current_line
-##                    self.current_line = b''
-                    self.parse(self.uart.readline())
-                    return True
+                self.previous_sentence = self.sentence
+                self.parse(self.uart.readline())
+                return True
         return False
 
     def wait_for_sentence(self, sentence, max_wait_count=5):
@@ -396,7 +393,7 @@ class AdafruitGPS:
             if self.received_sentence():
                 # current_line is modified constantly. previous_line is the
                 # last complete sentence
-                if sentence == self.previous_line:
+                if sentence == self.previous_sentence:
                     return True
                 counter += 1
         return False
