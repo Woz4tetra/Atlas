@@ -49,7 +49,7 @@ class GrovesKalmanFilter:
             imu_dt, np.matrix([ax, ay, az]), np.matrix([gx, gy, gz])))
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        gps_position_ecef, gps_velocity_ecef = \
+        gps_position_ecef, gps_velocity_ecef, self.dynamic_properties.estimated_attitude = \
             self.dynamic_properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
         self.dynamic_properties.state_updated(self.epoch.update(
@@ -124,6 +124,8 @@ class DynamicProperties:
         self.est_body_to_ecef = np.matrix(np.zeros((1, 3)))
         self.estimated_imu_biases = np.matrix(np.zeros((1, 6)))
 
+        self.estimated_attitude = np.matrix(np.zeros((3, 3)))
+
         self.accel_measurement = np.matrix(np.zeros((1, 3)))
         self.gyro_measurement = np.matrix(np.zeros((1, 3)))
 
@@ -142,10 +144,13 @@ class DynamicProperties:
         # convert lat, long, altitude to position and velocity in ECEF
         v_north, v_east, v_down = \
             self.get_gps_v(gps_dt, lat, long, altitude)
-        gps_position_ecef = ned_to_ecef_position(lat, long, altitude)
-        gps_velocity_ecef = ned_to_ecef_general(v_north, v_east, v_down)
+        gps_position_ecef, gps_velocity_ecef, estimated_attitude = ned_to_ecef(
+            lat, long, altitude,
+            v_north, v_east, v_down,
+            self.estimated_attitude
+        )
 
-        return gps_position_ecef, gps_velocity_ecef
+        return gps_position_ecef, gps_velocity_ecef, estimated_attitude
 
     def state_updated(self, state):
         self.estimated_position = state[0]
