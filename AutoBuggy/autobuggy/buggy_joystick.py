@@ -72,8 +72,8 @@ class BuggyJoystick(threading.Thread):
         self.dpad_active_repeat = dpad_active_repeat
         self.dpad_inactive_repeat = dpad_inactive_repeat
 
-        self.repeat_t0 = time.time()
-        self.repeat_t1 = time.time()
+        self.repeat_t0 = 0
+        self.repeat_t1 = 0
 
         super(BuggyJoystick, self).__init__()
 
@@ -91,6 +91,9 @@ class BuggyJoystick(threading.Thread):
 
     def run(self):
         """Joystick main thread. Exit when exit_flag is True"""
+        self.repeat_t0 = time.time()
+        self.repeat_t1 = time.time()
+
         while not BuggyJoystick.exit_flag:
             self.update()
             time.sleep(0.001)
@@ -173,6 +176,8 @@ class BuggyJoystick(threading.Thread):
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
+
+            self.update_repeat_events()
 
     def update_repeat_events(self):
         self.repeat_t1 = time.time()
