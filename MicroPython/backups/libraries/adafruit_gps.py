@@ -412,7 +412,7 @@ class AdafruitGPS:
     def wakeup(self):
         if self.in_standby_mode:
             self.in_standby_mode = True
-            self.send_command("")  # send byte to wake it up
+            self.send_command("")  # send byte (newline) to wake it up
             return self.wait_for_sentence(PMTK_AWAKE)
         else:
             return False

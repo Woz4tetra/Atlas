@@ -16,7 +16,8 @@ class Communicator(object):
 
         self.command_pool = CommandPool(commands)
 
-        self.reset = None
+        self.reset = False
+        self.stop = False
 
         self.buffer = ""
 
@@ -27,10 +28,15 @@ class Communicator(object):
     def read_command(self):
         if self.serial_ref.any():
             for packet in self.read_packets():
-                if "ready?" in packet:
-                    pyb.LED(2).on()
+                if "ready?" == packet:
                     self.reset = True
+                    self.stop = False
                     self.serial_ref.write("ready!\r\n")
+                elif "stop" == packet:
+                    print("\n\nreceived stop packet")
+                    self.reset = False
+                    self.stop = True
+                    self.serial_ref.write("stopping\r\n")
                 else:
                     self.command_pool.update(packet)
 
@@ -48,6 +54,13 @@ class Communicator(object):
     def should_reset(self):
         if self.reset:
             self.reset = False
+            return True
+        else:
+            return False
+    
+    def should_stop(self):
+        if self.stop:
+            self.stop = False
             return True
         else:
             return False

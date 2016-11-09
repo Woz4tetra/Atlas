@@ -67,8 +67,10 @@ class BNO055:
     BNO055_ID = 0xa0
     NUM_BNO055_OFFSET_REGISTERS = 22
 
-    def __init__(self, bus, default_address=True, declination=(0, 0)):
+    def __init__(self, bus, reset_pin=None, default_address=True, declination=(0, 0)):
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
+        self.reset_pin = pyb.Pin(reset_pin, pyb.Pin.OUT_PP)
+        
         if default_address:
             self.address = 0x28
         else:
@@ -98,7 +100,9 @@ class BNO055:
             accel_radius=0,
             mag_radius=0
         )
-
+        self.init_sensor()
+        
+    def init_sensor(self):
         pyb.delay(1000)
 
         addresses = self.i2c.scan()
@@ -139,6 +143,12 @@ class BNO055:
         self.set_ext_crystal_use()
 
         pyb.delay(100)
+        
+    def reset(self):
+        self.reset_pin.low()
+        pyb.delay(1)
+        self.reset_pin.high()
+        self.init_sensor()
 
     def set_mode(self, mode):
         self.write_8(self.reg['OPR_MODE'], mode)

@@ -14,35 +14,40 @@ class Stepper:
         self.step_num = step_num
         self.step_delay = 0
         
+        self.time0 = time.ticks_ms()
+        self.delay = self.step_delay / 2000
+        
     def set_speed(self, speed):  # in rpm
         self.step_delay = int(6E7 / self.step_num / speed)
     
     
     def step(self, num_steps):
-        steps_left = abs(num_steps)
-        
-        if num_steps > 0: self.direction = True
-        if num_steps < 0: self.direction = False
-        
-        # decrement the number of steps, moving one step each time:
-        while steps_left > 0:
-            now = time.ticks_us()
+        if time.ticks_diff(self.time0, time.ticks_ms()) > self.delay:
+            steps_left = abs(num_steps)
             
-            # move only if the appropriate delay has passed:
-            if time.ticks_diff(self.last_step_time, now) >= self.step_delay:
-                self.last_step_time = now
+            if num_steps > 0: self.direction = True
+            if num_steps < 0: self.direction = False
+            
+            # decrement the number of steps, moving one step each time:
+            while steps_left > 0:
+                now = time.ticks_us()
                 
-                if self.direction:
-                    self.step_number += 1
-                    if self.step_number == self.step_num:
-                        self.step_number = 0
-                else:
-                    if self.step_number == 0:
-                       self.step_number = self.step_num
-                    self.step_number -= 1
-                steps_left -= 1
-                
-                self.step_motor(self.step_number % 4)
+                # move only if the appropriate delay has passed:
+                if time.ticks_diff(self.last_step_time, now) >= self.step_delay:
+                    self.last_step_time = now
+                    
+                    if self.direction:
+                        self.step_number += 1
+                        if self.step_number == self.step_num:
+                            self.step_number = 0
+                    else:
+                        if self.step_number == 0:
+                           self.step_number = self.step_num
+                        self.step_number -= 1
+                    steps_left -= 1
+                    
+                    self.step_motor(self.step_number % 4)
+            self.time0 = time.ticks_ms()
     
     def step_motor(self, this_step):
         if this_step == 0:  # 1010

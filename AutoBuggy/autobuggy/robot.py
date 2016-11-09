@@ -103,13 +103,18 @@ class Robot:
         if self.joystick is not None:
             self.joystick.stop()
         time.sleep(0.005)
-
-        # end communications with the micropython board
-        self.communicator.stop()
-
+        
         # an extra closing behavior as defined by the user
         if self.close_fn is not None:
             self.close_fn()
+        time.sleep(0.005)
+        
+        # a weird hack. Can't send any commands after while loop in
+        # communicator ends
+        self.communicator.close_comm()
+
+        # end communications with the micropython board
+        self.communicator.stop()
 
     def should_stop(self):
         """Check if the robot's threads are still running"""

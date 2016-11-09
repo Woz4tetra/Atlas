@@ -110,6 +110,9 @@ class SerialObject(object):
 
     def reset(self):
         pass
+        
+    def stop(self):
+        pass
 
     def recved_data(self):
         pass

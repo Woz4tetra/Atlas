@@ -79,9 +79,9 @@ class Communicator(threading.Thread):
             super important to copy()! sensor._properties is passed by reference
             otherwise and may change before being recorded.
         """
-        if len(self.sensor_pool) == 0:
-            print("No sensors! Will only send commands")
-            return
+#        if len(self.sensor_pool) == 0:
+#            print("No sensors added! Communicator will only send commands")
+#            return
         try:
             while not Communicator.exit_flag:
                 self.thread_time = round(time.time() - self.start_time)
@@ -97,10 +97,11 @@ class Communicator(threading.Thread):
                 time.sleep(0.0005)
         except KeyboardInterrupt:
             traceback.print_exc()
-
-        if self.log_data:
-            self.log.close()
-        self.serial_ref.close()
+        finally:
+            # weird bug: can't send any commands after while loop exits
+            if self.log_data:
+                self.log.close()
+            self.serial_ref.close()
 
     def is_alive(self):
         """A way to check if serial is hanging the thread"""
@@ -171,30 +172,37 @@ class Communicator(threading.Thread):
     def handshake(self):
         """Signals to the microcontroller that the program is ready"""
         print("Waiting for ready flag from %s..." % self.address)
-
-        signal = 'ready?\r\n'
-        self.put(signal)
+        
+        return self.send_signal('ready?', 'ready!')
+        
+    def close_comm(self):
+#        self.send_signal('stop', 'stopping')  # causes really bad exceptions
+        self.put('stop\r\n')
+        self.stop()
+    
+    def send_signal(self, send_signal, recv_signal):
+        send_signal += '\r\n'
+        self.put(send_signal)
 
         start_time = time.time()
 
         read_flag = None
         try:
-            while read_flag != "ready!":
+            while read_flag != recv_signal:
                 try:
                     read_flag = self.serial_ref.readline().decode("ascii").strip("\r\n")
                 except UnicodeDecodeError:
                     print("invalid character")
                 print(read_flag)
                 time.sleep(0.0005)
-                if time.time() - start_time > 1:
+                if time.time() - start_time > 0.005:
                     start_time = time.time()
-                    self.put(signal)
+                    self.put(send_signal)
         except:
             traceback.print_exc()
             self.stop()
             return False
 
-        # print("Ready flag received!")
         return True
 
     def find_port(self, baud_rate, exclude_addresses):

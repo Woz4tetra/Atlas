@@ -27,6 +27,15 @@ class GPS(Sensor):
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
+        
+        self.stop()
+    
+    def stop(self):
+        self.gps_ref.standby()
+    
+    def reset(self):
+        self.gps_ref.wakeup()
+    
 
     def recved_data(self):
         return self.gps_ref.received_sentence()
@@ -39,12 +48,12 @@ class GPS(Sensor):
 
 
 class IMU(Sensor):
-    def __init__(self, sensor_id, bus, timer_num):
+    def __init__(self, sensor_id, bus, reset_pin, timer_num):
         super(IMU, self).__init__(sensor_id,
                                   ['f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'])
 #                                  + ['u8'] * 11)
         self.bus = bus
-        self.bno = BNO055(self.bus)
+        self.bno = BNO055(self.bus, reset_pin)
 
         self.new_data = False
 
@@ -52,6 +61,9 @@ class IMU(Sensor):
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
         self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
+        
+    def reset(self):
+        self.bno.reset()
 
     def recved_data(self):
         self.yaw = self.bno.get_euler()[0] * pi / 180  # radians
@@ -82,15 +94,10 @@ class StepperCommand(Command):
         super().__init__(command_id, 'i16')
 
         self.stepper = Stepper(200, *pins)
-        self.stepper.set_speed(60)
-
-        self.time0 = time.ticks_ms()
-        self.delay = self.stepper.step_delay / 2000
+        self.stepper.set_speed(25)
 
     def callback(self, steps):
-        if time.ticks_diff(self.time0, time.ticks_ms()) > self.delay:
-            self.stepper.step(steps)
-            self.time0 = time.ticks_ms()
+        self.stepper.step(steps)
 
     def reset(self):
         # recalibrate with delimiter
