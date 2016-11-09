@@ -5,12 +5,14 @@ Contains functions that return important project directories
 import os
 import random
 import sys
+import datetime
 
 autobuggy_dir = os.path.dirname(os.path.realpath(__file__))
 project_dir = autobuggy_dir
 
 root_dir_name = "Atlas"
-root_dir = autobuggy_dir[:autobuggy_dir.rfind(root_dir_name) + len(root_dir_name)]
+root_dir = autobuggy_dir[
+           :autobuggy_dir.rfind(root_dir_name) + len(root_dir_name)]
 
 # dictionary of important local project directories
 project_dirs = {
@@ -52,6 +54,7 @@ def add_project_dirs(*new_project_dirs):
     for local_dir in new_project_dirs:
         project_dirs[local_dir] = os.path.join(project_dir, local_dir) + "/"
 
+
 def get_platform():
     """Use for platform specific operations"""
     if sys.platform.startswith('darwin'):  # OS X
@@ -65,7 +68,7 @@ def get_platform():
         return None
 
 
-def get_dir(directory=""):
+def interpret_dir(directory=""):
     """
     Search project_dirs and format the directory into an absolute
     directory. If the directory doesn't exist, make it
@@ -78,7 +81,8 @@ def get_dir(directory=""):
             abs_directory = project_dirs[key]
         else:
             key = directory[shortcut_start: shortcut_end]
-            abs_directory = os.path.join(project_dirs[key], directory[shortcut_end + 1:])
+            abs_directory = os.path.join(project_dirs[key],
+                                         directory[shortcut_end + 1:])
 
     elif len(directory) > 0 and directory[0] == '/':
         abs_directory = directory
@@ -91,7 +95,7 @@ def get_dir(directory=""):
     return abs_directory
 
 
-def parse_dir(directory, default):
+def parse_dir(directory, default, sort_fn=None):
     """
     Formats the input directory using get_dir. The 'default' argument is the
     directory to start in. It should be a project directory flag. Useful if
@@ -101,22 +105,43 @@ def parse_dir(directory, default):
     If :random is provided for the directory, a directory will selected at
     random from within the default directory
     """
-    print(os.path.isdir(get_dir(default) + directory), get_dir(default) + directory)
     if directory is None:
-        directory = get_dir(default)
+        directory = interpret_dir(default)
     elif directory == ":random":
         directories = []
-        for local_dir in os.listdir(get_dir(default)):
-            directory = get_dir(default) + local_dir
+        for local_dir in os.listdir(interpret_dir(default)):
+            directory = interpret_dir(default) + local_dir
             if os.path.isdir(directory):
                 directories.append(directory)
         directory = random.choice(directories)
         print("Using directory '%s'" % directory)
-    elif os.path.isdir(get_dir(default) + directory):
-        directory = get_dir(default) + directory
+    elif type(directory) == int:
+        directory = _get_dirs(interpret_dir(default), sort_fn)[directory]
+    elif os.path.isdir(interpret_dir(default) + directory):
+        directory = interpret_dir(default) + directory
+
     if directory[-1] != "/":
         directory += "/"
     return directory
+
+
+def _get_dirs(directory, sort_fn):
+    local_dir = []
+    directories = []
+    contents = sorted(os.listdir(directory), key=lambda v: v.lower())
+    for item in contents:
+        full_dir = os.path.join(directory, item)
+        if os.path.isdir(full_dir):
+            local_dir.append(item)
+            directories.append(full_dir)
+
+    def internal_sort_fn(x):  # hack to just use the first element in the zipped list
+        return sort_fn(x[0])
+
+    # sort full directory list in the order the local directory list is sorted
+    directories = [full for (local, full) in
+                   sorted(zip(local_dir, directories), key=internal_sort_fn)]
+    return directories
 
 
 def _get_files(directory, file_types):
@@ -127,11 +152,11 @@ def _get_files(directory, file_types):
     if type(file_types) == str:
         file_types = [file_types]
     log_files = []
-    files = sorted(os.listdir(directory), key=lambda v: v.lower())
-    for file in files:
+    contents = sorted(os.listdir(directory), key=lambda v: v.lower())
+    for item in contents:
         for file_type in file_types:
-            if file.endswith(file_type):
-                log_files.append(file)
+            if item.endswith(file_type):
+                log_files.append(item)
     return log_files
 
 

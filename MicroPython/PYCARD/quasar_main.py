@@ -2,17 +2,16 @@
 from objects import *
 from comm import Communicator
 
-for _ in range(15):
-    pyb.LED(3).toggle()
-    pyb.delay(50)
-pyb.LED(3).on()
-
 leds = [LEDcommand(index, index + 1) for index in range(3)]  # 3 normal LEDs
 blue_led = BlueLEDcommand(3)
 stepper = StepperCommand(4, ["X3", "X4", "X5", "X6"])
 
+pyb.LED(1).on()
+
 gps = GPS(1, uart_bus=1, timer_num=4)
 imu = IMU(2, bus=2, timer_num=11)
+
+pyb.LED(2).on()
 
 communicator = Communicator(*leds, blue_led, stepper, uart_bus=4)
 
@@ -34,6 +33,7 @@ while True:
        sensor_updated = False
        print("%0.5f, %0.6f, %0.6f" % (
            imu.data[0], gps.data[0], gps.data[1]), end='\r')
+       pyb.LED(3).toggle()
 
     pyb.delay(1)
 

@@ -115,7 +115,7 @@ class Capture:
 
         # select default directory
         if directory is None:
-            directory = project.get_dir(":images")
+            directory = project.interpret_dir(":images")
         print("in directory:\n" + directory)
 
         if not os.path.isdir(directory):
@@ -177,7 +177,7 @@ class Capture:
         video_name += "." + video_format
 
         if output_dir is None:
-            output_dir = project.get_dir(":videos")
+            output_dir = project.interpret_dir(":videos")
         else:
             output_dir += "/"
 
