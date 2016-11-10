@@ -191,7 +191,7 @@ class INS:
         estimated_attitude = attitude_error * initial_attitude
 
         # old_est_C_b_e in Loosely_coupled_INS_GNSS
-        estimated_body_transform = ned_to_ecef(
+        _, _, estimated_body_transform = ned_to_ecef(
             self.static_properties.initial_lat,
             self.static_properties.initial_long,
             self.static_properties.initial_alt,
@@ -234,18 +234,24 @@ class INS:
 
         # calculate attitude increment, magnitude, and skew-symmetric matrix
         alpha_ib_b = gyro_measurement * dt
-        a_b_sq = alpha_ib_b.T * alpha_ib_b
+
+        alpha_ib_b_vector = np.array(alpha_ib_b)[
+            0]  # numpy is dumb, need this for vectors, matrices are not vectors
+        a_b_sq = np.dot(alpha_ib_b_vector.T, alpha_ib_b_vector)
         mag_alpha = np.sqrt(a_b_sq)
-        Alpha_ib_b = skew_symmetric(alpha_ib_b)
+        skew_alpha_ib_b = skew_symmetric(alpha_ib_b)
 
         # Obtain coordinate transformation matrix
         if mag_alpha > 1E-8:
             C_new_old = (
-                ((np.eye(3) + np.sin(mag_alpha) / mag_alpha) * (Alpha_ib_b)) +
-                (((1 - np.cos(mag_alpha)) / mag_alpha ** 2 * Alpha_ib_b) * (
-                    Alpha_ib_b)))
+                ((np.eye(3) + np.sin(mag_alpha) / mag_alpha) * (
+                    skew_alpha_ib_b)) +
+                (
+                    ((1 - np.cos(
+                        mag_alpha)) / mag_alpha ** 2 * skew_alpha_ib_b) * (
+                        skew_alpha_ib_b)))
         else:
-            C_new_old = np.eye(3) + Alpha_ib_b
+            C_new_old = np.eye(3) + skew_alpha_ib_b
 
         est_body_to_ecef = C_Earth * (
             self.dynamic_properties.est_body_to_ecef * C_new_old)
@@ -254,28 +260,32 @@ class INS:
             ave_C_b_e = (
                 est_body_to_ecef * (
                     np.eye(3) + (1 - np.cos(mag_alpha)) / mag_alpha ** 2
-                    * Alpha_ib_b + (
+                    * skew_alpha_ib_b + (
                         1 - np.sin(mag_alpha) / mag_alpha) / mag_alpha ** 2
-                    * Alpha_ib_b * Alpha_ib_b) -
-                0.5 * skew_symmetric([0, 0, earth_rotation_amount]) *
+                    * skew_alpha_ib_b * skew_alpha_ib_b) -
+                0.5 * skew_symmetric(np.matrix([0, 0, earth_rotation_amount])) *
                 est_body_to_ecef)
         else:
             ave_C_b_e = \
                 (est_body_to_ecef - 0.5 * skew_symmetric(
-                    [0, 0, earth_rotation_amount]) *
+                    np.matrix([0, 0, earth_rotation_amount])) *
                  est_body_to_ecef)
 
         # Transform specific force to ECEF-frame resolving axes
-        f_ib_e = ave_C_b_e * accel_measurement
+        f_ib_e = ave_C_b_e * accel_measurement.T
         # update velocity
-        estimated_velocity = self.dynamic_properties.estimated_velocity + dt * (
-            f_ib_e + gravity_ecef(self.dynamic_properties.estimated_position) -
-            2 * skew_symmetric([0, 0, earth_rotation_rate]) * (
-                self.dynamic_properties.estimated_velocity))
+        prev_est_v = self.dynamic_properties.estimated_velocity.T
+        prev_est_p = self.dynamic_properties.estimated_position.T
+
+        # To Tabatha: estimated_velocity, estimated_position are becoming squares
+        # we need to find out why
+        estimated_velocity = \
+            prev_est_v + dt * (
+                f_ib_e + gravity_ecef(prev_est_p) - 2 * skew_symmetric(
+                    np.matrix([0, 0, earth_rotation_rate])) * prev_est_v)
         # update cartesian position
-        estimated_position = self.dynamic_properties.estimated_position + \
-                             (estimated_velocity * (
-                                 estimated_velocity)) * 0.5 * dt
+        estimated_position = \
+            prev_est_p + (estimated_velocity + prev_est_v) * 0.5 * dt
 
         return estimated_position, estimated_velocity, est_body_to_ecef
 
@@ -286,7 +296,7 @@ class Epoch:
         self.dynamic_properties = dynamic_properties
 
         self.skew_earth_rotation = skew_symmetric(
-            [0, 0, earth_rotation_rate])
+            np.matrix([0, 0, earth_rotation_rate]))
 
         # P_matrix & est_IMU_bias in Loosely_coupled_INS_GNSS (line 192)
         self.error_covariance_P = self.init_P()
@@ -462,9 +472,9 @@ def skew_symmetric(m):
     """
     creates a 3v3 skew_symmetric matrix from a 1x3 matrix
     """
-    return np.matrix([[0, -m[2], m[2]],
-                      [m[2], 0, -m[0]],
-                      [-m[1], m[0], 0]])
+    return np.matrix([[0, -m[0, 2], m[0, 2]],
+                      [m[0, 2], 0, -m[0, 0]],
+                      [-m[0, 1], m[0, 0], 0]])
 
 
 def euler_to_ctm(orientation):
@@ -568,7 +578,8 @@ def ecef_to_ned(x, y, z):
 
 def gravity_ecef(ecef_vector):
     # Calculate distance from center of the Earth
-    mag_r = np.sqrt(ecef_vector * (ecef_vector.T))
+    ecef_vector_array = np.array(ecef_vector)[0]  # numpy is dumb
+    mag_r = np.sqrt(np.dot(ecef_vector_array, ecef_vector_array.T))
 
     # If the input position is 0,0,0, produce a dummy output
     if mag_r == 0:
@@ -588,4 +599,4 @@ def gravity_ecef(ecef_vector):
         g = np.matrix([gamma[0] + earth_rotation_rate ** 2 * ecef_vector[0],
                        gamma[1] + earth_rotation_rate ** 2 * ecef_vector[1],
                        gamma[2]])
-        return g
+        return g.T
