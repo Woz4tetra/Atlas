@@ -18,18 +18,17 @@ class RoboQuasarBot(Robot):
         self.checkpoint_num = 0
 
         joystick = WiiUJoystick(
-            button_down_fn=lambda button, params: self.button_dn(
-                button, params),
-            axis_active_fn=lambda axis, value, params: self.axis_active(
-                axis, value, params),
-            axis_inactive_fn=lambda axis, params: self.axis_inactive(
-                axis, params),
-            joy_hat_fn=lambda direction, params: self.dpad(direction, params)
+            button_down_fn=lambda button: self.button_dn(button),
+            axis_active_fn=lambda axis, value: self.axis_active(axis, value),
+            axis_inactive_fn=lambda axis: self.axis_inactive(axis),
+            dpad_active_fn=lambda direction: self.dpad(direction),
+            axis_active_repeat=0.05
         )
 
         sensors = dict(
-            gps=dict(sensor_id=1, properties=['lat', 'long', 'altitude', 'geoid_height',
-                'pdop', 'hdop', 'vdop', 'fix'],
+            gps=dict(sensor_id=1,
+                     properties=['lat', 'long', 'altitude', 'geoid_height',
+                                 'pdop', 'hdop', 'vdop', 'fix'],
                      update_fn=lambda: self.gps_updated()),
             imu=dict(sensor_id=2, properties=[
                 'yaw', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'mx', 'my', 'mz'],
@@ -41,14 +40,15 @@ class RoboQuasarBot(Robot):
                 "red": 0,
                 "yellow": 1,
                 "green": 2,
-            }, range=(0, 2),
+            },
+                range=(0, 2),
                 mapping={
                     "off": 0,
                     "on": 1,
                     "toggle": 2
                 }),
             blue_led=dict(command_id=3, range=(0, 255)),
-            stepper=dict(command_id=4, range=(-32768, 32767)),
+            stepper=dict(command_id=4, range=(-0x8000, 0x7fff)),
         )
 
         super(RoboQuasarBot, self).__init__(
@@ -60,33 +60,31 @@ class RoboQuasarBot(Robot):
         self.gps = self.sensors['gps']
 
         self.blue_led = self.commands['blue_led']
-        
+
         self.stepper = self.commands['stepper']
 
         self.prev_time = time.time()
 
-    def button_dn(self, button, params):
+    def button_dn(self, button):
         pass
 
-    def axis_inactive(self, axis, params):
-        pass
+    def axis_inactive(self, axis):
+        if axis == "left x":
+            self.blue_led.set(0)
 
-    def axis_active(self, axis, value, params):
+    def axis_active(self, axis, value):
+        if axis == "left x":
+            self.stepper.set(int(value * 100))
+            self.blue_led.set(int(value * 255))
+
+    def dpad(self, direction):
         pass
-    
-    def dpad(self, direction, params):
-        if direction[0] == 1:
-            self.stepper.set(20)
-        elif direction[0] == -1:
-            self.stepper.set(-20)
-            
 
     def imu_updated(self):
         pass
 
     def gps_updated(self):
         pass
-              
 
     def close_fn(self):
         self.blue_led.set(0)

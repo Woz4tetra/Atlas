@@ -25,37 +25,39 @@ pickle_file_type = "pkl"
 log_directory = ":logs"
 pickle_directory = ":pickled"
 
+log_folder_format = '%b %d %Y'
+log_file_format = '%H;%M;%S, %a %b %m %Y'
 
-def log_folder():
+def todays_log_folder():
     """Generate a log folder name based on the current date"""
-    month = time.strftime("%b")
-    day = time.strftime("%d")
-    year = time.strftime("%Y")
-    return "%s %s %s/" % (month, day, year)
+    return time.strftime(log_folder_format) + "/"
 
+def filename_now():
+    return time.strftime(log_file_format)
 
 class Logger:
     """A class for recording data from a robot to a log file"""
 
     def __init__(self, file_name, directory):
-        # Format the file name. Unix doesn't support colons in file names
+        # Format the file name. Mac doesn't support colons in file names
+        # If file format is provided but not a name, insert timestamp
         if file_name is None or \
                         file_name.replace("." + log_file_type, "") == "":
-            file_name = time.strftime("%c").replace(":", "_") + "." + \
-                        log_file_type
+            file_name = filename_now() + "." + log_file_type
+
         elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
             file_name += "." + log_file_type
 
         # Parse the input directory using the project module
         if directory == ":today":  # for creating logs
-            directory = project.get_dir(log_directory) + log_folder()
+            directory = project.interpret_dir(log_directory) + todays_log_folder()
         elif directory is None:
-            directory = project.get_dir(log_directory)
+            directory = project.interpret_dir(log_directory)
         else:
             if directory[-1] != "/":
                 directory += "/"
             if not os.path.isdir(directory):
-                directory = project.get_dir(log_directory) + directory
+                directory = project.interpret_dir(log_directory) + directory
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -131,7 +133,8 @@ class Parser:
 
     def __init__(self, file_name, directory=None):
         # pick a subdirectory of logs
-        self.directory = project.parse_dir(directory, log_directory)
+        self.directory = project.parse_dir(directory, log_directory,
+                                           lambda x: datetime.strptime(x, log_folder_format))
 
         # for external use. Get the picked local directory
         self.local_dir = self.directory[self.directory.rfind("/", 0, -1) + 1:]
@@ -166,7 +169,7 @@ class Parser:
         self.iter_index = 0  # the character index of the file
 
         pickle_file_name = self.file_name[:-len(log_file_type)] + pickle_file_type
-        log_pickle_dir = project.get_dir(pickle_directory) + self.local_dir
+        log_pickle_dir = project.interpret_dir(pickle_directory) + self.local_dir
 
         if os.path.isfile(log_pickle_dir + pickle_file_name):
             print("Using pickled data")
@@ -212,7 +215,7 @@ class Parser:
     def __len__(self):
         return len(self.data)
 
-    def get(self, sensor_name, instance_num=0):
+    def get(self, instance_num, sensor_name):
         """Get the nth occurrence of a particular type of data"""
         counter = 0
         # iterate until the nth instance is found
@@ -306,7 +309,15 @@ def _get_gpx_map(file_name, directory):
     gps_map = []
 
     # xml parsing. Extract the long and lat from the file
-    data_start = '<rtept'  # TODO: find a more reliable flag
+    start_flags = ['<rtept', '<trkpt']
+    data_start = None
+    for flag in start_flags:
+        if contents.find(flag) != -1:
+            data_start = flag
+            break
+    if data_start is None:
+        raise ValueError("Invalid file format! Start flag not found...")
+
     start_index = contents.find(data_start) + len(data_start)
     for line in contents[start_index:].splitlines():
         line = line.strip(" ")
@@ -335,21 +346,23 @@ def get_map(file_name, directory=None):
     file name. If no directory and no file extension is given, gpx is assumed
     """
 
-    if type(file_name) == str:
-        if file_name.endswith('gpx'):
-            directory = ":gpx"
-        elif file_name.endswith(log_file_type):
-            directory = ":maps"
+    if file_name.endswith('gpx'):
+        file_type = "gpx"
+    elif file_name.endswith(log_file_type):
+        file_type = log_file_type
+    else:
+        raise ValueError("Invalid file extension: %s" % file_name)
+
 
     if directory is None:
-        directory = ":gpx"
+        directory = ":maps"
 
-    if directory == ":gpx":
-        directory = project.get_dir(directory)
+    if file_type == "gpx":
+        directory = project.interpret_dir(directory)
         file_name = project.get_file_name(file_name, directory, 'gpx')
         gps_map = _get_gpx_map(file_name, directory)
     else:
-        directory = project.get_dir(directory)
+        directory = project.interpret_dir(directory)
         file_name = project.get_file_name(file_name, directory, log_file_type)
         gps_map = _get_txt_map(file_name, directory)
 

@@ -43,12 +43,10 @@ class Simulator:
 
         self.fig = plt.figure(0)
         self.ax = self.fig.gca()
-        self.fig.canvas.set_window_title(
-            self.parser.local_dir + self.parser.file_name[:-4])
+        self.fig.canvas.set_window_title(self.parser.file_name[:-4])
     
-    def draw_starting_dot(self, initial_lat, initial_long):
-        self.ax.plot(initial_lat, initial_long, 'o',
-                     color='black', markersize=10)
+    def draw_starting_dot(self, x, y):
+        self.ax.plot(x, y, 'o', color='black', markersize=10)
 
     def set_default_value(self, data_name, key, default):
         if key not in self.plot_info[data_name].keys():

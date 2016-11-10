@@ -27,15 +27,15 @@ class GPS(Sensor):
         self.gps_ref = AdafruitGPS(uart_bus, timer_num, baud_rate, update_rate)
 
         add_timer(timer_num, self.gps_ref.timer.freq())
-        
+
         self.stop()
-    
+
     def stop(self):
         self.gps_ref.standby()
-    
+
     def reset(self):
         self.gps_ref.wakeup()
-    
+
 
     def recved_data(self):
         return self.gps_ref.received_sentence()
@@ -61,7 +61,7 @@ class IMU(Sensor):
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
         self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
-        
+
     def reset(self):
         self.bno.reset()
 
@@ -74,7 +74,7 @@ class IMU(Sensor):
         self.ang_vx = ang_v[0] * 2 * pi  # radians per second
         self.ang_vy = ang_v[1] * 2 * pi
         self.ang_vz = ang_v[2] * 2 * pi
-        
+
         self.mag_x, self.mag_y, self.mag_z = self.bno.get_mag()
 
 #        self.bno.update_offsets()
@@ -82,7 +82,7 @@ class IMU(Sensor):
         return True
 
     def update_data(self):
-    
+
         return (self.yaw, self.accel_x, self.accel_y, self.accel_z,
                 self.ang_vx, self.ang_vy, self.ang_vz,
                 self.mag_x, self.mag_y, self.mag_z
@@ -90,18 +90,32 @@ class IMU(Sensor):
 
 
 class StepperCommand(Command):
-    def __init__(self, command_id, pins):
+    def __init__(self, command_id, pins, delimiter_pin):
         super().__init__(command_id, 'i16')
 
+        self.delimiter_pin = pyb.Pin(delimiter_pin, pyb.Pin.IN)
+
         self.stepper = Stepper(200, *pins)
-        self.stepper.set_speed(25)
+        self.stepper.set_speed(35)
+
+        self.calibrate()
 
     def callback(self, steps):
         self.stepper.step(steps)
 
+    def calibrate(self):
+        print("calibrating stepper")
+        print(self.delimiter_pin.value())
+        while not self.delimiter_pin.value():
+            self.stepper.step(-20)
+            print(self.delimiter_pin.value())
+
+        self.stepper.step(100)  # center steering
+        print("calibrated!")
+
     def reset(self):
         # recalibrate with delimiter
-        pass
+        self.calibrate()
 
 
 class LEDcommand(Command):
@@ -139,4 +153,3 @@ class BlueLEDcommand(Command):
 
     def reset(self):
         self.set_state(0)
-

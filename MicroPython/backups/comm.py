@@ -9,10 +9,12 @@ class Communicator(object):
             self.using_usb = False
             self.serial_ref = pyb.UART(uart_bus, baud, read_buf_len=1000,
                                        timeout_char=10000)
+            self.console_ref = pyb.USB_VCP()
             print("Initialized! Ready to go!")
         else:
             self.using_usb = True
             self.serial_ref = pyb.USB_VCP()
+            self.console_ref = None
 
         self.command_pool = CommandPool(commands)
 
@@ -25,20 +27,32 @@ class Communicator(object):
         self.serial_ref.write(sensor.get_packet())
         pyb.delay(1)
 
+    def signal_stop(self):
+        self.reset = False
+        self.stop = True
+        self.serial_ref.write("stopping\r\n")
+
+    def signal_reset(self):
+        self.reset = True
+        self.stop = False
+        self.serial_ref.write("ready!\r\n")
+
     def read_command(self):
         if self.serial_ref.any():
             for packet in self.read_packets():
                 if "ready?" == packet:
-                    self.reset = True
-                    self.stop = False
-                    self.serial_ref.write("ready!\r\n")
+                    self.signal_reset()
                 elif "stop" == packet:
-                    print("\n\nreceived stop packet")
-                    self.reset = False
-                    self.stop = True
-                    self.serial_ref.write("stopping\r\n")
+                    self.signal_stop()
                 else:
                     self.command_pool.update(packet)
+        if self.console_ref is not None:
+            if self.console_ref.any():
+                c = self.console_ref.read(1)
+                if c == 's':
+                    self.signal_stop()
+                elif c == 'r':
+                    self.signal_reset()
 
     def read_packets(self):
         incoming = self.serial_ref.read(self.serial_ref.any())
@@ -57,7 +71,7 @@ class Communicator(object):
             return True
         else:
             return False
-    
+
     def should_stop(self):
         if self.stop:
             self.stop = False

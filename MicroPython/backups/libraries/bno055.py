@@ -69,8 +69,11 @@ class BNO055:
 
     def __init__(self, bus, reset_pin=None, default_address=True, declination=(0, 0)):
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
-        self.reset_pin = pyb.Pin(reset_pin, pyb.Pin.OUT_PP)
-        
+        if reset_pin is not None:
+            self.reset_pin = pyb.Pin(reset_pin, pyb.Pin.OUT_PP)
+        else:
+            self.reset_pin = reset_pin
+
         if default_address:
             self.address = 0x28
         else:
@@ -92,7 +95,7 @@ class BNO055:
             mag_offset_x=0,
             mag_offset_y=0,
             mag_offset_z=0,
-            
+
             gyro_offset_x=0,
             gyro_offset_y=0,
             gyro_offset_z=0,
@@ -101,7 +104,7 @@ class BNO055:
             mag_radius=0
         )
         self.init_sensor()
-        
+
     def init_sensor(self):
         pyb.delay(1000)
 
@@ -143,12 +146,15 @@ class BNO055:
         self.set_ext_crystal_use()
 
         pyb.delay(100)
-        
+
     def reset(self):
-        self.reset_pin.low()
-        pyb.delay(1)
-        self.reset_pin.high()
-        self.init_sensor()
+        if self.reset_pin is not None:
+            self.reset_pin.low()
+            pyb.delay(1)
+            self.reset_pin.high()
+            self.init_sensor()
+        else:
+            print("No reset pin defined. BNO055 not reset")
 
     def set_mode(self, mode):
         self.write_8(self.reg['OPR_MODE'], mode)
@@ -225,7 +231,6 @@ class BNO055:
         return system, gyro, accel, mag
 
     def is_fully_calibrated(self):
-        print(self.get_calibration())
         for status in self.get_calibration()[1:]:
             if status < 3:
                 return False
@@ -237,7 +242,7 @@ class BNO055:
 
             calib_data = self.read_len(self.reg['ACCEL_OFFSET_X_LSB_ADDR'],
                                        self.NUM_BNO055_OFFSET_REGISTERS)
-                                       
+
             self.set_mode(self.default_mode)
 
             index = 0
