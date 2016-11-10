@@ -85,7 +85,7 @@ class StaticProperties:
         self.initial_yaw_ecef = initial_yaw_ecef  # Column 10
 
         # initialization_errors.delta_eul_nb_n
-        self.initial_imu_errors = np.array(
+        self.initial_imu_errors = np.matrix(
             [roll_error, pitch_error, yaw_error])
 
         # properties of LC_KF_config
@@ -316,10 +316,10 @@ class Epoch:
             I_3 * self.static_properties.uncertainty_values["accel_bias"] ** 2
         error_covariance_P[12:15, 12:15] = \
             I_3 * self.static_properties.uncertainty_values["gyro_bias"] ** 2
-        error_covariance_P[15, 15] = \
-            I_3 * self.static_properties.initial_clock_offset_unc ** 2
-        error_covariance_P[16, 16] = \
-            I_3 * self.static_properties.initial_clock_drift_unc ** 2
+        # error_covariance_P[15, 15] = \
+        #     self.static_properties.initial_clock_offset_unc ** 2
+        # error_covariance_P[16, 16] = \
+        #     self.static_properties.initial_clock_drift_unc ** 2
 
         return error_covariance_P
 
@@ -524,13 +524,13 @@ def ned_to_ecef(latitude, longitude, altitude,
 
     # Calculate ECEF to NED coordinate transformation matrix
     ned_to_ecef_transform = np.matrix(
-        [-sin_lat * cos_long, -sin_lat * sin_long, cos_lat,
-         -sin_long, cos_long, 0,
-         -cos_lat * cos_long, -cos_lat * sin_long, -sin_lat])
+        [[-sin_lat * cos_long, -sin_lat * sin_long, cos_lat],
+         [-sin_long, cos_long, 0],
+         [-cos_lat * cos_long, -cos_lat * sin_long, -sin_lat]])
 
     # transform velocity
     velocity_ecef = \
-        ned_to_ecef_transform.T * np.matrix([v_north, v_east, v_down])
+        ned_to_ecef_transform.T * np.matrix([v_north, v_east, v_down]).T
     body_to_ecef = ned_to_ecef_transform.T * attitude
 
     return position_ecef, velocity_ecef, body_to_ecef
