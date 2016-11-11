@@ -1,6 +1,6 @@
 import pyb
 
-from objects import *
+from data import *
 
 
 class Communicator(object):
@@ -9,12 +9,10 @@ class Communicator(object):
             self.using_usb = False
             self.serial_ref = pyb.UART(uart_bus, baud, read_buf_len=1000,
                                        timeout_char=10000)
-            self.console_ref = pyb.USB_VCP()
             print("Initialized! Ready to go!")
         else:
             self.using_usb = True
             self.serial_ref = pyb.USB_VCP()
-            self.console_ref = None
 
         self.command_pool = CommandPool(commands)
 
@@ -46,13 +44,6 @@ class Communicator(object):
                     self.signal_stop()
                 else:
                     self.command_pool.update(packet)
-        if self.console_ref is not None:
-            if self.console_ref.any():
-                c = self.console_ref.read(1)
-                if c == 's':
-                    self.signal_stop()
-                elif c == 'r':
-                    self.signal_reset()
 
     def read_packets(self):
         incoming = self.serial_ref.read(self.serial_ref.any())

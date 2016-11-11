@@ -120,6 +120,7 @@ void Lidar::writeEncoder()
 
 void Lidar::writeDistance()
 {
+    _distance = _lidarLite->distance();
     _softSerial->print(_distance);
     _softSerial->print('\n');
 }
@@ -133,7 +134,6 @@ bool Lidar::update()
      *
      * Return true if an encoder tick is encountered.
      */
-    writeDistance();
     
     if (analogRead(ENCODER_PIN) < ENCODER_LOW_VALUE && _encoderLow)
     {
@@ -141,7 +141,6 @@ bool Lidar::update()
         _enc_t1 = micros();
         _enc_dt = _enc_t1 - _enc_t0;
         _enc_t0 = _enc_t1;
-        _distance = _lidarLite->distance();
 
         _encoderLow = false;
 

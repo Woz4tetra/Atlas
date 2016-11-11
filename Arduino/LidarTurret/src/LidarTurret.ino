@@ -1,6 +1,7 @@
 #include <Lidar.h>
 
 Lidar lidar;
+unsigned long t0 = micros();
 
 void setup()
 {
@@ -12,5 +13,9 @@ void loop()
 {
     lidar.update();
     lidar.checkSerial();
-    // lidar.writeDistance();
+
+    if ((micros() - t0) > 1000) {
+        lidar.writeDistance();
+        t0 = micros();
+    }
 }

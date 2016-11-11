@@ -4,7 +4,7 @@
 #include <SoftwareSerial.h>
 
 
-#define DEBUG_LIDAR_TURRET
+// #define DEBUG_LIDAR_TURRET
 
 class Lidar {
 public:

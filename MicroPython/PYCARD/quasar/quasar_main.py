@@ -1,5 +1,5 @@
 
-from objects import *
+from quasar.quasar_objects import *
 from comm import Communicator
 
 

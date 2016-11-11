@@ -1,6 +1,6 @@
 import pyb
 
-from objects import *
+from data import *
 
 
 class Communicator(object):
