@@ -18,6 +18,7 @@ class LidarTurret():
         
     def parse_packets(self):
         self.buffer += self.uart.read(self.uart.any()).decode('ascii')
+        print(self.buffer)
         packets = self.buffer.split("\n")
         
         if self.buffer[-1] != "\n":

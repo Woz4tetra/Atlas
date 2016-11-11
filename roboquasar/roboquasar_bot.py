@@ -73,6 +73,7 @@ class RoboQuasarBot(Robot):
             self.blue_led.set(0)
 
     def axis_active(self, axis, value):
+        print(axis)
         if axis == "left x":
             self.stepper.set(int(value * 100))
             self.blue_led.set(int(value * 255))

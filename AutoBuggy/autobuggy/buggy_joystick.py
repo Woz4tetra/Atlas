@@ -220,7 +220,7 @@ class BuggyJoystick(threading.Thread):
                               to_name):
         if not (joystick_fn is None or repeat_condition is None):
             repeat = False
-            if type(repeat_condition) == int:
+            if type(repeat_condition) == int or type(repeat_condition) == float:
                 if dt > repeat_condition:
                     repeat = True
             elif repeat_condition(dt):
