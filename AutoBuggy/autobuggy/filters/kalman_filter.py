@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import linalg
+import math
 
 np.set_printoptions(precision=4)
 
@@ -45,12 +46,10 @@ class GrovesKalmanFilter:
         self.epoch = Epoch(self.static_properties, self.dynamic_properties)
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
-        print("imu updated:", imu_dt)
         self.dynamic_properties.state_updated(self.ins.update(
             imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T))
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        print("gps updated:", gps_dt)
         gps_position_ecef, gps_velocity_ecef, self.dynamic_properties.estimated_attitude = \
             self.dynamic_properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
@@ -59,7 +58,9 @@ class GrovesKalmanFilter:
         ))
 
     def get_position(self):
-        return self.dynamic_properties.estimated_position
+        lat_rad, long_rad, alt = ecef_to_ned(
+            *vector_to_list(self.dynamic_properties.estimated_position.T))
+        return math.degrees(lat_rad), math.degrees(long_rad), alt
 
 
 class StaticProperties:
@@ -76,15 +77,20 @@ class StaticProperties:
                  gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD,
                  pos_meas_SD, vel_meas_SD):
         # initialize properties (from in_profile)
-        self.initial_lat = initial_lat  # Column 2
-        self.initial_long = initial_long  # Column 3
-        self.initial_alt = initial_alt  # Column 4
+        self.initial_lat = math.radians(initial_lat)  # Column 2
+        self.initial_long = math.radians(initial_long)  # Column 3
+        self.initial_alt = math.radians(initial_alt)  # Column 4
         self.initial_v_north = initial_v_north  # Column 5
         self.initial_v_east = initial_v_east  # Column 6
         self.initial_v_down = initial_v_down  # Column 7
         self.initial_roll_ecef = initial_roll_ecef  # Column 8
         self.initial_pitch_ecef = initial_pitch_ecef  # Column 9
         self.initial_yaw_ecef = initial_yaw_ecef  # Column 10
+
+        self.initial_attitude = euler_to_ctm(np.matrix([
+            self.initial_roll_ecef,
+            self.initial_pitch_ecef,
+            self.initial_yaw_ecef]))
 
         # initialization_errors.delta_eul_nb_n
         self.initial_imu_errors = np.matrix(
@@ -121,9 +127,19 @@ class DynamicProperties:
         self.prev_alt = self.static_properties.initial_alt
 
         # Outputs of the Kalman filter
-        self.estimated_position = np.matrix(np.zeros((3, 1)))
-        self.estimated_velocity = np.matrix(np.zeros((3, 1)))
-        self.est_body_to_ecef = np.matrix(np.zeros((3, 1)))
+        position_ecef, velocity_ecef, body_to_ecef = \
+            ned_to_ecef(self.static_properties.initial_lat,
+                        self.static_properties.initial_long,
+                        self.static_properties.initial_alt,
+                        self.static_properties.initial_v_north,
+                        self.static_properties.initial_v_east,
+                        self.static_properties.initial_v_down,
+                        self.static_properties.initial_attitude)
+
+        self.estimated_position = position_ecef
+        self.estimated_velocity = velocity_ecef
+        self.est_body_to_ecef = body_to_ecef
+
         self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 
         self.estimated_attitude = np.matrix(np.zeros((3, 3)))
@@ -280,7 +296,6 @@ class INS:
         prev_est_p = self.dynamic_properties.estimated_position
         prev_est_v = self.dynamic_properties.estimated_velocity
 
-        print(gravity_ecef(prev_est_p))
         estimated_velocity = \
             prev_est_v + dt * (
                 accel_meas_ecef + gravity_ecef(prev_est_p) - 2 * skew_symmetric(
@@ -539,9 +554,14 @@ def euler_to_ctm(orientation):
 
 
 def ned_to_ecef(latitude, longitude, altitude,
-                v_north, v_east, v_down, attitude):
+                v_north, v_east, v_down, attitude, input_is_degrees=False):
     # Calculate transverse radius of curvature
-    R_E = earth_radius / np.sqrt(1 - (eccentricity * np.sin(latitude)) ** 2)
+    radius_of_curvature = earth_radius / np.sqrt(
+        1 - (eccentricity * np.sin(latitude)) ** 2)
+
+    if input_is_degrees:
+        latitude = math.radians(latitude)
+        longitude = math.radians(longitude)
 
     # convert position
     cos_lat = np.cos(latitude)
@@ -549,9 +569,10 @@ def ned_to_ecef(latitude, longitude, altitude,
     cos_long = np.cos(longitude)
     sin_long = np.sin(longitude)
     position_ecef = np.matrix(
-        [(R_E + altitude) * cos_lat * cos_long,
-         (R_E + altitude) * cos_lat * sin_long,
-         ((1 - eccentricity ** 2) * R_E + altitude) * sin_lat]).T
+        [(radius_of_curvature + altitude) * cos_lat * cos_long,
+         (radius_of_curvature + altitude) * cos_lat * sin_long,
+         (
+         (1 - eccentricity ** 2) * radius_of_curvature + altitude) * sin_lat]).T
 
     # Calculate ECEF to NED coordinate transformation matrix
     ned_to_ecef_transform = np.matrix(
@@ -567,8 +588,8 @@ def ned_to_ecef(latitude, longitude, altitude,
     return position_ecef, velocity_ecef, body_to_ecef
 
 
-def ecef_to_ned(x, y, z):
-    latitude = np.arctan2(y, x)
+def ecef_to_ned(x, y, z, to_degrees=False):
+    longitude = np.arctan2(y, x)
 
     k1 = np.sqrt(1 - eccentricity ** 2) * abs(z)
     k2 = eccentricity ** 2 * earth_radius
@@ -584,18 +605,20 @@ def ecef_to_ned(x, y, z):
 
     G = (0.5 * (np.sqrt(E * E + V) + E))
 
-    T = np.sqrt(G ** 2 + (F - V * G) / (
-        2 * G - E)) - G  # This becomes 0 when it shouldn't, rip
+    T = np.sqrt(G ** 2 + (F - V * G) / (2 * G - E)) - G
 
-    longitude = np.sign(z) * np.arctan(
+    latitude = np.sign(z) * np.arctan(
         (1 - T * T) / (2 * T * np.sqrt(1 - eccentricity ** 2)))
 
     altitude = (
-        (beta - earth_radius * T) * np.cos(longitude) + (z - np.sign(z) *
-                                                         earth_radius * np.sqrt(
-            1 - eccentricity ** 2)) * np.sin(longitude))
+        (beta - earth_radius * T) * np.cos(latitude) + (z - np.sign(z) *
+                                                        earth_radius * np.sqrt(
+            1 - eccentricity ** 2)) * np.sin(latitude))
 
-    return latitude, longitude, altitude
+    if not to_degrees:
+        return latitude, longitude, altitude
+    else:
+        return math.degrees(latitude), math.degrees(longitude), altitude
 
 
 def gravity_ecef(ecef_vector):
@@ -631,5 +654,54 @@ def unit_to_scalar(unit_matrix):
     return unit_matrix.tolist()[0][0]
 
 
-def vector_to_list(vector):
-    return vector.tolist()[0]
+def vector_to_list(vector, is_column_vector=False):
+    if not is_column_vector:
+        return vector.tolist()[0]
+    else:
+        return vector.T.tolist()[0]
+
+
+if __name__ == '__main__':
+    def almost_equal(float1, float2, epsilon=0.001):
+        if abs(float2 - float1) > epsilon:
+            raise ValueError("Floats aren't equal: %f, %f" % (float1, float2))
+        else:
+            return True
+
+
+    def test_coordinate_transforms(lat1, long1, alt1):
+        attitude1 = euler_to_ctm(np.matrix([0, 0, 0]))
+        ecef_position, _, _ = ned_to_ecef(lat1, long1, alt1, 0, 0, 0, attitude1,
+                                          input_is_degrees=True)
+
+        print(vector_to_list(ecef_position, True))
+
+        lat2, long2, alt2 = ecef_to_ned(*vector_to_list(ecef_position, True),
+                                        to_degrees=True)
+
+        print(lat2, long2, alt2)
+
+        almost_equal(lat1, lat2)
+        almost_equal(long1, long2)
+        almost_equal(alt1, alt2)
+
+
+    def test_helpers():
+        # test_coordinate_transforms(
+        #     40.44057846069336, 79.94245147705078, 302.79998779296875)
+        lat1, long1, alt1 = 40.4404285, -79.9422232, 296.18
+        attitude1 = euler_to_ctm(np.matrix([0, 0, 0]))
+        ecef_position, _, _ = ned_to_ecef(lat1, long1, alt1, 0, 0, 0, attitude1,
+                                          input_is_degrees=True)
+
+        x, y, z = vector_to_list(ecef_position, True)
+        # almost_equal(x, 848993, epsilon=10)
+        # almost_equal(y, -4786645, epsilon=10)
+        almost_equal(z, 4115520, epsilon=10)
+
+
+    def test_all():
+        test_helpers()
+
+
+    test_all()

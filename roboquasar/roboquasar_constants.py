@@ -3,15 +3,9 @@ import math
 g = 9.80665
 
 constants = dict(
-    initial_roll_ecef=0,
-    initial_pitch_ecef=0,
-    initial_yaw_ecef=math.pi / 2,
     roll_error=math.radians(-0.05),
     pitch_error=math.radians(0.04),
     yaw_error=math.radians(1),
-    initial_lat=40.44057846069336,
-    initial_long=-79.94245147705078,
-    initial_alt=302.79998779296875,  # geoid: -33.0
     initial_v_north=0,
     initial_v_east=0,
     initial_v_down=0,

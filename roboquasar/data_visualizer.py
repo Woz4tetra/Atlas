@@ -8,6 +8,7 @@ from autobuggy.microcontroller.logger import get_map
 from autobuggy.filters.kalman_filter import GrovesKalmanFilter
 from roboquasar_constants import constants
 
+
 class DataVisualizer(Simulator):
     def __init__(self, file_name, directory, **plot_info):
         project.set_project_dir("roboquasar")
@@ -18,7 +19,14 @@ class DataVisualizer(Simulator):
             file_name, directory, 1, plot_info
         )
 
-        self.filter = GrovesKalmanFilter(**constants)
+        self.filter = GrovesKalmanFilter(
+            initial_roll_ecef=0,
+            initial_pitch_ecef=0,
+            initial_yaw_ecef=math.pi / 2,
+            initial_lat=40.44057846069336,
+            initial_long=-79.94245147705078,
+            initial_alt=302.79998779296875,  # geoid: -33.0
+            **constants)
 
         first_gps_reading = self.parser.get(0, 'gps')[-1]
         initial_lat = first_gps_reading["lat"]
@@ -43,24 +51,22 @@ class DataVisualizer(Simulator):
     def step(self, index, timestamp, name, values):
         if name == "imu":
             self.record_imu(timestamp, values)
+        elif name == "gps":
+            self.record_gps(timestamp, values)
+
+    def record_imu(self, timestamp, values):
+        if self.plot_enabled["imu_plot"]:
+            self.angled_line_segment("imu_plot", self.prev_long, self.prev_lat,
+                                     values['yaw'], 0.5)
+        if self.plot_enabled["calculated_filter_plot"]:
             self.filter.imu_updated(
                 timestamp - self.prev_imu_t,
                 values["ax"], values["ay"], values["az"],
                 values["gx"], values["gy"], values["gz"],
             )
             self.prev_imu_t = timestamp
-        elif name == "gps":
-            self.record_gps(timestamp, values)
-            self.filter.gps_updated(
-                timestamp - self.prev_gps_t,
-                values["lat"], values["long"], values["altitude"]
-            )
-            self.prev_gps_t = timestamp
 
-    def record_imu(self, timestamp, values):
-        if self.plot_enabled["imu_plot"]:
-            self.angled_line_segment("imu_plot", self.prev_long, self.prev_lat,
-                                     values['yaw'], 0.5)
+            self.record_position()
 
     def record_gps(self, timestamp, values):
         if self.plot_enabled["gps_plot"]:
@@ -69,6 +75,19 @@ class DataVisualizer(Simulator):
 
             self.prev_lat = values["lat"]
             self.prev_long = values["long"]
+
+            self.filter.gps_updated(
+                timestamp - self.prev_gps_t,
+                values["lat"], values["long"], values["altitude"]
+            )
+            self.prev_gps_t = timestamp
+
+            self.record_position()
+
+    def record_position(self):
+        lat, long, height = self.filter.get_position()
+        self.plot_data["calculated_filter_plot"][0].append(long)
+        self.plot_data["calculated_filter_plot"][1].append(lat)
 
 
 def parse_arguments():
@@ -102,10 +121,11 @@ def run():
         file_name, directory,
         imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='red', label="GPS"),
+        calculated_filter_plot=dict(color='fuchsia', label="filter"),
         checkpoints_plot=dict(color='green', label="checkpoints",
                               log_based_plot=False),
         course_map_plot=dict(color='blue', label="map",
-                              log_based_plot=False)
+                             log_based_plot=False)
     )
 
     plotter.run()
