@@ -6,16 +6,16 @@
 #define ENCODER_LOW_VALUE 300
 #define TICKS_PER_ROTATION 38
 
-#define RED_PIN 9
+#define RED_PIN 11
 #define GREEN_PIN 8
 #define BLUE_PIN 7
 
-#define out_A_PWM 10
+#define out_A_PWM 13
 #define out_A_IN1 6
 #define out_A_IN2 5
 
-#define SOFTSERIAL_RX 14
-#define SOFTSERIAL_TX 15
+#define SOFTSERIAL_RX 9
+#define SOFTSERIAL_TX 10
 
 #define DEFAULT_MOTOR_SPEED 70
 
@@ -120,7 +120,8 @@ void Lidar::writeEncoder()
 
 void Lidar::writeDistance()
 {
-
+    _softSerial->print(_distance);
+    _softSerial->print('\n');
 }
 
 bool Lidar::update()
@@ -132,6 +133,8 @@ bool Lidar::update()
      *
      * Return true if an encoder tick is encountered.
      */
+    writeDistance();
+    
     if (analogRead(ENCODER_PIN) < ENCODER_LOW_VALUE && _encoderLow)
     {
         // count only when leaving an unblocked region

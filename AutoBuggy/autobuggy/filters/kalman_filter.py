@@ -45,10 +45,12 @@ class GrovesKalmanFilter:
         self.epoch = Epoch(self.static_properties, self.dynamic_properties)
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
+        print("imu updated:", imu_dt)
         self.dynamic_properties.state_updated(self.ins.update(
-            imu_dt, np.matrix([ax, ay, az]), np.matrix([gx, gy, gz])))
+            imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T))
 
     def gps_updated(self, gps_dt, lat, long, altitude):
+        print("gps updated:", gps_dt)
         gps_position_ecef, gps_velocity_ecef, self.dynamic_properties.estimated_attitude = \
             self.dynamic_properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
@@ -119,15 +121,15 @@ class DynamicProperties:
         self.prev_alt = self.static_properties.initial_alt
 
         # Outputs of the Kalman filter
-        self.estimated_position = np.matrix(np.zeros((1, 3)))
-        self.estimated_velocity = np.matrix(np.zeros((1, 3)))
-        self.est_body_to_ecef = np.matrix(np.zeros((1, 3)))
-        self.estimated_imu_biases = np.matrix(np.zeros((1, 6)))
+        self.estimated_position = np.matrix(np.zeros((3, 1)))
+        self.estimated_velocity = np.matrix(np.zeros((3, 1)))
+        self.est_body_to_ecef = np.matrix(np.zeros((3, 1)))
+        self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 
         self.estimated_attitude = np.matrix(np.zeros((3, 3)))
 
-        self.accel_measurement = np.matrix(np.zeros((1, 3)))
-        self.gyro_measurement = np.matrix(np.zeros((1, 3)))
+        self.accel_measurement = np.matrix(np.zeros((3, 1)))
+        self.gyro_measurement = np.matrix(np.zeros((3, 1)))
 
     def get_gps_v(self, gps_dt, lat, long, altitude):
         v_north = (lat - self.prev_lat) / gps_dt
@@ -227,62 +229,62 @@ class INS:
 
         # this section is attitude update
         earth_rotation_amount = earth_rotation_rate * dt
-        C_Earth = np.matrix(
+        earth_rotation_matrix = np.matrix(
             [[np.cos(earth_rotation_amount), np.sin(earth_rotation_amount), 0],
              [-np.sin(earth_rotation_amount), np.cos(earth_rotation_amount), 0],
              [0, 0, 1]])
 
         # calculate attitude increment, magnitude, and skew-symmetric matrix
-        alpha_ib_b = gyro_measurement * dt
+        angle_change_gyro = gyro_measurement * dt
 
-        alpha_ib_b_vector = np.array(alpha_ib_b)[
-            0]  # numpy is dumb, need this for vectors, matrices are not vectors
-        a_b_sq = np.dot(alpha_ib_b_vector.T, alpha_ib_b_vector)
-        mag_alpha = np.sqrt(a_b_sq)
-        skew_alpha_ib_b = skew_symmetric(alpha_ib_b)
+        # alpha_ib_b_vector = np.array(alpha_ib_b)[0]  # numpy is dumb, need this for vectors, matrices are not vectors
+        a_b_sq = angle_change_gyro.T * angle_change_gyro
+        mag_alpha = unit_to_scalar(np.sqrt(a_b_sq))  # convert to scalar
+        skew_alpha_ib_b = skew_symmetric(angle_change_gyro)
 
         # Obtain coordinate transformation matrix
         if mag_alpha > 1E-8:
             C_new_old = (
                 ((np.eye(3) + np.sin(mag_alpha) / mag_alpha) * (
                     skew_alpha_ib_b)) +
-                (
-                    ((1 - np.cos(
-                        mag_alpha)) / mag_alpha ** 2 * skew_alpha_ib_b) * (
-                        skew_alpha_ib_b)))
+                (((1 - np.cos(
+                    mag_alpha)) / mag_alpha ** 2 * skew_alpha_ib_b) * (
+                     skew_alpha_ib_b)))
         else:
             C_new_old = np.eye(3) + skew_alpha_ib_b
 
-        est_body_to_ecef = C_Earth * (
+        est_body_to_ecef = earth_rotation_matrix * (
             self.dynamic_properties.est_body_to_ecef * C_new_old)
 
         if mag_alpha > 1E-8:
-            ave_C_b_e = (
+            average_body_to_ecef = (
                 est_body_to_ecef * (
-                    np.eye(3) + (1 - np.cos(mag_alpha)) / mag_alpha ** 2
+                    np.matrix(np.eye(3)) + (
+                        1 - np.cos(mag_alpha)) / mag_alpha ** 2
                     * skew_alpha_ib_b + (
                         1 - np.sin(mag_alpha) / mag_alpha) / mag_alpha ** 2
                     * skew_alpha_ib_b * skew_alpha_ib_b) -
-                0.5 * skew_symmetric(np.matrix([0, 0, earth_rotation_amount])) *
+                0.5 * skew_symmetric(
+                    np.matrix([0, 0, earth_rotation_amount]).T) *
                 est_body_to_ecef)
         else:
-            ave_C_b_e = \
+            average_body_to_ecef = \
                 (est_body_to_ecef - 0.5 * skew_symmetric(
-                    np.matrix([0, 0, earth_rotation_amount])) *
+                    np.matrix([0, 0, earth_rotation_amount]).T) *
                  est_body_to_ecef)
 
         # Transform specific force to ECEF-frame resolving axes
-        f_ib_e = ave_C_b_e * accel_measurement.T
-        # update velocity
-        prev_est_v = self.dynamic_properties.estimated_velocity.T
-        prev_est_p = self.dynamic_properties.estimated_position.T
+        accel_meas_ecef = average_body_to_ecef * accel_measurement
 
-        # To Tabatha: estimated_velocity, estimated_position are becoming squares
-        # we need to find out why
+        # update velocity
+        prev_est_p = self.dynamic_properties.estimated_position
+        prev_est_v = self.dynamic_properties.estimated_velocity
+
+        print(gravity_ecef(prev_est_p))
         estimated_velocity = \
             prev_est_v + dt * (
-                f_ib_e + gravity_ecef(prev_est_p) - 2 * skew_symmetric(
-                    np.matrix([0, 0, earth_rotation_rate])) * prev_est_v)
+                accel_meas_ecef + gravity_ecef(prev_est_p) - 2 * skew_symmetric(
+                    np.matrix([0, 0, earth_rotation_rate]).T) * prev_est_v)
         # update cartesian position
         estimated_position = \
             prev_est_p + (estimated_velocity + prev_est_v) * 0.5 * dt
@@ -296,24 +298,22 @@ class Epoch:
         self.dynamic_properties = dynamic_properties
 
         self.skew_earth_rotation = skew_symmetric(
-            np.matrix([0, 0, earth_rotation_rate]))
+            np.matrix([0, 0, earth_rotation_rate]).T)
 
         # P_matrix & est_IMU_bias in Loosely_coupled_INS_GNSS (line 192)
         self.error_covariance_P = self.init_P()
         self.estimated_imu_biases = np.matrix(np.zeros((1, 6)))
         self.state_transition_Phi = None  # Phi_matrix
-        self.approx_noise_covariance_Q = None
 
-        self.error_covariance_P = None
         self.error_covariance_propagated_P = None
         self.approx_noise_covariance_Q = None
-        self.measurement_H = None
+        self.measurement_model_H = None
         self.noise_covariance_R = None
         self.kalman_gain_K = None
         self.measurement_innovation_Z = None
 
     def init_P(self):
-        error_covariance_P = np.matrix(np.zeros((17, 17)))
+        error_covariance_P = np.matrix(np.zeros((15, 15)))
 
         I_3 = np.matrix(np.eye(3))
         error_covariance_P[0:3, 0:3] = \
@@ -334,40 +334,45 @@ class Epoch:
         return error_covariance_P
 
     def update(self, dt, gps_position_ecef, gps_velocity_ecef):
-        self.determine_transition_matrix(dt)
+        self.determine_transition_matrix(dt)  # step 1
         self.determine_noise_covariance(
             dt, self.static_properties.uncertainty_values["gyro_noise_PSD"],
             self.static_properties.uncertainty_values["accel_noise_PSD"],
             self.static_properties.uncertainty_values["accel_bias_PSD"],
             self.static_properties.uncertainty_values["gyro_bias_PSD"]
-        )
-        self.set_propagated_state_est()
-        self.set_propagated_error_est()
+        )  # step 2
+        self.set_propagated_state_est()  # step 3
+        self.set_propagated_error_est()  # step 4
+        self.setup_measurement_matrix()  # step 5
+
         self.setup_noise_covariance_matrix(
             self.static_properties.uncertainty_values["pos_meas_SD"],
             self.static_properties.uncertainty_values["vel_meas_SD"],
-        )
-        self.calc_kalman_gain()
+        )  # step 6
+        self.calc_kalman_gain()  # step 7
         self.formulate_measurement_innovations(
             gps_position_ecef, gps_velocity_ecef,
             self.dynamic_properties.estimated_position,
             self.dynamic_properties.estimated_velocity
-        )
-        self.setup_measurement_matrix()
-        self.update_state_estimates()
-        self.update_covariance_matrix()
-        return self.correct_estimates(
-            self.dynamic_properties.est_body_to_ecef,
-            self.dynamic_properties.estimated_position,
-            self.dynamic_properties.estimated_velocity,
-            self.dynamic_properties.estimated_imu_biases,
-        )
+        )  # step 8
+        self.update_state_estimates()  # step 9
+        self.update_covariance_matrix()  # step 10
+
+        estimated_position, estimated_velocity, est_body_to_ecef, estimated_imu_biases = \
+            self.correct_estimates(
+                self.dynamic_properties.est_body_to_ecef,
+                self.dynamic_properties.estimated_position,
+                self.dynamic_properties.estimated_velocity,
+                self.dynamic_properties.estimated_imu_biases,
+            )
+        return estimated_position, estimated_velocity, est_body_to_ecef
 
     def determine_transition_matrix(self, dt):
+        # step 1
         est_p = self.dynamic_properties.estimated_position
         to_ecef = self.dynamic_properties.est_body_to_ecef
 
-        estimated_lat = ecef_to_ned(*est_p)[0]
+        estimated_lat = ecef_to_ned(*vector_to_list(est_p.T))[0]
 
         self.state_transition_Phi = np.matrix(np.eye(15))
 
@@ -388,7 +393,8 @@ class Epoch:
 
         self.state_transition_Phi[3:6, 6:9] = \
             (-dt * 2 * gravity_ecef(
-                est_p) / geocentric_radius * est_p.T / np.sqrt(est_p.T * est_p))
+                est_p) / geocentric_radius * est_p.T / np.sqrt(
+                unit_to_scalar(est_p.T * est_p)))
 
         self.state_transition_Phi[3:6, 9:12] = est_p * dt
 
@@ -396,6 +402,7 @@ class Epoch:
 
     def determine_noise_covariance(self, dt, gyro_noise_PSD, accel_noise_PSD,
                                    accel_bias_PSD, gyro_bias_PSD):
+        # step 2
         # Q_prime_matrix in the matlab code
         self.approx_noise_covariance_Q = np.matrix(np.eye(15))
 
@@ -407,16 +414,31 @@ class Epoch:
         self.approx_noise_covariance_Q *= dt
 
     def set_propagated_state_est(self):
-        self.estimated_state_prop_x = np.matrix(np.zeros((1, 15)))
+        # step 3
+        self.estimated_state_prop_x = np.matrix(np.zeros((15, 1)))
         # x_est_propagated in the matlab code
 
     def set_propagated_error_est(self):
+        # step 4
         self.error_covariance_propagated_P = self.state_transition_Phi * (
             self.error_covariance_P + 0.5 * self.approx_noise_covariance_Q) * \
                                              self.state_transition_Phi.T + \
                                              0.5 * self.approx_noise_covariance_Q
+        # self.error_covariance_propagated_P = (
+        #     (self.state_transition_Phi *
+        #      self.error_covariance_P) * self.state_transition_Phi.T +
+        #     self.approx_noise_covariance_Q
+        # )
+
+    def setup_measurement_matrix(self):
+        # step 5
+        # H_matrix in the matlab code
+        self.measurement_model_H = np.matrix(np.zeros((6, 15)))
+        self.measurement_model_H[0:3, 6:9] = -np.matrix(np.eye(3))
+        self.measurement_model_H[3:6, 3:6] = -np.matrix(np.eye(3))
 
     def setup_noise_covariance_matrix(self, pos_meas_SD, vel_meas_SD):
+        # step 6
         # R_matrix in the matlab code
         self.noise_covariance_R = np.matrix(np.eye(6))
         self.noise_covariance_R[0:3, 0:3] = \
@@ -427,34 +449,33 @@ class Epoch:
             np.matrix(np.eye(3)) * vel_meas_SD ** 2
 
     def calc_kalman_gain(self):
+        # step 7
         self.kalman_gain_K = self.error_covariance_propagated_P * \
-                             self.noise_covariance_R.T * linalg.inv(
-            self.measurement_H * self.error_covariance_propagated_P *
-            self.noise_covariance_R.T * self.noise_covariance_R)
+                             self.measurement_model_H.T * linalg.inv(
+            (self.measurement_model_H * self.error_covariance_propagated_P) *
+            self.measurement_model_H.T + self.noise_covariance_R)
 
     def formulate_measurement_innovations(self, gps_position_ecef,
                                           gps_velocity_ecef, estimated_position,
                                           estimated_velocity):
+        # step 8
+        self.measurement_innovation_Z = np.matrix(np.zeros((6, 1)))
         self.measurement_innovation_Z[0:3] = \
             gps_position_ecef - estimated_position
         self.measurement_innovation_Z[3:6] = \
             gps_velocity_ecef - estimated_velocity
 
-    def setup_measurement_matrix(self):
-        # H_matrix in the matlab code
-        self.measurement_H = np.matrix(np.zeros((6, 15)))
-        self.measurement_H[0:3, 6:9] = -np.matrix(np.eye(3))
-        self.measurement_H[3:6, 3:6] = -np.matrix(np.eye(3))
-
     def update_state_estimates(self):
+        # step 9
         # x_est_propagated in the matlab code
-        self.estimated_state_prop_x + self.kalman_gain_K * \
-                                      self.measurement_innovation_Z
+        self.estimated_state_prop_x += \
+            self.estimated_state_prop_x + self.kalman_gain_K * self.measurement_innovation_Z
 
     def update_covariance_matrix(self):
+        # step 10
         # P_matrix_new, P_matrix in the matlab code
         self.error_covariance_P = (np.matrix(
-            np.eye(15)) - self.kalman_gain_K * self.measurement_H) * \
+            np.eye(15)) - self.kalman_gain_K * self.measurement_model_H) * \
                                   self.error_covariance_propagated_P
 
     def correct_estimates(self, est_body_to_ecef, estimated_position,
@@ -465,16 +486,16 @@ class Epoch:
         estimated_position -= self.estimated_state_prop_x[6:9]
         estimated_imu_biases -= self.estimated_state_prop_x[9:15]
 
-        return est_body_to_ecef, estimated_velocity, estimated_position, estimated_imu_biases
+        return estimated_position, estimated_velocity, est_body_to_ecef, estimated_imu_biases
 
 
 def skew_symmetric(m):
     """
     creates a 3v3 skew_symmetric matrix from a 1x3 matrix
     """
-    return np.matrix([[0, -m[0, 2], m[0, 2]],
-                      [m[0, 2], 0, -m[0, 0]],
-                      [-m[0, 1], m[0, 0], 0]])
+    return np.matrix([[0, -m[2], m[2]],
+                      [m[2], 0, -m[0]],
+                      [-m[1], m[0], 0]])
 
 
 def euler_to_ctm(orientation):
@@ -492,7 +513,7 @@ def euler_to_ctm(orientation):
     C: coordinate transformation matrix describing transformation from beta to alpha
 
     """
-    roll, pitch, yaw = orientation.tolist()[0]
+    roll, pitch, yaw = vector_to_list(orientation)
 
     # precalculate sines and cosines of the Euler angles
     sin_phi = np.sin(roll)
@@ -530,7 +551,7 @@ def ned_to_ecef(latitude, longitude, altitude,
     position_ecef = np.matrix(
         [(R_E + altitude) * cos_lat * cos_long,
          (R_E + altitude) * cos_lat * sin_long,
-         ((1 - eccentricity ** 2) * R_E + altitude) * sin_lat])
+         ((1 - eccentricity ** 2) * R_E + altitude) * sin_lat]).T
 
     # Calculate ECEF to NED coordinate transformation matrix
     ned_to_ecef_transform = np.matrix(
@@ -573,30 +594,42 @@ def ecef_to_ned(x, y, z):
         (beta - earth_radius * T) * np.cos(longitude) + (z - np.sign(z) *
                                                          earth_radius * np.sqrt(
             1 - eccentricity ** 2)) * np.sin(longitude))
+
     return latitude, longitude, altitude
 
 
 def gravity_ecef(ecef_vector):
     # Calculate distance from center of the Earth
-    ecef_vector_array = np.array(ecef_vector)[0]  # numpy is dumb
-    mag_r = np.sqrt(np.dot(ecef_vector_array, ecef_vector_array.T))
+    mag_r = unit_to_scalar(np.sqrt(ecef_vector.T * ecef_vector))
 
     # If the input position is 0,0,0, produce a dummy output
     if mag_r == 0:
-        return np.matrix(np.zeros((1, 3)))
+        return np.matrix(np.zeros((3, 1)))
 
     # Calculates gravitational acceleration
     else:
-        z_scale = 5 * (ecef_vector[2] / mag_r) ** 2
+        z_scale = unit_to_scalar((ecef_vector[2] / mag_r) ** 2 * 5)
 
-        matrix = np.matrix([(1 - z_scale) * ecef_vector[0],
-                            (1 - z_scale) * ecef_vector[1],
-                            (3 - z_scale) * ecef_vector[2]])
+        matrix = np.matrix([(1 - z_scale) * unit_to_scalar(ecef_vector[0]),
+                            (1 - z_scale) * unit_to_scalar(ecef_vector[1]),
+                            (3 - z_scale) * unit_to_scalar(ecef_vector[2])])
         gamma = np.matrix(-earth_gravity_constant / mag_r ** 3 *
                           (ecef_vector + 1.5 * J_2 * (
                               earth_radius / mag_r) ** 2 * matrix))
         # Add centripetal acceleration
-        g = np.matrix([gamma[0] + earth_rotation_rate ** 2 * ecef_vector[0],
-                       gamma[1] + earth_rotation_rate ** 2 * ecef_vector[1],
-                       gamma[2]])
-        return g.T
+        g = np.matrix([unit_to_scalar(
+            gamma[0]) + earth_rotation_rate ** 2 * unit_to_scalar(
+            ecef_vector[0]),
+                       unit_to_scalar(gamma[
+                                          1]) + earth_rotation_rate ** 2 * unit_to_scalar(
+                           ecef_vector[1]),
+                       unit_to_scalar(gamma[2])]).T
+        return g
+
+
+def unit_to_scalar(unit_matrix):
+    return unit_matrix.tolist()[0][0]
+
+
+def vector_to_list(vector):
+    return vector.tolist()[0]

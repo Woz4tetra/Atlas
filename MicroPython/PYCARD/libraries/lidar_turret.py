@@ -3,7 +3,7 @@ from math import pi
 
 
 class LidarTurret():
-    def __init__(self, uart_bus, ticks_per_rotation=38, baud_rate=9600):
+    def __init__(self, uart_bus, ticks_per_rotation=38, baud_rate=115200):
         self.uart = pyb.UART(uart_bus, baud_rate, read_buf_len=255)
         self.ticks_per_rotation = ticks_per_rotation
         
@@ -17,14 +17,17 @@ class LidarTurret():
         if self.uart.any():
             data = self.uart.readline().decode('ascii')[:-1].split('\t')
             
-            if len(data) == 3:
+            if len(data) == 2:
                 if data[0].isdigit():
                     self.counts = int(data[0])
                     self.angle = self.counts / self.ticks_per_rotation * 2 * pi
                 if data[1].isdigit():
                     self.rotations = int(data[1])
-                if data[2].isdigit():
-                    self.distance = int(data[2])
+                return True
+            
+            elif len(data) == 1:
+                if data[0].isdigit():
+                    self.distance = int(data[0])
                 return True
         return False
     
