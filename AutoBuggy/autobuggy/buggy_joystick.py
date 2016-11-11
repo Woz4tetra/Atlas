@@ -18,10 +18,7 @@ class BuggyJoystick(threading.Thread):
     def __init__(self, axes_mapping, axes_dead_zones, button_mapping,
                  button_down_fn=None, button_up_fn=None,
                  axis_active_fn=None, axis_inactive_fn=None,
-                 dpad_active_fn=None, dpad_inactive_fn=None,
-                 button_down_repeat=None, button_up_repeat=None,
-                 axis_active_repeat=None, axis_inactive_repeat=None,
-                 dpad_active_repeat=None, dpad_inactive_repeat=None):
+                 dpad_active_fn=None, dpad_inactive_fn=None):
         # initialize pygame
         pygame.init()
         pygame.joystick.init()
@@ -64,16 +61,6 @@ class BuggyJoystick(threading.Thread):
         self.axis_inactive_fn = axis_inactive_fn
         self.dpad_active_fn = dpad_active_fn
         self.dpad_inactive_fn = dpad_inactive_fn
-
-        self.button_down_repeat = button_down_repeat
-        self.button_up_repeat = button_up_repeat
-        self.axis_active_repeat = axis_active_repeat
-        self.axis_inactive_repeat = axis_inactive_repeat
-        self.dpad_active_repeat = dpad_active_repeat
-        self.dpad_inactive_repeat = dpad_inactive_repeat
-
-        self.repeat_t0 = 0
-        self.repeat_t1 = 0
 
         super(BuggyJoystick, self).__init__()
 
@@ -176,65 +163,6 @@ class BuggyJoystick(threading.Thread):
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
-
-            self.update_repeat_events()
-
-    def update_repeat_events(self):
-        self.repeat_t1 = time.time()
-        dt = self.repeat_t1 - self.repeat_t0
-
-        self.generic_repeat_update(
-            dt, self.button_down_fn, self.button_down_repeat, self.buttons,
-            lambda value: value, 2, self.button_to_name
-        )
-
-        self.generic_repeat_update(
-            dt, self.button_up_fn, self.button_up_repeat, self.buttons,
-            lambda value: not value, 1, self.button_to_name
-        )
-
-        self.generic_repeat_update(
-            dt, self.axis_active_fn, self.axis_active_repeat, self.axes,
-            lambda value: value > 0, 2, self.axis_to_name
-        )
-
-        self.generic_repeat_update(
-            dt, self.axis_inactive_fn, self.axis_inactive_repeat, self.axes,
-            lambda value: value == 0, 1, self.axis_to_name
-        )
-
-        self.generic_repeat_update(
-            dt, self.dpad_active_fn, self.dpad_active_repeat, self.dpad,
-            lambda value: value != (0, 0), 1, None
-        )
-
-        self.generic_repeat_update(
-            dt, self.dpad_inactive_fn, self.dpad_inactive_repeat, self.dpad,
-            lambda value: value == (0, 0), 0, None
-        )
-
-        self.repeat_t0 = time.time()
-
-    def generic_repeat_update(self, dt, joystick_fn, repeat_condition,
-                              joystick_values, update_condition, num_params,
-                              to_name):
-        if not (joystick_fn is None or repeat_condition is None):
-            repeat = False
-            if type(repeat_condition) == int or type(repeat_condition) == float:
-                if dt > repeat_condition:
-                    repeat = True
-            elif repeat_condition(dt):
-                repeat = True
-
-            if repeat:
-                for num, value in enumerate(joystick_values):
-                    if update_condition(value):
-                        if num_params == 2:
-                            joystick_fn(to_name[num], value)
-                        elif num_params == 1:
-                            joystick_fn(to_name[num])
-                        else:
-                            joystick_fn()
 
     def get_button(self, name):
         """Get the value of a button using the name as reference"""

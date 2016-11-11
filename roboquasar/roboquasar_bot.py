@@ -19,10 +19,9 @@ class RoboQuasarBot(Robot):
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button: self.button_dn(button),
-            axis_active_fn=lambda axis, value: self.axis_active(axis, value),
-            axis_inactive_fn=lambda axis: self.axis_inactive(axis),
+            # axis_active_fn=lambda axis, value: self.axis_active(axis, value),
+            # axis_inactive_fn=lambda axis: self.axis_inactive(axis),
             dpad_active_fn=lambda direction: self.dpad(direction),
-            axis_active_repeat=0.05
         )
 
         sensors = dict(
@@ -73,7 +72,6 @@ class RoboQuasarBot(Robot):
             self.blue_led.set(0)
 
     def axis_active(self, axis, value):
-        print(axis)
         if axis == "left x":
             self.stepper.set(int(value * 100))
             self.blue_led.set(int(value * 255))

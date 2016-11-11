@@ -28,7 +28,12 @@ class RoboQuasarRunner(RoboQuasarBot):
         print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
 
     def main(self):
-        time.sleep(0.1)
+        value = self.joystick.get_axis("left x")
+        if abs(value) > 0:
+            self.stepper.set(int(value * 100))
+            self.blue_led.set(int(value * 255))
+            print(value)
+        time.sleep(0.05)
 
 
 log_data = True
