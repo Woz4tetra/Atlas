@@ -17,6 +17,9 @@ class RoboQuasarRunner(RoboQuasarBot):
             print("Checkpoint %i recorded!" % self.checkpoint_num)
 
             self.checkpoint_num += 1
+        elif button == 'B':
+            self.leds['red'].set("toggle")
+        
 
     def gps_updated(self):
         print("yaw: %2.4f\nax: %2.4f, ay: %2.4f, az: %2.4f\n"
@@ -30,10 +33,9 @@ class RoboQuasarRunner(RoboQuasarBot):
     def main(self):
         value = self.joystick.get_axis("left x")
         if abs(value) > 0:
-            self.stepper.set(int(value * 100))
-            self.blue_led.set(int(value * 255))
-            print(value)
-        time.sleep(0.05)
+            self.stepper.set(int(-value * 7))
+            self.blue_led.set(int(abs(value * 255)))
+        time.sleep(0.07)
 
 
 log_data = True

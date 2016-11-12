@@ -25,7 +25,7 @@ def standby():
 
 leds = [LEDcommand(index, index + 1) for index in range(3)]  # 3 normal LEDs
 blue_led = BlueLEDcommand(3)
-stepper = StepperCommand(4, ["X7", "X8", "Y9", "Y10"], "Y11")
+stepper = StepperCommand(4)
 
 setting_up_sensors()
 
@@ -37,6 +37,10 @@ communicator = Communicator(*leds, blue_led, stepper, uart_bus=4)
 sensor_updated = False
 
 comm_ready()
+
+pyb.delay(500)
+communicator.signal_stop()  # micropython will be in standby at the start
+standby()
 
 while True:
     communicator.read_command()

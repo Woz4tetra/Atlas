@@ -35,7 +35,8 @@ class Communicator(threading.Thread):
             self.serial_ref = serial.Serial(port=self.address,
                                             baudrate=baud_rate,
                                             timeout=1)
-
+        self.start_time = time.time()
+        
         # tell the microcontroller that we're starting
         if handshake:
             self.initialized = self.handshake()

@@ -9,7 +9,7 @@ import threading
 import time
 
 import pygame
-
+import os
 
 class BuggyJoystick(threading.Thread):
     exit_flag = False  # when True, the thread is stopped
@@ -20,6 +20,7 @@ class BuggyJoystick(threading.Thread):
                  axis_active_fn=None, axis_inactive_fn=None,
                  dpad_active_fn=None, dpad_inactive_fn=None):
         # initialize pygame
+        os.environ["SDL_VIDEODRIVER"] = "dummy"  # prevent pygame from launching a window
         pygame.init()
         pygame.joystick.init()
 

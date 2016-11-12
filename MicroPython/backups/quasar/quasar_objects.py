@@ -90,13 +90,13 @@ class IMU(Sensor):
 
 
 class StepperCommand(Command):
-    def __init__(self, command_id, pins, delimiter_pin):
+    def __init__(self, command_id):
         super().__init__(command_id, 'i16')
 
-        self.delimiter_pin = pyb.Pin(delimiter_pin, pyb.Pin.IN)
+        self.delimiter_pin = pyb.Pin("Y11", pyb.Pin.IN)
 
-        self.stepper = Stepper(200, *pins)
-        self.stepper.set_speed(35)
+        self.stepper = Stepper(200, "Y3", "Y4", "Y5", "Y6")
+        self.stepper.set_speed(25)
 
         self.calibrate()
 
@@ -107,7 +107,7 @@ class StepperCommand(Command):
         print("calibrating stepper")
         print(self.delimiter_pin.value())
         while not self.delimiter_pin.value():
-            self.stepper.step(-20)
+            self.stepper.step(20)
             print(self.delimiter_pin.value())
 
         self.stepper.step(100)  # center steering
