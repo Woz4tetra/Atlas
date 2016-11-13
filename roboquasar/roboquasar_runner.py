@@ -33,9 +33,9 @@ class RoboQuasarRunner(RoboQuasarBot):
     def main(self):
         value = self.joystick.get_axis("left x")
         if abs(value) > 0:
-            self.stepper.set(int(-value * 7))
+            self.stepper.set(int(-value * 4))
             self.blue_led.set(int(abs(value * 255)))
-        time.sleep(0.07)
+        time.sleep(0.04)
 
 
 log_data = True

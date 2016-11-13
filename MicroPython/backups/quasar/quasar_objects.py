@@ -53,6 +53,7 @@ class IMU(Sensor):
                                   ['f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'])
 #                                  + ['u8'] * 11)
         self.bus = bus
+        print("IMU bus:", self.bus)
         self.bno = BNO055(self.bus, reset_pin)
 
         self.new_data = False
@@ -93,7 +94,7 @@ class StepperCommand(Command):
     def __init__(self, command_id):
         super().__init__(command_id, 'i16')
 
-        self.delimiter_pin = pyb.Pin("Y11", pyb.Pin.IN)
+        self.delimiter_pin = pyb.Pin("Y2", pyb.Pin.IN, pyb.Pin.PULL_UP)
 
         self.stepper = Stepper(200, "Y3", "Y4", "Y5", "Y6")
         self.stepper.set_speed(25)
@@ -106,12 +107,13 @@ class StepperCommand(Command):
     def calibrate(self):
         print("calibrating stepper")
         print(self.delimiter_pin.value())
-        while not self.delimiter_pin.value():
+        while self.delimiter_pin.value():
             self.stepper.step(20)
             print(self.delimiter_pin.value())
 
         self.stepper.step(100)  # center steering
         print("calibrated!")
+        # print("Skipping calibration")
 
     def reset(self):
         # recalibrate with delimiter

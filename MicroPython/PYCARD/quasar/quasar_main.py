@@ -30,7 +30,7 @@ stepper = StepperCommand(4)
 setting_up_sensors()
 
 gps = GPS(1, uart_bus=2, timer_num=4)
-imu = IMU(2, bus=1, reset_pin="X7", timer_num=11)
+imu = IMU(2, bus=2, reset_pin="X7", timer_num=11)
 
 communicator = Communicator(*leds, blue_led, stepper, uart_bus=4)
 
