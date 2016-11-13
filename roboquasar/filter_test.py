@@ -5,7 +5,7 @@ from autobuggy import project
 
 from autobuggy.simulator import Simulator
 from autobuggy.microcontroller.logger import get_map
-from autobuggy.filters.kalman_filter import GrovesKalmanFilter
+from autobuggy.filters.kalman_filter import GrovesKalmanFilter, get_gps_orientation
 from roboquasar_constants import constants
 
 
@@ -18,14 +18,28 @@ class FilterTest(Simulator):
         super(FilterTest, self).__init__(
             file_name, directory, 1, plot_info
         )
-
+        
+        first_gps = self.parser.get(5, "gps")[-1]
+        second_gps = self.parser.get(50, "gps")[-1]
+        
+        lat1, long1, alt1 = first_gps["lat"], first_gps["long"], first_gps["altitude"] 
+        lat2, long2, alt2 = second_gps["lat"], second_gps["long"], second_gps["altitude"]
+        
+        print(lat1, long1, alt1)
+        print(lat2, long2, alt2)
+        
+        initial_yaw, initial_pitch, initial_roll = \
+            get_gps_orientation(lat1, long1, alt1,
+                                lat2, long2, alt2)
+        
+        print(np.array([initial_yaw, initial_pitch, initial_roll]) * 180 / np.pi)
         self.filter = GrovesKalmanFilter(
-            initial_roll_ecef=0,
-            initial_pitch_ecef=0,
-            initial_yaw_ecef=math.pi / 2,
-            initial_lat=40.44057846069336,
-            initial_long=-79.94245147705078,
-            initial_alt=302.79998779296875,  # geoid: -33.0
+            initial_roll_ecef=initial_roll,
+            initial_pitch_ecef=initial_pitch,
+            initial_yaw_ecef=initial_yaw,
+            initial_lat=lat1,
+            initial_long=long1,
+            initial_alt=alt1,
             **constants)
 
         first_gps_reading = self.parser.get(0, 'gps')[-1]
@@ -89,6 +103,12 @@ class FilterTest(Simulator):
         lat, long, height = self.filter.get_position()
         self.plot_data["calculated_filter_plot"][0].append(long)
         self.plot_data["calculated_filter_plot"][1].append(lat)
+        
+        yaw, pitch, roll = self.filter.get_orientation()
+        
+        if self.plot_enabled["calculated_filter_heading_plot"]:
+            
+            self.angled_line_segment("calculated_filter_heading_plot", long, lat, yaw, 0.5)
 
 
 def parse_arguments():
@@ -112,9 +132,10 @@ def run():
 
     plotter = FilterTest(
         file_name, directory,
-        imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
+#        imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='red', label="GPS"),
         calculated_filter_plot=dict(color='fuchsia', label="filter"),
+        calculated_filter_heading_plot=dict(color='purple', line_segments=True, line_seg_freq=50),
         checkpoints_plot=dict(color='green', label="checkpoints",
                               log_based_plot=False),
         course_map_plot=dict(color='blue', label="map",

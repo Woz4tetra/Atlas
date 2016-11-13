@@ -3,14 +3,13 @@ from numpy import linalg
 import math
 import navpy
 
-np.set_printoptions(precision=4)
+#np.set_printoptions(precision=4)
 
 earth_radius = 6378137  # WGS84 Equatorial radius in meters
 earth_rotation_rate = 7.292115E-5  # rad/s
 eccentricity = 0.0818191908425  # WGS84 eccentricity
 earth_gravity_constant = 3.986004418E14
 J_2 = 1.082627E-3
-speed_of_light = 299792458
 
 
 class GrovesKalmanFilter:
@@ -67,6 +66,9 @@ class GrovesKalmanFilter:
     def get_position(self):
         return navpy.ecef2lla(
             np.array(self.frame_properties.estimated_position.T)[0])
+            
+    def get_orientation(self):
+        return navpy.dcm2angle(self.frame_properties.estimated_attitude)  # yaw, pitch, roll
 
 
 class StaticProperties:
@@ -122,9 +124,6 @@ class CoordinateFrame:
     def __init__(self, static_properties):
         self.static_properties = static_properties
 
-        # prev gps variables
-        self.prev_gps_position_ecef = np.matrix(np.zeros((3, 1)))
-
         self.lat_ref = self.static_properties.initial_lat
         self.long_ref = self.static_properties.initial_long
         self.alt_ref = self.static_properties.initial_alt
@@ -133,6 +132,10 @@ class CoordinateFrame:
 
         # in NED, starting point is relative
         self.estimated_position = np.matrix(navpy.lla2ecef(
+            self.lat_ref, self.long_ref, self.alt_ref)).T
+        
+        # prev gps variables
+        self.prev_gps_position_ecef = np.matrix(navpy.lla2ecef(
             self.lat_ref, self.long_ref, self.alt_ref)).T
 
         self.estimated_velocity = self.ned_to_ecef(
@@ -258,9 +261,11 @@ class INS:
         )
 
         # Transform specific force to ECEF-frame resolving axes
+        # TODO: average_attitude -> transform
         accel_meas_ecef = average_attitude * self.accel_measurement
 
         # update velocity
+        # TODO: prev_est_p -> prev_est_r
         prev_est_p = self.frame_properties.estimated_position
         prev_est_v = self.frame_properties.estimated_velocity
 
@@ -271,7 +276,7 @@ class INS:
         # update cartesian position
         estimated_position = \
             prev_est_p + (estimated_velocity + prev_est_v) * 0.5 * dt
-
+        
         return estimated_position, estimated_velocity, estimated_attitude
 
 
@@ -293,6 +298,7 @@ class Epoch:
         self.measurement_model_H = None
         self.noise_covariance_R = None
         self.kalman_gain_K = None
+        # TODO: measurement_innovation_Z -> delta_z
         self.measurement_innovation_Z = np.matrix(np.zeros((6, 1)))
 
     def init_P(self):
@@ -469,9 +475,9 @@ class Epoch:
         estimated_attitude = ((np.matrix(
             np.eye(3)) - skew_symmetric(self.estimated_state_prop_x[0:3])) *
                               estimated_attitude)
-        estimated_velocity = estimated_velocity - self.estimated_state_prop_x[3:6]
-        estimated_position = estimated_position - self.estimated_state_prop_x[6:9]
-        estimated_imu_biases = estimated_imu_biases - self.estimated_state_prop_x[9:15]
+        estimated_velocity -= self.estimated_state_prop_x[3:6]
+        estimated_position -= self.estimated_state_prop_x[6:9]
+        estimated_imu_biases += self.estimated_state_prop_x[9:15]
 
         return estimated_position, estimated_velocity, estimated_attitude, \
                estimated_imu_biases
@@ -565,6 +571,17 @@ def vector_to_list(vector, is_column_vector=True):
     else:
         return vector.T.tolist()[0]
 
+def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2):
+        pos1 = navpy.lla2ecef(lat1, long1, alt1)
+        pos2 = navpy.lla2ecef(lat2, long2, alt2)
+        
+        delta_pos = pos2 - pos1
+        
+        yaw = math.atan2(delta_pos[1], delta_pos[0])
+        pitch = math.atan2(delta_pos[2] * math.cos(yaw), delta_pos[0])
+        roll = math.atan2(math.cos(yaw), math.sin(yaw) * math.sin(pitch))
+        
+        return yaw, pitch, roll
 
 if __name__ == '__main__':
     def almost_equal(float1, float2, epsilon=0.001):
