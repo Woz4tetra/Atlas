@@ -469,9 +469,12 @@ class Epoch:
         estimated_attitude = ((np.matrix(
             np.eye(3)) - skew_symmetric(self.estimated_state_prop_x[0:3])) *
                               estimated_attitude)
-        estimated_velocity = estimated_velocity - self.estimated_state_prop_x[3:6]
-        estimated_position = estimated_position - self.estimated_state_prop_x[6:9]
-        estimated_imu_biases = estimated_imu_biases - self.estimated_state_prop_x[9:15]
+        estimated_velocity = estimated_velocity - self.estimated_state_prop_x[
+                                                  3:6]
+        estimated_position = estimated_position - self.estimated_state_prop_x[
+                                                  6:9]
+        estimated_imu_biases = estimated_imu_biases - self.estimated_state_prop_x[
+                                                      9:15]
 
         return estimated_position, estimated_velocity, estimated_attitude, \
                estimated_imu_biases
