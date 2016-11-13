@@ -26,7 +26,7 @@ log_directory = ":logs"
 pickle_directory = ":pickled"
 
 log_folder_format = '%b %d %Y'
-log_file_format = '%H;%M;%S, %a %b %m %Y'
+log_file_format = '%H;%M;%S, %a %b %d %Y'
 
 def todays_log_folder():
     """Generate a log folder name based on the current date"""

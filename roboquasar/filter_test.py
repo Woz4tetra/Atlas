@@ -9,13 +9,13 @@ from autobuggy.filters.kalman_filter import GrovesKalmanFilter
 from roboquasar_constants import constants
 
 
-class DataVisualizer(Simulator):
+class FilterTest(Simulator):
     def __init__(self, file_name, directory, **plot_info):
         project.set_project_dir("roboquasar")
         self.checkpoints = get_map("buggy course checkpoints.gpx")
         self.course_map = get_map("buggy course map.gpx")
 
-        super(DataVisualizer, self).__init__(
+        super(FilterTest, self).__init__(
             file_name, directory, 1, plot_info
         )
 
@@ -76,13 +76,14 @@ class DataVisualizer(Simulator):
             self.prev_lat = values["lat"]
             self.prev_long = values["long"]
 
-            self.filter.gps_updated(
-                timestamp - self.prev_gps_t,
-                values["lat"], values["long"], values["altitude"]
-            )
-            self.prev_gps_t = timestamp
+            if self.plot_enabled["calculated_filter_plot"]:
+                self.filter.gps_updated(
+                    timestamp - self.prev_gps_t,
+                    values["lat"], values["long"], values["altitude"]
+                )
+                self.prev_gps_t = timestamp
 
-            self.record_position()
+                self.record_position()
 
     def record_position(self):
         lat, long, height = self.filter.get_position()
@@ -91,20 +92,13 @@ class DataVisualizer(Simulator):
 
 
 def parse_arguments():
+    file_name = -1
+    directory = -1
+
     if len(sys.argv) == 2:
         file_name = sys.argv[1]
-        directory = None
     elif len(sys.argv) == 3:
         file_name, directory = sys.argv[1:]
-    elif len(sys.argv) == 4:
-        file_name, directory, map_name = sys.argv[1:]
-        map_dir = ":gpx"
-    elif len(sys.argv) == 5:
-        file_name, directory, map_name, map_dir = sys.argv[1:]
-
-    else:
-        file_name = -1
-        directory = -1
 
     try:
         file_name = int(file_name)
@@ -113,11 +107,10 @@ def parse_arguments():
 
     return file_name, directory
 
-
 def run():
     file_name, directory = parse_arguments()
 
-    plotter = DataVisualizer(
+    plotter = FilterTest(
         file_name, directory,
         imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='red', label="GPS"),
