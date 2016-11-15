@@ -3,9 +3,6 @@
 #include <LIDARLite.h>
 #include <SoftwareSerial.h>
 
-
-// #define DEBUG_LIDAR_TURRET
-
 class Lidar {
 public:
     Lidar();
@@ -35,7 +32,10 @@ public:
     int salmon[3];
 private:
     bool _encoderLow;
-    SoftwareSerial *_softSerial;
+    #ifdef USE_SOFTSERIAL
+    SoftwareSerial *_serial;
+    #endif
+
     LIDARLite *_lidarLite;
 
     int _encoderCounts;

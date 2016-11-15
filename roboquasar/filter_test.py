@@ -34,9 +34,9 @@ class FilterTest(Simulator):
         
         print(np.array([initial_yaw, initial_pitch, initial_roll]) * 180 / np.pi)
         self.filter = GrovesKalmanFilter(
-            initial_roll_ecef=initial_roll,
-            initial_pitch_ecef=initial_pitch,
-            initial_yaw_ecef=initial_yaw,
+            initial_roll=initial_roll,
+            initial_pitch=initial_pitch,
+            initial_yaw=initial_yaw,
             initial_lat=lat1,
             initial_long=long1,
             initial_alt=alt1,

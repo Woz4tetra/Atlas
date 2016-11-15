@@ -3,7 +3,7 @@ from numpy import linalg
 import math
 import navpy
 
-#np.set_printoptions(precision=4)
+np.set_printoptions(precision=4)
 
 earth_radius = 6378137  # WGS84 Equatorial radius in meters
 earth_rotation_rate = 7.292115E-5  # rad/s
@@ -13,74 +13,53 @@ J_2 = 1.082627E-3
 
 
 class GrovesKalmanFilter:
-    def __init__(self, initial_roll_ecef, initial_pitch_ecef, initial_yaw_ecef,
-                 roll_error, pitch_error, yaw_error,
-                 initial_lat, initial_long, initial_alt,
-                 initial_v_north, initial_v_east, initial_v_down,
+    def __init__(self, **kf_properties):
+        self.properties = KalmanProperties(**kf_properties)
 
-                 initial_attitude_unc, initial_velocity_unc,
-                 initial_position_unc, initial_accel_bias_unc,
-                 initial_gyro_bias_unc, initial_clock_offset_unc,
-                 initial_clock_drift_unc,
-
-                 gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD,
-                 pos_meas_SD, vel_meas_SD):
-        self.static_properties = StaticProperties(
-            initial_roll_ecef, initial_pitch_ecef, initial_yaw_ecef,
-            roll_error, pitch_error, yaw_error,
-            initial_lat, initial_long, initial_alt,
-            initial_v_north, initial_v_east, initial_v_down,
-
-            initial_attitude_unc, initial_velocity_unc,
-            initial_position_unc, initial_accel_bias_unc,
-            initial_gyro_bias_unc, initial_clock_offset_unc,
-            initial_clock_drift_unc,
-
-            gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD,
-            pos_meas_SD, vel_meas_SD
-        )
-
-        self.frame_properties = CoordinateFrame(self.static_properties)
-        print(self.get_position())
-
-        self.ins = INS(self.frame_properties)
-        self.epoch = Epoch(self.static_properties, self.frame_properties)
+        self.ins = INS(self.properties)
+        self.epoch = Epoch(self.properties)
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
-        # print("imu before:", self.get_position())
-        self.frame_properties.state_updated(self.ins.update(
-            imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T))
-        # print("imu after:", self.get_position())
+        print("imu before:", self.get_orientation())
+        self.properties.estimated_position, \
+        self.properties.estimated_velocity, \
+        self.properties.estimated_attitude = self.ins.update(
+            imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
+            self.properties.estimated_imu_biases
+        )
+        print("imu after:", self.get_orientation())
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        # print("gps before:", self.get_position())
+        print("gps before:", self.get_orientation())
         gps_position_ecef, gps_velocity_ecef = \
-            self.frame_properties.get_gps_ecef(gps_dt, lat, long, altitude)
+            self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
-        self.frame_properties.state_updated(self.epoch.update(
+        self.properties.estimated_position, \
+        self.properties.estimated_velocity, \
+        self.properties.estimated_attitude, \
+        self.properties.estimated_imu_biases = self.epoch.update(
             gps_dt, gps_position_ecef, gps_velocity_ecef,
             self.ins.accel_measurement
-        ))
-        # print("gps after:", self.get_position())
+        )
+        print("gps after:", self.get_orientation())
 
     def get_position(self):
         return navpy.ecef2lla(
-            np.array(self.frame_properties.estimated_position.T)[0])
-            
+            np.array(self.properties.estimated_position.T)[0])
+
     def get_orientation(self):
-        return navpy.dcm2angle(self.frame_properties.estimated_attitude)  # yaw, pitch, roll
+        return navpy.dcm2angle(
+            self.properties.estimated_attitude)  # yaw, pitch, roll
 
 
-class StaticProperties:
+class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
-                 roll_error, pitch_error, yaw_error,
                  initial_lat, initial_long, initial_alt,
                  initial_v_north, initial_v_east, initial_v_down,
 
                  initial_attitude_unc, initial_velocity_unc,
                  initial_position_unc, initial_accel_bias_unc,
-                 initial_gyro_bias_unc, initial_clock_offset_unc,
-                 initial_clock_drift_unc,
+                 initial_gyro_bias_unc,
 
                  gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD,
                  pos_meas_SD, vel_meas_SD):
@@ -94,10 +73,6 @@ class StaticProperties:
         self.initial_roll = initial_roll  # Column 8
         self.initial_pitch = initial_pitch  # Column 9
         self.initial_yaw = initial_yaw  # Column 10
-
-        # initialization_errors.delta_eul_nb_n
-        self.initial_imu_errors = np.matrix(
-            [roll_error, pitch_error, yaw_error])
 
         # properties of LC_KF_config
         self.uncertainty_values = dict(
@@ -115,41 +90,33 @@ class StaticProperties:
             vel_meas_SD=vel_meas_SD,
         )
 
-        # GNSS_config
-        self.initial_clock_offset_unc = initial_clock_offset_unc  # rx_clock_offset
-        self.initial_clock_drift_unc = initial_clock_drift_unc  # rx_clock_drift
-
-
-class CoordinateFrame:
-    def __init__(self, static_properties):
-        self.static_properties = static_properties
-
-        self.lat_ref = self.static_properties.initial_lat
-        self.long_ref = self.static_properties.initial_long
-        self.alt_ref = self.static_properties.initial_alt
+        self.lat_ref = self.initial_lat
+        self.long_ref = self.initial_long
+        self.alt_ref = self.initial_alt
 
         # Outputs of the Kalman filter
 
-        # in NED, starting point is relative
         self.estimated_position = np.matrix(navpy.lla2ecef(
             self.lat_ref, self.long_ref, self.alt_ref)).T
-        
+
         # prev gps variables
         self.prev_gps_position_ecef = np.matrix(navpy.lla2ecef(
             self.lat_ref, self.long_ref, self.alt_ref)).T
 
         self.estimated_velocity = self.ned_to_ecef(
-            self.static_properties.initial_v_north,
-            self.static_properties.initial_v_east,
-            self.static_properties.initial_v_down
+            self.initial_v_north,
+            self.initial_v_east,
+            self.initial_v_down
         )  # initial velocity should be given in meters with respect to your NED
 
         # old_est_C_b_e in Loosely_coupled_INS_GNSS (line 166)
         self.estimated_attitude = navpy.angle2dcm(
-            self.static_properties.initial_yaw,
-            self.static_properties.initial_pitch,
-            self.static_properties.initial_roll,
+            self.initial_yaw,
+            self.initial_pitch,
+            self.initial_roll,
         )
+
+        self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 
     def ned_to_ecef(self, north, east, down):
         return np.matrix(navpy.ned2ecef(
@@ -159,7 +126,7 @@ class CoordinateFrame:
     def lla_to_ecef(self, lat, long, alt):
         return np.matrix(navpy.lla2ecef(lat, long, alt)).T
 
-    def gps_v_ecef(self, gps_dt, lat, long, alt):
+    def gps_velocity_ecef(self, gps_dt, lat, long, alt):
         ecef_position = self.lla_to_ecef(lat, long, alt)
         ecef_velocity = (ecef_position - self.prev_gps_position_ecef) / gps_dt
         self.prev_gps_position_ecef = ecef_position
@@ -169,23 +136,19 @@ class CoordinateFrame:
     def get_gps_ecef(self, gps_dt, lat, long, altitude):
         # convert lat, long, altitude to position and velocity in ECEF
         gps_position_ecef = self.lla_to_ecef(lat, long, altitude)
-        gps_velocity_ecef = self.gps_v_ecef(gps_dt, lat, long, altitude)
+        gps_velocity_ecef = self.gps_velocity_ecef(gps_dt, lat, long, altitude)
 
         return gps_position_ecef, gps_velocity_ecef
 
-    def state_updated(self, state):
-        self.estimated_position = state[0]
-        self.estimated_velocity = state[1]
-        self.estimated_attitude = state[2]
-
 
 class INS:
-    def __init__(self, frame_properties):
-        self.frame_properties = frame_properties
+    def __init__(self, properties: KalmanProperties):
+        self.properties = properties
 
         self.accel_measurement = np.matrix(np.zeros((3, 1)))
+        self.gyro_measurement = np.matrix(np.zeros((3, 1)))
 
-    def get_earth_rotation_matrix(self, dt):
+    def get_earth_rotation_matrix(self, dt: float):
         earth_rotation_amount = earth_rotation_rate * dt
         earth_rotation_matrix = np.matrix(
             [[np.cos(earth_rotation_amount), np.sin(earth_rotation_amount), 0],
@@ -208,31 +171,29 @@ class INS:
     def get_estimated_attitude(self, mag_angle_change, skew_gyro_body,
                                earth_rotation_matrix, estimated_attitude):
         if mag_angle_change > 1E-8:
-            C_new_old = (
-                ((np.eye(3) + np.sin(mag_angle_change) / mag_angle_change) * (
-                    skew_gyro_body)) +
-                (((1 - np.cos(
-                    mag_angle_change)) / mag_angle_change ** 2 * skew_gyro_body) * (
-                     skew_gyro_body)))
+            C_new_old = (np.matrix(np.eye(3)) + np.sin(mag_angle_change) /
+                         mag_angle_change * skew_gyro_body +
+                         (1 - np.cos(mag_angle_change)) /
+                         mag_angle_change ** 2 *
+                         skew_gyro_body * skew_gyro_body)
         else:
-            C_new_old = np.eye(3) + skew_gyro_body
+            C_new_old = np.matrix(np.eye(3)) + skew_gyro_body
 
-        return earth_rotation_matrix * (estimated_attitude * C_new_old)
+        # check the order of operations here
+        return (earth_rotation_matrix * estimated_attitude) * C_new_old
 
     def get_average_attitude(self, mag_angle_change, estimated_attitude,
                              skew_gyro_body, earth_rotation_amount):
         if mag_angle_change > 1E-8:
             average_attitude = (
-                estimated_attitude * (
-                    np.matrix(np.eye(3)) + (
-                        1 - np.cos(mag_angle_change)) / mag_angle_change ** 2
-                    * skew_gyro_body + (
-                        1 - np.sin(
-                            mag_angle_change) / mag_angle_change) / mag_angle_change ** 2
-                    * skew_gyro_body * skew_gyro_body) -
-                0.5 * skew_symmetric(
-                    np.matrix([0, 0, earth_rotation_amount]).T) *
-                estimated_attitude)
+                (estimated_attitude *
+                 (np.matrix(np.eye(3)) + (1 - np.cos(mag_angle_change)) /
+                  mag_angle_change ** 2 * skew_gyro_body +
+                  (1 - np.sin(mag_angle_change) / mag_angle_change) /
+                  mag_angle_change ** 2 * skew_gyro_body * skew_gyro_body) -
+                 0.5 * skew_symmetric(
+                     np.matrix([0, 0, earth_rotation_amount]).T) *
+                 estimated_attitude))
         else:
             average_attitude = \
                 (estimated_attitude - 0.5 * skew_symmetric(
@@ -241,33 +202,36 @@ class INS:
 
         return average_attitude
 
-    def update(self, dt, accel_measurement, gyro_measurement):
-        self.accel_measurement = accel_measurement
+    def update(self, dt, accel_measurement: np.matrix,
+               gyro_measurement: np.matrix,
+               estimated_imu_biases: np.matrix) -> (
+            np.matrix, np.matrix, np.matrix):
+        self.accel_measurement = accel_measurement - estimated_imu_biases[0:3]
+        self.gyro_measurement = gyro_measurement - estimated_imu_biases[3:6]
+
         # Nav_equations_ECEF function
 
         # this section is attitude update
         earth_rotation_amount, earth_rotation_matrix = \
             self.get_earth_rotation_matrix(dt)
         mag_angle_change, skew_gyro_body = \
-            self.get_gyro_skew_matrix(dt, gyro_measurement)
+            self.get_gyro_skew_matrix(dt, self.gyro_measurement)
         estimated_attitude = \
             self.get_estimated_attitude(
                 mag_angle_change, skew_gyro_body, earth_rotation_matrix,
-                self.frame_properties.estimated_attitude
+                self.properties.estimated_attitude
             )
-        average_attitude = self.get_average_attitude(
+        average_attitude_transform = self.get_average_attitude(
             mag_angle_change, estimated_attitude, skew_gyro_body,
             earth_rotation_amount
         )
 
         # Transform specific force to ECEF-frame resolving axes
-        # TODO: average_attitude -> transform
-        accel_meas_ecef = average_attitude * self.accel_measurement
+        accel_meas_ecef = average_attitude_transform * self.accel_measurement
 
         # update velocity
-        # TODO: prev_est_p -> prev_est_r
-        prev_est_p = self.frame_properties.estimated_position
-        prev_est_v = self.frame_properties.estimated_velocity
+        prev_est_r = self.properties.estimated_position
+        prev_est_v = self.properties.estimated_velocity
 
         estimated_velocity = \
             prev_est_v + dt * (
@@ -275,22 +239,20 @@ class INS:
                     np.matrix([0, 0, earth_rotation_rate]).T) * prev_est_v)
         # update cartesian position
         estimated_position = \
-            prev_est_p + (estimated_velocity + prev_est_v) * 0.5 * dt
-        
+            prev_est_r + (estimated_velocity + prev_est_v) * 0.5 * dt
+
         return estimated_position, estimated_velocity, estimated_attitude
 
 
 class Epoch:
-    def __init__(self, static_properties, frame_properties):
-        self.static_properties = static_properties
-        self.frame_properties = frame_properties
+    def __init__(self, properties: KalmanProperties):
+        self.properties = properties
 
         self.skew_earth_rotation = skew_symmetric(
             np.matrix([0, 0, earth_rotation_rate]).T)
 
         # P_matrix & est_IMU_bias in Loosely_coupled_INS_GNSS (line 192)
         self.error_covariance_P = self.init_P()
-        self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
         self.state_transition_Phi = None  # Phi_matrix
 
         self.error_covariance_propagated_P = None
@@ -298,79 +260,75 @@ class Epoch:
         self.measurement_model_H = None
         self.noise_covariance_R = None
         self.kalman_gain_K = None
-        # TODO: measurement_innovation_Z -> delta_z
-        self.measurement_innovation_Z = np.matrix(np.zeros((6, 1)))
+        self.measurement_innovation_delta_Z = np.matrix(np.zeros((6, 1)))
 
     def init_P(self):
         error_covariance_P = np.matrix(np.zeros((15, 15)))
 
         I_3 = np.matrix(np.eye(3))
         error_covariance_P[0:3, 0:3] = \
-            I_3 * self.static_properties.uncertainty_values["attitude"] ** 2
+            I_3 * self.properties.uncertainty_values["attitude"] ** 2
         error_covariance_P[3:6, 3:6] = \
-            I_3 * self.static_properties.uncertainty_values["velocity"] ** 2
+            I_3 * self.properties.uncertainty_values["velocity"] ** 2
         error_covariance_P[6:9, 6:9] = \
-            I_3 * self.static_properties.uncertainty_values["position"] ** 2
+            I_3 * self.properties.uncertainty_values["position"] ** 2
         error_covariance_P[9:12, 9:12] = \
-            I_3 * self.static_properties.uncertainty_values["accel_bias"] ** 2
+            I_3 * self.properties.uncertainty_values["accel_bias"] ** 2
         error_covariance_P[12:15, 12:15] = \
-            I_3 * self.static_properties.uncertainty_values["gyro_bias"] ** 2
-        # error_covariance_P[15, 15] = \
-        #     self.static_properties.initial_clock_offset_unc ** 2
-        # error_covariance_P[16, 16] = \
-        #     self.static_properties.initial_clock_drift_unc ** 2
+            I_3 * self.properties.uncertainty_values["gyro_bias"] ** 2
 
         return error_covariance_P
 
-    def update(self, dt, gps_position_ecef, gps_velocity_ecef,
-               accel_measurement):
+    def update(self, dt: float, gps_position_ecef: np.matrix,
+               gps_velocity_ecef: np.matrix,
+               accel_measurement: np.matrix) -> (
+            np.matrix, np.matrix, np.matrix, np.matrix):
         self.determine_transition_matrix(dt, accel_measurement)  # step 1
         self.determine_noise_covariance(
-            dt, self.static_properties.uncertainty_values["gyro_noise_PSD"],
-            self.static_properties.uncertainty_values["accel_noise_PSD"],
-            self.static_properties.uncertainty_values["accel_bias_PSD"],
-            self.static_properties.uncertainty_values["gyro_bias_PSD"]
+            dt, self.properties.uncertainty_values["gyro_noise_PSD"],
+            self.properties.uncertainty_values["accel_noise_PSD"],
+            self.properties.uncertainty_values["accel_bias_PSD"],
+            self.properties.uncertainty_values["gyro_bias_PSD"]
         )  # step 2
         self.set_propagated_state_est()  # step 3
         self.set_propagated_error_est()  # step 4
-        self.setup_measurement_matrix()  # step 5
+        self.setup_measurement_model_matrix()  # step 5
 
         self.setup_noise_covariance_matrix(
-            self.static_properties.uncertainty_values["pos_meas_SD"],
-            self.static_properties.uncertainty_values["vel_meas_SD"],
+            self.properties.uncertainty_values["pos_meas_SD"],
+            self.properties.uncertainty_values["vel_meas_SD"],
         )  # step 6
         self.calc_kalman_gain()  # step 7
         self.formulate_measurement_innovations(
             gps_position_ecef, gps_velocity_ecef,
-            self.frame_properties.estimated_position,
-            self.frame_properties.estimated_velocity
+            self.properties.estimated_position,
+            self.properties.estimated_velocity
         )  # step 8
         self.update_state_estimates()  # step 9
         self.update_covariance_matrix()  # step 10
 
-        estimated_position, estimated_velocity, estimated_attitude, estimated_imu_biases = \
-            self.correct_estimates(
-                self.frame_properties.estimated_attitude,
-                self.frame_properties.estimated_position,
-                self.frame_properties.estimated_velocity,
-                self.estimated_imu_biases,
+        return self.correct_estimates(
+                self.properties.estimated_attitude,
+                self.properties.estimated_position,
+                self.properties.estimated_velocity,
+                self.properties.estimated_imu_biases,
             )
-        return estimated_position, estimated_velocity, estimated_attitude
 
     def determine_transition_matrix(self, dt, accel_measurement):
         # step 1
-        est_p = self.frame_properties.estimated_position
-        to_ecef = self.frame_properties.estimated_attitude
+        estimated_r = self.properties.estimated_position
+        est_body_ecef_trans = self.properties.estimated_attitude
 
         estimated_lat = \
-            navpy.ecef2lla(vector_to_list(est_p), latlon_unit='rad')[0]
+            navpy.ecef2lla(vector_to_list(estimated_r), latlon_unit='rad')[0]
 
         self.state_transition_Phi = np.matrix(np.eye(15))
 
         self.state_transition_Phi[0:3, 0:3] -= self.skew_earth_rotation * dt
-        self.state_transition_Phi[0:3, 12:15] = to_ecef * dt
+        self.state_transition_Phi[0:3, 12:15] = est_body_ecef_trans * dt
         self.state_transition_Phi[3:6, 0:3] = \
-            -dt * skew_symmetric(to_ecef * accel_measurement)
+            -dt * skew_symmetric(
+                est_body_ecef_trans * accel_measurement)
 
         self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt
 
@@ -383,10 +341,10 @@ class Epoch:
 
         self.state_transition_Phi[3:6, 6:9] = \
             (-dt * 2 * gravity_ecef(
-                est_p) / geocentric_radius * est_p.T / np.sqrt(
-                unit_to_scalar(est_p.T * est_p)))
+                estimated_r) / geocentric_radius * estimated_r.T / np.sqrt(
+                unit_to_scalar(estimated_r.T * estimated_r)))
 
-        self.state_transition_Phi[3:6, 9:12] = est_p * dt
+        self.state_transition_Phi[3:6, 9:12] = est_body_ecef_trans * dt
 
         self.state_transition_Phi[6:9, 3:6] = np.matrix(np.eye(3)) * dt
 
@@ -418,7 +376,7 @@ class Epoch:
         #     self.approx_noise_covariance_Q
         # )
 
-    def setup_measurement_matrix(self):
+    def setup_measurement_model_matrix(self):
         # step 5
         # H_matrix in the matlab code
         self.measurement_model_H = np.matrix(np.zeros((6, 15)))
@@ -452,16 +410,16 @@ class Epoch:
                                           estimated_velocity):
         # step 8
         # assuming zero lever arm
-        self.measurement_innovation_Z[0:3] = \
+        self.measurement_innovation_delta_Z[0:3] = \
             gps_position_ecef - estimated_position
-        self.measurement_innovation_Z[3:6] = \
+        self.measurement_innovation_delta_Z[3:6] = \
             gps_velocity_ecef - estimated_velocity
 
     def update_state_estimates(self):
         # step 9
         # x_est_propagated in the matlab code
         self.estimated_state_prop_x += self.kalman_gain_K * \
-                                       self.measurement_innovation_Z
+                                       self.measurement_innovation_delta_Z
 
     def update_covariance_matrix(self):
         # step 10
@@ -472,9 +430,9 @@ class Epoch:
 
     def correct_estimates(self, estimated_attitude, estimated_position,
                           estimated_velocity, estimated_imu_biases):
-        estimated_attitude = ((np.matrix(
-            np.eye(3)) - skew_symmetric(self.estimated_state_prop_x[0:3])) *
-                              estimated_attitude)
+        estimated_attitude = np.matrix(
+            np.eye(3)) - skew_symmetric(
+            self.estimated_state_prop_x[0:3]) * estimated_attitude
         estimated_velocity -= self.estimated_state_prop_x[3:6]
         estimated_position -= self.estimated_state_prop_x[6:9]
         estimated_imu_biases += self.estimated_state_prop_x[9:15]
@@ -490,46 +448,6 @@ def skew_symmetric(m):
     return np.matrix([[0, -m[2], m[2]],
                       [m[2], 0, -m[0]],
                       [-m[1], m[0], 0]])
-
-
-def euler_to_ctm(orientation):
-    """
-    Purpose
-    ----------
-    Converts a set of Euler angles to the corresponding coordinate transformation matrix
-
-    Parameters
-    ----------
-    orientation: Euler angles describing the rotation from beta to alpha in the order (roll, pitch, yaw)
-
-    Returns
-    ----------
-    C: coordinate transformation matrix describing transformation from beta to alpha
-
-    """
-    roll, pitch, yaw = vector_to_list(orientation)
-
-    # precalculate sines and cosines of the Euler angles
-    sin_phi = np.sin(roll)
-    cos_phi = np.cos(roll)
-    sin_theta = np.sin(pitch)
-    cos_theta = np.cos(pitch)
-    sin_psi = np.sin(yaw)
-    cos_psi = np.cos(yaw)
-
-    # calculate transformation matrix
-    C = np.matrix(np.zeros((3, 3)))
-    C[0, 0] = cos_theta * cos_psi
-    C[0, 1] = cos_theta * sin_psi
-    C[0, 2] = -sin_theta
-    C[1, 0] = -cos_phi * sin_psi + sin_phi * sin_theta * cos_psi
-    C[1, 1] = cos_phi * cos_psi + sin_phi * sin_theta * sin_psi
-    C[1, 2] = sin_phi * cos_theta
-    C[2, 0] = sin_phi * sin_psi + cos_phi * sin_theta * cos_psi
-    C[2, 1] = -sin_phi * cos_psi + cos_phi * sin_theta * sin_psi
-    C[2, 2] = cos_phi * cos_theta
-
-    return C
 
 
 def gravity_ecef(ecef_vector):
@@ -554,8 +472,7 @@ def gravity_ecef(ecef_vector):
         g = np.matrix([unit_to_scalar(
             gamma[0]) + earth_rotation_rate ** 2 * unit_to_scalar(
             ecef_vector[0]),
-                       unit_to_scalar(gamma[
-                                          1]) + earth_rotation_rate ** 2 * unit_to_scalar(
+                       unit_to_scalar(gamma[1]) + earth_rotation_rate ** 2 * unit_to_scalar(
                            ecef_vector[1]),
                        unit_to_scalar(gamma[2])]).T
         return g
@@ -571,17 +488,19 @@ def vector_to_list(vector, is_column_vector=True):
     else:
         return vector.T.tolist()[0]
 
+
 def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2):
-        pos1 = navpy.lla2ecef(lat1, long1, alt1)
-        pos2 = navpy.lla2ecef(lat2, long2, alt2)
-        
-        delta_pos = pos2 - pos1
-        
-        yaw = math.atan2(delta_pos[1], delta_pos[0])
-        pitch = math.atan2(delta_pos[2] * math.cos(yaw), delta_pos[0])
-        roll = math.atan2(math.cos(yaw), math.sin(yaw) * math.sin(pitch))
-        
-        return yaw, pitch, roll
+    pos1 = navpy.lla2ecef(lat1, long1, alt1)
+    pos2 = navpy.lla2ecef(lat2, long2, alt2)
+
+    delta_pos = pos2 - pos1
+
+    yaw = math.atan2(delta_pos[1], delta_pos[0])
+    pitch = math.atan2(delta_pos[2] * math.cos(yaw), delta_pos[0])
+    roll = math.atan2(math.cos(yaw), math.sin(yaw) * math.sin(pitch))
+
+    return yaw, pitch, roll
+
 
 if __name__ == '__main__':
     def almost_equal(float1, float2, epsilon=0.001):
@@ -643,8 +562,6 @@ if __name__ == '__main__':
             initial_position_unc=10,
             initial_accel_bias_unc=(g * 1E-3) ** 2,
             initial_gyro_bias_unc=math.radians(1 / 3600),
-            initial_clock_offset_unc=10000,
-            initial_clock_drift_unc=100,
 
             gyro_noise_PSD=math.radians(0.02 / 60) ** 2,
             accel_noise_PSD=200 * (g * 1E-6) ** 2,
@@ -654,8 +571,8 @@ if __name__ == '__main__':
             vel_meas_SD=0.1
         )
 
-        frame_properties = CoordinateFrame(static_properties)
-        ins = INS(frame_properties)
+        properties = KalmanProperties(static_properties)
+        ins = INS(properties)
 
         gyro_measurement = np.matrix([0, 0, math.pi / 2]).T
         accel_measurement = np.matrix([1, 0, 0]).T
@@ -669,7 +586,7 @@ if __name__ == '__main__':
         estimated_attitude = \
             ins.get_estimated_attitude(
                 mag_angle_change, skew_gyro_body, earth_rotation_matrix,
-                frame_properties.estimated_attitude
+                properties.estimated_attitude
             )
         average_attitude = ins.get_average_attitude(
             mag_angle_change, estimated_attitude, skew_gyro_body,
@@ -690,8 +607,8 @@ if __name__ == '__main__':
         print("mag_angle_change")
         print(mag_angle_change)
 
-        prev_est_p = frame_properties.estimated_position
-        prev_est_v = frame_properties.estimated_velocity
+        prev_est_p = properties.estimated_position
+        prev_est_v = properties.estimated_velocity
 
         estimated_velocity = \
             prev_est_v + dt * (

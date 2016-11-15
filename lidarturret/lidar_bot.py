@@ -1,52 +1,53 @@
 import time
-
-from autobuggy import project
-from autobuggy.robot import Robot
+from robot_interface import RobotObject, RobotInterface
 
 
-class LidarBot(Robot):
-    def __init__(self, log_data):
-        project.set_project_dir("lidar_turret")
+class LidarTurret(RobotObject):
+    def __init__(self, ticks_per_rotation=38):
+        self.ticks_per_rotation = ticks_per_rotation
+        self.current_tick = 0
+        self.rotations = 0
 
-        sensors = dict(
-            lidar=dict(sensor_id=1,
-                     properties=['counts', 'rotations', 'distance'],
-                     update_fn=lambda: self.lidar_updated()),
-        )
+        self.point_cloud = [0] * ticks_per_rotation
 
-        commands = dict(
-            lidar_commands=dict(command_array={
-                "resume": 0,
-                "pause": 1,
-                "direction": 2,
-                "speed": 3,
-            },
-                range=(0, 255),
-                mapping={
-                    "forward": 0,
-                    "backward": 1,
-                    "min_speed": 1,
-                    "max_speed": 255,
-                }
-            )
-        )
+        super(LidarTurret, self).__init__(0, ["/dev/cu.usbmodem*",
+                                              "/dev/tty.usbmodem*"])
 
-        super(LidarBot, self).__init__(
-            sensors, commands, '/dev/tty.usbserial',
-            close_fn=self.close_fn, log_data=log_data, log_dir=":today"
-        )
+    def parse_packet(self, packet):
+        data = packet.split("\t")
+        if len(data) == 2:
+            self.current_tick = int(data[0])
+            self.rotations = int(data[1])
+        elif len(data) == 1:
+            self.point_cloud[self.current_tick] = int(data[0])
 
-        self.lidar = self.sensors["lidar"]
-        self.lidar_resume = self.commands["lidar_commands"]["resume"]
-        self.lidar_pause = self.commands["lidar_commands"]["pause"]
-        self.lidar_direction = self.commands["lidar_commands"]["direction"]
-        self.lidar_speed = self.commands["lidar_commands"]["speed"]
 
-    def lidar_updated(self):
-        print("%5.0i, %5.0i, %5.0i" % self.lidar.get(all=True))
+class Dummy(RobotObject):
+    def __init__(self):
+        self.value_1 = 0
+        self.value_2 = 0
+
+        super(Dummy, self).__init__(1, "/dev/tty.SLAB_USBtoUART")
+
+    def parse_packet(self, packet):
+        data = packet.split("\t")
+        self.value_1 = int(data[0])
+        self.value_2 = int(data[1])
+
+
+class LidarBot(RobotInterface):
+    def __init__(self):
+        # lidar = LidarTurret()
+        self.dummy = Dummy()
+
+        super(LidarBot, self).__init__(self.dummy)
+
+        self.time0 = time.time()
 
     def main(self):
-        time.sleep(0.1)
+        if self.dummy.did_update():
+            print(int((time.time() - self.time0) * 1000), self.dummy.value_1,
+                  self.dummy.value_2)
 
-lidar_robot = LidarBot(True)
-lidar_robot.run()
+
+LidarBot().run()

@@ -34,7 +34,10 @@ Lidar::Lidar()
     pinMode(out_A_IN1, OUTPUT);
     pinMode(out_A_IN2, OUTPUT);
 
-    _softSerial = new SoftwareSerial(SOFTSERIAL_RX, SOFTSERIAL_TX);
+    #ifdef USE_SOFTSERIAL
+    _serial = new SoftwareSerial(SOFTSERIAL_RX, SOFTSERIAL_TX);
+    #endif
+
     _lidarLite = new LIDARLite();
 
     _encoderCounts = 0;
@@ -73,7 +76,14 @@ void Lidar::initColors()
 
 void Lidar::begin()
 {
-    _softSerial->begin(115200);
+    #ifdef USE_SOFTSERIAL
+    _serial->begin(115200);
+    #endif
+
+    #ifdef USE_SOFTSERIAL
+    Serial.begin(115200);
+    #endif
+
     _lidarLite->begin(0, true);
     _lidarLite->configure(0);
 
@@ -112,17 +122,35 @@ void Lidar::writeEncoder()
     #ifdef DEBUG_LIDAR_TURRET
     Serial.println(_encoderCounts);
     #endif
-    _softSerial->print(_encoderCounts);
-    _softSerial->print('\t');
-    _softSerial->print(_encoderRotations);
-    _softSerial->print('\n');
+
+    #ifdef USE_SOFTSERIAL
+    _serial->print(_encoderCounts);
+    _serial->print('\t');
+    _serial->print(_encoderRotations);
+    _serial->print('\n');
+    #endif
+
+    #ifndef USE_SOFTSERIAL
+    Serial.print(_encoderCounts);
+    Serial.print('\t');
+    Serial.print(_encoderRotations);
+    Serial.print('\n');
+    #endif
 }
 
 void Lidar::writeDistance()
 {
     _distance = _lidarLite->distance();
-    _softSerial->print(_distance);
-    _softSerial->print('\n');
+
+    #ifdef USE_SOFTSERIAL
+    _serial->print(_distance);
+    _serial->print('\n');
+    #endif
+
+    #ifndef USE_SOFTSERIAL
+    Serial.print(_distance);
+    Serial.print('\n');
+    #endif
 }
 
 bool Lidar::update()
@@ -134,7 +162,7 @@ bool Lidar::update()
      *
      * Return true if an encoder tick is encountered.
      */
-    
+
     if (analogRead(ENCODER_PIN) < ENCODER_LOW_VALUE && _encoderLow)
     {
         // count only when leaving an unblocked region
@@ -180,9 +208,22 @@ void Lidar::checkSerial()
 {
     if ((millis() - _serial_t0) > 100)
     {
-        while (_softSerial->available() && _character != '\n')
+        #ifdef USE_SOFTSERIAL
+        while (_serial->available() && _character != '\n')
+        #endif
+
+        #ifndef USE_SOFTSERIAL
+        while (Serial.available() && _character != '\n')
+        #endif
         {
-            _character = _softSerial->read();
+            #ifdef USE_SOFTSERIAL
+            _character = _serial->read();
+            #endif
+
+            #ifndef USE_SOFTSERIAL
+            _character = Serial.read();
+            #endif
+
             if (_character != '\n') {
                 _command += _character;
             }
