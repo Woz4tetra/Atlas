@@ -22,6 +22,8 @@
 #define MIN_MOTOR_SPEED 35
 #define MAX_MOTOR_SPEED 100
 
+#define LIDAR_WHO_I_AM "lidar"
+
 Lidar::Lidar()
 {
     pinMode(ENCODER_PIN, INPUT);
@@ -254,6 +256,22 @@ void Lidar::checkSerial()
             }
         }
     }
+}
+
+void Lidar::writeWhoIAm()
+{
+    #ifdef USE_SOFTSERIAL
+    _serial->print("iam");
+    _serial->print(LIDAR_WHO_I_AM);
+    _serial->print('\n');
+    #endif
+
+    #ifndef USE_SOFTSERIAL
+    Serial.print("iam");
+    Serial.print(LIDAR_WHO_I_AM);
+    Serial.print('\n');
+    #endif
+
 }
 
 void Lidar::setMotorDirection(bool direction)

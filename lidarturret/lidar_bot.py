@@ -1,5 +1,6 @@
-import time
 from robot_interface import RobotObject, RobotInterface
+from robot_simulator import Simulator
+import project
 
 
 class LidarTurret(RobotObject):
@@ -10,8 +11,8 @@ class LidarTurret(RobotObject):
 
         self.point_cloud = [0] * ticks_per_rotation
 
-        super(LidarTurret, self).__init__(0, ["/dev/cu.usbmodem*",
-                                              "/dev/tty.usbmodem*"])
+        super(LidarTurret, self).__init__("lidar", ["/dev/cu.usbmodem*",
+                                                    "/dev/tty.usbmodem*"])
 
     def parse_packet(self, packet):
         data = packet.split("\t")
@@ -27,7 +28,7 @@ class Dummy(RobotObject):
         self.value_1 = 0
         self.value_2 = 0
 
-        super(Dummy, self).__init__(1, "/dev/tty.SLAB_USBtoUART")
+        super(Dummy, self).__init__("dummy", "/dev/tty.SLAB_USBtoUART")
 
     def parse_packet(self, packet):
         data = packet.split("\t")
@@ -37,17 +38,47 @@ class Dummy(RobotObject):
 
 class LidarBot(RobotInterface):
     def __init__(self):
-        # lidar = LidarTurret()
+        self.lidar = LidarTurret()
+
+        super(LidarBot, self).__init__(self.lidar)
+
+    def main(self):
+        if self.lidar.did_update():
+            print(self.lidar.point_cloud)
+
+
+class DummyBot(RobotInterface):
+    def __init__(self):
         self.dummy = Dummy()
 
-        super(LidarBot, self).__init__(self.dummy)
-
-        self.time0 = time.time()
+        super(DummyBot, self).__init__(self.dummy, log_data=False)
 
     def main(self):
         if self.dummy.did_update():
-            print(int((time.time() - self.time0) * 1000), self.dummy.value_1,
-                  self.dummy.value_2)
+            print(self.dummy.value_1, self.dummy.value_2)
 
 
-LidarBot().run()
+class SimulatedDummy(Simulator):
+    def __init__(self, file_name, directory, **plot_info):
+        self.dummy = Dummy()
+
+        super(SimulatedDummy, self).__init__(
+            file_name, directory, plot_info, self.dummy)
+
+    def step(self, index, timestamp, who_i_am, robot_object):
+        if who_i_am == self.dummy.who_i_am:
+            self.plot_data["plot_dummy"][0].append(robot_object.value_1)
+            self.plot_data["plot_dummy"][1].append(robot_object.value_2)
+
+
+def run_dummy():
+    DummyBot().run()
+
+
+def simulate_dummy():
+    project.set_project_dir("lidarturret")
+    SimulatedDummy(-1, -1, plot_dummy=dict(color='red', label="dummy"
+                                           )).run()
+
+run_dummy()
+# simulate_dummy()

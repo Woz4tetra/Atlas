@@ -170,7 +170,12 @@ def get_file_name(file_name, directory, file_types):
     """
     if type(file_name) == int:
         # file_name is the index in the list of files in the directory
-        file_name = _get_files(directory, file_types)[file_name]
+        file_names = _get_files(directory, file_types)
+        if len(file_names) > 0:
+            file_name = _get_files(directory, file_types)[file_name]
+        else:
+            raise ValueError("File index is out of range: %i\n"
+                             "Number of files is %i" % (file_name, len(file_names)))
     elif type(file_name) == str:
         if file_name == ":random":
             file_name = random.choice(_get_files(directory, file_types))

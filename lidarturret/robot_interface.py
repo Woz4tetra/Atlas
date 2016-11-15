@@ -4,18 +4,21 @@ from threading import Thread, Lock
 import traceback
 import time
 
+from robot_analysis import Logger
+
 
 class RobotSerialPort(Thread):
     opened_addresses = []
 
-    def __init__(self, robot_object):
+    def __init__(self, robot_object, log_data=True, log_name=None,
+                 log_dir=None):
         self.robot_object = robot_object
 
         self.address = None
         self.serial_ref = None
 
-        self.who_am_i = -1
-        self.who_am_i_header = "iam"
+        self.who_i_am = None
+        self.who_i_am_header = "iam"
 
         self.property_lock = Lock()
 
@@ -23,6 +26,7 @@ class RobotSerialPort(Thread):
         if type(self.address_format) == str:
             self.address_format = [self.address_format]
 
+        print(self.address_format)
         for address_format in self.address_format:
             for address in glob.glob(address_format):
                 if address not in RobotSerialPort.opened_addresses:
@@ -45,17 +49,20 @@ class RobotSerialPort(Thread):
 
         self.buffer = ""
         self.should_stop = False
-        self.start_time = time.time()
-        self.thread_time = 0
 
         self.find_who_i_am()
+
+        self.log_data = log_data
+        if self.log_data:
+            if log_dir is None:
+                log_dir = ":today"
+            self.logger = Logger(log_name, log_dir)
 
         super(RobotSerialPort, self).__init__()
 
     def run(self):
         try:
             while not self.should_stop:
-                self.thread_time = round(time.time() - self.start_time)
                 if self.serial_ref.is_open and self.serial_ref.in_waiting > 0:
                     packets, status = self.read_packets()
                     if not status:
@@ -66,6 +73,9 @@ class RobotSerialPort(Thread):
                         self.robot_object.updated = True
                     for packet in packets:
                         self.robot_object.parse_packet(packet)
+                        if self.log_data:
+                            self.logger.record(self.who_i_am, packet)
+
                     self.property_lock.release()
         except:
             traceback.print_exc()
@@ -87,6 +97,7 @@ class RobotSerialPort(Thread):
                     self.buffer = packets.pop(-1)
                 else:
                     self.buffer = ""
+                print(packets)
                 return packets, True
             else:
                 return [], True
@@ -97,6 +108,9 @@ class RobotSerialPort(Thread):
             return [], False
 
     def stop(self):
+        time.sleep(0.05)
+        self.write_packet("stop\n")
+        time.sleep(0.05)
         self.should_stop = True
         self.serial_ref.close()
 
@@ -110,36 +124,34 @@ class RobotSerialPort(Thread):
                 print("Serial write failed...")
                 self.should_stop = True
 
-    def parse_who_am_i_packet(self, packet):
-        if packet[0:len(self.who_am_i_header)] == self.who_am_i_header:
+    def parse_who_i_am_packet(self, packet):
+        if packet[0:len(self.who_i_am_header)] == self.who_i_am_header:
             # the rest of the packet is the ID number
-            return int(packet[len(self.who_am_i_header):])
+            return packet[len(self.who_i_am_header):]
         else:
-            return -1
+            return None
 
     def find_who_i_am(self):
         time.sleep(0.005)
         time0 = time.time()
         self.write_packet("whoareyou\n")
-
-        while self.who_am_i == -1:
+        while self.who_i_am is None:
             packets, status = self.read_packets()
             if not status:
                 raise Exception("Serial read failed... Couldn't get board ID")
-
             for packet in packets:
-                self.who_am_i = self.parse_who_am_i_packet(packet)
-                if self.who_am_i != -1:
+                self.who_i_am = self.parse_who_i_am_packet(packet)
+                if self.who_i_am is not None:
                     break
             time1 = time.time()
-            if time1 - time0 > 1:
+            if time1 - time0 > 0.1:
                 self.write_packet("whoareyou\n")
-            time.sleep(0.005)
+            time.sleep(0.1)
 
 
 class RobotObject:
-    def __init__(self, who_am_i: int, address_format, baud=115200):
-        self.who_am_i = who_am_i
+    def __init__(self, who_i_am: str, address_format, baud=115200):
+        self.who_i_am = who_i_am
         self.address_format = address_format
         self.baud = baud
         self.property_lock = None
@@ -155,6 +167,9 @@ class RobotObject:
     def parse_packet(self, packets):
         pass
 
+    def write_packet(self, packet):
+        pass  # TODO: implement commands
+
     def did_update(self):
         if self.updated:
             self.updated = False
@@ -164,15 +179,15 @@ class RobotObject:
 
 
 class RobotInterface:
-    def __init__(self, *robot_objects):
+    def __init__(self, *robot_objects, log_data=True,
+                 log_name=None, log_dir=None):
         self.ports = {}
-        # self.objects = {}
         for robot_object in robot_objects:
-            self.ports[robot_object.who_am_i] = \
-                RobotSerialPort(robot_object)
+            self.ports[robot_object.who_i_am] = \
+                RobotSerialPort(robot_object, log_data, log_name, log_dir)
+
             robot_object.property_lock = \
-                self.ports[robot_object.who_am_i].property_lock
-            # self.objects[robot_object.name] = robot_object
+                self.ports[robot_object.who_i_am].property_lock
 
     def _start(self):
         for robot_port in self.ports.values():
@@ -191,4 +206,5 @@ class RobotInterface:
             while True:
                 self.main()
         except:
+            traceback.print_exc()
             self._stop()

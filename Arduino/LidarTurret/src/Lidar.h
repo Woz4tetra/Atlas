@@ -61,5 +61,7 @@ private:
     void writeEncoder();
     void calibrate();
 
+    void writeWhoIAm();
+
     bool goToTick(int goal);
 };
