@@ -10,8 +10,7 @@ from robot_analysis import Logger
 class RobotSerialPort(Thread):
     opened_addresses = []
 
-    def __init__(self, robot_object, log_data=True, log_name=None,
-                 log_dir=None):
+    def __init__(self, robot_object, log_data, log_name, log_dir):
         self.robot_object = robot_object
 
         self.address = None
@@ -20,13 +19,14 @@ class RobotSerialPort(Thread):
         self.who_i_am = None
         self.who_i_am_header = "iam"
 
+        self.packet_end = robot_object.packet_end
+
         self.property_lock = Lock()
 
         self.address_format = self.robot_object.address_format
         if type(self.address_format) == str:
             self.address_format = [self.address_format]
 
-        print(self.address_format)
         for address_format in self.address_format:
             for address in glob.glob(address_format):
                 if address not in RobotSerialPort.opened_addresses:
@@ -63,12 +63,13 @@ class RobotSerialPort(Thread):
     def run(self):
         try:
             while not self.should_stop:
+                self.property_lock.acquire()
+
                 if self.serial_ref.is_open and self.serial_ref.in_waiting > 0:
                     packets, status = self.read_packets()
                     if not status:
                         raise Exception("Packet read failed...")
 
-                    self.property_lock.acquire()
                     if len(packets) > 0:
                         self.robot_object.updated = True
                     for packet in packets:
@@ -76,7 +77,11 @@ class RobotSerialPort(Thread):
                         if self.log_data:
                             self.logger.record(self.who_i_am, packet)
 
-                    self.property_lock.release()
+                if self.robot_object.has_new_command:
+                    self.write_packet(self.robot_object.command_packet +
+                                      self.packet_end)
+                    self.robot_object.has_new_command = False
+                self.property_lock.release()
         except:
             traceback.print_exc()
             self.stop()
@@ -91,13 +96,12 @@ class RobotSerialPort(Thread):
             incoming = self.serial_ref.read(self.serial_ref.in_waiting)
             if len(incoming) > 0:
                 self.buffer += incoming.decode('ascii')
-                packets = self.buffer.split('\n')
+                packets = self.buffer.split(self.packet_end)
 
                 if self.buffer[-2:] != '\n':
                     self.buffer = packets.pop(-1)
                 else:
                     self.buffer = ""
-                print(packets)
                 return packets, True
             else:
                 return [], True
@@ -133,8 +137,16 @@ class RobotSerialPort(Thread):
 
     def find_who_i_am(self):
         time.sleep(0.005)
-        time0 = time.time()
+
+        packets, status = self.read_packets()
+        while "ready!" not in packets:
+            if not status:
+                raise Exception(
+                    "Serial read failed... Board never signaled ready")
+            packets, status = self.read_packets()
+
         self.write_packet("whoareyou\n")
+
         while self.who_i_am is None:
             packets, status = self.read_packets()
             if not status:
@@ -143,19 +155,21 @@ class RobotSerialPort(Thread):
                 self.who_i_am = self.parse_who_i_am_packet(packet)
                 if self.who_i_am is not None:
                     break
-            time1 = time.time()
-            if time1 - time0 > 0.1:
-                self.write_packet("whoareyou\n")
             time.sleep(0.1)
 
 
 class RobotObject:
-    def __init__(self, who_i_am: str, address_format, baud=115200):
+    def __init__(self, who_i_am: str, address_format, packet_end='\n',
+                 baud=115200):
         self.who_i_am = who_i_am
         self.address_format = address_format
         self.baud = baud
         self.property_lock = None
         self.updated = False
+        self.packet_end = packet_end
+
+        self.has_new_command = False
+        self.command_packet = ""
 
         self.__setattr__ = self.setattr
 
@@ -168,7 +182,8 @@ class RobotObject:
         pass
 
     def write_packet(self, packet):
-        pass  # TODO: implement commands
+        self.has_new_command = True
+        self.command_packet = packet
 
     def did_update(self):
         if self.updated:

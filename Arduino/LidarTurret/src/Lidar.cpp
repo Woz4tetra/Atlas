@@ -255,6 +255,8 @@ void Lidar::checkSerial()
                 setMotorSpeed(_command.substring(1).toInt());
             }
         }
+
+        _command = "";
     }
 }
 

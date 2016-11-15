@@ -70,7 +70,7 @@ class Logger:
         Empty the queue. Put each new piece of data on a new line and format it
         """
         timestamp = time.time() - self.time0
-        self.data_file.write("%s:\t%s;\t%s\r\n" % (timestamp, who_i_am, packet))
+        self.data_file.write("%s:\t%s;\t%s\n" % (timestamp, who_i_am, packet))
 
     def close(self):
         self.data_file.close()

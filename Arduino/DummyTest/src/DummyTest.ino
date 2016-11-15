@@ -3,6 +3,7 @@
 #define LED13 13
 
 char character = '\0';
+char command_type = '\0';
 String command = "";
 
 void write_who_i_am()
@@ -25,6 +26,8 @@ void read_serial()
     if (character == '\n')
     {
         character = '\0';
+        command_type = command.charAt(0);
+
 
         if (command.equals("whoareyou")) {
             write_who_i_am();
@@ -33,12 +36,20 @@ void read_serial()
             digitalWrite(LED13, HIGH);
             Serial.print("stopping\n");
         }
+
+        if (command_type == 'l') {
+            digitalWrite(LED13, (bool)(command.substring(1).toInt()));
+        }
+
+        command = "";
     }
 }
 
 void setup()
 {
     Serial.begin(DEFAULT_RATE);
+    Serial.print("ready!\n");
+
 
     pinMode(LED13, OUTPUT);
 }
