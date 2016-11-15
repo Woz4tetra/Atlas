@@ -145,6 +145,7 @@ class Parser:
         self.file_name_no_ext = self.file_name.split(".")[0]
 
         print("Using file named '%s'" % self.file_name)
+        print("In directory '%s'" % self.directory)
 
         # read the whole file as a string
         with open(self.directory + self.file_name, 'r') as data_file:

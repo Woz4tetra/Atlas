@@ -122,6 +122,7 @@ def parse_arguments():
 
     try:
         file_name = int(file_name)
+        directory = int(directory)
     except ValueError:
         pass
 
@@ -129,6 +130,7 @@ def parse_arguments():
 
 def run():
     file_name, directory = parse_arguments()
+    print(file_name, directory)
 
     plotter = FilterTest(
         file_name, directory,

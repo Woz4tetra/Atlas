@@ -20,17 +20,17 @@ class GrovesKalmanFilter:
         self.epoch = Epoch(self.properties)
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
-        print("imu before:", self.get_orientation())
+        # print("imu before:", self.get_orientation())
         self.properties.estimated_position, \
         self.properties.estimated_velocity, \
         self.properties.estimated_attitude = self.ins.update(
             imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
             self.properties.estimated_imu_biases
         )
-        print("imu after:", self.get_orientation())
+        # print("imu after:", self.get_orientation())
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        print("gps before:", self.get_orientation())
+        # print("gps before:", self.get_orientation())
         gps_position_ecef, gps_velocity_ecef = \
             self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
@@ -41,7 +41,7 @@ class GrovesKalmanFilter:
             gps_dt, gps_position_ecef, gps_velocity_ecef,
             self.ins.accel_measurement
         )
-        print("gps after:", self.get_orientation())
+        # print("gps after:", self.get_orientation())
 
     def get_position(self):
         return navpy.ecef2lla(
