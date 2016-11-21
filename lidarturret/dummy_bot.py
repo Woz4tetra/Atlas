@@ -1,9 +1,9 @@
-from robot_interface import RobotObject, RobotInterface
-
-import project
 import time
 
-live = False
+import project
+from robot.interface import RobotObject, RobotInterface
+
+live = True
 
 
 class Dummy(RobotObject):
@@ -50,7 +50,7 @@ if live:
 
     run_dummy()
 else:
-    from robot_simulator import Simulator
+    from robot.simulator import Simulator
 
 
     class SimulatedDummy(Simulator):

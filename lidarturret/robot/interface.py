@@ -1,39 +1,39 @@
-import serial
 import glob
-from threading import Thread, Lock
-import traceback
 import time
+import traceback
+from threading import Thread, Lock
 
-from robot_analysis import Logger
+import serial
+
+from robot.analysis import Logger
 
 
 class RobotSerialPort(Thread):
     opened_addresses = []
 
-    def __init__(self, robot_object, log_data, log_name, log_dir):
-        self.robot_object = robot_object
-
+    def __init__(self, baud, address_format, packet_end, logger, log_data):
         self.address = None
         self.serial_ref = None
 
         self.who_i_am = None
         self.who_i_am_header = "iam"
+        self.packet_end = packet_end
 
-        self.packet_end = robot_object.packet_end
+        self.robot_object = None
 
         self.property_lock = Lock()
 
-        self.address_format = self.robot_object.address_format
+        self.address_format = address_format
         if type(self.address_format) == str:
             self.address_format = [self.address_format]
 
-        for address_format in self.address_format:
-            for address in glob.glob(address_format):
+        for address in self.address_format:
+            for address in glob.glob(address):
                 if address not in RobotSerialPort.opened_addresses:
                     try:
                         self.serial_ref = \
                             serial.Serial(port=address,
-                                          baudrate=self.robot_object.baud,
+                                          baudrate=baud,
                                           timeout=0.005)
                     except serial.SerialException:
                         pass
@@ -43,8 +43,7 @@ class RobotSerialPort(Thread):
 
         if self.address is None:
             raise ConnectionError(
-                "Could not find serial port... %s" %
-                self.robot_object.address_format)
+                "Could not find serial port... %s" % address_format)
         print("Using", self.address)
 
         self.buffer = ""
@@ -53,10 +52,7 @@ class RobotSerialPort(Thread):
         self.find_who_i_am()
 
         self.log_data = log_data
-        if self.log_data:
-            if log_dir is None:
-                log_dir = ":today"
-            self.logger = Logger(log_name, log_dir)
+        self.logger = logger
 
         super(RobotSerialPort, self).__init__()
 
@@ -129,6 +125,7 @@ class RobotSerialPort(Thread):
                 self.should_stop = True
 
     def parse_who_i_am_packet(self, packet):
+
         if packet[0:len(self.who_i_am_header)] == self.who_i_am_header:
             # the rest of the packet is the ID number
             return packet[len(self.who_i_am_header):]
@@ -138,12 +135,15 @@ class RobotSerialPort(Thread):
     def find_who_i_am(self):
         time.sleep(0.005)
 
+        self.write_packet("ready?\n")
         packets, status = self.read_packets()
         while "ready!" not in packets:
             if not status:
                 raise Exception(
                     "Serial read failed... Board never signaled ready")
             packets, status = self.read_packets()
+
+        print(self.address, "is ready!")
 
         self.write_packet("whoareyou\n")
 
@@ -157,16 +157,17 @@ class RobotSerialPort(Thread):
                     break
             time.sleep(0.1)
 
+        print(self.address, "is", self.who_i_am)
+
 
 class RobotObject:
-    def __init__(self, who_i_am: str, address_format, packet_end='\n',
+    def __init__(self, who_i_am: str, address_format,
                  baud=115200):
         self.who_i_am = who_i_am
         self.address_format = address_format
         self.baud = baud
         self.property_lock = None
         self.updated = False
-        self.packet_end = packet_end
 
         self.has_new_command = False
         self.command_packet = ""
@@ -178,7 +179,7 @@ class RobotObject:
         object.__setattr__(self, key, value)
         self.property_lock.release()
 
-    def parse_packet(self, packets):
+    def parse_packet(self, packet):
         pass
 
     def write_packet(self, packet):
@@ -194,15 +195,36 @@ class RobotObject:
 
 
 class RobotInterface:
-    def __init__(self, *robot_objects, log_data=True,
-                 log_name=None, log_dir=None):
-        self.ports = {}
-        for robot_object in robot_objects:
-            self.ports[robot_object.who_i_am] = \
-                RobotSerialPort(robot_object, log_data, log_name, log_dir)
+    def __init__(self, *robot_objects, baud_rate=115200, packet_end='\n',
+                 log_data=True, log_name=None, log_dir=None):
+        self.log_data = log_data
+        if self.log_data:
+            if log_dir is None:
+                log_dir = ":today"
+            self.logger = Logger(log_name, log_dir)
+        else:
+            self.logger = None
 
-            robot_object.property_lock = \
-                self.ports[robot_object.who_i_am].property_lock
+        # open all available ports
+        self.ports = {}
+        self.objects = {}
+        for robot_object in robot_objects:
+            port = RobotSerialPort(baud_rate, robot_object.address_format,
+                                   packet_end, self.logger, log_data)
+            self.ports[port.who_i_am] = port
+            self.objects[robot_object.who_i_am] = robot_object
+
+        # assign ports based on identity
+        for who_i_am in self.ports.keys():
+            self.ports[who_i_am].robot_object = self.objects[who_i_am]
+
+            # ensures properties being set by robot objects aren't being
+            # accessed by the port at the same time
+            self.objects[who_i_am].property_lock = \
+                self.ports[who_i_am].property_lock
+
+        if self.log_data:
+            self.logger.start_time()
 
     def _start(self):
         for robot_port in self.ports.values():
@@ -215,6 +237,9 @@ class RobotInterface:
     def main(self):
         pass
 
+    def close(self):
+        pass
+
     def run(self):
         self._start()
         try:
@@ -222,4 +247,6 @@ class RobotInterface:
                 self.main()
         except:
             traceback.print_exc()
+        finally:
+            self.close()
             self._stop()

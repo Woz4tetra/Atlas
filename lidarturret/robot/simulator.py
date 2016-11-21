@@ -1,7 +1,9 @@
-from matplotlib import pyplot as plt
 import math
 from collections import defaultdict
-from robot_analysis import Parser
+
+from matplotlib import pyplot as plt
+
+from robot.analysis import Parser
 
 
 class Simulator:

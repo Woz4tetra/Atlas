@@ -3,6 +3,7 @@ from datetime import datetime
 import pickle
 import os
 import sys
+from threading import Lock
 
 import project
 
@@ -37,6 +38,8 @@ class Logger:
     def __init__(self, file_name, directory):
         # Format the file name. Mac doesn't support colons in file names
         # If file format is provided but not a name, insert timestamp
+        self.log_lock = Lock()
+
         if file_name is None or \
                         file_name.replace("." + log_file_type, "") == "":
             file_name = filename_now() + "." + log_file_type
@@ -60,20 +63,34 @@ class Logger:
             os.makedirs(directory)
         print("Writing to:", directory + file_name)
 
+        self.data_file = open(directory + file_name, 'w+')
+
+        self.time0 = 0
+        self.log_start = 0
+
+    def start_time(self):
+        self.log_lock.acquire()
+
         self.time0 = time.time()
         self.log_start = self.time0
 
-        self.data_file = open(directory + file_name, 'w+')
+        self.log_lock.release()
 
     def record(self, who_i_am, packet):
         """
         Empty the queue. Put each new piece of data on a new line and format it
         """
+        self.log_lock.acquire()
+
         timestamp = time.time() - self.time0
         self.data_file.write("%s:\t%s;\t%s\n" % (timestamp, who_i_am, packet))
 
+        self.log_lock.release()
+
     def close(self):
+        self.log_lock.acquire()
         self.data_file.close()
+        self.log_lock.release()
 
 
 class Parser:

@@ -48,7 +48,9 @@ class GrovesKalmanFilter:
             np.array(self.properties.estimated_position.T)[0])
 
     def get_orientation(self):
-        return navpy.dcm2angle(
+        # print(ctm_to_euler(self.properties.estimated_attitude))
+        # print(navpy.dcm2angle(self.properties.estimated_attitude))
+        return navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)  # yaw, pitch, roll
 
 
@@ -110,11 +112,11 @@ class KalmanProperties:
         )  # initial velocity should be given in meters with respect to your NED
 
         # old_est_C_b_e in Loosely_coupled_INS_GNSS (line 166)
-        self.estimated_attitude = navpy.angle2dcm(
+        self.estimated_attitude = np.matrix(navpy.angle2dcm(  # Euler_to_CTM
             self.initial_yaw,
             self.initial_pitch,
             self.initial_roll,
-        )
+        ))
 
         self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 
@@ -171,16 +173,16 @@ class INS:
     def get_estimated_attitude(self, mag_angle_change, skew_gyro_body,
                                earth_rotation_matrix, estimated_attitude):
         if mag_angle_change > 1E-8:
-            C_new_old = (np.matrix(np.eye(3)) + np.sin(mag_angle_change) /
+            estimated_attitude_new = (np.matrix(np.eye(3)) + np.sin(mag_angle_change) /
                          mag_angle_change * skew_gyro_body +
                          (1 - np.cos(mag_angle_change)) /
                          mag_angle_change ** 2 *
                          skew_gyro_body * skew_gyro_body)
         else:
-            C_new_old = np.matrix(np.eye(3)) + skew_gyro_body
+            estimated_attitude_new = np.matrix(np.eye(3)) + skew_gyro_body
 
         # check the order of operations here
-        return (earth_rotation_matrix * estimated_attitude) * C_new_old
+        return (earth_rotation_matrix * estimated_attitude) * estimated_attitude_new
 
     def get_average_attitude(self, mag_angle_change, estimated_attitude,
                              skew_gyro_body, earth_rotation_amount):
@@ -308,11 +310,11 @@ class Epoch:
         self.update_covariance_matrix()  # step 10
 
         return self.correct_estimates(
-                self.properties.estimated_attitude,
-                self.properties.estimated_position,
-                self.properties.estimated_velocity,
-                self.properties.estimated_imu_biases,
-            )
+            self.properties.estimated_attitude,
+            self.properties.estimated_position,
+            self.properties.estimated_velocity,
+            self.properties.estimated_imu_biases,
+        )
 
     def determine_transition_matrix(self, dt, accel_measurement):
         # step 1
@@ -430,8 +432,7 @@ class Epoch:
 
     def correct_estimates(self, estimated_attitude, estimated_position,
                           estimated_velocity, estimated_imu_biases):
-        estimated_attitude = np.matrix(
-            np.eye(3)) - skew_symmetric(
+        estimated_attitude = np.matrix(np.eye(3)) - skew_symmetric(
             self.estimated_state_prop_x[0:3]) * estimated_attitude
         estimated_velocity -= self.estimated_state_prop_x[3:6]
         estimated_position -= self.estimated_state_prop_x[6:9]
@@ -448,6 +449,38 @@ def skew_symmetric(m):
     return np.matrix([[0, -m[2], m[2]],
                       [m[2], 0, -m[0]],
                       [-m[1], m[0], 0]])
+
+
+def euler_to_ctm(yaw, pitch, roll):
+    sin_phi = np.sin(yaw)
+    cos_phi = np.cos(yaw)
+    sin_theta = np.sin(pitch)
+    cos_theta = np.cos(pitch)
+    sin_psi = np.sin(roll)
+    cos_psi = np.cos(roll)
+
+    C = np.matrix(np.zeros((3, 3)))
+    C[0, 0] = cos_theta * cos_psi
+    C[0, 1] = cos_theta * sin_psi
+    C[0, 2] = -sin_theta
+
+    C[1, 0] = -cos_phi * sin_psi + sin_phi * sin_theta * cos_psi
+    C[1, 1] = cos_phi * cos_psi + sin_phi * sin_theta * sin_psi
+    C[1, 2] = sin_phi * cos_theta
+
+    C[2, 0] = sin_phi * sin_psi + cos_phi * sin_theta * cos_psi
+    C[2, 1] = -sin_phi * cos_psi + cos_phi * sin_theta * sin_psi
+    C[2, 2] = cos_phi * cos_theta
+
+    return C
+
+
+def ctm_to_euler(C):
+    yaw = math.atan2(C[0, 1], C[0, 0])
+    pitch = math.asin(C[0, 2])
+    roll = math.atan2(C[1, 2], C[2, 2])
+
+    return yaw, pitch, roll
 
 
 def gravity_ecef(ecef_vector):
@@ -472,7 +505,8 @@ def gravity_ecef(ecef_vector):
         g = np.matrix([unit_to_scalar(
             gamma[0]) + earth_rotation_rate ** 2 * unit_to_scalar(
             ecef_vector[0]),
-                       unit_to_scalar(gamma[1]) + earth_rotation_rate ** 2 * unit_to_scalar(
+                       unit_to_scalar(gamma[
+                                          1]) + earth_rotation_rate ** 2 * unit_to_scalar(
                            ecef_vector[1]),
                        unit_to_scalar(gamma[2])]).T
         return g

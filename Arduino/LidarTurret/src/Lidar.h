@@ -7,6 +7,7 @@ class Lidar {
 public:
     Lidar();
     void begin();
+    bool update(int encoderValue);
     bool update();
     void checkSerial();
     void setMotorSpeed(int speed);
@@ -17,6 +18,7 @@ public:
     unsigned int getEncoderCounts();
     unsigned int getEncoderRotations();
     void writeDistance();
+    void updateEncoder();
 
     int red[3];
     int green[3];
@@ -39,8 +41,9 @@ private:
     LIDARLite *_lidarLite;
 
     int _encoderCounts;
-    int _encoderRotations;
+    long _encoderRotations;
     int _distance;
+
     unsigned long _enc_t1, _enc_dt, _enc_t0;
     unsigned long _serial_t0;
     unsigned long _distance_t0;
@@ -55,13 +58,13 @@ private:
 
     float _kp, _kd, _ki;
 
-    float _prev_error, _sum_error;
-
     void initColors();
     void writeEncoder();
     void calibrate();
+    bool checkEncoder(int encoderValue);
 
     void writeWhoIAm();
 
-    bool goToTick(int goal);
+    bool updateNoSerial();
+    void goToTick(int goal);
 };

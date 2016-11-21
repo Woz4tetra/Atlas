@@ -1,7 +1,6 @@
 
 #include "Lidar.h"
 
-#define ENCODER_PIN A3
 #define ENCODER_HIGH_VALUE 800
 #define ENCODER_LOW_VALUE 300
 #define TICKS_PER_ROTATION 38
@@ -10,6 +9,8 @@
 #define GREEN_PIN 8
 #define BLUE_PIN 7
 
+#define ENCODER_PIN A3
+
 #define out_A_PWM 13
 #define out_A_IN1 6
 #define out_A_IN2 5
@@ -17,12 +18,98 @@
 #define SOFTSERIAL_RX 9
 #define SOFTSERIAL_TX 10
 
-#define DEFAULT_MOTOR_SPEED 70
+#define DEFAULT_MOTOR_SPEED 55
 
 #define MIN_MOTOR_SPEED 35
 #define MAX_MOTOR_SPEED 100
 
 #define LIDAR_WHO_I_AM "lidar"
+
+#define SAFE_ENC_DT 7750
+
+// Extremely fast string to int function
+char _int2str[7];
+char* int2str(register int i) {
+    register unsigned char L = 1;
+    register char c;
+    register boolean m = false;
+    register char b;  // lower-byte of i
+    // negative
+    if ( i < 0 ) {
+        _int2str[ 0 ] = '-';
+        i = -i;
+    }
+    else L = 0;
+    // ten-thousands
+    if( i > 9999 ) {
+        c = i < 20000 ? 1
+        : i < 30000 ? 2
+        : 3;
+        _int2str[ L++ ] = c + 48;
+        i -= c * 10000;
+        m = true;
+    }
+    // thousands
+    if( i > 999 ) {
+        c = i < 5000
+        ? ( i < 3000
+            ? ( i < 2000 ? 1 : 2 )
+            :   i < 4000 ? 3 : 4
+        )
+        : i < 8000
+        ? ( i < 6000
+            ? 5
+            : i < 7000 ? 6 : 7
+        )
+        : i < 9000 ? 8 : 9;
+        _int2str[ L++ ] = c + 48;
+        i -= c * 1000;
+        m = true;
+    }
+    else if( m ) _int2str[ L++ ] = '0';
+    // hundreds
+    if( i > 99 ) {
+        c = i < 500
+        ? ( i < 300
+            ? ( i < 200 ? 1 : 2 )
+            :   i < 400 ? 3 : 4
+        )
+        : i < 800
+        ? ( i < 600
+            ? 5
+            : i < 700 ? 6 : 7
+        )
+        : i < 900 ? 8 : 9;
+        _int2str[ L++ ] = c + 48;
+        i -= c * 100;
+        m = true;
+    }
+    else if( m ) _int2str[ L++ ] = '0';
+    // decades (check on lower byte to optimize code)
+    b = char( i );
+    if( b > 9 ) {
+        c = b < 50
+        ? ( b < 30
+            ? ( b < 20 ? 1 : 2 )
+            :   b < 40 ? 3 : 4
+        )
+        : b < 80
+        ? ( i < 60
+            ? 5
+            : i < 70 ? 6 : 7
+        )
+        : i < 90 ? 8 : 9;
+        _int2str[ L++ ] = c + 48;
+        b -= c * 10;
+        m = true;
+    }
+    else if( m ) _int2str[ L++ ] = '0';
+    // last digit
+    _int2str[ L++ ] = b + 48;
+    // null terminator
+    _int2str[ L ] = 0;
+    return _int2str;
+}
 
 Lidar::Lidar()
 {
@@ -54,9 +141,9 @@ Lidar::Lidar()
     _command = "";
     _character = '\0';
 
-    _kp = 0.75;
-    _kd = 0.75;
-    _ki = 0.001;
+    _kp = 1.0;
+    _kd = 15.0;
+    _ki = 0.0;
 
     initColors();
 }
@@ -86,8 +173,7 @@ void Lidar::begin()
     Serial.begin(115200);
     #endif
 
-    _lidarLite->begin(0, true);
-    _lidarLite->configure(0);
+    _lidarLite->begin(1, true);
 
     _encoderLow = analogRead(ENCODER_PIN) < ENCODER_HIGH_VALUE;
 
@@ -121,21 +207,17 @@ void Lidar::setColor(int *rgb) {
 
 void Lidar::writeEncoder()
 {
-    #ifdef DEBUG_LIDAR_TURRET
-    Serial.println(_encoderCounts);
-    #endif
-
     #ifdef USE_SOFTSERIAL
-    _serial->print(_encoderCounts);
+    _serial->print(int2str(_encoderCounts));
     _serial->print('\t');
-    _serial->print(_encoderRotations);
+    _serial->print(int2str(_encoderRotations));
     _serial->print('\n');
     #endif
 
     #ifndef USE_SOFTSERIAL
-    Serial.print(_encoderCounts);
+    Serial.print(int2str(_encoderCounts));
     Serial.print('\t');
-    Serial.print(_encoderRotations);
+    Serial.print(int2str(_encoderRotations));
     Serial.print('\n');
     #endif
 }
@@ -145,17 +227,68 @@ void Lidar::writeDistance()
     _distance = _lidarLite->distance();
 
     #ifdef USE_SOFTSERIAL
-    _serial->print(_distance);
-    _serial->print('\n');
+    _serial->printprint(int2str(_distance));
+    _serial->printprint('\n');
     #endif
 
     #ifndef USE_SOFTSERIAL
-    Serial.print(_distance);
+    Serial.print(int2str(_distance));
     Serial.print('\n');
     #endif
 }
 
-bool Lidar::update()
+void Lidar::updateEncoder()
+{
+    // count only when leaving an unblocked region
+    _enc_t1 = micros();
+    _enc_dt = _enc_t1 - _enc_t0;
+    _enc_t0 = _enc_t1;
+
+    if (_motorDirection)
+    {
+        if (_encoderCounts >= TICKS_PER_ROTATION - 1) {  // 1 full rotation event
+            _encoderCounts = 0;
+            _encoderRotations++;
+        }
+        else {  // regular count
+            _encoderCounts++;
+        }
+    }
+    else
+    {
+        if (_encoderCounts <= 0) {  // 1 full rotation event in reverse
+            _encoderCounts = TICKS_PER_ROTATION - 1;
+            _encoderRotations--;
+        }
+        else {  // regular count in reverse
+            _encoderCounts--;
+        }
+    }
+
+    int error = (int)(_enc_dt) - SAFE_ENC_DT;
+    int speed = (int)(0.02 * error);
+
+    setMotorSpeed(speed + DEFAULT_MOTOR_SPEED);
+}
+
+bool Lidar::checkEncoder(int encoderValue)
+{
+    if (!_paused)
+    {
+        // int encoderValue = analogRead(ENCODER_PIN);
+        if (encoderValue < ENCODER_LOW_VALUE && _encoderLow)
+        {
+            _encoderLow = false;
+            return true;
+        }
+        else if (encoderValue > ENCODER_HIGH_VALUE) {
+            _encoderLow = true;
+        }
+    }
+    return false;
+}
+
+bool Lidar::update(int encoderValue)
 {
     /*
      * Check if the encoder went from a low to high value. This indicates if
@@ -165,50 +298,40 @@ bool Lidar::update()
      * Return true if an encoder tick is encountered.
      */
 
-    if (analogRead(ENCODER_PIN) < ENCODER_LOW_VALUE && _encoderLow)
-    {
-        // count only when leaving an unblocked region
-        _enc_t1 = micros();
-        _enc_dt = _enc_t1 - _enc_t0;
-        _enc_t0 = _enc_t1;
+    if (checkEncoder(encoderValue)) {
+        updateEncoder();
 
-        _encoderLow = false;
-
-        if (_motorDirection)
-        {
-            if (_encoderCounts >= TICKS_PER_ROTATION - 1) {  // 1 full rotation event
-                _encoderCounts = 0;
-                _encoderRotations++;
-            }
-            else {  // regular count
-                _encoderCounts++;
-            }
-        }
-        else
-        {
-            if (_encoderCounts <= 0) {  // 1 full rotation event in reverse
-                _encoderCounts = TICKS_PER_ROTATION - 1;
-                _encoderRotations--;
-            }
-            else {  // regular count in reverse
-                _encoderCounts--;
-            }
-        }
-
+        writeDistance();
         writeEncoder();
 
         return true;
     }
-    else if (analogRead(ENCODER_PIN) > ENCODER_HIGH_VALUE) {
-        _encoderLow = true;
+    return false;
+}
+
+bool Lidar::updateNoSerial()
+{
+    if (checkEncoder(analogRead(ENCODER_PIN))) {
+        updateEncoder();
+
+        return true;
     }
     return false;
 }
 
+bool Lidar::update() {
+    return update(analogRead(ENCODER_PIN));
+}
 
 void Lidar::checkSerial()
 {
-    if ((millis() - _serial_t0) > 100)
+    #ifdef USE_SOFTSERIAL
+    if ((millis() - _serial_t0) > 1000 && _serial->available())
+    #endif
+
+    #ifndef USE_SOFTSERIAL
+    if ((millis() - _serial_t0) > 1000 && Serial.available())
+    #endif
     {
         #ifdef USE_SOFTSERIAL
         while (_serial->available() && _character != '\n')
@@ -233,30 +356,39 @@ void Lidar::checkSerial()
 
         if (_character == '\n')
         {
-            #ifdef DEBUG_LIDAR_TURRET
-            Serial.println(_command);
-            #endif
             _character = '\0';
 
             _commandType = _command.charAt(0);
 
-            if (_commandType == 'B') {  // start command
-                _paused = false;
-                calibrate();
+            if (_command.equals("whoareyou")) {
+                writeWhoIAm();
             }
-            else if (_commandType == 'E') {  // stop command
-                _paused = true;
-                stopMotor();
+            else if (_command.equals("ready?")) {
+                Serial.print("ready!\n");
+                if (_paused) {
+                    _paused = false;
+                    calibrate();
+                }
             }
-            else if (_commandType == 'D') {  // change motor direction
-                setMotorDirection((bool)(_command.substring(1).toInt()));
+            else if (_command.equals("stop")) {
+                if (!_paused) {
+                    setColor(orange);
+                    _paused = true;
+                    stopMotor();
+                }
             }
-            else if (_commandType == 'M') {  // change motor speed
-                setMotorSpeed(_command.substring(1).toInt());
-            }
+
+            // if (_commandType == 'D') {  // change motor direction
+            //     setMotorDirection((bool)(_command.substring(1).toInt()));
+            // }
+            // else if (_commandType == 'M') {  // change motor speed
+            //     setMotorSpeed(_command.substring(1).toInt());
+            // }
         }
 
         _command = "";
+
+        _serial_t0 = millis();
     }
 }
 
@@ -313,52 +445,105 @@ void Lidar::stopMotor()
     analogWrite(out_A_PWM, _motorSpeed);
 }
 
-bool Lidar::goToTick(int goal)
+void Lidar::goToTick(int goal)
 {
-    update();
-    int error = goal - _encoderCounts;
-    int speed = (int)(_kp * error + _kd * (error - _prev_error) + _ki * _sum_error);
+    int error = 0;
+    int speed = 0;
+    int prev_error = 0;
+    int sum_error = 0;
 
-    setMotorSpeed(speed);
-    _prev_error = error;
-    _sum_error += error;
+    while (_encoderCounts != goal)
+    {
+        if (updateNoSerial())
+        {
+            // if (counts >= TICKS_PER_ROTATION - 1) {
+            //     counts = 0;
+            // }
+            // goal += counts * TICKS_PER_ROTATION;
+            error = goal - _encoderCounts;
+            speed = (int)(_kp * error + _kd * (error - prev_error) + _ki * sum_error);
 
-    return error == 0;
+            Serial.print(_encoderCounts); Serial.print(',');
+            Serial.print(error); Serial.print(',');
+            Serial.print(speed); Serial.print('\n');
+
+            setMotorSpeed(speed);
+            prev_error = error;
+            sum_error += error;
+        }
+    }
+
+    stopMotor();
 }
 
 void Lidar::calibrate()
 {
-    setColor(red);
+    setColor(red);/*
+    delay(2000);
 
-    setMotorSpeed(MIN_MOTOR_SPEED + 10);
-    delay(250);
-
-    unsigned long max_dt = 0;
-    int max_tick = 0;
-
-    while (!update()) {  }  // Wait for first encoder tick
-
-    _encoderCounts = 0;
-    _encoderRotations = 0;
-    while (_encoderRotations == 0)
-    {
-        if (update()) {
-            if (_enc_dt > max_dt) {
-                max_dt = _enc_dt;
-                max_tick = _encoderCounts;
-            }
-        }
-    }
-
-    while (!goToTick(max_tick)) {  }  // Always goes the 33rd tick for some reason...
-    _encoderCounts = 0;
-    while (!goToTick(33)) {  }
-    _encoderCounts = 0;
-
-    stopMotor();
-    delay(1000);
-
-    setColor(green);
+    // setMotorSpeed(MAX_MOTOR_SPEED);
+    // delay(125);
+    // setMotorSpeed(DEFAULT_MOTOR_SPEED);
+    // delay(500);
+    //
+    // unsigned long max_dt = 0;
+    // unsigned long min_dt = 100000;
+    // // int max_tick = 0;
+    //
+    // while (!update()) {  }  // Wait for first encoder tick
+    //
+    // // setColor(blue);
+    //
+    // _encoderCounts = 0;
+    // _encoderRotations = 0;
+    // while (_encoderRotations < 1)
+    // {
+    //     if (update())
+    //     {
+    //         Serial.print("thing: "); Serial.print(_encoderCounts); Serial.print(',');
+    //         Serial.println(_enc_dt);
+    //         if (_enc_dt > max_dt) {
+    //             max_dt = _enc_dt;
+    //             // max_tick = _encoderCounts;
+    //         }
+    //         if (_enc_dt < min_dt) {
+    //             min_dt = _enc_dt;
+    //         }
+    //     }
+    // }
+    //
+    // unsigned long avg_dt = (max_dt + max_dt + min_dt) / 3;
+    //
+    // while (_enc_dt < avg_dt) {
+    //     update();
+    // }
+    // setColor(green);
 
     setMotorSpeed(DEFAULT_MOTOR_SPEED);
+    goToTick(TICKS_PER_ROTATION);
+
+    setColor(blue);
+
+    stopMotor();
+    unsigned long t0 = millis();
+    while ((millis() - t0) < 1000) {
+        updateNoSerial();
+    }
+
+    goToTick(0);
+    setColor(green);
+
+    while (true) {  }
+
+    // setColor(orange);
+
+    // goToTick(_encoderCounts, TICKS_PER_ROTATION - 5);
+
+
+    _encoderCounts = 0;
+    _encoderRotations = 0;*/
+
+    setMotorSpeed(DEFAULT_MOTOR_SPEED);
+
+    setColor(green);
 }

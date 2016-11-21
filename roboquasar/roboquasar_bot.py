@@ -7,7 +7,7 @@ from joysticks.wiiu_joystick import WiiUJoystick
 
 
 class RoboQuasarBot(Robot):
-    def __init__(self, checkpoints_name=None, log_data=True):
+    def __init__(self, checkpoints_name, map_name, log_data=True):
         # set the project name (so that maps and logs and be found)
         project.set_project_dir("roboquasar")
 
@@ -16,6 +16,8 @@ class RoboQuasarBot(Robot):
         self.goal_x, self.goal_y = 0, 0
         self.checkpoints = get_map(checkpoints_name)
         self.checkpoint_num = 0
+
+        self.map = get_map(map_name)
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button: self.button_dn(button),
