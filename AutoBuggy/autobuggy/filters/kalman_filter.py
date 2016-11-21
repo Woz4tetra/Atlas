@@ -5,6 +5,9 @@ import navpy
 
 np.set_printoptions(precision=4)
 
+# todo check navpy is in wgs84
+# i mean, it probably is but its worth checking
+
 earth_radius = 6378137  # WGS84 Equatorial radius in meters
 earth_rotation_rate = 7.292115E-5  # rad/s
 eccentricity = 0.0818191908425  # WGS84 eccentricity
@@ -12,6 +15,7 @@ earth_gravity_constant = 3.986004418E14
 J_2 = 1.082627E-3
 
 
+# todo look at navpy 2
 class GrovesKalmanFilter:
     def __init__(self, **kf_properties):
         self.properties = KalmanProperties(**kf_properties)
@@ -31,6 +35,7 @@ class GrovesKalmanFilter:
 
     def gps_updated(self, gps_dt, lat, long, altitude):
         # print("gps before:", self.get_orientation())
+        # given how we are calculate dt, when do we check time? not something to worry about yet though
         gps_position_ecef, gps_velocity_ecef = \
             self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
@@ -52,6 +57,7 @@ class GrovesKalmanFilter:
             self.properties.estimated_attitude)  # yaw, pitch, roll
 
 
+# clear
 class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
                  initial_lat, initial_long, initial_alt,
@@ -141,6 +147,7 @@ class KalmanProperties:
         return gps_position_ecef, gps_velocity_ecef
 
 
+# todo 1 question
 class INS:
     def __init__(self, properties: KalmanProperties):
         self.properties = properties
@@ -148,7 +155,7 @@ class INS:
         self.accel_measurement = np.matrix(np.zeros((3, 1)))
         self.gyro_measurement = np.matrix(np.zeros((3, 1)))
 
-    def get_earth_rotation_matrix(self, dt: float):
+    def get_earth_rotation_matrix(self, dt: float): #todo is this update rate the same or faster than the call rate? dt i mean
         earth_rotation_amount = earth_rotation_rate * dt
         earth_rotation_matrix = np.matrix(
             [[np.cos(earth_rotation_amount), np.sin(earth_rotation_amount), 0],
@@ -179,7 +186,6 @@ class INS:
         else:
             C_new_old = np.matrix(np.eye(3)) + skew_gyro_body
 
-        # check the order of operations here
         return (earth_rotation_matrix * estimated_attitude) * C_new_old
 
     def get_average_attitude(self, mag_angle_change, estimated_attitude,
@@ -219,7 +225,7 @@ class INS:
         estimated_attitude = \
             self.get_estimated_attitude(
                 mag_angle_change, skew_gyro_body, earth_rotation_matrix,
-                self.properties.estimated_attitude
+                self.properties.estimated_attitude  # todo check update rate of this shit
             )
         average_attitude_transform = self.get_average_attitude(
             mag_angle_change, estimated_attitude, skew_gyro_body,
@@ -235,7 +241,7 @@ class INS:
 
         estimated_velocity = \
             prev_est_v + dt * (
-                accel_meas_ecef - 2 * skew_symmetric(
+                accel_meas_ecef - 2 * skew_symmetric(  #todo check if shapes right here?? and the 2 thing
                     np.matrix([0, 0, earth_rotation_rate]).T) * prev_est_v)
         # update cartesian position
         estimated_position = \
@@ -244,11 +250,12 @@ class INS:
         return estimated_position, estimated_velocity, estimated_attitude
 
 
+# todo 6 items
 class Epoch:
     def __init__(self, properties: KalmanProperties):
         self.properties = properties
 
-        self.skew_earth_rotation = skew_symmetric(
+        self.skew_earth_rotation = skew_symmetric( # todo shape check
             np.matrix([0, 0, earth_rotation_rate]).T)
 
         # P_matrix & est_IMU_bias in Loosely_coupled_INS_GNSS (line 192)
@@ -283,7 +290,7 @@ class Epoch:
                gps_velocity_ecef: np.matrix,
                accel_measurement: np.matrix) -> (
             np.matrix, np.matrix, np.matrix, np.matrix):
-        self.determine_transition_matrix(dt, accel_measurement)  # step 1
+        self.determine_transition_matrix(dt, accel_measurement)  # step 1 #todo hmnnn is no returns intended?
         self.determine_noise_covariance(
             dt, self.properties.uncertainty_values["gyro_noise_PSD"],
             self.properties.uncertainty_values["accel_noise_PSD"],
@@ -313,7 +320,7 @@ class Epoch:
                 self.properties.estimated_velocity,
                 self.properties.estimated_imu_biases,
             )
-
+    #todo 2 count
     def determine_transition_matrix(self, dt, accel_measurement):
         # step 1
         estimated_r = self.properties.estimated_position
@@ -324,13 +331,13 @@ class Epoch:
 
         self.state_transition_Phi = np.matrix(np.eye(15))
 
-        self.state_transition_Phi[0:3, 0:3] -= self.skew_earth_rotation * dt
+        self.state_transition_Phi[0:3, 0:3] -= self.skew_earth_rotation * dt #todo this seems wierd. is the minus a typo?
         self.state_transition_Phi[0:3, 12:15] = est_body_ecef_trans * dt
         self.state_transition_Phi[3:6, 0:3] = \
             -dt * skew_symmetric(
                 est_body_ecef_trans * accel_measurement)
 
-        self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt
+        self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt #todo same as above. maybe cap these?
 
         geocentric_radius = \
             earth_radius / np.sqrt(
@@ -348,6 +355,7 @@ class Epoch:
 
         self.state_transition_Phi[6:9, 3:6] = np.matrix(np.eye(3)) * dt
 
+    #todo look at with book cause bens variable names suck
     def determine_noise_covariance(self, dt, gyro_noise_PSD, accel_noise_PSD,
                                    accel_bias_PSD, gyro_bias_PSD):
         # step 2
@@ -358,7 +366,7 @@ class Epoch:
         self.approx_noise_covariance_Q[3:6, 3:6] *= accel_noise_PSD
         self.approx_noise_covariance_Q[9:12, 9:12] *= accel_bias_PSD
         self.approx_noise_covariance_Q[12:15, 12:15] *= gyro_bias_PSD
-
+    # todo hmnmnm do we really mean 0s
     def set_propagated_state_est(self):
         # step 3
         self.estimated_state_prop_x = np.matrix(np.zeros((15, 1)))
@@ -405,11 +413,12 @@ class Epoch:
             (self.measurement_model_H * self.error_covariance_propagated_P) *
             self.measurement_model_H.T + self.noise_covariance_R)
 
+    # todo 1 item
     def formulate_measurement_innovations(self, gps_position_ecef,
                                           gps_velocity_ecef, estimated_position,
                                           estimated_velocity):
         # step 8
-        # assuming zero lever arm
+        # assuming zero lever arm #todo check if this is a valid or even safe assumption
         self.measurement_innovation_delta_Z[0:3] = \
             gps_position_ecef - estimated_position
         self.measurement_innovation_delta_Z[3:6] = \
@@ -428,6 +437,7 @@ class Epoch:
             np.eye(15)) - self.kalman_gain_K * self.measurement_model_H) * \
                                   self.error_covariance_propagated_P
 
+    #todo look at this again. im lazy af rn
     def correct_estimates(self, estimated_attitude, estimated_position,
                           estimated_velocity, estimated_imu_biases):
         estimated_attitude = np.matrix(
@@ -441,7 +451,9 @@ class Epoch:
                estimated_imu_biases
 
 
+# clear
 def skew_symmetric(m):
+    # current assumption is that the shapes are happy. just making a note in case things go weird later
     """
     creates a 3v3 skew_symmetric matrix from a 1x3 matrix
     """
@@ -450,6 +462,7 @@ def skew_symmetric(m):
                       [-m[1], m[0], 0]])
 
 
+# todo 3 items
 def gravity_ecef(ecef_vector):
     # Calculate distance from center of the Earth
     mag_r = unit_to_scalar(np.sqrt(ecef_vector.T * ecef_vector))
@@ -457,15 +470,16 @@ def gravity_ecef(ecef_vector):
     # If the input position is 0,0,0, produce a dummy output
     if mag_r == 0:
         return np.matrix(np.zeros((3, 1)))
+        #todo maybe this is being called when we give real inputs, bc rounding errors?
 
-    # Calculates gravitational acceleration
+    # Calculates gravitational acceleration in ECEF
     else:
-        z_scale = unit_to_scalar((ecef_vector[2] / mag_r) ** 2 * 5)
+        z_scale = unit_to_scalar((ecef_vector[2] / mag_r) ** 2 * 5) # todo clear this error ben, idk what it wants
 
         matrix = np.matrix([(1 - z_scale) * unit_to_scalar(ecef_vector[0]),
                             (1 - z_scale) * unit_to_scalar(ecef_vector[1]),
                             (3 - z_scale) * unit_to_scalar(ecef_vector[2])])
-        gamma = np.matrix(-earth_gravity_constant / mag_r ** 3 *
+        gamma = np.matrix(-earth_gravity_constant / mag_r ** 3 *  # todo is this an array of one or are we missing comma
                           (ecef_vector + 1.5 * J_2 * (
                               earth_radius / mag_r) ** 2 * matrix))
         # Add centripetal acceleration
@@ -478,17 +492,19 @@ def gravity_ecef(ecef_vector):
         return g
 
 
+#clear
 def unit_to_scalar(unit_matrix):
     return unit_matrix.tolist()[0][0]
 
 
+#clear
 def vector_to_list(vector, is_column_vector=True):
     if not is_column_vector:
         return vector.tolist()[0]
     else:
         return vector.T.tolist()[0]
 
-
+# todo wtf does this shit even mean any more, a riddle in navpy
 def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2):
     pos1 = navpy.lla2ecef(lat1, long1, alt1)
     pos2 = navpy.lla2ecef(lat2, long2, alt2)
@@ -501,7 +517,7 @@ def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2):
 
     return yaw, pitch, roll
 
-
+# test cases and shit. clear
 if __name__ == '__main__':
     def almost_equal(float1, float2, epsilon=0.001):
         if abs(float2 - float1) > epsilon:
