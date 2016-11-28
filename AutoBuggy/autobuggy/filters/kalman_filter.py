@@ -53,10 +53,12 @@ class GrovesKalmanFilter:
             np.array(self.properties.estimated_position.T)[0])
 
     def get_orientation(self):
-        # print(ctm_to_euler(self.properties.estimated_attitude))
         # print(navpy.dcm2angle(self.properties.estimated_attitude))
-        return navpy.dcm2angle(  # CTM_to_Euler
+        # print(self.properties.estimated_attitude)
+        o = navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)  # yaw, pitch, roll
+        # print(o)
+        return o
 
 
 # clear
@@ -123,6 +125,7 @@ class KalmanProperties:
             self.initial_pitch,
             self.initial_roll,
         ))
+        print(navpy.dcm2angle(self.estimated_attitude))
 
         self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 
@@ -192,7 +195,7 @@ class INS:
 
         # check the order of operations here
         return (
-                   earth_rotation_matrix * estimated_attitude) * estimated_attitude_new
+               earth_rotation_matrix * estimated_attitude) * estimated_attitude_new
 
     def get_average_attitude(self, mag_angle_change, estimated_attitude,
                              skew_gyro_body, earth_rotation_amount):
@@ -377,6 +380,7 @@ class Epoch:
 
         self.approx_noise_covariance_Q[0:3, 0:3] *= gyro_noise_PSD
         self.approx_noise_covariance_Q[3:6, 3:6] *= accel_noise_PSD
+        self.approx_noise_covariance_Q[6:9, 6:9] = np.matrix(np.zeros((3, 3)))
         self.approx_noise_covariance_Q[9:12, 9:12] *= accel_bias_PSD
         self.approx_noise_covariance_Q[12:15, 12:15] *= gyro_bias_PSD
 
@@ -555,151 +559,14 @@ def vector_to_list(vector, is_column_vector=True):
 
 
 # todo wtf does this shit even mean any more, a riddle in navpy
-def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2):
-    pos1 = navpy.lla2ecef(lat1, long1, alt1)
-    pos2 = navpy.lla2ecef(lat2, long2, alt2)
+def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2, units="deg"):
+    pos1 = navpy.lla2ecef(lat1, long1, alt1, latlon_unit=units)
+    pos2 = navpy.lla2ecef(lat2, long2, alt2, latlon_unit=units)
 
     delta_pos = pos2 - pos1
 
-    yaw = math.atan2(delta_pos[1], delta_pos[0])
-    pitch = math.atan2(delta_pos[2] * math.cos(yaw), delta_pos[0])
-    roll = math.atan2(math.cos(yaw), math.sin(yaw) * math.sin(pitch))
+    yaw = np.arctan2(delta_pos[1], delta_pos[0])
+    pitch = np.arctan2(delta_pos[2] * np.cos(yaw), delta_pos[0])
+    roll = np.arctan2(np.cos(yaw), np.sin(yaw) * np.sin(pitch))
 
     return yaw, pitch, roll
-
-
-# test cases and shit. clear
-if __name__ == '__main__':
-    def almost_equal(float1, float2, epsilon=0.001):
-        if abs(float2 - float1) > epsilon:
-            raise ValueError("Floats aren't equal: %f, %f" % (float1, float2))
-        else:
-            return True
-
-
-    def test_coordinate_transforms(lat1, long1, alt1):
-        ecef_position = navpy.lla2ecef(lat1, long1, alt1)
-
-        # print(ecef_position)
-
-        lat2, long2, alt2 = navpy.ecef2lla(ecef_position)
-
-        # print(lat2, long2, alt2)
-
-        almost_equal(lat1, lat2)
-        almost_equal(long1, long2)
-        almost_equal(alt1, alt2)
-
-
-    def test_helpers():
-        lat1, long1, alt1 = 40.4404285, -79.9422232, 296.18
-        ecef_position = navpy.lla2ecef(lat1, long1, alt1)
-
-        x, y, z = ecef_position
-        almost_equal(x, 848993, epsilon=0.5)
-        almost_equal(y, -4786645, epsilon=0.5)
-        almost_equal(z, 4115520, epsilon=0.5)
-
-        test_coordinate_transforms(
-            40.44057846069336, 79.94245147705078, 302.79998779296875)
-
-
-    def test_angle_transform():
-        g = 9.80665
-
-        static_properties = StaticProperties(
-            initial_lat=40.44057846069336,
-            initial_long=79.94245147705078,
-            initial_alt=302.79998779296875,
-
-            initial_roll=0,
-            initial_pitch=0,
-            initial_yaw=0,
-
-            roll_error=math.radians(-0.05),
-            pitch_error=math.radians(0.04),
-            yaw_error=math.radians(1),
-
-            initial_v_north=0,
-            initial_v_east=0,
-            initial_v_down=0,
-
-            initial_attitude_unc=math.radians(1),
-            initial_velocity_unc=0.1,
-            initial_position_unc=10,
-            initial_accel_bias_unc=(g * 1E-3) ** 2,
-            initial_gyro_bias_unc=math.radians(1 / 3600),
-
-            gyro_noise_PSD=math.radians(0.02 / 60) ** 2,
-            accel_noise_PSD=200 * (g * 1E-6) ** 2,
-            accel_bias_PSD=1.0E-7,
-            gyro_bias_PSD=2.0E-12,
-            pos_meas_SD=2.5,
-            vel_meas_SD=0.1
-        )
-
-        properties = KalmanProperties(static_properties)
-        ins = INS(properties)
-
-        gyro_measurement = np.matrix([0, 0, math.pi / 2]).T
-        accel_measurement = np.matrix([1, 0, 0]).T
-
-        dt = 0.001
-
-        earth_rotation_amount, earth_rotation_matrix = \
-            ins.get_earth_rotation_matrix(dt)
-        mag_angle_change, skew_gyro_body = \
-            ins.get_gyro_skew_matrix(dt, gyro_measurement)
-        estimated_attitude = \
-            ins.get_estimated_attitude(
-                mag_angle_change, skew_gyro_body, earth_rotation_matrix,
-                properties.estimated_attitude
-            )
-        average_attitude = ins.get_average_attitude(
-            mag_angle_change, estimated_attitude, skew_gyro_body,
-            earth_rotation_amount
-        )
-
-        accel_meas_ecef = average_attitude * accel_measurement
-
-        print("accel_meas_ecef")
-        print(accel_meas_ecef, linalg.norm(accel_meas_ecef))
-
-        print("estimated_attitude")
-        print(estimated_attitude, linalg.norm(estimated_attitude))
-
-        print("average_attitude")
-        print(average_attitude, linalg.norm(average_attitude))
-
-        print("mag_angle_change")
-        print(mag_angle_change)
-
-        prev_est_p = properties.estimated_position
-        prev_est_v = properties.estimated_velocity
-
-        estimated_velocity = \
-            prev_est_v + dt * (
-                accel_meas_ecef - 2 * skew_symmetric(
-                    np.matrix([0, 0, earth_rotation_rate]).T) * prev_est_v)
-        # update cartesian position
-        estimated_position = \
-            prev_est_p + (estimated_velocity + prev_est_v) * 0.5 * dt
-
-        delta_position = \
-            estimated_position - np.matrix(
-                navpy.lla2ecef(static_properties.initial_lat,
-                               static_properties.initial_long,
-                               static_properties.initial_alt)).T
-        print("estimated_position")
-        print(delta_position, linalg.norm(delta_position))
-
-        print("estimated_velocity")
-        print(estimated_velocity, linalg.norm(estimated_velocity))
-
-
-    def test_all():
-        test_helpers()
-        test_angle_transform()
-
-
-    test_all()

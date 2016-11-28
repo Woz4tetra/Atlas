@@ -32,7 +32,7 @@ class FilterTest(Simulator):
             get_gps_orientation(lat1, long1, alt1,
                                 lat2, long2, alt2)
         
-        print(np.array([initial_yaw, initial_pitch, initial_roll]) * 180 / np.pi)
+        # print(np.array([initial_yaw, initial_pitch, initial_roll]) * 180 / np.pi)
         self.filter = GrovesKalmanFilter(
             initial_roll=initial_roll,
             initial_pitch=initial_pitch,
