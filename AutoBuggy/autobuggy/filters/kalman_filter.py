@@ -195,10 +195,10 @@ class INS:
 
         # check the order of operations here
         return (
-               earth_rotation_matrix * estimated_attitude) * estimated_attitude_new
+                   earth_rotation_matrix * estimated_attitude) * estimated_attitude_new
 
     def get_average_attitude(self, mag_angle_change, estimated_attitude,
-                             skew_gyro_body, earth_rotation_amount):
+                             skew_gyro_body, earth_rotation_amount_skew):
         if mag_angle_change > 1E-8:
             average_attitude = (
                 (estimated_attitude *
@@ -206,21 +206,17 @@ class INS:
                   mag_angle_change ** 2 * skew_gyro_body +
                   (1 - np.sin(mag_angle_change) / mag_angle_change) /
                   mag_angle_change ** 2 * skew_gyro_body * skew_gyro_body) -
-                 0.5 * skew_symmetric(
-                     np.matrix([0, 0, earth_rotation_amount]).T) *
+                 0.5 * earth_rotation_amount_skew *
                  estimated_attitude))
         else:
             average_attitude = \
-                (estimated_attitude - 0.5 * skew_symmetric(
-                    np.matrix([0, 0, earth_rotation_amount]).T) *
+                (estimated_attitude - 0.5 * earth_rotation_amount_skew *
                  estimated_attitude)
 
         return average_attitude
 
-    def update(self, dt, accel_measurement: np.matrix,
-               gyro_measurement: np.matrix,
-               estimated_imu_biases: np.matrix) -> (
-            np.matrix, np.matrix, np.matrix):
+    def update(self, dt, accel_measurement, gyro_measurement,
+               estimated_imu_biases):
         self.accel_measurement = accel_measurement - estimated_imu_biases[0:3]
         self.gyro_measurement = gyro_measurement - estimated_imu_biases[3:6]
 
@@ -229,6 +225,9 @@ class INS:
         # this section is attitude update
         earth_rotation_amount, earth_rotation_matrix = \
             self.get_earth_rotation_matrix(dt)
+        earth_rotation_amount_skew = skew_symmetric(
+                    np.matrix([0, 0, earth_rotation_amount]).T)
+
         mag_angle_change, skew_gyro_body = \
             self.get_gyro_skew_matrix(dt, self.gyro_measurement)
         estimated_attitude = \
@@ -239,7 +238,7 @@ class INS:
             )
         average_attitude_transform = self.get_average_attitude(
             mag_angle_change, estimated_attitude, skew_gyro_body,
-            earth_rotation_amount
+            earth_rotation_amount_skew
         )
 
         # Transform specific force to ECEF-frame resolving axes
@@ -297,12 +296,14 @@ class Epoch:
 
         return error_covariance_P
 
-    def update(self, dt: float, gps_position_ecef: np.matrix,
-               gps_velocity_ecef: np.matrix,
-               accel_measurement: np.matrix) -> (
-            np.matrix, np.matrix, np.matrix, np.matrix):
-        self.determine_transition_matrix(dt,
-                                         accel_measurement)  # step 1 #todo hmnnn is no returns intended?
+    def update(self, dt, gps_position_ecef, gps_velocity_ecef,
+               accel_measurement):
+        # step 1 #todo hmnnn is no returns intended?
+        self.determine_transition_matrix(
+            dt, accel_measurement,
+            self.properties.estimated_position,
+            self.properties.estimated_attitude
+        )
         self.determine_noise_covariance(
             dt, self.properties.uncertainty_values["gyro_noise_PSD"],
             self.properties.uncertainty_values["accel_noise_PSD"],
@@ -330,15 +331,16 @@ class Epoch:
             self.properties.estimated_attitude,
             self.properties.estimated_position,
             self.properties.estimated_velocity,
-            self.properties.estimated_imu_biases,
+            self.properties.estimated_imu_biases
         )
 
     # todo 2 count
 
-    def determine_transition_matrix(self, dt, accel_measurement):
+    def determine_transition_matrix(self, dt, accel_measurement,
+                                    estimated_position, estimated_attitude):
         # step 1
-        estimated_r = self.properties.estimated_position
-        est_body_ecef_trans = self.properties.estimated_attitude
+        estimated_r = estimated_position
+        est_body_ecef_trans = estimated_attitude
 
         estimated_lat = \
             navpy.ecef2lla(vector_to_list(estimated_r), latlon_unit='rad')[0]
@@ -428,8 +430,8 @@ class Epoch:
         # step 7
         self.kalman_gain_K = self.error_covariance_propagated_P * \
                              self.measurement_model_H.T * linalg.inv(
-            (self.measurement_model_H * self.error_covariance_propagated_P) *
-            self.measurement_model_H.T + self.noise_covariance_R)
+            ((self.measurement_model_H * self.error_covariance_propagated_P) *
+             self.measurement_model_H.T) + self.noise_covariance_R)
 
     # todo 1 item
     def formulate_measurement_innovations(self, gps_position_ecef,
@@ -458,14 +460,19 @@ class Epoch:
     # todo look at this again. im lazy af rn
     def correct_estimates(self, estimated_attitude, estimated_position,
                           estimated_velocity, estimated_imu_biases):
-        estimated_attitude = np.matrix(np.eye(3)) - skew_symmetric(
-            self.estimated_state_prop_x[0:3]) * estimated_attitude
-        estimated_velocity -= self.estimated_state_prop_x[3:6]
-        estimated_position -= self.estimated_state_prop_x[6:9]
-        estimated_imu_biases += self.estimated_state_prop_x[9:15]
+        # TODO: found it... fix iiiit...
+        # Forgot parenthesis. Caused the graph to stagger and then shoot off like crazy
+        estimated_attitude_new = (np.matrix(np.eye(3)) - skew_symmetric(
+            self.estimated_state_prop_x[0:3])) * estimated_attitude
+        estimated_velocity_new = \
+            estimated_velocity - self.estimated_state_prop_x[3:6]
+        estimated_position_new = \
+            estimated_position - self.estimated_state_prop_x[6:9]
+        estimated_imu_biases_new = \
+            estimated_imu_biases + self.estimated_state_prop_x[9:15]
 
-        return estimated_position, estimated_velocity, estimated_attitude, \
-               estimated_imu_biases
+        return estimated_position_new, estimated_velocity_new, \
+               estimated_attitude_new, estimated_imu_biases_new
 
 
 # clear
