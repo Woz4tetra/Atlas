@@ -6,7 +6,7 @@ from autobuggy.microcontroller.logger import *
 
 class Simulator:
     # TODO: Add integration for CV pipelines
-    def __init__(self, file_name, directory, max_speed, plot_info):
+    def __init__(self, file_name, directory, max_speed, plot_info, start_index=0, end_index=-1):
 
         self.plot_data = {}
         self.plot_info = plot_info
@@ -31,7 +31,8 @@ class Simulator:
                 self.plot_data[plot_option] = \
                     [[] for _ in range(self.plot_info[plot_option]["columns"])]
 
-        self.parser = Parser(file_name, directory)
+        self.parser = Parser(file_name, directory, start_index, end_index)
+        self.start_time = self.parser.data[0][0]
 
         self.timestamps = []
 
@@ -45,8 +46,8 @@ class Simulator:
         self.ax = self.fig.gca()
         self.fig.canvas.set_window_title(self.parser.file_name[:-4])
     
-    def draw_starting_dot(self, x, y):
-        self.ax.plot(x, y, 'o', color='black', markersize=10)
+    def draw_dot(self, x, y, color='black'):
+        self.ax.plot(x, y, 'o', color=color, markersize=10)
 
     def set_default_value(self, data_name, key, default):
         if key not in self.plot_info[data_name].keys():

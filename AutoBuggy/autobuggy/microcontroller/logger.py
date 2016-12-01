@@ -131,7 +131,7 @@ class Parser:
 
     """
 
-    def __init__(self, file_name, directory=None):
+    def __init__(self, file_name, directory=None, start_index=0, end_index=-1):
         # pick a subdirectory of logs
         self.directory = project.parse_dir(directory, log_directory,
                                            lambda x: datetime.strptime(x, log_folder_format))
@@ -190,6 +190,8 @@ class Parser:
             with open(log_pickle_dir + pickle_file_name, 'wb') as pickle_file:
                 pickle.dump(self.data, pickle_file, pickle.HIGHEST_PROTOCOL)
             print("Wrote pickle to: " + log_pickle_dir + pickle_file_name)
+
+        self.data = self.data[start_index: end_index]
 
     def __iter__(self):
         """
