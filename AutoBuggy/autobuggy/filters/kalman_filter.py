@@ -59,7 +59,9 @@ class GrovesKalmanFilter:
         # print(self.properties.estimated_attitude)
         o = navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)  # yaw, pitch, roll
-        # print(o)
+        # print(self.properties.estimated_attitude)
+        if np.isnan(o[1]):
+            print(self.properties.estimated_attitude)
         return o
 
 
@@ -153,7 +155,6 @@ class KalmanProperties:
         return gps_position_ecef, gps_velocity_ecef
 
 
-# todo 1 question
 class INS:
     def __init__(self, properties: KalmanProperties):
         self.properties = properties
@@ -161,115 +162,50 @@ class INS:
         self.accel_measurement = np.matrix(np.zeros((3, 1)))
         self.gyro_measurement = np.matrix(np.zeros((3, 1)))
 
-    def get_earth_rotation_transform(self,
-                                     dt: float):  # todo is this update rate the same or faster than the call rate? dt i mean
-        earth_rotation_amount = earth_rotation_rate * dt
-        earth_rotation_transform = np.matrix(
-            [[np.cos(earth_rotation_amount), np.sin(earth_rotation_amount), 0],
-             [-np.sin(earth_rotation_amount), np.cos(earth_rotation_amount), 0],
-             [0, 0, 1]])
-
-        return earth_rotation_amount, earth_rotation_transform
-
-    def get_gyro_skew_matrix(self, dt, gyro_measurement):
-        # calculate attitude increment, magnitude, and skew-symmetric matrix
-        angle_change_gyro = gyro_measurement * dt
-
-        mag_angle_change = unit_to_scalar(np.sqrt(
-            angle_change_gyro.T * angle_change_gyro))  # convert to scalar
-
-        skew_gyro_body = skew_symmetric(angle_change_gyro)
-
-        return mag_angle_change, skew_gyro_body  # was skew_alpha_ib_b
-
-    def get_estimated_attitude(self, mag_angle_change, skew_gyro_body,
-                               earth_rotation_transform, estimated_attitude):
-        if mag_angle_change > 1E-8:
-            estimated_attitude_new = (
-                np.matrix(np.eye(3)) + np.sin(mag_angle_change) /
-                mag_angle_change * skew_gyro_body +
-                (1 - np.cos(mag_angle_change)) /
-                mag_angle_change ** 2 *
-                skew_gyro_body * skew_gyro_body)
-        else:
-            estimated_attitude_new = np.matrix(np.eye(3)) + skew_gyro_body
-
-        # check the order of operations here
-        return (earth_rotation_transform * estimated_attitude) * \
-               estimated_attitude_new
-
-    def get_average_attitude(self, mag_angle_change, estimated_attitude,
-                             skew_gyro_body, earth_rotation_amount_skew):
-        if mag_angle_change > 1E-8:
-            average_attitude = (
-                (estimated_attitude *
-                 (np.matrix(np.eye(3)) + (1 - np.cos(mag_angle_change)) /
-                  mag_angle_change ** 2 * skew_gyro_body +
-                  (1 - np.sin(mag_angle_change) / mag_angle_change) /
-                  mag_angle_change ** 2 * skew_gyro_body * skew_gyro_body) -
-                 0.5 * earth_rotation_amount_skew *
-                 estimated_attitude))
-        else:
-            average_attitude = \
-                (estimated_attitude - 0.5 * earth_rotation_amount_skew *
-                 estimated_attitude)
-
-        return average_attitude
-
     def update(self, dt, accel_measurement, gyro_measurement):
         self.accel_measurement = \
             accel_measurement - self.properties.estimated_imu_biases[0:3]
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
+        prev_r = self.properties.estimated_position
+        prev_v = self.properties.estimated_velocity
+        prev_C = self.properties.estimated_attitude
+
         # Nav_equations_ECEF function
 
-        # this section is attitude update
-        earth_rotation_amount, earth_rotation_transform = \
-            self.get_earth_rotation_transform(dt)
-        earth_rotation_amount_skew = skew_symmetric(
-            np.matrix([0, 0, earth_rotation_amount]).T)
+        angle_change = self.gyro_measurement * dt  # assuming constant
 
-        mag_angle_change, skew_gyro_body = \
-            self.get_gyro_skew_matrix(dt, self.gyro_measurement)
-        estimated_attitude = \
-            self.get_estimated_attitude(
-                mag_angle_change, skew_gyro_body, earth_rotation_transform,
-                self.properties.estimated_attitude
-            )
+        skew_angle_change = skew_symmetric(angle_change)
 
-        average_attitude_transform = self.get_average_attitude(
-            mag_angle_change, estimated_attitude, skew_gyro_body,
-            earth_rotation_amount_skew
-        )
+        # now estimate attitude, not sure if right
 
-        prev_est_r = self.properties.estimated_position
-        prev_est_v = self.properties.estimated_velocity
+        est_attitude_trans = prev_C * (np.matrix(np.eye(3)) + skew_angle_change)
+        # print(est_attitude_trans)
+        if est_attitude_trans[..., 0, 2] > 1:
+            est_attitude_trans[0, 2] = 1
+        if est_attitude_trans[..., 0, 2] < -1:
+            est_attitude_trans[0, 2] = -1
+        # print(est_attitude_trans)
+        # print()
 
-        # Transform specific force to ECEF-frame resolving axes
-        accel_meas_ecef = average_attitude_transform * self.accel_measurement
+        accel_ecef = est_attitude_trans * self.accel_measurement
 
-        # update velocity
-        g = gravity_ecef(prev_est_r)
+        estimated_velocity = prev_v + dt * accel_ecef
+        # left it as est_vel here so that i can use it and self.vel at the same time
+        # the next step
 
-        # TODO: do we need gravity_ecef here?
-        estimated_velocity = \
-            prev_est_v + dt * (
-                accel_meas_ecef + g - 2 * earth_rotation_amount_skew * prev_est_v)
+        estimated_position = prev_r + (prev_v + estimated_velocity) * 0.5 * dt
 
-        # update cartesian position
-        estimated_position = \
-            prev_est_r + (estimated_velocity + prev_est_v) * 0.5 * dt
-
-        return estimated_position, estimated_velocity, estimated_attitude
+        return estimated_position, estimated_velocity, est_attitude_trans
 
 
-# todo 6 items
+
 class Epoch:
     def __init__(self, properties: KalmanProperties):
         self.properties = properties
 
-        self.skew_earth_rotation = skew_symmetric(  # todo shape check
+        self.skew_earth_rotation = skew_symmetric(
             np.matrix([0, 0, earth_rotation_rate]).T)
 
         # P_matrix & est_IMU_bias in Loosely_coupled_INS_GNSS (line 192)
@@ -369,8 +305,9 @@ class Epoch:
 
         self.state_transition_Phi[3:6, 6:9] = \
             (-dt * 2 * gravity_ecef(
-                estimated_r) / (geocentric_radius * estimated_lat) * estimated_r.T /
-                unit_to_scalar(np.sqrt(estimated_r.T * estimated_r)))
+                estimated_r) / (
+                 geocentric_radius * estimated_lat) * estimated_r.T /
+             unit_to_scalar(np.sqrt(estimated_r.T * estimated_r)))
 
         self.state_transition_Phi[3:6, 9:12] = est_body_ecef_trans * dt
 

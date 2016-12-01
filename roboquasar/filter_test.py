@@ -16,7 +16,7 @@ class FilterTest(Simulator):
         self.course_map = get_map("buggy course map.gpx")
 
         super(FilterTest, self).__init__(
-            file_name, directory, 1, plot_info, 0, 5000
+            file_name, directory, 1, plot_info, #0, 5000
         )
         
         first_gps = self.parser.get(5, "gps")[-1]
@@ -90,17 +90,17 @@ class FilterTest(Simulator):
                 self.prev_lat = values["lat"]
                 self.prev_long = values["long"]
 
-                # if self.plot_enabled["calculated_filter_plot"]:
-                #     self.filter.gps_updated(
-                #         timestamp - self.prev_gps_t,
-                #         values["lat"], values["long"], values["altitude"]
-                #     )
-                #     self.prev_gps_t = timestamp
-                #
-                #     # lat, long, height = self.filter.get_position()
-                #     # self.draw_dot(long, lat, 'green')
-                #
-                #     self.record_position()
+                if self.plot_enabled["calculated_filter_plot"]:
+                    self.filter.gps_updated(
+                        timestamp - self.prev_gps_t,
+                        values["lat"], values["long"], values["altitude"]
+                    )
+                    self.prev_gps_t = timestamp
+
+                    # lat, long, height = self.filter.get_position()
+                    # self.draw_dot(long, lat, 'green')
+
+                    self.record_position()
 
     def record_position(self):
         lat, long, height = self.filter.get_position()
