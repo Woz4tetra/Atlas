@@ -53,6 +53,7 @@ class GrovesKalmanFilter:
     def get_position(self):
         return navpy.ecef2lla(
             np.array(self.properties.estimated_position.T)[0])
+        # return np.array(self.properties.estimated_position.T)[0]
 
     def get_orientation(self):
         # print(navpy.dcm2angle(self.properties.estimated_attitude))

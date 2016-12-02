@@ -3,12 +3,16 @@ from matplotlib import pyplot as plt
 import math
 from collections import defaultdict
 from autobuggy.microcontroller.logger import *
+import pickle
+
+pickled_sim_directory = ":simulations"
 
 
 class Simulator:
     # TODO: Add integration for CV pipelines
     def __init__(self, file_name, directory, max_speed, plot_info,
-                 enable_3d=False, start_index=0, end_index=-1):
+                 enable_3d=False, used_cached_data=False,
+                 start_index=0, end_index=-1):
         self.enable_3d = enable_3d
 
         self.plot_data = {}
@@ -45,13 +49,14 @@ class Simulator:
 
         # ----- initialize figures -----
 
-
         if self.enable_3d:
             self.fig, self.ax = plt.subplots(subplot_kw=dict(projection='3d'))
         else:
             self.fig = plt.figure(0)
             self.ax = self.fig.gca()
         self.fig.canvas.set_window_title(self.parser.file_name[:-4])
+
+        self.used_cached_data = used_cached_data
 
     def draw_dot(self, x, y, z=0, color='black'):
         if self.enable_3d:
@@ -68,16 +73,17 @@ class Simulator:
         pass
 
     def run(self):
-        for index, timestamp, name, values in self.parser:
-            self.step(index, timestamp, name, values)
+        if not self.used_cached_data:
+            for index, timestamp, name, values in self.parser:
+                self.step(index, timestamp, name, values)
 
-            self.timestamps.append(timestamp)
+                self.timestamps.append(timestamp)
 
-            percent = 100 * index / len(self.parser)
-            self.percent = int(percent * 10)
-            if self.percent != self.prev_percent:
-                self.prev_percent = self.percent
-                print(("%0.1f" % percent) + "%", end='\r')
+                percent = 100 * index / len(self.parser)
+                self.percent = int(percent * 10)
+                if self.percent != self.prev_percent:
+                    self.prev_percent = self.percent
+                    print(("%0.1f" % percent) + "%", end='\r')
 
         print("plotting...")
         self.plot()
@@ -124,6 +130,21 @@ class Simulator:
         pass
 
     def plot(self):
+        pickle_file_name = self.parser.file_name[
+                           :-len(log_file_type)] + pickle_file_type
+        log_pickle_dir = project.interpret_dir(
+            pickled_sim_directory)
+
+        if not self.used_cached_data:
+            # TODO: if file doesn't exist, used_cached_data = False
+            print("Using picked simulation")
+            with open(log_pickle_dir + pickle_file_name, 'wb') as pickle_file:
+                pickle.dump(self.plot_data, pickle_file,
+                            pickle.HIGHEST_PROTOCOL)
+        else:
+            with open(log_pickle_dir + pickle_file_name, 'rb') as pickle_file:
+                self.plot_data = pickle.load(pickle_file)
+
         for plot_option, data_array in self.plot_data.items():
             data_info = self.plot_info[plot_option]
             if not data_info["log_based_plot"]:
@@ -144,9 +165,12 @@ class Simulator:
                              markersize=data_info["markersize"],
                              alpha=data_info["alpha"])
                 else:
-                    self.ax.scatter(data_array[0], data_array[1],
-                                    data_array[2], linewidth=0.1,
-                                    antialiased=False)
+                    self.ax.plot(data_array[0], data_array[1],
+                                 data_array[2], color=data_info["color"],
+                                 linewidth=1,
+                                 antialiased=False,
+                                 label=data_info["label"])
+
 
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 

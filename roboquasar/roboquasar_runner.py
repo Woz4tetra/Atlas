@@ -2,7 +2,8 @@ import time
 import sys
 from roboquasar_bot import RoboQuasarBot
 from roboquasar_constants import constants
-from autobuggy.filters.kalman_filter import GrovesKalmanFilter
+from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
+    get_gps_orientation
 
 
 class RoboQuasarRunner(RoboQuasarBot):
@@ -12,13 +13,38 @@ class RoboQuasarRunner(RoboQuasarBot):
                                                log_data)
         self.checkpoint_num = 0
 
-        self.filter = None  #GrovesKalmanFilter(**constants)
+        lat1, long1 = self.checkpoints[0]
+        lat2, long2 = self.checkpoints[1]
+        altitude = 270
+
+        initial_yaw, initial_pitch, initial_roll = \
+            get_gps_orientation(lat1, long1, altitude, lat2, long2, altitude)
+
+        self.filter = GrovesKalmanFilter(
+            initial_roll=initial_roll,
+            initial_pitch=initial_pitch,
+            initial_yaw=initial_yaw,
+            initial_lat=lat1,
+            initial_long=long1,
+            initial_alt=altitude,
+            **constants
+        )
+
+        self.state = {
+            "lat": lat1,
+            "long": long1,
+            "alt": altitude,
+            "yaw": initial_yaw,
+            "pitch": initial_pitch,
+            "roll": initial_roll,
+        }
+
+        self.record("kalman", self.state)
+
         self.manual_mode = True
 
         self.gps_t0 = time.time()
         self.imu_t0 = time.time()
-    
-        self.max_imu = 0
 
     def button_dn(self, button):
         if button == 'A':
@@ -40,28 +66,19 @@ class RoboQuasarRunner(RoboQuasarBot):
                 imu_dt, self.imu["ax"], self.imu["ay"], self.imu["az"],
                 self.imu["gx"], self.imu["gy"], self.imu["gz"]
             )
-        
-        if self.imu.get("ax") > self.max_imu:
-            self.max_imu = self.imu.get("ax")
-        if self.imu.get("ay") > self.max_imu:
-            self.max_imu = self.imu.get("ay")
-        if self.imu.get("az") > self.max_imu:
-            self.max_imu = self.imu.get("az")
-            
+
         self.imu_t0 = time.time()
 
     def gps_updated(self):
-        print("yaw: %2.4f\n"
-              "a: (%2.4f, %2.4f, %2.4f)\ng: (%2.4f, %2.4f, %2.4f)\n"
-              "m: (%2.4f, %2.4f, %2.4f)\n"
-               % self.imu.get(all=True))
+        # print("yaw: %2.4f\n"
+        #       "a: (%2.4f, %2.4f, %2.4f)\ng: (%2.4f, %2.4f, %2.4f)\n"
+        #       "m: (%2.4f, %2.4f, %2.4f)\n"
+        #       % self.imu.get(all=True))
+        #
+        # data = self.gps.get(all=True)
+        # data = tuple(data[:3]) + (data[-1],)
+        # print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
 
-        data = self.gps.get(all=True)
-        data = tuple(data[:3]) + (data[-1],)
-        print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
-        
-        print("max imu:", self.max_imu)
-        
         if not self.manual_mode:
             gps_dt = time.time() - self.gps_t0
             self.filter.gps_updated(
@@ -80,9 +97,18 @@ class RoboQuasarRunner(RoboQuasarBot):
             position = self.filter.get_position()
             orientation = self.filter.get_orientation()
 
+            self.state["lat"] = position[0]
+            self.state["long"] = position[1]
+            self.state["alt"] = position[2]
 
+            self.state["yaw"] = orientation[0]
+            self.state["pitch"] = orientation[1]
+            self.state["roll"] = orientation[2]
+
+            self.record("kalman", self.state)
 
             # TODO: get goal and set steering based on these values
+
 
 log_data = True
 if len(sys.argv) >= 2:

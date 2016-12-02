@@ -22,6 +22,7 @@ project_dirs = {
     'videos': "videos/",
     'images': "images/",
     'joysticks': "joysticks/",
+    'simulations': "pickled/simulations/",
     'project': "",
 }
 
