@@ -61,14 +61,13 @@ class GrovesKalmanFilter:
             self.properties.estimated_attitude)  # yaw, pitch, roll
         # orientation[0] = -orientation[0] + np.pi * 3 / 2
         # print(self.properties.estimated_attitude)
-        if np.any(np.isnan(orientation)):
-            print(orientation)
-            print(self.properties.estimated_attitude)
-            print()
+        # if np.any(np.isnan(orientation)):
+        #     print(orientation)
+        #     print(self.properties.estimated_attitude)
+        #     print()
         return orientation
 
 
-# clear
 class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
                  initial_lat, initial_long, initial_alt,
@@ -284,7 +283,7 @@ class INS:
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
-        self.accel_measurement = np.clip(self.accel_measurement, -0.25, 0.25)
+        self.accel_measurement = np.clip(self.accel_measurement, -0.5, 0.5)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
         self.modify_measurements(accel_measurement, gyro_measurement)
@@ -295,7 +294,7 @@ class INS:
 
         # Nav_equations_ECEF function
 
-        angle_change = self.gyro_measurement * dt  # assuming constant between dt's
+        angle_change = -self.gyro_measurement * dt  # assuming constant between dt's
 
         skew_angle_change = skew_symmetric(angle_change)
 
@@ -527,41 +526,9 @@ def skew_symmetric(m):
     """
     creates a 3v3 skew_symmetric matrix from a 1x3 matrix
     """
-    return np.matrix([[0, -m[2], m[2]],
+    return np.matrix([[0, -m[2], m[1]],
                       [m[2], 0, -m[0]],
                       [-m[1], m[0], 0]])
-
-
-def euler_to_ctm(yaw, pitch, roll):
-    sin_phi = np.sin(yaw)
-    cos_phi = np.cos(yaw)
-    sin_theta = np.sin(pitch)
-    cos_theta = np.cos(pitch)
-    sin_psi = np.sin(roll)
-    cos_psi = np.cos(roll)
-
-    C = np.matrix(np.zeros((3, 3)))
-    C[0, 0] = cos_theta * cos_psi
-    C[0, 1] = cos_theta * sin_psi
-    C[0, 2] = -sin_theta
-
-    C[1, 0] = -cos_phi * sin_psi + sin_phi * sin_theta * cos_psi
-    C[1, 1] = cos_phi * cos_psi + sin_phi * sin_theta * sin_psi
-    C[1, 2] = sin_phi * cos_theta
-
-    C[2, 0] = sin_phi * sin_psi + cos_phi * sin_theta * cos_psi
-    C[2, 1] = -sin_phi * cos_psi + cos_phi * sin_theta * sin_psi
-    C[2, 2] = cos_phi * cos_theta
-
-    return C
-
-
-def ctm_to_euler(C):
-    yaw = math.atan2(C[0, 1], C[0, 0])
-    pitch = math.asin(C[0, 2])
-    roll = math.atan2(C[1, 2], C[2, 2])
-
-    return yaw, pitch, roll
 
 
 def gravity_ecef(ecef_vector):

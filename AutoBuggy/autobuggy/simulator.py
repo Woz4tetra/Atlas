@@ -1,3 +1,4 @@
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 import math
 from collections import defaultdict
@@ -6,7 +7,9 @@ from autobuggy.microcontroller.logger import *
 
 class Simulator:
     # TODO: Add integration for CV pipelines
-    def __init__(self, file_name, directory, max_speed, plot_info, start_index=0, end_index=-1):
+    def __init__(self, file_name, directory, max_speed, plot_info,
+                 enable_3d=False, start_index=0, end_index=-1):
+        self.enable_3d = enable_3d
 
         self.plot_data = {}
         self.plot_info = plot_info
@@ -15,7 +18,10 @@ class Simulator:
         for plot_option in self.plot_info.keys():
             self.set_default_value(plot_option, "label", "")
             self.set_default_value(plot_option, "color", "")
-            self.set_default_value(plot_option, "columns", 2)
+            if self.enable_3d:
+                self.set_default_value(plot_option, "columns", 3)
+            else:
+                self.set_default_value(plot_option, "columns", 2)
             self.set_default_value(plot_option, "markersize", 1)
             self.set_default_value(plot_option, "line_segments", False)
             self.set_default_value(plot_option, "log_based_plot", True)
@@ -37,17 +43,25 @@ class Simulator:
         self.timestamps = []
 
         self.prev_percent = 0
-        
+
         self.max_speed = max_speed
 
         # ----- initialize figures -----
 
-        self.fig = plt.figure(0)
-        self.ax = self.fig.gca()
+
+        if self.enable_3d:
+            self.fig, self.ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        else:
+            self.fig = plt.figure(0)
+            self.ax = self.fig.gca()
         self.fig.canvas.set_window_title(self.parser.file_name[:-4])
-    
-    def draw_dot(self, x, y, color='black'):
-        self.ax.plot(x, y, 'o', color=color, markersize=10)
+
+    def draw_dot(self, x, y, z=0, color='black'):
+        if self.enable_3d:
+            # self.ax.plot(x, y, z, 'o', color=color, markersize=10)
+            pass
+        else:
+            self.ax.plot(x, y, 'o', color=color, markersize=10)
 
     def set_default_value(self, data_name, key, default):
         if key not in self.plot_info[data_name].keys():
@@ -74,38 +88,40 @@ class Simulator:
 
     def angled_line_segment(self, plot_option, x0, y0, angle, length,
                             vx=None, vy=None, v_scale=None):
-        if self.plot_enabled[plot_option]:
-            cycler = self.plot_info[plot_option]["line_seg_counter"] % \
-                     self.plot_info[plot_option]["line_seg_freq"]
-            if cycler == 0:
-                if vx is not None and vy is not None and v_scale is not None:
-                    speed = (vx ** 2 + vy ** 2) ** 0.5
-                    speed = speed * v_scale + v_scale
-                    percent_speed = abs(
-                        self.max_speed - speed) / self.max_speed
-                    length *= percent_speed
-                length *= 1E-4  # scale down to GPS size
-                x1 = x0 + length * math.cos(angle)
-                y1 = y0 + length * math.sin(angle)
-                self.xy_line_segment(plot_option, x0, y0, x1, y1, cycler)
-
-            self.plot_info[plot_option]["line_seg_counter"] += 1
-
-    def xy_line_segment(self, plot_option, x0, y0, x1, y1, cycler=None):
-        if self.plot_enabled[plot_option]:
-            if cycler is None:
+        if not self.enable_3d:
+            if self.plot_enabled[plot_option]:
                 cycler = self.plot_info[plot_option]["line_seg_counter"] % \
                          self.plot_info[plot_option]["line_seg_freq"]
+                if cycler == 0:
+                    if vx is not None and vy is not None and v_scale is not None:
+                        speed = (vx ** 2 + vy ** 2) ** 0.5
+                        speed = speed * v_scale + v_scale
+                        percent_speed = abs(
+                            self.max_speed - speed) / self.max_speed
+                        length *= percent_speed
+                    length *= 1E-4  # scale down to GPS size
+                    x1 = x0 + length * math.cos(angle)
+                    y1 = y0 + length * math.sin(angle)
+                    self.xy_line_segment(plot_option, x0, y0, x1, y1, cycler)
+
                 self.plot_info[plot_option]["line_seg_counter"] += 1
 
-            if cycler == 0:
-                self.plot_data[plot_option].append((x0, x1))
-                self.plot_data[plot_option].append((y0, y1))
-                self.plot_data[plot_option].append(
-                    self.plot_info[plot_option]["color"])
+    def xy_line_segment(self, plot_option, x0, y0, x1, y1, cycler=None):
+        if not self.enable_3d:
+            if self.plot_enabled[plot_option]:
+                if cycler is None:
+                    cycler = self.plot_info[plot_option]["line_seg_counter"] % \
+                             self.plot_info[plot_option]["line_seg_freq"]
+                    self.plot_info[plot_option]["line_seg_counter"] += 1
 
-                if not self.plot_info[plot_option]["line_segments"]:
-                    self.plot_info[plot_option]["line_segments"] = True
+                if cycler == 0:
+                    self.plot_data[plot_option].append((x0, x1))
+                    self.plot_data[plot_option].append((y0, y1))
+                    self.plot_data[plot_option].append(
+                        self.plot_info[plot_option]["color"])
+
+                    if not self.plot_info[plot_option]["line_segments"]:
+                        self.plot_info[plot_option]["line_segments"] = True
 
     def fill_data_array(self, plot_option, data_array):
         pass
@@ -116,15 +132,20 @@ class Simulator:
             if not data_info["log_based_plot"]:
                 self.fill_data_array(plot_option, data_array)
 
-            if data_info["line_segments"]:
+            if data_info["line_segments"] and not self.enable_3d:
                 plt.plot(*data_array)
             else:
-                if data_info["columns"] == 1:
-                    plt.plot(self.timestamps, data_array)
-                elif data_info["columns"] == 2:
-                    plt.plot(data_array[0], data_array[1], data_info["color"],
-                             label=data_info["label"],
-                             markersize=data_info["markersize"])
+                if not self.enable_3d:
+                    if data_info["columns"] == 1:
+                        plt.plot(self.timestamps, data_array)
+                    elif data_info["columns"] == 2:
+                        plt.plot(data_array[0], data_array[1], data_info["color"],
+                                 label=data_info["label"],
+                                 markersize=data_info["markersize"])
+                else:
+                    self.ax.scatter(data_array[0], data_array[1],
+                                    data_array[2], linewidth=0.1,
+                                    antialiased=False)
 
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 

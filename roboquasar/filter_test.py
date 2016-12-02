@@ -19,13 +19,13 @@ if disable_ins:
 
 
 class FilterTest(Simulator):
-    def __init__(self, file_name, directory, **plot_info):
+    def __init__(self, file_name, directory, enable_3d, **plot_info):
         project.set_project_dir("roboquasar")
         self.checkpoints = get_map("buggy course checkpoints.gpx")
         self.course_map = get_map("buggy course map.gpx")
 
         super(FilterTest, self).__init__(
-            file_name, directory, 1, plot_info,  # 0, 5000
+            file_name, directory, 1, plot_info, enable_3d, # 0, 5000
         )
 
         first_gps = self.parser.get(5, "gps")[-1]
@@ -49,7 +49,7 @@ class FilterTest(Simulator):
             initial_alt=alt1,
             **constants)
 
-        self.draw_dot(long1, lat1)
+        self.draw_dot(long1, lat1, alt1)
 
         self.prev_lat, self.prev_long = lat1, long1
 
@@ -61,10 +61,14 @@ class FilterTest(Simulator):
             checkpoints_map = np.array(self.checkpoints)
             data_array[0] = checkpoints_map[:, 1]
             data_array[1] = checkpoints_map[:, 0]
+            if self.enable_3d:
+                data_array[2] = 300
         elif plot_option == "course_map_plot":
             course_map = np.array(self.course_map)
             data_array[0] = course_map[:, 1]
             data_array[1] = course_map[:, 0]
+            if self.enable_3d:
+                data_array[2] = 300
 
     def step(self, index, timestamp, name, values):
         if name == "imu":
@@ -92,6 +96,8 @@ class FilterTest(Simulator):
                 "lat"] != self.prev_lat:
                 self.plot_data["gps_plot"][0].append(values["long"])
                 self.plot_data["gps_plot"][1].append(values["lat"])
+                if self.enable_3d:
+                    self.plot_data["gps_plot"][2].append(values["altitude"])
 
                 self.prev_lat = values["lat"]
                 self.prev_long = values["long"]
@@ -113,6 +119,8 @@ class FilterTest(Simulator):
         lat, long, height = self.filter.get_position()
         self.plot_data["calculated_filter_plot"][0].append(long)
         self.plot_data["calculated_filter_plot"][1].append(lat)
+        if self.enable_3d:
+            self.plot_data["calculated_filter_plot"][2].append(height)
 
         yaw, pitch, roll = self.filter.get_orientation()
 
@@ -122,7 +130,7 @@ class FilterTest(Simulator):
 
 
 def run():
-    file_name, directory = parse_arguments(6, -2)
+    file_name, directory = parse_arguments(-1, -2)
 
     plotter = FilterTest(
         file_name, directory,
@@ -134,7 +142,8 @@ def run():
         # checkpoints_plot=dict(color='green', label="checkpoints",
         #                       log_based_plot=False),
         course_map_plot=dict(color='blue', label="map",
-                             log_based_plot=False)
+                             log_based_plot=False),
+        enable_3d=False
     )
 
     plotter.run()
