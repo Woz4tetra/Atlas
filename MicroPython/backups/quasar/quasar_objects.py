@@ -71,10 +71,10 @@ class IMU(Sensor):
 
         self.accel_x, self.accel_y, self.accel_z = self.bno.get_lin_accel()  # m/s^2
 
-        ang_v = self.bno.get_gyro()  # rotations per second
-        self.ang_vx = ang_v[0] * 2 * pi  # radians per second
-        self.ang_vy = ang_v[1] * 2 * pi
-        self.ang_vz = ang_v[2] * 2 * pi
+        ang_v = self.bno.get_gyro()  # radians per second
+#        self.ang_vx = ang_v[0] * 2 * pi  # radians per second
+#        self.ang_vy = ang_v[1] * 2 * pi
+#        self.ang_vz = ang_v[2] * 2 * pi
 
         self.mag_x, self.mag_y, self.mag_z = self.bno.get_mag()
 
@@ -105,15 +105,15 @@ class StepperCommand(Command):
         self.stepper.step(steps)
 
     def calibrate(self):
-        print("calibrating stepper")
-        print(self.delimiter_pin.value())
-        while self.delimiter_pin.value():
-            self.stepper.step(20)
-            print(self.delimiter_pin.value())
-
-        self.stepper.step(100)  # center steering
-        print("calibrated!")
-        # print("Skipping calibration")
+        # print("calibrating stepper")
+        # print(self.delimiter_pin.value())
+        # while self.delimiter_pin.value():
+        #     self.stepper.step(20)
+        #     print(self.delimiter_pin.value())
+        #
+        # self.stepper.step(100)  # center steering
+        # print("calibrated!")
+        print("Skipping calibration")
 
     def reset(self):
         # recalibrate with delimiter

@@ -12,10 +12,13 @@ class RoboQuasarRunner(RoboQuasarBot):
                                                log_data)
         self.checkpoint_num = 0
 
-        self.filter = GrovesKalmanFilter(**constants)
+        self.filter = None  #GrovesKalmanFilter(**constants)
+        self.manual_mode = True
 
         self.gps_t0 = time.time()
         self.imu_t0 = time.time()
+    
+        self.max_imu = 0
 
     def button_dn(self, button):
         if button == 'A':
@@ -32,23 +35,38 @@ class RoboQuasarRunner(RoboQuasarBot):
 
     def imu_updated(self):
         imu_dt = time.time() - self.imu_t0
-        self.filter.imu_updated(
-            imu_dt, self.imu["ax"], self.imu["ay"], self.imu["az"],
-            self.imu["gx"], self.imu["gy"], self.imu["gz"]
-        )
+        if not self.manual_mode:
+            self.filter.imu_updated(
+                imu_dt, self.imu["ax"], self.imu["ay"], self.imu["az"],
+                self.imu["gx"], self.imu["gy"], self.imu["gz"]
+            )
+        
+        if self.imu.get("ax") > self.max_imu:
+            self.max_imu = self.imu.get("ax")
+        if self.imu.get("ay") > self.max_imu:
+            self.max_imu = self.imu.get("ay")
+        if self.imu.get("az") > self.max_imu:
+            self.max_imu = self.imu.get("az")
+            
         self.imu_t0 = time.time()
 
     def gps_updated(self):
-        print("yaw: %2.4f\n" % self.imu.get(all=True))
+        print("yaw: %2.4f\n"
+              "a: (%2.4f, %2.4f, %2.4f)\ng: (%2.4f, %2.4f, %2.4f)\n"
+              "m: (%2.4f, %2.4f, %2.4f)\n"
+               % self.imu.get(all=True))
 
         data = self.gps.get(all=True)
         data = tuple(data[:3]) + (data[-1],)
         print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
-
-        gps_dt = time.time() - self.gps_t0
-        self.filter.gps_updated(
-            gps_dt, self.gps["lat"], self.gps["long"], self.gps["altitude"]
-        )
+        
+        print("max imu:", self.max_imu)
+        
+        if not self.manual_mode:
+            gps_dt = time.time() - self.gps_t0
+            self.filter.gps_updated(
+                gps_dt, self.gps["lat"], self.gps["long"], self.gps["altitude"]
+            )
         self.gps_t0 = time.time()
 
     def main(self):
@@ -68,6 +86,6 @@ class RoboQuasarRunner(RoboQuasarBot):
 
 log_data = True
 if len(sys.argv) >= 2:
-    log_data = bool(sys.argv[1])
+    log_data = bool(int(sys.argv[1]))
 
 RoboQuasarRunner(log_data).run()

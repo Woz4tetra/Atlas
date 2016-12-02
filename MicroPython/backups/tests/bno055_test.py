@@ -1,7 +1,7 @@
 import pyb
 from libraries.bno055 import BNO055
 
-bus = 2
+bus = 1
 print(bus)
 imu = BNO055(bus)
 
