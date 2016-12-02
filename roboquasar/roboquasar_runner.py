@@ -8,7 +8,7 @@ from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
 
 class RoboQuasarRunner(RoboQuasarBot):
     def __init__(self, log_data):
-        super(RoboQuasarRunner, self).__init__("buggy course checkpoints.gpx",
+        super(RoboQuasarRunner, self).__init__("track field checkpoints.gpx",
                                                "buggy course map.gpx",
                                                log_data)
         self.checkpoint_num = 0
@@ -61,11 +61,11 @@ class RoboQuasarRunner(RoboQuasarBot):
 
     def imu_updated(self):
         imu_dt = time.time() - self.imu_t0
-        if not self.manual_mode:
-            self.filter.imu_updated(
-                imu_dt, self.imu["ax"], self.imu["ay"], self.imu["az"],
-                self.imu["gx"], self.imu["gy"], self.imu["gz"]
-            )
+#        if not self.manual_mode:
+        self.filter.imu_updated(
+            imu_dt, self.imu.get("ax"), self.imu.get("ay"), self.imu.get("az"),
+            self.imu.get("gx"), self.imu.get("gy"), self.imu.get("gz")
+        )
 
         self.imu_t0 = time.time()
 
@@ -79,12 +79,15 @@ class RoboQuasarRunner(RoboQuasarBot):
         # data = tuple(data[:3]) + (data[-1],)
         # print("long: %2.6f, lat: %2.6f, alt: %2.4f, fix: %s\n" % data)
 
-        if not self.manual_mode:
-            gps_dt = time.time() - self.gps_t0
-            self.filter.gps_updated(
-                gps_dt, self.gps["lat"], self.gps["long"], self.gps["altitude"]
-            )
+#        if not self.manual_mode:
+        gps_dt = time.time() - self.gps_t0
+        self.filter.gps_updated(
+            gps_dt, self.gps.get("lat"), self.gps.get("long"), self.gps.get("altitude")
+        )
         self.gps_t0 = time.time()
+    
+        print(self.state)
+        print()
 
     def main(self):
         if self.manual_mode:
@@ -92,22 +95,22 @@ class RoboQuasarRunner(RoboQuasarBot):
             if abs(value) > 0:
                 self.stepper.set(int(-value * 4))
                 self.blue_led.set(int(abs(value * 255)))
-            time.sleep(0.04)
-        else:
-            position = self.filter.get_position()
-            orientation = self.filter.get_orientation()
+#        else:
+        position = self.filter.get_position()
+        orientation = self.filter.get_orientation()
 
-            self.state["lat"] = position[0]
-            self.state["long"] = position[1]
-            self.state["alt"] = position[2]
+        self.state["lat"] = position[0]
+        self.state["long"] = position[1]
+        self.state["alt"] = position[2]
 
-            self.state["yaw"] = orientation[0]
-            self.state["pitch"] = orientation[1]
-            self.state["roll"] = orientation[2]
+        self.state["yaw"] = orientation[0]
+        self.state["pitch"] = orientation[1]
+        self.state["roll"] = orientation[2]
 
-            self.record("kalman", self.state)
+        self.record("kalman", self.state)
 
             # TODO: get goal and set steering based on these values
+        time.sleep(0.04)
 
 
 log_data = True

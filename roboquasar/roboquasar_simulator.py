@@ -199,7 +199,7 @@ def run():
         #                       log_based_plot=False),
         # course_map_plot=dict(color='blue', label="map",
         #                      log_based_plot=False),
-        enable_3d=True,
+        enable_3d=False,
         used_cached_data=False,
         start_index=0,
         # end_index=5000

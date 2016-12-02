@@ -55,6 +55,7 @@ class IMU(Sensor):
         self.bus = bus
         print("IMU bus:", self.bus)
         self.bno = BNO055(self.bus, reset_pin)
+        print("IMU reset pin:", reset_pin)
 
         self.new_data = False
 
@@ -62,6 +63,8 @@ class IMU(Sensor):
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
         self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
+    
+        self.bno.reset()
 
     def reset(self):
         self.bno.reset()
