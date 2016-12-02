@@ -1,12 +1,21 @@
 import sys
-import math
 import numpy as np
 from autobuggy import project
 
 from autobuggy.simulator import Simulator
-from autobuggy.microcontroller.logger import get_map
-from autobuggy.filters.kalman_filter import GrovesKalmanFilter, get_gps_orientation
+from autobuggy.microcontroller.logger import get_map, parse_arguments
+from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
+    get_gps_orientation
 from roboquasar_constants import constants
+
+disable_ins = False
+disable_epoch = False
+
+if disable_epoch:
+    print("EPOCH is disabled!")
+
+if disable_ins:
+    print("INS is disabled!")
 
 
 class FilterTest(Simulator):
@@ -16,23 +25,21 @@ class FilterTest(Simulator):
         self.course_map = get_map("buggy course map.gpx")
 
         super(FilterTest, self).__init__(
-            file_name, directory, 1, plot_info, #0, 5000
+            file_name, directory, 1, plot_info,  # 0, 5000
         )
-        
+
         first_gps = self.parser.get(5, "gps")[-1]
         second_gps = self.parser.get(50, "gps")[-1]
-        
-        lat1, long1, alt1 = first_gps["lat"], first_gps["long"], first_gps["altitude"] 
-        lat2, long2, alt2 = second_gps["lat"], second_gps["long"], second_gps["altitude"]
-        
-        print(lat1, long1, alt1)
-        print(lat2, long2, alt2)
-        
+
+        lat1, long1, alt1 = first_gps["lat"], first_gps["long"], first_gps[
+            "altitude"]
+        lat2, long2, alt2 = second_gps["lat"], second_gps["long"], second_gps[
+            "altitude"]
+
         initial_yaw, initial_pitch, initial_roll = \
             get_gps_orientation(lat1, long1, alt1,
                                 lat2, long2, alt2)
 
-        # print(np.array([initial_yaw, initial_pitch, initial_roll]) * 180 / np.pi)
         self.filter = GrovesKalmanFilter(
             initial_roll=initial_roll,
             initial_pitch=initial_pitch,
@@ -48,8 +55,6 @@ class FilterTest(Simulator):
 
         self.prev_imu_t = self.start_time
         self.prev_gps_t = self.start_time
-
-        self.filter_returned_value = False
 
     def fill_data_array(self, plot_option, data_array):
         if plot_option == "checkpoints_plot":
@@ -71,7 +76,7 @@ class FilterTest(Simulator):
         if self.plot_enabled["imu_plot"]:
             self.angled_line_segment("imu_plot", self.prev_long, self.prev_lat,
                                      values['yaw'], 0.5)
-        if self.plot_enabled["calculated_filter_plot"]:
+        if self.plot_enabled["calculated_filter_plot"] and not disable_ins:
             self.filter.imu_updated(
                 timestamp - self.prev_imu_t,
                 values["ax"], values["ay"], values["az"],
@@ -83,14 +88,16 @@ class FilterTest(Simulator):
 
     def record_gps(self, timestamp, values):
         if self.plot_enabled["gps_plot"]:
-            if values["long"] != self.prev_long or values["lat"] != self.prev_lat:
+            if values["long"] != self.prev_long or values[
+                "lat"] != self.prev_lat:
                 self.plot_data["gps_plot"][0].append(values["long"])
                 self.plot_data["gps_plot"][1].append(values["lat"])
 
                 self.prev_lat = values["lat"]
                 self.prev_long = values["long"]
 
-                if self.plot_enabled["calculated_filter_plot"]:
+                if self.plot_enabled[
+                    "calculated_filter_plot"] and not disable_epoch:
                     self.filter.gps_updated(
                         timestamp - self.prev_gps_t,
                         values["lat"], values["long"], values["altitude"]
@@ -106,50 +113,28 @@ class FilterTest(Simulator):
         lat, long, height = self.filter.get_position()
         self.plot_data["calculated_filter_plot"][0].append(long)
         self.plot_data["calculated_filter_plot"][1].append(lat)
-        
+
         yaw, pitch, roll = self.filter.get_orientation()
 
-        if not self.filter_returned_value:
-            self.draw_dot(long, lat, "red")
-
-            self.filter_returned_value = True
-            print("filter first value:", lat, long)
-        
         if self.plot_enabled["calculated_filter_heading_plot"]:
-            self.angled_line_segment("calculated_filter_heading_plot", long, lat, yaw, 0.5)
+            self.angled_line_segment("calculated_filter_heading_plot", long,
+                                     lat, yaw, 0.5)
 
-
-def parse_arguments():
-    file_name = -1
-    directory = -1
-
-    if len(sys.argv) == 2:
-        file_name = sys.argv[1]
-    elif len(sys.argv) == 3:
-        file_name, directory = sys.argv[1:]
-
-    try:
-        file_name = int(file_name)
-        directory = int(directory)
-    except ValueError:
-        pass
-
-    return file_name, directory
 
 def run():
-    file_name, directory = parse_arguments()
-    print(file_name, directory)
+    file_name, directory = parse_arguments(6, -2)
 
     plotter = FilterTest(
         file_name, directory,
-#        imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
+        #        imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='red', label="GPS"),
         calculated_filter_plot=dict(color='fuchsia', label="filter"),
-        calculated_filter_heading_plot=dict(color='purple', line_segments=True, line_seg_freq=50),
+        calculated_filter_heading_plot=dict(color='purple', line_segments=True,
+                                            line_seg_freq=50),
         # checkpoints_plot=dict(color='green', label="checkpoints",
         #                       log_based_plot=False),
-        # course_map_plot=dict(color='blue', label="map",
-        #                      log_based_plot=False)
+        course_map_plot=dict(color='blue', label="map",
+                             log_based_plot=False)
     )
 
     plotter.run()

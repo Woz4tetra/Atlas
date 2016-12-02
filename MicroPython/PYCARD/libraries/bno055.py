@@ -176,7 +176,7 @@ class BNO055:
         x, y, z = self.get_vector('VECTOR_LINEARACCEL')
         return x / 100.0, y / 100.0, z / 100.0
 
-    def get_gyro(self):  # angular velocity in rotations per second
+    def get_gyro(self):  # angular velocity in radians per second
         x, y, z = self.get_vector('VECTOR_GYROSCOPE')
         return x / 900.0, y / 900.0, z / 900.0
 

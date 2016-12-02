@@ -3,7 +3,7 @@ from numpy import linalg
 import math
 import navpy
 
-np.set_printoptions(precision=4)
+# np.set_printoptions(precision=4)
 
 # todo check navpy is in wgs84
 # i mean, it probably is but its worth checking
@@ -23,8 +23,8 @@ class GrovesKalmanFilter:
         self.ins = INS(self.properties)
         self.epoch = Epoch(self.properties)
 
-        print(self.get_orientation())
-        print(self.get_position())
+        # print(self.get_orientation())
+        # print(self.get_position())
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
         # print("imu before:", self.get_position())
@@ -57,12 +57,15 @@ class GrovesKalmanFilter:
     def get_orientation(self):
         # print(navpy.dcm2angle(self.properties.estimated_attitude))
         # print(self.properties.estimated_attitude)
-        o = navpy.dcm2angle(  # CTM_to_Euler
+        orientation = navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)  # yaw, pitch, roll
+        # orientation[0] = -orientation[0] + np.pi * 3 / 2
         # print(self.properties.estimated_attitude)
-        if np.isnan(o[1]):
+        if np.any(np.isnan(orientation)):
+            print(orientation)
             print(self.properties.estimated_attitude)
-        return o
+            print()
+        return orientation
 
 
 # clear
@@ -162,11 +165,129 @@ class INS:
         self.accel_measurement = np.matrix(np.zeros((3, 1)))
         self.gyro_measurement = np.matrix(np.zeros((3, 1)))
 
-    def update(self, dt, accel_measurement, gyro_measurement):
+        use_rigorous_update = False
+
+        if use_rigorous_update:
+            self.update = self.rigorous_update
+            print("Using RIGOROUS update")
+        else:
+            self.update = self.non_rigorous_update
+            print("Using NON-RIGOROUS update")
+
+    def get_earth_rotation_transform(self, dt):
+        earth_rotation_amount = earth_rotation_rate * dt
+        earth_rotation_transform = np.matrix(
+            [[np.cos(earth_rotation_amount), np.sin(earth_rotation_amount), 0],
+             [-np.sin(earth_rotation_amount), np.cos(earth_rotation_amount), 0],
+             [0, 0, 1]])
+
+        return earth_rotation_amount, earth_rotation_transform
+
+    def get_gyro_skew_matrix(self, dt, gyro_measurement):
+        # calculate attitude increment, magnitude, and skew-symmetric matrix
+        angle_change_gyro = gyro_measurement * dt
+
+        mag_angle_change = unit_to_scalar(np.sqrt(
+            angle_change_gyro.T * angle_change_gyro))  # convert to scalar
+
+        skew_gyro_body = skew_symmetric(angle_change_gyro)
+
+        return mag_angle_change, skew_gyro_body  # was skew_alpha_ib_b
+
+    def get_estimated_attitude(self, mag_angle_change, skew_gyro_body,
+                               earth_rotation_transform,
+                               estimated_attitude):
+        if mag_angle_change > 1E-8:
+            estimated_attitude_new = (
+                np.matrix(np.eye(3)) + np.sin(mag_angle_change) /
+                mag_angle_change * skew_gyro_body +
+                (1 - np.cos(mag_angle_change)) /
+                mag_angle_change ** 2 *
+                skew_gyro_body * skew_gyro_body)
+        else:
+            estimated_attitude_new = np.matrix(np.eye(3)) + skew_gyro_body
+
+        # check the order of operations here
+        return (earth_rotation_transform * estimated_attitude) * \
+               estimated_attitude_new
+
+    def get_average_attitude(self, mag_angle_change, estimated_attitude,
+                             skew_gyro_body, earth_rotation_amount_skew):
+        if mag_angle_change > 1E-8:
+            average_attitude = (
+                (estimated_attitude *
+                 (np.matrix(np.eye(3)) + (1 - np.cos(mag_angle_change)) /
+                  mag_angle_change ** 2 * skew_gyro_body +
+                  (1 - np.sin(mag_angle_change) / mag_angle_change) /
+                  mag_angle_change ** 2 * skew_gyro_body * skew_gyro_body) -
+                 0.5 * earth_rotation_amount_skew *
+                 estimated_attitude))
+        else:
+            average_attitude = \
+                (estimated_attitude - 0.5 * earth_rotation_amount_skew *
+                 estimated_attitude)
+
+        return average_attitude
+
+    def rigorous_update(self, dt, accel_measurement, gyro_measurement):
+        self.modify_measurements(accel_measurement, gyro_measurement)
+
+        # Nav_equations_ECEF function
+
+        # this section is attitude update
+        earth_rotation_amount, earth_rotation_transform = \
+            self.get_earth_rotation_transform(dt)
+        earth_rotation_amount_skew = skew_symmetric(
+            np.matrix([0, 0, earth_rotation_amount]).T)
+
+        mag_angle_change, skew_gyro_body = \
+            self.get_gyro_skew_matrix(dt, self.gyro_measurement)
+        estimated_attitude = \
+            self.get_estimated_attitude(
+                mag_angle_change, skew_gyro_body, earth_rotation_transform,
+                self.properties.estimated_attitude
+            )
+
+        average_attitude_transform = self.get_average_attitude(
+            mag_angle_change, estimated_attitude, skew_gyro_body,
+            earth_rotation_amount_skew
+        )
+
+        prev_est_r = self.properties.estimated_position
+        prev_est_v = self.properties.estimated_velocity
+
+        # Transform specific force to ECEF-frame resolving axes
+        accel_meas_ecef = average_attitude_transform * self.accel_measurement
+
+        # update velocity
+        # g = gravity_ecef(prev_est_r)
+
+        # TODO: do we need gravity_ecef here?
+        estimated_velocity = \
+            prev_est_v + dt * (
+                accel_meas_ecef  # + g
+                - 2 * earth_rotation_amount_skew * prev_est_v)
+
+        # update cartesian position
+        estimated_position = \
+            prev_est_r + (estimated_velocity + prev_est_v) * 0.5 * dt
+
+        return estimated_position, estimated_velocity, estimated_attitude
+
+    # ---- non rigorous update fn -----
+
+    def modify_measurements(self, accel_measurement, gyro_measurement):
+        # accel_measurement = np.clip(accel_measurement, -0.25, 0.25)
+
         self.accel_measurement = \
             accel_measurement - self.properties.estimated_imu_biases[0:3]
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
+
+        self.accel_measurement = np.clip(self.accel_measurement, -0.25, 0.25)
+
+    def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
+        self.modify_measurements(accel_measurement, gyro_measurement)
 
         prev_r = self.properties.estimated_position
         prev_v = self.properties.estimated_velocity
@@ -174,20 +295,13 @@ class INS:
 
         # Nav_equations_ECEF function
 
-        angle_change = self.gyro_measurement * dt  # assuming constant
+        angle_change = self.gyro_measurement * dt  # assuming constant between dt's
 
         skew_angle_change = skew_symmetric(angle_change)
 
         # now estimate attitude, not sure if right
 
         est_attitude_trans = prev_C * (np.matrix(np.eye(3)) + skew_angle_change)
-        # print(est_attitude_trans)
-        if est_attitude_trans[..., 0, 2] > 1:
-            est_attitude_trans[0, 2] = 1
-        if est_attitude_trans[..., 0, 2] < -1:
-            est_attitude_trans[0, 2] = -1
-        # print(est_attitude_trans)
-        # print()
 
         accel_ecef = est_attitude_trans * self.accel_measurement
 
@@ -198,7 +312,6 @@ class INS:
         estimated_position = prev_r + (prev_v + estimated_velocity) * 0.5 * dt
 
         return estimated_position, estimated_velocity, est_attitude_trans
-
 
 
 class Epoch:
@@ -293,8 +406,7 @@ class Epoch:
             -dt * skew_symmetric(
                 est_body_ecef_trans * accel_measurement)
 
-        self.state_transition_Phi[3:6,
-        3:6] -= 2 * self.skew_earth_rotation * dt  # todo same as above. maybe cap these?
+        self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt
 
         geocentric_radius = \
             earth_radius / np.sqrt(
@@ -373,7 +485,6 @@ class Epoch:
             ((self.measurement_model_H * self.error_covariance_propagated_P) *
              self.measurement_model_H.T) + self.noise_covariance_R)
 
-    # todo 1 item
     def formulate_measurement_innovations(self, gps_position_ecef,
                                           gps_velocity_ecef, estimated_position,
                                           estimated_velocity):
@@ -398,8 +509,6 @@ class Epoch:
 
     def correct_estimates(self, estimated_attitude, estimated_position,
                           estimated_velocity, estimated_imu_biases):
-        # TODO: found it... fix iiiit...
-        # Forgot parenthesis. Caused the graph to stagger and then shoot off like crazy
         estimated_attitude_new = (np.matrix(np.eye(3)) - skew_symmetric(
             self.estimated_state_prop_x[0:3])) * estimated_attitude
         estimated_velocity_new = \
@@ -413,7 +522,6 @@ class Epoch:
                estimated_attitude_new, estimated_imu_biases_new
 
 
-# clear
 def skew_symmetric(m):
     # current assumption is that the shapes are happy. just making a note in case things go weird later
     """
@@ -456,8 +564,6 @@ def ctm_to_euler(C):
     return yaw, pitch, roll
 
 
-# todo 3 items
-
 def gravity_ecef(ecef_vector):
     # Calculate distance from center of the Earth
     mag_r = unit_to_scalar(np.sqrt(ecef_vector.T * ecef_vector))
@@ -465,7 +571,6 @@ def gravity_ecef(ecef_vector):
     # If the input position is 0,0,0, produce a dummy output
     if mag_r == 0:
         return np.matrix(np.zeros((3, 1)))
-        # todo maybe this is being called when we give real inputs, bc rounding errors?
 
     # Calculates gravitational acceleration in ECEF
     else:
@@ -493,12 +598,10 @@ def gravity_ecef(ecef_vector):
         return g
 
 
-# clear
 def unit_to_scalar(unit_matrix: np.matrix):
     return unit_matrix.tolist()[0][0]
 
 
-# clear
 def vector_to_list(vector, is_column_vector=True):
     if not is_column_vector:
         return vector.tolist()[0]
@@ -506,7 +609,6 @@ def vector_to_list(vector, is_column_vector=True):
         return vector.T.tolist()[0]
 
 
-# todo wtf does this shit even mean any more, a riddle in navpy
 def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2, units="deg"):
     pos1 = navpy.lla2ecef(lat1, long1, alt1, latlon_unit=units)
     pos2 = navpy.lla2ecef(lat2, long2, alt2, latlon_unit=units)

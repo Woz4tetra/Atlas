@@ -144,8 +144,7 @@ class Parser:
             file_name, self.directory, log_file_type)
         self.file_name_no_ext = self.file_name.split(".")[0]
 
-        print("Using file named '%s'" % self.file_name)
-        print("In directory '%s'" % self.directory)
+        print("Using file named '%s' in directory '%s'" % (self.file_name, self.directory))
 
         # read the whole file as a string
         with open(self.directory + self.file_name, 'r') as data_file:
@@ -369,7 +368,23 @@ def get_map(file_name, directory=None):
         file_name = project.get_file_name(file_name, directory, log_file_type)
         gps_map = _get_txt_map(file_name, directory)
 
-    print("Using map named", file_name)
-    print("Length of map is", len(gps_map))
+    print("Using map named %s, length %i" % (file_name, len(gps_map)))
 
     return gps_map
+
+def parse_arguments(default_file=-1, default_directory=-1):
+    file_name = default_file
+    directory = default_directory
+
+    if len(sys.argv) == 2:
+        file_name = sys.argv[1]
+    elif len(sys.argv) == 3:
+        file_name, directory = sys.argv[1:]
+
+    try:
+        file_name = int(file_name)
+        directory = int(directory)
+    except ValueError:
+        pass
+
+    return file_name, directory
