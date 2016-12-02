@@ -18,24 +18,21 @@ class Simulator:
         for plot_option in self.plot_info.keys():
             self.set_default_value(plot_option, "label", "")
             self.set_default_value(plot_option, "color", "")
-            if self.enable_3d:
-                self.set_default_value(plot_option, "columns", 3)
-            else:
-                self.set_default_value(plot_option, "columns", 2)
+            self.set_default_value(plot_option, "alpha", 1)
             self.set_default_value(plot_option, "markersize", 1)
             self.set_default_value(plot_option, "line_segments", False)
             self.set_default_value(plot_option, "log_based_plot", True)
             self.set_default_value(plot_option, "line_seg_freq", 1)
+            self.set_default_value(plot_option, "skip_count", 0)
             self.plot_info[plot_option]["line_seg_counter"] = 0
 
             self.plot_enabled[plot_option] = True
 
-            if self.plot_info[plot_option]["line_segments"] or \
-                            self.plot_info[plot_option]["columns"] == 1:
+            if self.plot_info[plot_option]["line_segments"]:
                 self.plot_data[plot_option] = []
             else:
                 self.plot_data[plot_option] = \
-                    [[] for _ in range(self.plot_info[plot_option]["columns"])]
+                    [[] for _ in range(3 if self.enable_3d else 2)]
 
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.start_time = self.parser.data[0][0]
@@ -132,16 +129,20 @@ class Simulator:
             if not data_info["log_based_plot"]:
                 self.fill_data_array(plot_option, data_array)
 
-            if data_info["line_segments"] and not self.enable_3d:
-                plt.plot(*data_array)
+            if data_info["skip_count"] > 0:
+                for index in range(len(data_array)):
+                    data_array[index] = data_array[index][
+                                        ::data_info["skip_count"]]
+
+            if data_info["line_segments"]:
+                if not self.enable_3d:
+                    plt.plot(*data_array)
             else:
                 if not self.enable_3d:
-                    if data_info["columns"] == 1:
-                        plt.plot(self.timestamps, data_array)
-                    elif data_info["columns"] == 2:
-                        plt.plot(data_array[0], data_array[1], data_info["color"],
-                                 label=data_info["label"],
-                                 markersize=data_info["markersize"])
+                    plt.plot(data_array[0], data_array[1], data_info["color"],
+                             label=data_info["label"],
+                             markersize=data_info["markersize"],
+                             alpha=data_info["alpha"])
                 else:
                     self.ax.scatter(data_array[0], data_array[1],
                                     data_array[2], linewidth=0.1,

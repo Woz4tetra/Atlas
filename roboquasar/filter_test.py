@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from autobuggy import project
 
@@ -17,16 +16,20 @@ if disable_epoch:
 if disable_ins:
     print("INS is disabled!")
 
+project.set_project_dir("roboquasar")
+
 
 class FilterTest(Simulator):
     def __init__(self, file_name, directory, enable_3d, **plot_info):
-        project.set_project_dir("roboquasar")
         self.checkpoints = get_map("buggy course checkpoints.gpx")
         self.course_map = get_map("buggy course map.gpx")
 
         super(FilterTest, self).__init__(
-            file_name, directory, 1, plot_info, enable_3d, # 0, 5000
+            file_name, directory, 1, plot_info, enable_3d,  # 0, 5000
         )
+
+        if enable_3d:
+            self.plot_info["calculated_filter_plot"]["skip_count"] = 1000
 
         first_gps = self.parser.get(5, "gps")[-1]
         second_gps = self.parser.get(50, "gps")[-1]
@@ -79,7 +82,7 @@ class FilterTest(Simulator):
     def record_imu(self, timestamp, values):
         if self.plot_enabled["imu_plot"]:
             self.angled_line_segment("imu_plot", self.prev_long, self.prev_lat,
-                                     values['yaw'], 0.5)
+                                     values['yaw'], 1)
         if self.plot_enabled["calculated_filter_plot"] and not disable_ins:
             self.filter.imu_updated(
                 timestamp - self.prev_imu_t,
@@ -126,7 +129,28 @@ class FilterTest(Simulator):
 
         if self.plot_enabled["calculated_filter_heading_plot"]:
             self.angled_line_segment("calculated_filter_heading_plot", long,
-                                     lat, yaw, 0.5)
+                                     lat, yaw, 1)
+
+
+class GraphAccel(Simulator):
+    def __init__(self, file_name, directory, enable_3d, **plot_info):
+        self.checkpoints = get_map("buggy course checkpoints.gpx")
+        self.course_map = get_map("buggy course map.gpx")
+
+        super(GraphAccel, self).__init__(
+            file_name, directory, 1, plot_info, enable_3d,
+        )
+
+    def step(self, index, timestamp, name, values):
+        if name == "imu":
+            self.plot_data["accel_plot_x"][0].append(timestamp)
+            self.plot_data["accel_plot_x"][1].append(values["ax"])
+
+            self.plot_data["accel_plot_y"][0].append(timestamp)
+            self.plot_data["accel_plot_y"][1].append(values["ay"])
+
+            self.plot_data["accel_plot_z"][0].append(timestamp)
+            self.plot_data["accel_plot_z"][1].append(values["az"])
 
 
 def run():
@@ -134,7 +158,7 @@ def run():
 
     plotter = FilterTest(
         file_name, directory,
-        #        imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
+        # imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='red', label="GPS"),
         calculated_filter_plot=dict(color='fuchsia', label="filter"),
         calculated_filter_heading_plot=dict(color='purple', line_segments=True,
@@ -143,8 +167,14 @@ def run():
         #                       log_based_plot=False),
         course_map_plot=dict(color='blue', label="map",
                              log_based_plot=False),
-        enable_3d=False
+        enable_3d=True
     )
+
+    # plotter = GraphAccel(file_name, directory, False,
+    #                      accel_plot_x=dict(color='red', alpha=0.5),
+    #                      accel_plot_y=dict(color='green', alpha=0.5),
+    #                      accel_plot_z=dict(color='blue', alpha=0.5),
+    #                      )
 
     plotter.run()
 
