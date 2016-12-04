@@ -68,7 +68,6 @@ class BNO055:
     NUM_BNO055_OFFSET_REGISTERS = 22
 
     def __init__(self, bus, reset_pin=None, default_address=True, declination=(0, 0)):
-        print(bus)
         self.i2c = pyb.I2C(bus, pyb.I2C.MASTER)
         if reset_pin is not None:
             self.reset_pin = pyb.Pin(reset_pin, pyb.Pin.OUT_PP)

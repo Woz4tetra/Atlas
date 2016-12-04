@@ -2,7 +2,7 @@ import time
 import pyb
 
 class Stepper:
-    def __init__(self, step_num, phase_a1_pin, phase_a2_pin, phase_b1_pin, phase_b2_pin):
+    def __init__(self, step_num, speed, phase_a1_pin, phase_a2_pin, phase_b1_pin, phase_b2_pin):
         self.motor_pin_1 = pyb.Pin(phase_a1_pin, pyb.Pin.OUT_PP)
         self.motor_pin_2 = pyb.Pin(phase_a2_pin, pyb.Pin.OUT_PP)
         self.motor_pin_3 = pyb.Pin(phase_b1_pin, pyb.Pin.OUT_PP)
@@ -13,6 +13,8 @@ class Stepper:
         self.last_step_time = 0
         self.step_num = step_num
         self.step_delay = 0
+        
+        self.set_speed(speed)
         
         self.time0 = time.ticks_ms()
         self.delay = self.step_delay / 2000
