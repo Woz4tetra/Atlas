@@ -19,6 +19,8 @@ class GrovesKalmanFilter:
         self.ins = INS(self.properties)
         self.epoch = Epoch(self.properties)
 
+        self.is_active = False
+
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
         if imu_dt > 0:
             self.properties.estimated_position, \
@@ -39,6 +41,7 @@ class GrovesKalmanFilter:
                 gps_dt, gps_position_ecef, gps_velocity_ecef,
                 self.ins.accel_measurement
             )
+            self.is_active = True
 
     def get_position(self):
         return navpy.ecef2lla(

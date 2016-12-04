@@ -1,12 +1,15 @@
 import time
 import sys
 import math
+import os
 from roboquasar_bot import RoboQuasarBot
 from roboquasar_constants import constants
 from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 
 initialize_with_checkpoints = True
+terminal_rows, terminal_col = os.popen('stty size', 'r').read().split()
+print("Terminal size:", terminal_rows, terminal_col)
 
 class RoboQuasarRunner(RoboQuasarBot):
     def __init__(self, log_data):
@@ -16,7 +19,7 @@ class RoboQuasarRunner(RoboQuasarBot):
             log_data
         )
         self.checkpoint_num = 0
-        
+
         self.state = {
             "lat": 0.0,
             "long": 0.0,
@@ -27,7 +30,7 @@ class RoboQuasarRunner(RoboQuasarBot):
         }
 
         if initialize_with_checkpoints:
-           self.init_with_checkpoints() 
+            self.init_with_checkpoints()
 
         self.manual_mode = True
 
@@ -38,31 +41,31 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.current_step = 0
         self.goal_step = 0
         self.increment_value = 5
-        
+
         # ----- status checker variables -----
 
         self.accel_status_time0 = time.time()
         self.gyro_status_time0 = time.time()
         self.gps_status_time0 = time.time()
-        
+
         self.accel_ok = False
         self.gyro_ok = False
         self.gps_ok = False
-    
+
         self.prev_ax = 0.0
         self.prev_ay = 0.0
         self.prev_az = 0.0
-    
+
         self.prev_gx = 0.0
         self.prev_gy = 0.0
         self.prev_gz = 0.0
-    
+
         self.prev_lat = 0.0
         self.prev_long = 0.0
         self.prev_alt = 0.0
-    
+
         self.prev_status_time = time.time()
-        
+
     def init_with_checkpoints(self):
         lat1, long1 = self.checkpoints[0]
         lat2, long2 = self.checkpoints[1]
@@ -70,18 +73,20 @@ class RoboQuasarRunner(RoboQuasarBot):
 
         initial_yaw, initial_pitch, initial_roll = \
             get_gps_orientation(lat1, long1, altitude, lat2, long2, altitude)
-        
-        self.init_filter(lat1, long1, altitude, initial_yaw, initial_pitch, initial_roll)
-    
+
+        self.init_filter(lat1, long1, altitude, initial_yaw, initial_pitch,
+                         initial_roll)
+
     def init_with_gps(self):
         lat1, long1 = self.gps.get("lat"), self.gps.get("long")
         initial_yaw = math.radians(float(input("Enter heading in degrees: ")))
-        
+
         altitude = 287
-        
+
         self.init_filter(lat1, long1, altitude, initial_yaw, 0.0, 0.0)
-    
-    def init_filter(self, lat1, long1, altitude, initial_yaw, initial_pitch, initial_roll):
+
+    def init_filter(self, lat1, long1, altitude, initial_yaw, initial_pitch,
+                    initial_roll):
         self.filter = GrovesKalmanFilter(
             initial_roll=initial_roll,
             initial_pitch=initial_pitch,
@@ -98,13 +103,15 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.state["yaw"] = initial_yaw
         self.state["pitch"] = initial_pitch
         self.state["roll"] = initial_roll
-        
+
         print("Kalman filter initial conditions:           ")
-        print("[%9.4f, %9.4f, %9.4f]                       " % (lat1, long1, altitude))
-        print("[%9.4f, %9.4f, %9.4f]                       " % (initial_yaw, initial_pitch, initial_roll))
+        print("[%9.4f, %9.4f, %9.4f]                       " % (
+            lat1, long1, altitude))
+        print("[%9.4f, %9.4f, %9.4f]                       " % (
+            initial_yaw, initial_pitch, initial_roll))
 
         self.record("kalman", self.state)
-    
+
     def setup(self):
         print("Waiting for sensors...")
         time.sleep(1)
@@ -114,7 +121,7 @@ class RoboQuasarRunner(RoboQuasarBot):
             time.sleep(0.05)
         print(" " * 50)
         print("Sensors ready!", " " * 40)
-        
+
         if not initialize_with_checkpoints:
             self.init_with_gps()
 
@@ -127,48 +134,52 @@ class RoboQuasarRunner(RoboQuasarBot):
     def check_sensor(self, x, y, z, prev_x, prev_y, prev_z, time0):
         current_avg = abs((x + y + z) / 3)
         prev_avg = abs((prev_x + prev_y + prev_z) / 3)
-        
+
         if (current_avg == prev_avg) or (current_avg == 0.0):
             if (time.time() - time0) > 1:
                 return False
-        
+
         return True
 
     def check_sensor_status(self):
         if not self.check_sensor(
                 self.imu.get("ax"), self.imu.get("ay"), self.imu.get("az"),
-                self.prev_ax, self.prev_ay, self.prev_az, self.accel_status_time0):
+                self.prev_ax, self.prev_ay, self.prev_az,
+                self.accel_status_time0):
             self.accel_ok = False
         else:
             self.accel_status_time0 = time.time()
             self.accel_ok = True
-        
+
         self.prev_ax = self.imu.get("ax")
         self.prev_ay = self.imu.get("ay")
         self.prev_az = self.imu.get("az")
-        
+
         if not self.check_sensor(
                 self.imu.get("gx"), self.imu.get("gy"), self.imu.get("gz"),
-                self.prev_gx, self.prev_gy, self.prev_gz, self.gyro_status_time0):
+                self.prev_gx, self.prev_gy, self.prev_gz,
+                self.gyro_status_time0):
             self.gyro_ok = False
             return False
         else:
             self.gyro_status_time0 = time.time()
             self.gyro_ok = True
-        
+
         self.prev_gx = self.imu.get("gx")
         self.prev_gy = self.imu.get("gy")
         self.prev_gz = self.imu.get("gz")
-        
+
         if not self.check_sensor(
-                self.gps.get("lat"), self.gps.get("long"), self.gps.get("altitude"),
-                self.prev_lat, self.prev_long, self.prev_alt, self.gps_status_time0):
+                self.gps.get("lat"), self.gps.get("long"),
+                self.gps.get("altitude"),
+                self.prev_lat, self.prev_long, self.prev_alt,
+                self.gps_status_time0):
             self.gps_ok = False
             return False
         else:
             self.gps_status_time0 = time.time()
             self.gps_ok = True
-        
+
         self.prev_lat = self.gps.get("lat")
         self.prev_long = self.gps.get("long")
         self.prev_alt = self.gps.get("altitude")
@@ -204,8 +215,8 @@ class RoboQuasarRunner(RoboQuasarBot):
         if self.sensors_ready():
             imu_dt = time.time() - self.imu_t0
             self.filter.imu_updated(
-                imu_dt, self.imu.get("ax"), self.imu.get("ay"),
-                self.imu.get("az"),
+                imu_dt,
+                self.imu.get("ax"), self.imu.get("ay"), self.imu.get("az"),
                 self.imu.get("gx"), self.imu.get("gy"), self.imu.get("gz")
             )
             self.imu_t0 = time.time()
@@ -225,22 +236,35 @@ class RoboQuasarRunner(RoboQuasarBot):
 
     @staticmethod
     def print_data(sensor_name, x, y, z, status):
-        print("%s: [%9.4f, %9.4f, %9.4f], status: %i       " % (sensor_name, x, y, z, status))
+        print_str = "%s: [%9.4f, %9.4f, %9.4f], status: %i" % (
+            sensor_name, x, y, z, status)
+        if len(print_str) < terminal_rows:
+            print_str += " " * (terminal_rows - len(print_str))
+        else:
+            print_str = print_str[0:terminal_rows]
+        return print_str
 
     def print_sensors(self):
         self.check_sensor_status()
-        
-        print("position:    [%9.4f, %9.4f, %9.4f]        " % (
-            self.state["lat"], self.state["long"], self.state["alt"]))
-        print("orientation: [%9.4f, %9.4f, %9.4f]        " % (
-            self.state["yaw"], self.state["pitch"], self.state["roll"]))
-        print(" " * 51)
+
+        self.print_data(
+            "position",
+            self.state["lat"], self.state["long"], self.state["alt"],
+            self.filter.is_active)
+        self.print_data(
+            "orientation",
+            self.state["yaw"], self.state["pitch"], self.state["roll"],
+            self.filter.is_active)
+        print(" " * terminal_col)
         self.print_data("accel",
-            self.imu.get("ax"), self.imu.get("ay"), self.imu.get("az"), self.accel_ok)
+                        self.imu.get("ax"), self.imu.get("ay"),
+                        self.imu.get("az"), self.accel_ok)
         self.print_data("gyro ",
-            self.imu.get("gx"), self.imu.get("gy"), self.imu.get("gz"), self.gyro_ok)
+                        self.imu.get("gx"), self.imu.get("gy"),
+                        self.imu.get("gz"), self.gyro_ok)
         self.print_data("gps  ",
-            self.gps.get("lat"), self.gps.get("long"), self.gps.get("altitude"), self.gps_ok)
+                        self.gps.get("lat"), self.gps.get("long"),
+                        self.gps.get("altitude"), self.gps_ok)
         print("\033[F" * 7)
 
     def axis_active(self, axis, value):
@@ -250,7 +274,7 @@ class RoboQuasarRunner(RoboQuasarBot):
     def axis_inactive(self, axis):
         if axis == "left x":
             self.blue_led.set(0)
-    
+
     def close_fn(self):
         self.blue_led.set(0)
         print()
@@ -272,7 +296,7 @@ class RoboQuasarRunner(RoboQuasarBot):
             elif self.current_step > self.goal_step:
                 self.current_step -= self.increment_value
                 self.stepper.set(self.current_step)
-        
+
         if (time.time() - self.prev_status_time) > 0.25:
             self.print_sensors()
             self.prev_status_time = time.time()
