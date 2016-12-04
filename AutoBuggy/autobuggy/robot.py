@@ -128,19 +128,25 @@ class Robot:
             return True
 
         return False
-
+    
     def run(self):
-        if not self.started:
-            self.start()
+        self.start()
+        
         try:
+            self.setup()
+            
             while True:
-                self.step()
+                self.loop()
                 if self.should_stop():
                     break
         except:
             traceback.print_exc()
         finally:
+            print("Closing robot")
             self.close()
 
-    def step(self):
+    def setup(self):
+        pass
+
+    def loop(self):
         pass

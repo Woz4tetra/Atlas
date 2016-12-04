@@ -26,11 +26,13 @@ class Communicator(object):
         pyb.delay(1)
 
     def signal_stop(self):
-        self.reset = False
+        print("Stop signal received")
         self.stop = True
+        self.reset = False
         self.serial_ref.write("stopping\r\n")
 
     def signal_reset(self):
+        print("Reset signal received")
         self.reset = True
         self.stop = False
         self.serial_ref.write("ready!\r\n")

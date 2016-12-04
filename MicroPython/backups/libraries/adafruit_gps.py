@@ -141,7 +141,6 @@ class AdafruitGPS:
     def parse(self, sentence):
         # do checksum, first look if we have one
         if len(sentence) > 6:
-            self.sentence = sentence
             sentence = sentence[:-2].decode('ascii')
             if sentence[-3] == b'*':
                 sum = self.parse_hex(sentence[-2]) * 16
@@ -169,9 +168,9 @@ class AdafruitGPS:
                     # self.parse_gsv_sentence(sentence)
                     pass  # not tracking each satellite's info
                 else:
-                    print("Unrecognized packet:", packet_type, sentence)
+                    print("Unrecognized packet: '%s', '%s'" % (packet_type, sentence))
             except:
-                print("Unrecognized packet:", packet_type, sentence)
+                print("Unrecognized packet: '%s', '%s" % (packet_type, sentence))
 
             return True
         else:
@@ -182,7 +181,7 @@ class AdafruitGPS:
         split = sentence[7:-3].split(",")
 
         if len(split) != expected_num:
-            print("Mismatched parameter number:", sentence)
+            print("Mismatched parameter number: '%s'" % sentence)
             if len(split) < expected_num:  # fill missing with None
                 return split + (None,) * (expected_num - len(split))
             else:
@@ -386,7 +385,12 @@ class AdafruitGPS:
 
             if self.uart.any():
                 self.previous_sentence = self.sentence
-                self.parse(self.uart.readline())
+                self.sentence = b''
+                character = b''
+                while not (self.uart.any() or character == b' ' or character == b'\n'):
+                    self.sentence += character
+                    character = self.uart.read()
+                self.parse(self.sentence)
                 return True
         return False
 

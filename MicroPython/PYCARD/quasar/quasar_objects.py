@@ -28,13 +28,15 @@ class GPS(Sensor):
 
         add_timer(timer_num, self.gps_ref.timer.freq())
 
-        self.stop()
-
     def stop(self):
+        print("GPS entering standby... ", end="")
         self.gps_ref.standby()
+        print("done!")
 
     def reset(self):
+        print("GPS waking up... ", end="")
         self.gps_ref.wakeup()
+        print("done!")
 
 
     def recved_data(self):
@@ -67,7 +69,9 @@ class IMU(Sensor):
         self.bno.reset()
 
     def reset(self):
+        print("Resetting IMU... ", end="")
         self.bno.reset()
+        print("done!")
 
     def recved_data(self):
         self.yaw = self.bno.get_euler()[0] * pi / 180  # radians
@@ -109,15 +113,14 @@ class StepperCommand(Command):
         self.stepper.step(steps)
 
     def calibrate(self):
-        print("calibrating stepper")
+        print("Calibrating stepper... ", end="")
         while not self.delimiter_pin.value():
             self.stepper.step(-5)
         
         pyb.delay(10)  # if this isn't here the stepper won't switch directions
         
-        print("switch found")
         self.stepper.step(150)  # center the steering
-        print("calibrated!")
+        print("done!")
 
     def reset(self):
         # recalibrate with delimiter
