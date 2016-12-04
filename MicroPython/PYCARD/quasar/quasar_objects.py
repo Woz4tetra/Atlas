@@ -99,10 +99,9 @@ class StepperCommand(Command):
     def __init__(self, command_id):
         super().__init__(command_id, 'i16')
 
-        self.delimiter_pin = pyb.Pin("Y2", pyb.Pin.IN, pyb.Pin.PULL_UP)
+        self.delimiter_pin = pyb.Pin("Y1", pyb.Pin.IN, pyb.Pin.PULL_UP)
 
-        self.stepper = Stepper(200, "Y3", "Y4", "Y5", "Y6")
-        self.stepper.set_speed(25)
+        self.stepper = Stepper(200, 25, "Y3", "Y4", "Y5", "Y6")
 
         self.calibrate()
 
@@ -110,15 +109,15 @@ class StepperCommand(Command):
         self.stepper.step(steps)
 
     def calibrate(self):
-        # print("calibrating stepper")
-        # print(self.delimiter_pin.value())
-        # while self.delimiter_pin.value():
-        #     self.stepper.step(20)
-        #     print(self.delimiter_pin.value())
-        #
-        # self.stepper.step(100)  # center steering
-        # print("calibrated!")
-        print("Skipping calibration")
+        print("calibrating stepper")
+        while not self.delimiter_pin.value():
+            self.stepper.step(-5)
+        
+        pyb.delay(10)  # if this isn't here the stepper won't switch directions
+        
+        print("switch found")
+        self.stepper.step(150)  # center the steering
+        print("calibrated!")
 
     def reset(self):
         # recalibrate with delimiter
