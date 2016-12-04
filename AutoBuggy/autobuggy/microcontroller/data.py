@@ -25,6 +25,8 @@ from sys import maxsize as MAXINT
 class SensorPool:
     def __init__(self, *sensors):
         self.sensors = {}
+        
+        self.enable_callbacks = True
 
         for sensor in sensors:
             self.add_sensor(sensor)
@@ -81,7 +83,7 @@ class SensorPool:
 
                 sensor.parse(data, packet)
 
-                if sensor.update_fn is not None:
+                if sensor.update_fn is not None and self.enable_callbacks:
                     sensor.update_fn()
 
                 return sensor

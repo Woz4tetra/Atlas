@@ -20,23 +20,25 @@ class GrovesKalmanFilter:
         self.epoch = Epoch(self.properties)
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
-        self.properties.estimated_position, \
-        self.properties.estimated_velocity, \
-        self.properties.estimated_attitude = self.ins.update(
-            imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
-        )
+        if imu_dt > 0:
+            self.properties.estimated_position, \
+            self.properties.estimated_velocity, \
+            self.properties.estimated_attitude = self.ins.update(
+                imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
+            )
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        gps_position_ecef, gps_velocity_ecef = \
-            self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
+        if gps_dt > 0:
+            gps_position_ecef, gps_velocity_ecef = \
+                self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
-        self.properties.estimated_position, \
-        self.properties.estimated_velocity, \
-        self.properties.estimated_attitude, \
-        self.properties.estimated_imu_biases = self.epoch.update(
-            gps_dt, gps_position_ecef, gps_velocity_ecef,
-            self.ins.accel_measurement
-        )
+            self.properties.estimated_position, \
+            self.properties.estimated_velocity, \
+            self.properties.estimated_attitude, \
+            self.properties.estimated_imu_biases = self.epoch.update(
+                gps_dt, gps_position_ecef, gps_velocity_ecef,
+                self.ins.accel_measurement
+            )
 
     def get_position(self):
         return navpy.ecef2lla(

@@ -104,11 +104,18 @@ class Communicator(threading.Thread):
 
     def is_alive(self):
         """A way to check if serial is hanging the thread"""
-
-        status = abs(int(time.time() - self.start_time) - self.thread_time) < 2
+        current_time = int(time.time() - self.start_time)
+        status = abs(current_time - self.thread_time) < 2
         if not status:
-            print("Communicator thread stopped responding!!! Thread was out of sync by ")
+            print("Communicator thread stopped responding!!! Thread was out of "
+                  "sync by %s seconds" % (current_time - self.thread_time))
         return status
+        
+    def enable_callbacks(self):
+        self.sensor_pool.enable_callbacks = True
+    
+    def disable_callbacks(self):
+        self.sensor_pool.enable_callbacks = False
 
     def parse_packets(self, packets):
         """
@@ -179,7 +186,7 @@ class Communicator(threading.Thread):
         return self.send_signal('ready?', 'ready!')
 
     def close_comm(self):
-        #        self.send_signal('stop', 'stopping')  # causes really bad exceptions
+        # self.send_signal('stop', 'stopping')  # causes really bad exceptions
         self.put('stop\r\n')
         self.stop()
 

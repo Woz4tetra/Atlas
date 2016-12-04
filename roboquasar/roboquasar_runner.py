@@ -1,10 +1,12 @@
 import time
 import sys
+import math
 from roboquasar_bot import RoboQuasarBot
 from roboquasar_constants import constants
 from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 
+initialize_with_checkpoints = True
 
 class RoboQuasarRunner(RoboQuasarBot):
     def __init__(self, log_data):
@@ -14,34 +16,18 @@ class RoboQuasarRunner(RoboQuasarBot):
             log_data
         )
         self.checkpoint_num = 0
-
-        lat1, long1 = self.checkpoints[0]
-        lat2, long2 = self.checkpoints[1]
-        altitude = 287
-
-        initial_yaw, initial_pitch, initial_roll = \
-            get_gps_orientation(lat1, long1, altitude, lat2, long2, altitude)
-
-        self.filter = GrovesKalmanFilter(
-            initial_roll=initial_roll,
-            initial_pitch=initial_pitch,
-            initial_yaw=initial_yaw,
-            initial_lat=lat1,
-            initial_long=long1,
-            initial_alt=altitude,
-            **constants
-        )
-
+        
         self.state = {
-            "lat": lat1,
-            "long": long1,
-            "alt": altitude,
-            "yaw": initial_yaw,
-            "pitch": initial_pitch,
-            "roll": initial_roll,
+            "lat": 0.0,
+            "long": 0.0,
+            "alt": 0.0,
+            "yaw": 0.0,
+            "pitch": 0.0,
+            "roll": 0.0,
         }
 
-        self.record("kalman", self.state)
+        if initialize_with_checkpoints:
+           self.init_with_checkpoints() 
 
         self.manual_mode = True
 
@@ -76,15 +62,61 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.prev_alt = 0.0
     
         self.prev_status_time = time.time()
+        
+    def init_with_checkpoints(self):
+        lat1, long1 = self.checkpoints[0]
+        lat2, long2 = self.checkpoints[1]
+        altitude = 287
+
+        initial_yaw, initial_pitch, initial_roll = \
+            get_gps_orientation(lat1, long1, altitude, lat2, long2, altitude)
+        
+        self.init_filter(lat1, long1, altitude, initial_yaw, initial_pitch, initial_roll)
+    
+    def init_with_gps(self):
+        lat1, long1 = self.gps.get("lat"), self.gps.get("long")
+        initial_yaw = math.radians(float(input("Enter heading in degrees: ")))
+        
+        altitude = 287
+        
+        self.init_filter(lat1, long1, altitude, initial_yaw, 0.0, 0.0)
+    
+    def init_filter(self, lat1, long1, altitude, initial_yaw, initial_pitch, initial_roll):
+        self.filter = GrovesKalmanFilter(
+            initial_roll=initial_roll,
+            initial_pitch=initial_pitch,
+            initial_yaw=initial_yaw,
+            initial_lat=lat1,
+            initial_long=long1,
+            initial_alt=altitude,
+            **constants
+        )
+
+        self.state["lat"] = lat1
+        self.state["long"] = long1
+        self.state["alt"] = altitude
+        self.state["yaw"] = initial_yaw
+        self.state["pitch"] = initial_pitch
+        self.state["roll"] = initial_roll
+        
+        print("Kalman filter initial conditions:           ")
+        print("[%9.4f, %9.4f, %9.4f]                       " % (lat1, long1, altitude))
+        print("[%9.4f, %9.4f, %9.4f]                       " % (initial_yaw, initial_pitch, initial_roll))
+
+        self.record("kalman", self.state)
     
     def setup(self):
         print("Waiting for sensors...")
+        time.sleep(1)
         while not self.sensors_ready():
             self.check_sensor_status()
             self.print_sensors()
             time.sleep(0.05)
         print(" " * 50)
         print("Sensors ready!", " " * 40)
+        
+        if not initialize_with_checkpoints:
+            self.init_with_gps()
 
         self.gps_t0 = time.time()
         self.imu_t0 = time.time()
@@ -95,8 +127,9 @@ class RoboQuasarRunner(RoboQuasarBot):
     def check_sensor(self, x, y, z, prev_x, prev_y, prev_z, time0):
         current_avg = abs((x + y + z) / 3)
         prev_avg = abs((prev_x + prev_y + prev_z) / 3)
-        if (current_avg != prev_avg) and (current_avg == 0.0):
-            if (time.time() - time0) > 0.75:
+        
+        if (current_avg == prev_avg) or (current_avg == 0.0):
+            if (time.time() - time0) > 1:
                 return False
         
         return True

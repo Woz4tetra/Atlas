@@ -86,6 +86,12 @@ class Robot:
             self.capture.start()
 
         self.started = True
+        
+    def enable_callbacks(self):
+        self.communicator.enable_callbacks()
+        
+    def disable_callbacks(self):
+        self.communicator.disable_callbacks()
 
     def record(self, name, value=None, **values):
         """Log data to the current log file"""
@@ -133,7 +139,9 @@ class Robot:
         self.start()
         
         try:
+            self.disable_callbacks()
             self.setup()
+            self.enable_callbacks()
             
             while self.communicator.is_alive():
                 self.loop()
