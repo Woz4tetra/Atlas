@@ -5,9 +5,6 @@ import navpy
 
 # np.set_printoptions(precision=4)
 
-# todo check navpy is in wgs84
-# i mean, it probably is but its worth checking
-
 earth_radius = 6378137  # WGS84 Equatorial radius in meters
 earth_rotation_rate = 7.292115E-5  # rad/s
 eccentricity = 0.0818191908425  # WGS84 eccentricity
@@ -15,7 +12,6 @@ earth_gravity_constant = 3.986004418E14
 J_2 = 1.082627E-3
 
 
-# todo look at navpy 2
 class GrovesKalmanFilter:
     def __init__(self, **kf_properties):
         self.properties = KalmanProperties(**kf_properties)
@@ -23,21 +19,14 @@ class GrovesKalmanFilter:
         self.ins = INS(self.properties)
         self.epoch = Epoch(self.properties)
 
-        # print(self.get_orientation())
-        # print(self.get_position())
-
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
-        # print("imu before:", self.get_position())
         self.properties.estimated_position, \
         self.properties.estimated_velocity, \
         self.properties.estimated_attitude = self.ins.update(
             imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
         )
-        # print("imu after:", self.get_position())
 
     def gps_updated(self, gps_dt, lat, long, altitude):
-        # print("gps before:", self.get_position())
-        # given how we are calculate dt, when do we check time? not something to worry about yet though
         gps_position_ecef, gps_velocity_ecef = \
             self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
 
@@ -48,25 +37,14 @@ class GrovesKalmanFilter:
             gps_dt, gps_position_ecef, gps_velocity_ecef,
             self.ins.accel_measurement
         )
-        # print("gps after:", self.get_position())
 
     def get_position(self):
         return navpy.ecef2lla(
             np.array(self.properties.estimated_position.T)[0])
-        # return np.array(self.properties.estimated_position.T)[0]
 
     def get_orientation(self):
-        # print(navpy.dcm2angle(self.properties.estimated_attitude))
-        # print(self.properties.estimated_attitude)
-        orientation = navpy.dcm2angle(  # CTM_to_Euler
+        return navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)  # yaw, pitch, roll
-        # orientation[0] = -orientation[0] + np.pi * 3 / 2
-        # print(self.properties.estimated_attitude)
-        # if np.any(np.isnan(orientation)):
-        #     print(orientation)
-        #     print(self.properties.estimated_attitude)
-        #     print()
-        return orientation
 
 
 class KalmanProperties:
@@ -351,7 +329,7 @@ class Epoch:
 
     def update(self, dt, gps_position_ecef, gps_velocity_ecef,
                accel_measurement):
-        # step 1 #todo hmnnn is no returns intended?
+        # step 1
         self.determine_transition_matrix(
             dt, accel_measurement,
             self.properties.estimated_position,
@@ -386,8 +364,6 @@ class Epoch:
             self.properties.estimated_velocity,
             self.properties.estimated_imu_biases
         )
-
-    # todo 2 count
 
     def determine_transition_matrix(self, dt, accel_measurement,
                                     estimated_position, estimated_attitude):
@@ -433,8 +409,6 @@ class Epoch:
 
         self.approx_noise_covariance_Q[0:3, 0:3] *= gyro_noise_PSD
         self.approx_noise_covariance_Q[3:6, 3:6] *= accel_noise_PSD
-
-        # TODO: this was missing, check if all matrices are correct
         self.approx_noise_covariance_Q[6:9, 6:9] = np.matrix(np.zeros((3, 3)))
         self.approx_noise_covariance_Q[9:12, 9:12] *= accel_bias_PSD
         self.approx_noise_covariance_Q[12:15, 12:15] *= gyro_bias_PSD

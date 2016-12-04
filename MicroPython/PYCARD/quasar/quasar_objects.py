@@ -74,7 +74,9 @@ class IMU(Sensor):
 
         self.accel_x, self.accel_y, self.accel_z = self.bno.get_lin_accel()  # m/s^2
 
-        ang_v = self.bno.get_gyro()  # radians per second
+        self.ang_vx, self.ang_vy, self.ang_vz = self.bno.get_gyro()  # radians per second
+        
+#        ang_v = self.bno.get_gyro()  # radians per second
 #        self.ang_vx = ang_v[0] * 2 * pi  # radians per second
 #        self.ang_vy = ang_v[1] * 2 * pi
 #        self.ang_vz = ang_v[2] * 2 * pi

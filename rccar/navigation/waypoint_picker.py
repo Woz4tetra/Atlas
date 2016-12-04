@@ -5,11 +5,11 @@ class Waypoints:
     def __init__(self, map_name, offset=1, map_dir=None):
         self.map = get_map(map_name, map_dir)
         self.offset = offset
-
+    
     def get_goal(self, state):
         x0 = state["x"]
         y0 = state["y"]
-
+        
         smallest_dist = None
         goal_index = 0
         for index in range(len(self.map)):

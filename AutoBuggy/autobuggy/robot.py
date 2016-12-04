@@ -134,7 +134,7 @@ class Robot:
             self.start()
         try:
             while True:
-                self.main()
+                self.step()
                 if self.should_stop():
                     break
         except:
@@ -142,5 +142,5 @@ class Robot:
         finally:
             self.close()
 
-    def main(self):
+    def step(self):
         pass

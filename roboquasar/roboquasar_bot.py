@@ -4,7 +4,7 @@ from autobuggy import project
 from autobuggy.robot import Robot
 from autobuggy.microcontroller.logger import get_map
 from joysticks.wiiu_joystick import WiiUJoystick
-
+from controller import Controller
 
 class RoboQuasarBot(Robot):
     def __init__(self, checkpoints_name, map_name, log_data=True):
@@ -18,6 +18,8 @@ class RoboQuasarBot(Robot):
         self.checkpoint_num = 0
 
         self.map = get_map(map_name)
+
+        self.controller = Controller(self.map)
 
         joystick = WiiUJoystick(
             button_down_fn=lambda button: self.button_dn(button),

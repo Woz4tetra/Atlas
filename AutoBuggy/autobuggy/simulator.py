@@ -11,7 +11,7 @@ pickled_sim_directory = ":simulations"
 class Simulator:
     # TODO: Add integration for CV pipelines
     def __init__(self, file_name, directory, max_speed, plot_info,
-                 enable_3d=False, used_cached_data=False,
+                 enable_3d=False, use_pickled_data=False,
                  start_index=0, end_index=-1):
         self.enable_3d = enable_3d
 
@@ -47,6 +47,24 @@ class Simulator:
 
         self.max_speed = max_speed
 
+        # ----- pickled simulation properties -----
+
+        self.use_pickled_data = use_pickled_data
+
+        self.pickle_file_name = self.parser.file_name[
+                                :-len(log_file_type)] + pickle_file_type
+        self.log_pickle_dir = project.interpret_dir(
+            pickled_sim_directory)
+
+        if self.use_pickled_data:
+            if os.path.isfile(self.log_pickle_dir + self.pickle_file_name):
+                with open(self.log_pickle_dir + self.pickle_file_name,
+                          'rb') as pickle_file:
+                    self.plot_data, self.enable_3d = pickle.load(pickle_file)
+                print("Using picked simulation")
+            else:
+                self.use_pickled_data = False
+
         # ----- initialize figures -----
 
         if self.enable_3d:
@@ -56,12 +74,9 @@ class Simulator:
             self.ax = self.fig.gca()
         self.fig.canvas.set_window_title(self.parser.file_name[:-4])
 
-        self.used_cached_data = used_cached_data
-
     def draw_dot(self, x, y, z=0, color='black'):
         if self.enable_3d:
-            # self.ax.plot(x, y, z, 'o', color=color, markersize=10)
-            pass
+            self.ax.plot([x], [y], [z], 'o', color=color, markersize=10)
         else:
             self.ax.plot(x, y, 'o', color=color, markersize=10)
 
@@ -73,7 +88,7 @@ class Simulator:
         pass
 
     def run(self):
-        if not self.used_cached_data:
+        if not self.use_pickled_data:
             for index, timestamp, name, values in self.parser:
                 self.step(index, timestamp, name, values)
 
@@ -110,67 +125,87 @@ class Simulator:
                 self.plot_info[plot_option]["line_seg_counter"] += 1
 
     def xy_line_segment(self, plot_option, x0, y0, x1, y1, cycler=None):
-        if not self.enable_3d:
-            if self.plot_enabled[plot_option]:
-                if cycler is None:
-                    cycler = self.plot_info[plot_option]["line_seg_counter"] % \
-                             self.plot_info[plot_option]["line_seg_freq"]
-                    self.plot_info[plot_option]["line_seg_counter"] += 1
+        if self.plot_enabled[plot_option]:
+            if cycler is None:
+                cycler = self.plot_info[plot_option]["line_seg_counter"] % \
+                         self.plot_info[plot_option]["line_seg_freq"]
+                self.plot_info[plot_option]["line_seg_counter"] += 1
 
-                if cycler == 0:
-                    self.plot_data[plot_option].append((x0, x1))
-                    self.plot_data[plot_option].append((y0, y1))
-                    self.plot_data[plot_option].append(
-                        self.plot_info[plot_option]["color"])
+            if cycler == 0:
+                self.plot_data[plot_option].append((x0, x1))
+                self.plot_data[plot_option].append((y0, y1))
+                self.plot_data[plot_option].append(
+                    self.plot_info[plot_option]["color"])
 
-                    if not self.plot_info[plot_option]["line_segments"]:
-                        self.plot_info[plot_option]["line_segments"] = True
+                if not self.plot_info[plot_option]["line_segments"]:
+                    self.plot_info[plot_option]["line_segments"] = True
 
     def fill_data_array(self, plot_option, data_array):
         pass
 
-    def plot(self):
-        pickle_file_name = self.parser.file_name[
-                           :-len(log_file_type)] + pickle_file_type
-        log_pickle_dir = project.interpret_dir(
-            pickled_sim_directory)
-
-        if not self.used_cached_data:
-            # TODO: if file doesn't exist, used_cached_data = False
-            print("Using picked simulation")
-            with open(log_pickle_dir + pickle_file_name, 'wb') as pickle_file:
-                pickle.dump(self.plot_data, pickle_file,
-                            pickle.HIGHEST_PROTOCOL)
+    def graph_limits(self, x0, x1, y0, y1, z0=None, z1=None):
+        if x0 < x1:
+            self.ax.set_xlim([x0, x1])
         else:
-            with open(log_pickle_dir + pickle_file_name, 'rb') as pickle_file:
-                self.plot_data = pickle.load(pickle_file)
+            self.ax.set_xlim([x1, x0])
+
+        if y0 < y1:
+            self.ax.set_ylim([y0, y1])
+        else:
+            self.ax.set_ylim([y1, y0])
+
+        if self.enable_3d:
+            if z0 < z1:
+                self.ax.set_zlim([z0, z1])
+            else:
+                self.ax.set_zlim([z1, z0])
+
+    def before_plot(self):
+        pass
+
+    def plot(self):
+        with open(self.log_pickle_dir + self.pickle_file_name,
+                  'wb') as pickle_file:
+            pickle.dump((self.plot_data, self.enable_3d), pickle_file,
+                        pickle.HIGHEST_PROTOCOL)
+
+        self.before_plot()
+
+        if self.plot_data.keys() != self.plot_info.keys():
+            print("WARNING: plot options in current simulator don't match "
+                  "options found in the pickled simulation.\nConsider "
+                  "settings use_pickled_data to False and running the "
+                  "simulation again.")
 
         for plot_option, data_array in self.plot_data.items():
-            data_info = self.plot_info[plot_option]
-            if not data_info["log_based_plot"]:
-                self.fill_data_array(plot_option, data_array)
+            if plot_option in self.plot_info:
+                data_info = self.plot_info[plot_option]
+                if not data_info["log_based_plot"]:
+                    self.fill_data_array(plot_option, data_array)
 
-            if data_info["skip_count"] > 0:
-                for index in range(len(data_array)):
-                    data_array[index] = data_array[index][
-                                        ::data_info["skip_count"]]
+                if data_info["skip_count"] > 0:
+                    for index in range(len(data_array)):
+                        data_array[index] = \
+                            data_array[index][::data_info["skip_count"]]
 
-            if data_info["line_segments"]:
-                if not self.enable_3d:
-                    plt.plot(*data_array)
-            else:
-                if not self.enable_3d:
-                    plt.plot(data_array[0], data_array[1], data_info["color"],
-                             label=data_info["label"],
-                             markersize=data_info["markersize"],
-                             alpha=data_info["alpha"])
+                if data_info["line_segments"]:
+                    if not self.enable_3d:
+                        plt.plot(*data_array)
                 else:
-                    self.ax.plot(data_array[0], data_array[1],
-                                 data_array[2], color=data_info["color"],
-                                 linewidth=1,
-                                 antialiased=False,
-                                 label=data_info["label"])
-
+                    if not self.enable_3d:
+                        plt.plot(data_array[0], data_array[1],
+                                 data_info["color"],
+                                 label=data_info["label"],
+                                 markersize=data_info["markersize"],
+                                 alpha=data_info["alpha"])
+                    else:
+                        self.ax.plot(data_array[0], data_array[1],
+                                     data_array[2], color=data_info["color"],
+                                     linewidth=1,
+                                     antialiased=False,
+                                     label=data_info["label"])
+            else:
+                print(plot_option, "not found in pickled data, skipping")
 
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 

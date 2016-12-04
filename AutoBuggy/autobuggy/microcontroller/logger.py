@@ -28,12 +28,15 @@ pickle_directory = ":pickled"
 log_folder_format = '%b %d %Y'
 log_file_format = '%H;%M;%S, %a %b %d %Y'
 
+
 def todays_log_folder():
     """Generate a log folder name based on the current date"""
     return time.strftime(log_folder_format) + "/"
 
+
 def filename_now():
     return time.strftime(log_file_format)
+
 
 class Logger:
     """A class for recording data from a robot to a log file"""
@@ -50,7 +53,8 @@ class Logger:
 
         # Parse the input directory using the project module
         if directory == ":today":  # for creating logs
-            directory = project.interpret_dir(log_directory) + todays_log_folder()
+            directory = project.interpret_dir(
+                log_directory) + todays_log_folder()
         elif directory is None:
             directory = project.interpret_dir(log_directory)
         else:
@@ -134,7 +138,8 @@ class Parser:
     def __init__(self, file_name, directory=None, start_index=0, end_index=-1):
         # pick a subdirectory of logs
         self.directory = project.parse_dir(directory, log_directory,
-                                           lambda x: datetime.strptime(x, log_folder_format))
+                                           lambda x: datetime.strptime(x,
+                                                                       log_folder_format))
 
         # for external use. Get the picked local directory
         self.local_dir = self.directory[self.directory.rfind("/", 0, -1) + 1:]
@@ -144,7 +149,8 @@ class Parser:
             file_name, self.directory, log_file_type)
         self.file_name_no_ext = self.file_name.split(".")[0]
 
-        print("Using file named '%s' in directory '%s'" % (self.file_name, self.directory))
+        print("Using file named '%s' in directory '%s'" % (
+            self.file_name, self.directory))
 
         # read the whole file as a string
         with open(self.directory + self.file_name, 'r') as data_file:
@@ -168,8 +174,10 @@ class Parser:
         self.data = []  # the parsed data of the file
         self.iter_index = 0  # the character index of the file
 
-        pickle_file_name = self.file_name[:-len(log_file_type)] + pickle_file_type
-        log_pickle_dir = project.interpret_dir(pickle_directory) + self.local_dir
+        pickle_file_name = self.file_name[
+                           :-len(log_file_type)] + pickle_file_type
+        log_pickle_dir = project.interpret_dir(
+            pickle_directory) + self.local_dir
 
         if os.path.isfile(log_pickle_dir + pickle_file_name):
             print("Using pickled data")
@@ -283,20 +291,15 @@ def _get_txt_map(file_name, directory):
 
     split = contents.splitlines()
     header = split.pop(0).split(",")
-
-    if header[0] == 'lat':
-        lat_index = 0
-        long_index = 1
-    else:
-        lat_index = 1
-        long_index = 0
+    lat_index = header.index('lat')
+    long_index = header.index('long')
 
     gps_map = []
     for line in split:
         line_data = line.split(",")
         if len(line_data) == 2:
-            lat, long = float(line_data[lat_index]), float(
-                line_data[long_index])
+            lat, long = float(line_data[lat_index]), \
+                        float(line_data[long_index])
 
             gps_map.append((lat, long))
 
@@ -324,7 +327,7 @@ def _get_gpx_map(file_name, directory):
     for line in contents[start_index:].splitlines():
         line = line.strip(" ")
         unparsed = line.split(" ")
-        
+
         if len(unparsed) > 1:
             if len(unparsed) == 2:
                 lat_unparsed, long_unparsed = unparsed
@@ -355,7 +358,6 @@ def get_map(file_name, directory=None):
     else:
         raise ValueError("Invalid file extension: %s" % file_name)
 
-
     if directory is None:
         directory = ":maps"
 
@@ -371,6 +373,7 @@ def get_map(file_name, directory=None):
     print("Using map named %s, length %i" % (file_name, len(gps_map)))
 
     return gps_map
+
 
 def parse_arguments(default_file=-1, default_directory=-1):
     file_name = default_file
