@@ -61,6 +61,7 @@ class AdafruitGPS:
         self.hour = 0
         self.minute = 0
         self.seconds = 0
+        self.milliseconds = 0.0
 
         self.day = 0
         self.month = 0
@@ -97,6 +98,7 @@ class AdafruitGPS:
 
         self.recved_flag = True
 
+        self.buffer = b''
         self.sentence = b''
         self.previous_sentence = b''
 
@@ -153,7 +155,7 @@ class AdafruitGPS:
                 if sum != 0:
                     # bad checksum :(
                     return False
-            packet_type = sentence[1:6]
+            packet_type = sentence[0:5]
             
             try:
                 if packet_type == "GPGGA":
@@ -170,7 +172,7 @@ class AdafruitGPS:
                 else:
                     print("Unrecognized packet: '%s', '%s'" % (packet_type, sentence))
             except:
-                print("Unrecognized packet: '%s', '%s" % (packet_type, sentence))
+                print("Exception, unrecognized packet: '%s', '%s'" % (packet_type, sentence))
 
             return True
         else:
@@ -178,12 +180,12 @@ class AdafruitGPS:
 
     def parse_sentence(self, sentence, expected_num):
         # remove packet type and checksum
-        split = sentence[7:-3].split(",")
+        split = tuple(sentence[7:-3].split(","))
 
         if len(split) != expected_num:
-            print("Mismatched parameter number: '%s'" % sentence)
+            print("Mismatched parameter number: '%s'\n" % sentence, split)
             if len(split) < expected_num:  # fill missing with None
-                return split + (None,) * (expected_num - len(split))
+                return split + ('',) * (expected_num - len(split))
             else:
                 return split[0:expected_num]
         else:
@@ -354,9 +356,11 @@ class AdafruitGPS:
 
     def parse_time(self, time_sentence):
         if len(time_sentence) >= 6:
-            self.hour = int(time_sentence[0:2])
-            self.minute = int(time_sentence[2:4])
-            self.seconds = int(time_sentence[4:6])
+            time = float(time_sentence)
+            self.hour = int(time / 10000)
+            self.minute = int((time % 10000) / 100)
+            self.seconds = int(time % 100)
+            self.milliseconds = (time % 1.0) * 1000 
 
     def parse_latitude(self, latitude, lat_direction):
         if len(latitude) >= 4:
@@ -378,6 +382,18 @@ class AdafruitGPS:
     def parse_hex(char):
         # convert hex byte to int
         return int(char, 16)
+    
+    def read_sentences(self):
+        read_num = self.uart.any()
+        if read_num > 60:
+            read_num = 60
+        self.buffer += self.uart.read(read_num)
+        sentences = self.buffer.split(b'$')
+        if self.buffer[-1] != '$':
+            self.buffer = sentences.pop(-1)
+        else:
+            self.buffer = b''
+        return sentences
 
     def received_sentence(self):
         if self.recved_flag is True:
@@ -385,13 +401,12 @@ class AdafruitGPS:
 
             if self.uart.any():
                 self.previous_sentence = self.sentence
-                self.sentence = b''
-                character = b''
-                while not (self.uart.any() or character == b' ' or character == b'\n'):
-                    self.sentence += character
-                    character = self.uart.read()
-                self.parse(self.sentence)
-                return True
+                valid_sentence = False
+                for sentence in self.read_sentences():
+                    self.sentence = sentence
+                
+                    valid_sentence = self.parse(self.sentence)
+                return valid_sentence
         return False
 
     def wait_for_sentence(self, sentence, max_wait_count=5):

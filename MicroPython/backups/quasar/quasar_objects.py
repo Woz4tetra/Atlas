@@ -28,8 +28,6 @@ class GPS(Sensor):
 
         add_timer(timer_num, self.gps_ref.timer.freq())
 
-        self.stop()
-
     def stop(self):
         print("GPS entering standby... ", end="")
         self.gps_ref.standby()
@@ -121,7 +119,7 @@ class StepperCommand(Command):
         
         pyb.delay(10)  # if this isn't here the stepper won't switch directions
         
-        self.stepper.step(150)  # center the steering
+#        self.stepper.step(150)  # center the steering
         print("done!")
 
     def reset(self):

@@ -197,7 +197,7 @@ class GraphSensor(Simulator):
             self.plot_data["plot_3"][1].append(values["gz"])
 
 
-file_name, directory = parse_arguments(-2, -2)
+file_name, directory = parse_arguments(-1, -1)
 
 
 def run_kalman():
@@ -216,7 +216,7 @@ def run_kalman():
         #                       log_based_plot=False),
         course_map_plot=dict(color='gold', label="map",
                              log_based_plot=False),
-        enable_3d=True,
+        enable_3d=False,
         use_pickled_data=True,
         start_index=0,
         # end_index=5000

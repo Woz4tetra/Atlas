@@ -37,12 +37,6 @@ class Communicator(threading.Thread):
                                             timeout=1)
         self.start_time = time.time()
 
-        # tell the microcontroller that we're starting
-        if handshake:
-            self.initialized = self.handshake()
-        else:
-            self.initialized = False
-
         self.sensor_pool = sensors_pool
 
         # Where serial dumps EVERYTHING that it currently sees
@@ -52,6 +46,12 @@ class Communicator(threading.Thread):
         # a timer to make sure the thread is running (used in is_alive())
         self.start_time = time.time()
         self.thread_time = 0
+        
+        # tell the microcontroller that we're starting
+        if handshake:
+            self.initialized = self.handshake()
+        else:
+            self.initialized = False
 
         # initialize the data logger
         self.log_data = log_data
@@ -80,22 +80,20 @@ class Communicator(threading.Thread):
             super important to copy()! sensor._properties is passed by reference
             otherwise and may change before being recorded.
         """
-        #        if len(self.sensor_pool) == 0:
-        #            print("No sensors added! Communicator will only send commands")
-        #            return
         try:
-            while not Communicator.exit_flag:
-                self.thread_time = round(time.time() - self.start_time)
-                if self.serial_ref.inWaiting() > 0:
-                    packets, status = self.read_packets()
-                    if status is False:
-                        print("Serial read failed...")
-                        raise KeyboardInterrupt
-                    else:
-                        self.parse_packets(packets)
-                    if self.log_data:
-                        self.log.record()
-                time.sleep(0.0005)
+            if self.initialized:
+                while not Communicator.exit_flag:
+                    self.thread_time = round(time.time() - self.start_time)
+                    if self.serial_ref.inWaiting() > 0:
+                        packets, status = self.read_packets()
+                        if status is False:
+                            print("Serial read failed...")
+                            raise KeyboardInterrupt
+                        else:
+                            self.parse_packets(packets)
+                        if self.log_data:
+                            self.log.record()
+                    time.sleep(0.0005)
         except KeyboardInterrupt:
             traceback.print_exc()
         finally:
@@ -106,7 +104,11 @@ class Communicator(threading.Thread):
 
     def is_alive(self):
         """A way to check if serial is hanging the thread"""
-        return abs(round(time.time() - self.start_time) - self.thread_time) < 1
+
+        status = abs(int(time.time() - self.start_time) - self.thread_time) < 2
+        if not status:
+            print("Communicator thread stopped responding!!! Thread was out of sync by ")
+        return status
 
     def parse_packets(self, packets):
         """

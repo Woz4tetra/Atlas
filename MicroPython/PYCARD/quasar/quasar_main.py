@@ -65,8 +65,8 @@ while True:
 
     if sensor_updated:
        sensor_updated = False
-       print("%0.5f (%s:%s:%s:%s), %0.6f, %0.6f" % ((
-           imu.data[0],) + imu.bno.get_calibration() + (gps.data[0], gps.data[1])), end='\r')
+       print("%8.5f (%s:%s:%s:%s), %7.4f, %7.4f, %7.4f; %10.6f, %10.6f, %10.6f        " % ((
+           imu.data[0],) + imu.bno.get_calibration() + (imu.data[1], imu.data[2], imu.data[6], gps.data[0], gps.data[1], gps.data[2])), end='\r')
     pyb.delay(1)
 
     if communicator.should_stop():

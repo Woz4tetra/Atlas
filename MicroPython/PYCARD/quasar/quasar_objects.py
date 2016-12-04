@@ -65,8 +65,6 @@ class IMU(Sensor):
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
         self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
-    
-        self.bno.reset()
 
     def reset(self):
         print("Resetting IMU... ", end="")
@@ -106,8 +104,6 @@ class StepperCommand(Command):
         self.delimiter_pin = pyb.Pin("Y1", pyb.Pin.IN, pyb.Pin.PULL_UP)
 
         self.stepper = Stepper(200, 25, "Y3", "Y4", "Y5", "Y6")
-
-        self.calibrate()
 
     def callback(self, steps):
         self.stepper.step(steps)

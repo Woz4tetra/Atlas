@@ -135,7 +135,7 @@ class Robot:
         try:
             self.setup()
             
-            while True:
+            while self.communicator.is_alive():
                 self.loop()
                 if self.should_stop():
                     break
