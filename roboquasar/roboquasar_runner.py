@@ -8,8 +8,10 @@ from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 
 initialize_with_checkpoints = True
-terminal_rows, terminal_col = os.popen('stty size', 'r').read().split()
-print("Terminal size:", terminal_rows, terminal_col)
+
+with os.popen('stty size', 'r') as terminal_window:
+    terminal_rows, terminal_cols = (int(x) for x in terminal_window.read().split())
+print("Terminal size:", terminal_rows, terminal_cols)
 
 class RoboQuasarRunner(RoboQuasarBot):
     def __init__(self, log_data):
@@ -111,6 +113,13 @@ class RoboQuasarRunner(RoboQuasarBot):
             initial_yaw, initial_pitch, initial_roll))
 
         self.record("kalman", self.state)
+        
+    def print_with_spaces(self, string):
+        if len(string) < terminal_cols:
+            string = string + " " * (terminal_cols - len(string))
+        else:
+            string = string[0:terminal_cols]
+        print(string)
 
     def setup(self):
         print("Waiting for sensors...")
@@ -119,8 +128,8 @@ class RoboQuasarRunner(RoboQuasarBot):
             self.check_sensor_status()
             self.print_sensors()
             time.sleep(0.05)
-        print(" " * 50)
-        print("Sensors ready!", " " * 40)
+        self.print_with_spaces("")
+        self.print_with_spaces("Sensors ready!")
 
         if not initialize_with_checkpoints:
             self.init_with_gps()
@@ -234,15 +243,9 @@ class RoboQuasarRunner(RoboQuasarBot):
 
             self.record_state()
 
-    @staticmethod
-    def print_data(sensor_name, x, y, z, status):
-        print_str = "%s: [%9.4f, %9.4f, %9.4f], status: %i" % (
-            sensor_name, x, y, z, status)
-        if len(print_str) < terminal_rows:
-            print_str += " " * (terminal_rows - len(print_str))
-        else:
-            print_str = print_str[0:terminal_rows]
-        return print_str
+    def print_data(self, sensor_name, x, y, z, status):
+        self.print_with_spaces("%s: [%9.4f, %9.4f, %9.4f], status: %i" % (
+            sensor_name, x, y, z, status))
 
     def print_sensors(self):
         self.check_sensor_status()
@@ -255,7 +258,7 @@ class RoboQuasarRunner(RoboQuasarBot):
             "orientation",
             self.state["yaw"], self.state["pitch"], self.state["roll"],
             self.filter.is_active)
-        print(" " * terminal_col)
+        print(" " * terminal_cols)
         self.print_data("accel",
                         self.imu.get("ax"), self.imu.get("ay"),
                         self.imu.get("az"), self.accel_ok)
