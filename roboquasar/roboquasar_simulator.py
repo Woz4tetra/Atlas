@@ -16,11 +16,13 @@ class FilterTest(Simulator):
                  end_index=-1, **plot_info):
         self.checkpoints = get_map(
             # "buggy course checkpoints.gpx"
-            "track field checkpoints.gpx"
+            # "track_field/track field checkpoints.gpx"
+            "cut/cut course checkpoints.gpx"
         )
         self.course_map = get_map(
             # "buggy course map.gpx"
-            "track field course map.gpx"
+            # "track_field/track field course map.gpx"
+            "cut/cut course map 2.gpx"
         )
 
         super(FilterTest, self).__init__(
@@ -188,13 +190,13 @@ class GraphSensor(Simulator):
     def step(self, index, timestamp, name, values):
         if name == "imu":
             self.plot_data["plot_1"][0].append(timestamp)
-            self.plot_data["plot_1"][1].append(values["gx"])
+            self.plot_data["plot_1"][1].append(values["ax"])
 
             self.plot_data["plot_2"][0].append(timestamp)
-            self.plot_data["plot_2"][1].append(values["gy"])
+            self.plot_data["plot_2"][1].append(values["ay"])
 
             self.plot_data["plot_3"][0].append(timestamp)
-            self.plot_data["plot_3"][1].append(values["gz"])
+            self.plot_data["plot_3"][1].append(values["az"])
 
 
 file_name, directory = parse_arguments(-1, -1)
@@ -205,7 +207,7 @@ def run_kalman():
         file_name, directory,
         # imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='lightskyblue', label="GPS"),
-        calculated_filter_plot=dict(color='indigo', label="filter"),
+#        calculated_filter_plot=dict(color='indigo', label="filter"),
         # calculated_filter_heading_plot=dict(color='lime', line_segments=True,
         #                                     line_seg_freq=50),
         recorded_filter_plot=dict(color='forestgreen', label="recorded filter"),

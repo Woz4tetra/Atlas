@@ -155,7 +155,7 @@ class AdafruitGPS:
                 if sum != 0:
                     # bad checksum :(
                     return False
-            packet_type = sentence[0:5]
+            packet_type = sentence[1:6]
             
             try:
                 if packet_type == "GPGGA":
@@ -385,11 +385,12 @@ class AdafruitGPS:
     
     def read_sentences(self):
         read_num = self.uart.any()
-        if read_num > 60:
-            read_num = 60
+        if read_num > 30:
+            read_num = 30
         self.buffer += self.uart.read(read_num)
-        sentences = self.buffer.split(b'$')
-        if self.buffer[-1] != '$':
+        
+        sentences = self.buffer.split(b'\n')
+        if self.buffer[-1] != '\n':# or self.buffer[-1] != ' ':
             self.buffer = sentences.pop(-1)
         else:
             self.buffer = b''
@@ -402,10 +403,10 @@ class AdafruitGPS:
             if self.uart.any():
                 self.previous_sentence = self.sentence
                 valid_sentence = False
-                for sentence in self.read_sentences():
-                    self.sentence = sentence
+#                for sentence in self.read_sentences():
+                self.sentence = self.uart.readline() #sentence
+                valid_sentence = self.parse(self.sentence)
                 
-                    valid_sentence = self.parse(self.sentence)
                 return valid_sentence
         return False
 

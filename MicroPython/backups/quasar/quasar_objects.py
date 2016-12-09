@@ -65,8 +65,6 @@ class IMU(Sensor):
         self.accel_x, self.accel_y, self.accel_z = 0.0, 0.0, 0.0
         self.ang_vx, self.ang_vy, self.ang_vz = 0.0, 0.0, 0.0
         self.mag_x, self.mag_y, self.mag_z = 0.0, 0.0, 0.0
-    
-        self.bno.reset()
 
     def reset(self):
         print("Resetting IMU... ", end="")
@@ -107,8 +105,6 @@ class StepperCommand(Command):
 
         self.stepper = Stepper(200, 25, "Y3", "Y4", "Y5", "Y6")
 
-        self.calibrate()
-
     def callback(self, steps):
         self.stepper.step(steps)
 
@@ -119,7 +115,7 @@ class StepperCommand(Command):
         
         pyb.delay(10)  # if this isn't here the stepper won't switch directions
         
-#        self.stepper.step(150)  # center the steering
+        self.stepper.step(150)  # center the steering
         print("done!")
 
     def reset(self):

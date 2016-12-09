@@ -35,6 +35,8 @@ class RoboQuasarRunner(RoboQuasarBot):
             log_data
         )
         self.checkpoint_num = 0
+        self.checkpoint_start_time = time.time()
+        self.checkpoint_time = time.time()
 
         self.state = {
             "lat": 0.0,
@@ -209,16 +211,17 @@ class RoboQuasarRunner(RoboQuasarBot):
 
     def button_dn(self, button):
         if button == 'A':
+            # TODO: add disable/enable joystick callbacks
             if self.checkpoint_num < len(self.checkpoints):
                 self.record('checkpoint', checkpoint_num=self.checkpoint_num)
 
                 self.checkpoint_num += 1
+                self.checkpoint_time = time.time()
         elif button == 'B':
             self.leds['red'].set("toggle")
 
         elif button == 'X':
             self.manual_mode = not self.manual_mode
-            print("Manual mode is", self.manual_mode)
 
     def record_state(self):
         position = self.filter.get_position()
@@ -282,8 +285,11 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.print_data("gps  ",
                         self.gps.get("lat"), self.gps.get("long"),
                         self.gps.get("altitude"), self.gps_ok)
-        print("checkpoint: %2.0d" % self.checkpoint_num)
-        print("\033[F" * 8)
+        print("checkpoint: %2.0d, %7.3f" % (
+            self.checkpoint_num, self.checkpoint_time - self.checkpoint_start_time))
+        print("manual mode: %s  " % self.manual_mode)
+        print("stepper: %6.0d" % self.current_step)
+        print("\033[F" * 10)
 
     def axis_active(self, axis, value):
         if axis == "left x":
@@ -301,7 +307,8 @@ class RoboQuasarRunner(RoboQuasarBot):
         if self.manual_mode:
             value = self.joystick.get_axis("left x")
             if abs(value) > 0:
-                self.stepper.set(int(-value * 4))
+                self.stepper.set(int(-value * self.increment_value))
+                self.current_step += self.stepper.get() 
         else:
             steering_angle = self.controller.update(
                 self.state["lat"], self.state["long"], self.state["yaw"]
@@ -323,7 +330,7 @@ class RoboQuasarRunner(RoboQuasarBot):
 
 def run():
     log_data = True
-    map_set = ""
+    map_set = "cut"
     
     if len(sys.argv) >= 2:
         log_data = bool(int(sys.argv[1]))
