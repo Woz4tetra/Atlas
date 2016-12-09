@@ -10,14 +10,28 @@ from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
 initialize_with_checkpoints = True
 
 with os.popen('stty size', 'r') as terminal_window:
-    terminal_rows, terminal_cols = (int(x) for x in terminal_window.read().split())
+    terminal_rows, terminal_cols = (int(x) for x in
+                                    terminal_window.read().split())
 print("Terminal size:", terminal_rows, terminal_cols)
 
+
 class RoboQuasarRunner(RoboQuasarBot):
-    def __init__(self, log_data):
+    def __init__(self, log_data, map_set):
+        if "track" == map_set:
+            checkpoints_name = "track_field/track field checkpoints.gpx"
+            map_name = "track_field/track field course map.gpx"
+        elif "buggy" == map_set:
+            checkpoints_name = "buggy_course/buggy course checkpoints.gpx"
+            map_name = "buggy_course/buggy course map.gpx"
+        elif "cut" == map_set:
+            checkpoints_name = "cut/cut course checkpoints.gpx"
+            map_name = "cut/cut course map 1.gpx"
+        else:
+            raise ValueError("map_set invalid:", map_set)
+
         super(RoboQuasarRunner, self).__init__(
-            "track field checkpoints.gpx",
-            "track field course map.gpx",
+            checkpoints_name,
+            map_name,
             log_data
         )
         self.checkpoint_num = 0
@@ -113,7 +127,7 @@ class RoboQuasarRunner(RoboQuasarBot):
             initial_yaw, initial_pitch, initial_roll))
 
         self.record("kalman", self.state)
-        
+
     def print_with_spaces(self, string):
         if len(string) < terminal_cols:
             string = string + " " * (terminal_cols - len(string))
@@ -195,10 +209,10 @@ class RoboQuasarRunner(RoboQuasarBot):
 
     def button_dn(self, button):
         if button == 'A':
-            self.record('checkpoint', checkpoint_num=self.checkpoint_num)
-            print("Checkpoint %i recorded!" % self.checkpoint_num)
+            if self.checkpoint_num < len(self.checkpoints):
+                self.record('checkpoint', checkpoint_num=self.checkpoint_num)
 
-            self.checkpoint_num += 1
+                self.checkpoint_num += 1
         elif button == 'B':
             self.leds['red'].set("toggle")
 
@@ -268,7 +282,8 @@ class RoboQuasarRunner(RoboQuasarBot):
         self.print_data("gps  ",
                         self.gps.get("lat"), self.gps.get("long"),
                         self.gps.get("altitude"), self.gps_ok)
-        print("\033[F" * 7)
+        print("checkpoint: %2.0d" % self.checkpoint_num)
+        print("\033[F" * 8)
 
     def axis_active(self, axis, value):
         if axis == "left x":
@@ -306,8 +321,15 @@ class RoboQuasarRunner(RoboQuasarBot):
         time.sleep(0.04)
 
 
-log_data = True
-if len(sys.argv) >= 2:
-    log_data = bool(int(sys.argv[1]))
+def run():
+    log_data = True
+    map_set = ""
+    
+    if len(sys.argv) >= 2:
+        log_data = bool(int(sys.argv[1]))
+    if len(sys.argv) >= 3:
+        map_set = sys.argv[2]
 
-RoboQuasarRunner(log_data).run()
+    RoboQuasarRunner(log_data, map_set).run()
+
+run()

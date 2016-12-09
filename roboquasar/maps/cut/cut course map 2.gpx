@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>cut course map 2</name>
+  <desc></desc>
+  <author><name>WTracks - Online GPX track editor</name></author>
+  <link href="https://wtracks.appspot.com/">
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2016-12-09T03-31-11Z</time>
+<bounds minlat="40.44054658392562" minlon="-79.9473586351562" maxlat="40.44352692417751" maxlon="-79.9396660597015"/></metadata>
+<trk><name>cut course map 2</name><trkseg>
+  <trkpt lat="40.44288907161716" lon="-79.94268715381622"></trkpt>
+  <trkpt lat="40.44278292377436" lon="-79.9429178237915"></trkpt>
+  <trkpt lat="40.44268902361984" lon="-79.94312703609467"></trkpt>
+  <trkpt lat="40.44262370169585" lon="-79.94327187538147"></trkpt>
+  <trkpt lat="40.44251347080518" lon="-79.94345963001251"></trkpt>
+  <trkpt lat="40.442403239733764" lon="-79.9436366558075"></trkpt>
+  <trkpt lat="40.442268512623215" lon="-79.94380295276642"></trkpt>
+  <trkpt lat="40.44213378524266" lon="-79.94391560554504"></trkpt>
+  <trkpt lat="40.442088876055784" lon="-79.94420528411865"></trkpt>
+  <trkpt lat="40.44205621481015" lon="-79.94452178478241"></trkpt>
+  <trkpt lat="40.441896991010324" lon="-79.94457542896271"></trkpt>
+  <trkpt lat="40.441774510907685" lon="-79.944629073143"></trkpt>
+  <trkpt lat="40.44174184950928" lon="-79.94441449642181"></trkpt>
+  <trkpt lat="40.44169694006059" lon="-79.94419991970062"></trkpt>
+  <trkpt lat="40.441672443985006" lon="-79.94401752948761"></trkpt>
+  <trkpt lat="40.441815337633344" lon="-79.94394779205322"></trkpt>
+  <trkpt lat="40.44196639630275" lon="-79.94391024112701"></trkpt>
+  <trkpt lat="40.442088876055784" lon="-79.94386196136475"></trkpt>
+  <trkpt lat="40.44221135558565" lon="-79.94380831718445"></trkpt>
+</trkseg></trk></gpx>

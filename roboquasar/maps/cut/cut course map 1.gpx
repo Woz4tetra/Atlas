@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>cut course map 1</name>
+  <desc></desc>
+  <author><name>WTracks - Online GPX track editor</name></author>
+  <link href="https://wtracks.appspot.com/">
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2016-12-09T03-30-23Z</time>
+<bounds minlat="40.44054658392562" minlon="-79.9473586351562" maxlat="40.44352692417751" maxlon="-79.9396660597015"/></metadata>
+<trk><name>cut course map 1</name><trkseg>
+  <trkpt lat="40.44289315422318" lon="-79.94269251823425"></trkpt>
+  <trkpt lat="40.44278700638679" lon="-79.9429178237915"></trkpt>
+  <trkpt lat="40.44268085838282" lon="-79.94314312934875"></trkpt>
+  <trkpt lat="40.44259104071005" lon="-79.94334697723389"></trkpt>
+  <trkpt lat="40.442476727134796" lon="-79.94350254535675"></trkpt>
+  <trkpt lat="40.44237057864084" lon="-79.94367957115173"></trkpt>
+  <trkpt lat="40.44228484319645" lon="-79.94379222393036"></trkpt>
+  <trkpt lat="40.44215419849948" lon="-79.94386732578278"></trkpt>
+  <trkpt lat="40.44210520667266" lon="-79.94413554668427"></trkpt>
+  <trkpt lat="40.4420602974667" lon="-79.9443769454956"></trkpt>
+  <trkpt lat="40.44201538823075" lon="-79.94461297988892"></trkpt>
+  <trkpt lat="40.441941900325354" lon="-79.94485437870026"></trkpt>
+  <trkpt lat="40.44187657767539" lon="-79.94505286216736"></trkpt>
+</trkseg></trk></gpx>
