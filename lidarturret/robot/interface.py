@@ -6,6 +6,7 @@ from threading import Thread, Lock
 import serial
 
 from robot.analysis import Logger
+import project
 
 
 class RobotSerialPort(Thread):
@@ -13,6 +14,7 @@ class RobotSerialPort(Thread):
 
     def __init__(self, baud, address_format, packet_end, logger, log_data):
         self.address = None
+        self.address_format = None
         self.serial_ref = None
 
         self.who_i_am = None
@@ -23,23 +25,33 @@ class RobotSerialPort(Thread):
 
         self.property_lock = Lock()
 
-        self.address_format = address_format
-        if type(self.address_format) == str:
-            self.address_format = [self.address_format]
+        self.platform = project.get_platform()
 
-        for address in self.address_format:
-            for address in glob.glob(address):
-                if address not in RobotSerialPort.opened_addresses:
-                    try:
-                        self.serial_ref = \
-                            serial.Serial(port=address,
-                                          baudrate=baud,
-                                          timeout=0.005)
-                    except serial.SerialException:
-                        pass
-                    self.address = address
-                    RobotSerialPort.opened_addresses.append(self.address)
-                    break
+        if type(address_format) == dict:
+            if self.platform in address_format.keys():
+                address_format = address_format[self.platform]
+            else:
+                raise ValueError("Platform specific address not specified for",
+                                 self.platform)
+
+        if type(address_format) == str:
+            self.address_format = [address_format]
+
+        if self.address_format is None:
+            raise ValueError("Invalid address format:", address_format)
+
+        for address in self.parse_addresses(self.address_format):
+            if address not in RobotSerialPort.opened_addresses:
+                try:
+                    self.serial_ref = \
+                        serial.Serial(port=address,
+                                      baudrate=baud,
+                                      timeout=0.005)
+                except serial.SerialException:
+                    pass
+                self.address = address
+                RobotSerialPort.opened_addresses.append(self.address)
+                break
 
         if self.address is None:
             raise ConnectionError(
@@ -56,6 +68,13 @@ class RobotSerialPort(Thread):
 
         super(RobotSerialPort, self).__init__()
 
+    def parse_addresses(self, address_format):
+        addresses = []
+        for address in address_format:
+            addresses.extend(glob.glob(address))
+        return addresses
+
+
     def run(self):
         try:
             while not self.should_stop:
@@ -69,7 +88,7 @@ class RobotSerialPort(Thread):
                     if len(packets) > 0:
                         self.robot_object.updated = True
                     for packet in packets:
-                        self.robot_object.parse_packet(packet)
+                        self.robot_object._receive(packet)
                         if self.log_data:
                             self.logger.record(self.who_i_am, packet)
 
@@ -161,8 +180,7 @@ class RobotSerialPort(Thread):
 
 
 class RobotObject:
-    def __init__(self, who_i_am: str, address_format,
-                 baud=115200):
+    def __init__(self, who_i_am, address_format, baud=115200):
         self.who_i_am = who_i_am
         self.address_format = address_format
         self.baud = baud
@@ -179,10 +197,13 @@ class RobotObject:
         object.__setattr__(self, key, value)
         self.property_lock.release()
 
-    def parse_packet(self, packet):
+    def _receive(self, packet):
+        self.receive(packet)
+
+    def receive(self, packet):
         pass
 
-    def write_packet(self, packet):
+    def send(self, packet):
         self.has_new_command = True
         self.command_packet = packet
 

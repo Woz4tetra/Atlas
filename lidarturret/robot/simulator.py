@@ -59,7 +59,7 @@ class Simulator:
 
     def run(self):
         for index, timestamp, who_i_am, packet in self.parser:
-            self.simulated_ports[who_i_am].parse_packet(packet)
+            self.simulated_ports[who_i_am].receive(packet)
             self.step(index, timestamp, who_i_am, self.simulated_ports[who_i_am])
 
             self.timestamps.append(timestamp)

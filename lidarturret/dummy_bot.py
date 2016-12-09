@@ -17,16 +17,16 @@ class Dummy(RobotObject):
 
         super(Dummy, self).__init__("dummy", "/dev/tty.SLAB_USBtoUART")
 
-    def parse_packet(self, packet):
+    def receive(self, packet):
         data = packet.split("\t")
         self.value_1 = int(data[0])
         self.value_2 = int(data[1])
 
     def command_1(self):
-        self.write_packet("t%i" % int(time.time() - self.time0))
+        self.send("t%i" % int(time.time() - self.time0))
 
     def command_2(self, led_state):
-        self.write_packet("l%i" % int(led_state))
+        self.send("l%i" % int(led_state))
 
 
 if live:
