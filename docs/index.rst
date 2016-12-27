@@ -6,7 +6,8 @@ Atlas Buggy Documentation
    :maxdepth: 2
    :caption: Contents:
 
-
+.. automodule:: interface
+    :members:
 
 Indices and tables
 ==================

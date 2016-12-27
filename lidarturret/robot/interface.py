@@ -1,3 +1,7 @@
+"""
+This is a module docstring
+"""
+
 import glob
 import time
 import traceback
@@ -11,6 +15,10 @@ import project
 
 
 class RobotSerialPort(Thread):
+    """
+    This is a RobotSerialPort class docstring
+    """
+
     opened_addresses = []
 
     def __init__(self, baud, address_format, packet_end, logger, log_data):
