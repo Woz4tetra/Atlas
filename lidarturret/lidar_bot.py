@@ -40,13 +40,10 @@ class LidarTurret(RobotObject):
         self.point_cloud_x = [0] * self.ticks_per_rotation
         self.point_cloud_y = [0] * self.ticks_per_rotation
 
-        self.initialized = False
-
         super(LidarTurret, self).__init__(
             "lidar",
             {
                 "mac": "/dev/tty.usbmodem*",
-                "win": "COM*",
                 "linux": "/dev/tty.*"
             }
         )
@@ -55,28 +52,25 @@ class LidarTurret(RobotObject):
         angle = 2 * math.pi * self.current_tick / self.ticks_per_rotation
         return distance * math.cos(angle), distance * math.sin(angle)
 
+    def receive_first(self, packet):
+        self.ticks_per_rotation = int(packet)
+
     def receive(self, packet):
         data = packet.split("\t")
-        if self.initialized:
-            if len(data) == 2:
-                self.current_tick = int(data[0])
-                self.rotations = int(data[1])
+        if len(data) == 2:
+            self.current_tick = int(data[0])
+            self.rotations = int(data[1])
 
-            elif len(data) == 1:
-                self.distance = int(data[0])
-                x, y = self.get_point(self.distance)
+        elif len(data) == 1:
+            self.distance = int(data[0])
+            x, y = self.get_point(self.distance)
 
-                self.distances[self.current_tick] = self.distance
-                self.point_cloud[self.current_tick] = (x, y)
+            self.distances[self.current_tick] = self.distance
+            self.point_cloud[self.current_tick] = (x, y)
 
-                self.point_cloud_x[self.current_tick] = x
-                self.point_cloud_y[self.current_tick] = y
-        else:
-            if data[0] == "tpr":
-                self.ticks_per_rotation = int(data[1])
+            self.point_cloud_x[self.current_tick] = x
+            self.point_cloud_y[self.current_tick] = y
 
-            if self.ticks_per_rotation is not None:
-                self.initialized = True
 
 
 class PyAccel(RobotObject):
@@ -113,7 +107,7 @@ class LidarBot(RobotInterface):
             # self.pyaccel,
             log_data=False)
 
-    def main(self):
+    def loop(self):
         if self.lidar.did_update():
             self.liveplot.plot_scatter(
                 self.lidar.point_cloud_x,

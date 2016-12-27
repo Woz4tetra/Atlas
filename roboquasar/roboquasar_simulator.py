@@ -15,12 +15,12 @@ class FilterTest(Simulator):
                  start_index=0,
                  end_index=-1, **plot_info):
         self.checkpoints = get_map(
-            # "buggy course checkpoints.gpx"
+            # "buggy_course/buggy course checkpoints.gpx"
             # "track_field/track field checkpoints.gpx"
             "cut/cut course checkpoints.gpx"
         )
         self.course_map = get_map(
-            # "buggy course map.gpx"
+            # "buggy_course/buggy course map.gpx"
             # "track_field/track field course map.gpx"
             "cut/cut course map 2.gpx"
         )
@@ -199,7 +199,7 @@ class GraphSensor(Simulator):
             self.plot_data["plot_3"][1].append(values["az"])
 
 
-file_name, directory = parse_arguments(-1, -1)
+file_name, directory = parse_arguments(-1, "Nov 13 2016")
 
 
 def run_kalman():
@@ -207,7 +207,7 @@ def run_kalman():
         file_name, directory,
         # imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
         gps_plot=dict(color='lightskyblue', label="GPS"),
-#        calculated_filter_plot=dict(color='indigo', label="filter"),
+        calculated_filter_plot=dict(color='indigo', label="filter"),
         # calculated_filter_heading_plot=dict(color='lime', line_segments=True,
         #                                     line_seg_freq=50),
         recorded_filter_plot=dict(color='forestgreen', label="recorded filter"),
@@ -218,8 +218,8 @@ def run_kalman():
         #                       log_based_plot=False),
         course_map_plot=dict(color='gold', label="map",
                              log_based_plot=False),
-        enable_3d=False,
-        use_pickled_data=False,
+        enable_3d=True,
+        use_pickled_data=True,
         start_index=0,
         # end_index=5000
     )

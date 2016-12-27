@@ -1,74 +1,55 @@
 import time
 
-import project
-from robot.interface import RobotObject, RobotInterface
-
-live = True
+from robot.interface import RobotObject
 
 
 class Dummy(RobotObject):
     def __init__(self):
-        self.value_1 = 0
-        self.value_2 = 0
+        self.accel_x, self.accel_y, self.accel_z = 0, 0, 0
+        self.switch = False
 
-        self.led_state = False
+        self.python_version = None
+        self.micropython_version = None
+
+        self.leds = [False, False, False]
+        self.led_names = {
+            "red": 0, "green": 1, "yellow": 2
+        }
+        self.led_indices = {
+            0: "red", 1: "green", 2: "yellow"
+        }
+        self.blue_led = 0
 
         self.time0 = time.time()
 
-        super(Dummy, self).__init__("dummy", "/dev/tty.SLAB_USBtoUART")
+        super(Dummy, self).__init__("dummy", "/dev/tty.usbmodem*")
+
+    def receive_first(self, packet):
+        data = packet.split("\t")
+        self.python_version = data[0]
+        self.micropython_version = data[1]
+
+        index = 0
+        for led_state in data[2: 2 + len(self.leds)]:
+            self.leds[index] = bool(int(led_state))
+            index += 1
+
+        self.blue_led = int(data[5])
+
+        print("versions:", self.python_version, self.micropython_version)
 
     def receive(self, packet):
         data = packet.split("\t")
-        self.value_1 = int(data[0])
-        self.value_2 = int(data[1])
+        self.accel_x = int(data[0])
+        self.accel_y = int(data[1])
+        self.accel_z = int(data[2])
 
-    def command_1(self):
-        self.send("t%i" % int(time.time() - self.time0))
+    def set_led(self, color, value):
+        if type(color) == int:
+            color = self.led_indices[color]
 
-    def command_2(self, led_state):
-        self.send("l%i" % int(led_state))
-
-
-if live:
-    class DummyBot(RobotInterface):
-        def __init__(self):
-            self.dummy = Dummy()
-            super(DummyBot, self).__init__(self.dummy, log_data=False)
-
-        def main(self):
-            if self.dummy.did_update():
-                print(self.dummy.value_1, self.dummy.value_2,
-                      self.dummy.led_state)
-
-                self.dummy.command_2(self.dummy.led_state)
-                self.dummy.led_state = not self.dummy.led_state
-
-
-    def run_dummy():
-        DummyBot().run()
-
-
-    run_dummy()
-else:
-    from robot.simulator import Simulator
-
-
-    class SimulatedDummy(Simulator):
-        def __init__(self, file_name, directory, **plot_info):
-            self.dummy = Dummy()
-            super(SimulatedDummy, self).__init__(
-                file_name, directory, plot_info, self.dummy)
-
-        def step(self, index, timestamp, who_i_am, robot_object):
-            if who_i_am == self.dummy.who_i_am:
-                self.plot_data["plot_dummy"][0].append(robot_object.value_1)
-                self.plot_data["plot_dummy"][1].append(robot_object.value_2)
-
-
-    def simulate_dummy():
-        project.set_project_dir("lidarturret")
-        SimulatedDummy(-1, -1, plot_dummy=dict(color='red', label="dummy"
-                                               )).run()
-
-
-    simulate_dummy()
+        self.send("%s%i" % (color[0], int(value)))
+        if color == "blue":
+            self.blue_led = value
+        else:
+            self.leds[self.led_names[color]] = value

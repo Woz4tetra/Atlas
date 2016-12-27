@@ -174,7 +174,7 @@ class Simulator:
         if self.plot_data.keys() != self.plot_info.keys():
             print("WARNING: plot options in current simulator don't match "
                   "options found in the pickled simulation.\nConsider "
-                  "settings use_pickled_data to False and running the "
+                  "setting use_pickled_data to False and running the "
                   "simulation again.")
 
         for plot_option, data_array in self.plot_data.items():

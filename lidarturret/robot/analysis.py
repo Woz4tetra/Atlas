@@ -36,10 +36,12 @@ class Logger:
     """A class for recording data from a robot to a log file"""
 
     def __init__(self, file_name, directory):
-        # Format the file name. Mac doesn't support colons in file names
-        # If file format is provided but not a name, insert timestamp
+        # Logger can be accessed by the main thread and any robot port threads.
+        # This lock prevents multiple threads writing data at the same time
         self.log_lock = Lock()
 
+        # Format the file name. Mac doesn't support colons in file names
+        # If file format is provided but not a name, insert timestamp
         if file_name is None or \
                         file_name.replace("." + log_file_type, "") == "":
             file_name = filename_now() + "." + log_file_type
@@ -68,6 +70,8 @@ class Logger:
         self.time0 = 0
         self.log_start = 0
 
+        self.is_open = True
+
     def start_time(self):
         self.log_lock.acquire()
 
@@ -78,19 +82,29 @@ class Logger:
 
     def record(self, who_i_am, packet):
         """
-        Empty the queue. Put each new piece of data on a new line and format it
+        Record incoming packet using the appropriate separator characters
         """
-        self.log_lock.acquire()
+        if self.is_open:
+            self.log_lock.acquire()
 
-        timestamp = time.time() - self.time0
-        self.data_file.write("%s:\t%s;\t%s\n" % (timestamp, who_i_am, packet))
+            if self.time0 == 0:
+                timestamp = -1
+            else:
+                timestamp = time.time() - self.time0
+            self.data_file.write(
+                "%s%s%s%s%s\n" % (
+                    timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep,
+                    packet)
+            )
 
-        self.log_lock.release()
+            self.log_lock.release()
 
     def close(self):
         self.log_lock.acquire()
         self.data_file.close()
         self.log_lock.release()
+
+        self.is_open = False
 
 
 class Parser:
@@ -107,7 +121,6 @@ class Parser:
     Parser returns data in the order that it was recorded. If, say, an IMU
     sensor recorded three times and then a GPS recorded once, the parser would
     return the IMU's data three times and then the GPS last
-
     """
 
     def __init__(self, file_name, directory=None):
@@ -245,108 +258,3 @@ class Parser:
                 self.data.append((timestamp, who_i_am, packet))
 
             index = end_index + 1
-
-
-def _get_txt_map(file_name, directory):
-    """
-    Parse a map from a text file
-
-    format:
-    long, lat
-    -71.42083704471588, 42.42732027318888
-    -71.42078474164009, 42.42732819250417
-    ...
-    """
-    with open(directory + file_name, 'r') as map_file:
-        contents = map_file.read()
-
-    split = contents.splitlines()
-    header = split.pop(0).split(",")
-
-    if header[0] == 'lat':
-        lat_index = 0
-        long_index = 1
-    else:
-        lat_index = 1
-        long_index = 0
-
-    gps_map = []
-    for line in split:
-        line_data = line.split(",")
-        if len(line_data) == 2:
-            lat, long = float(line_data[lat_index]), float(
-                line_data[long_index])
-
-            gps_map.append((lat, long))
-
-    return gps_map
-
-
-def _get_gpx_map(file_name, directory):
-    """Parse a map from a GPX file"""
-    with open(directory + file_name, 'r') as gpx_file:
-        contents = gpx_file.read()
-
-    gps_map = []
-
-    # xml parsing. Extract the long and lat from the file
-    start_flags = ['<rtept', '<trkpt']
-    data_start = None
-    for flag in start_flags:
-        if contents.find(flag) != -1:
-            data_start = flag
-            break
-    if data_start is None:
-        raise ValueError("Invalid file format! Start flag not found...")
-
-    start_index = contents.find(data_start) + len(data_start)
-    for line in contents[start_index:].splitlines():
-        line = line.strip(" ")
-        unparsed = line.split(" ")
-
-        if len(unparsed) > 1:
-            if len(unparsed) == 2:
-                lat_unparsed, long_unparsed = unparsed
-            else:
-                _, lat_unparsed, long_unparsed = unparsed
-
-            lat = float(lat_unparsed[5:-1])
-            long = float(long_unparsed[5:-10])
-
-            gps_map.append((lat, long))
-
-    return gps_map
-
-
-def get_map(file_name, directory=None):
-    """
-    Get a map as a list of tuples [(long0, lat0), (long1, lat1), ...].
-
-    Two possible file types for maps are txt and gpx. You will either need
-    to specify the :gpx or :maps directory, or give a file extension for the
-    file name. If no directory and no file extension is given, gpx is assumed
-    """
-
-    if file_name.endswith('gpx'):
-        file_type = "gpx"
-    elif file_name.endswith(log_file_type):
-        file_type = log_file_type
-    else:
-        raise ValueError("Invalid file extension: %s" % file_name)
-
-    if directory is None:
-        directory = ":maps"
-
-    if file_type == "gpx":
-        directory = project.interpret_dir(directory)
-        file_name = project.get_file_name(file_name, directory, 'gpx')
-        gps_map = _get_gpx_map(file_name, directory)
-    else:
-        directory = project.interpret_dir(directory)
-        file_name = project.get_file_name(file_name, directory, log_file_type)
-        gps_map = _get_txt_map(file_name, directory)
-
-    print("Using map named", file_name)
-    print("Length of map is", len(gps_map))
-
-    return gps_map

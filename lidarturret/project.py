@@ -6,13 +6,6 @@ import os
 import random
 import sys
 
-autobuggy_dir = os.path.dirname(os.path.realpath(__file__))
-project_dir = autobuggy_dir
-
-root_dir_name = "Atlas"
-root_dir = autobuggy_dir[
-           :autobuggy_dir.rfind(root_dir_name) + len(root_dir_name)]
-
 # dictionary of important local project directories
 project_dirs = {
     'logs': "logs/",
@@ -22,36 +15,9 @@ project_dirs = {
     'videos': "videos/",
     'images': "images/",
     'joysticks': "joysticks/",
+    'simulations': "pickled/simulations/",
     'project': "",
 }
-
-
-def set_project_dir(project_name=None):
-    """
-    Sets the project directory that project_dirs should use. One benefit of this
-    is each project (or robot) can have its own set of log files and maps
-    """
-    global project_dir
-    if project_name is not None:  # if None, use the AutoBuggy project directory
-        # walk through all directories from the top down until the project name
-        # is found
-        for root, dirs, files in os.walk(root_dir):
-            if project_name in dirs:
-                project_dir = os.path.join(root, project_name)
-                break
-    print("Project directory is", project_dir)
-
-    # update project_dirs
-    for name, directory in project_dirs.items():
-        project_dirs[name] = os.path.join(project_dir, directory)
-
-    return project_dir
-
-
-def add_project_dirs(*new_project_dirs):
-    """Add any special project directories"""
-    for local_dir in new_project_dirs:
-        project_dirs[local_dir] = os.path.join(project_dir, local_dir) + "/"
 
 
 def get_platform():
@@ -62,7 +28,7 @@ def get_platform():
             'cygwin')):
         return "linux"
     elif sys.platform.startswith('win'):  # Windows
-        return "win"
+        return "windows"
     else:
         return None
 
@@ -134,7 +100,8 @@ def _get_dirs(directory, sort_fn):
             local_dir.append(item)
             directories.append(full_dir)
 
-    def internal_sort_fn(x):  # hack to just use the first element in the zipped list
+    def internal_sort_fn(
+            x):  # hack to just use the first element in the zipped list
         return sort_fn(x[0])
 
     # sort full directory list in the order the local directory list is sorted
@@ -170,12 +137,7 @@ def get_file_name(file_name, directory, file_types):
     """
     if type(file_name) == int:
         # file_name is the index in the list of files in the directory
-        file_names = _get_files(directory, file_types)
-        if len(file_names) > 0:
-            file_name = _get_files(directory, file_types)[file_name]
-        else:
-            raise ValueError("File index is out of range: %i\n"
-                             "Number of files is %i" % (file_name, len(file_names)))
+        file_name = _get_files(directory, file_types)[file_name]
     elif type(file_name) == str:
         if file_name == ":random":
             file_name = random.choice(_get_files(directory, file_types))
@@ -186,3 +148,79 @@ def get_file_name(file_name, directory, file_types):
         raise ValueError("Invalid file name: " + str(file_name))
 
     return file_name
+
+
+def _get_gpx_map(file_name, directory):
+    """Parse a map from a GPX file"""
+    with open(directory + file_name, 'r') as gpx_file:
+        contents = gpx_file.read()
+
+    gps_map = []
+
+    # xml parsing. Extract the long and lat from the file
+    start_flags = ['<rtept', '<trkpt']
+    data_start = None
+    for flag in start_flags:
+        if contents.find(flag) != -1:
+            data_start = flag
+            break
+    if data_start is None:
+        raise ValueError("Invalid file format! Start flag not found...")
+
+    start_index = contents.find(data_start) + len(data_start)
+    for line in contents[start_index:].splitlines():
+        line = line.strip(" ")
+        unparsed = line.split(" ")
+
+        if len(unparsed) > 1:
+            if len(unparsed) == 2:
+                lat_unparsed, long_unparsed = unparsed
+            else:
+                _, lat_unparsed, long_unparsed = unparsed
+
+            lat = float(lat_unparsed[5:-1])
+            long = float(long_unparsed[5:-10])
+
+            gps_map.append((lat, long))
+
+    return gps_map
+
+
+def get_map(file_name, directory=None):
+    """
+    Get a map as a list of tuples [(long0, lat0), (long1, lat1), ...].
+
+    Two possible file types for maps are txt and gpx. You will either need
+    to specify the :gpx or :maps directory, or give a file extension for the
+    file name. If no directory and no file extension is given, gpx is assumed
+    """
+
+    if directory is None:
+        directory = ":maps"
+
+    directory = interpret_dir(directory)
+    file_name = get_file_name(file_name, directory, 'gpx')
+    gps_map = _get_gpx_map(file_name, directory)
+
+    print("Using map named", file_name)
+    print("Length of map is", len(gps_map))
+
+    return gps_map
+
+
+def parse_arguments(default_file=-1, default_directory=-1):
+    file_name = default_file
+    directory = default_directory
+
+    if len(sys.argv) == 2:
+        file_name = sys.argv[1]
+    elif len(sys.argv) == 3:
+        file_name, directory = sys.argv[1:]
+
+    try:
+        file_name = int(file_name)
+        directory = int(directory)
+    except ValueError:
+        pass
+
+    return file_name, directory

@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import linalg
-import math
 import navpy
 
 # np.set_printoptions(precision=4)
