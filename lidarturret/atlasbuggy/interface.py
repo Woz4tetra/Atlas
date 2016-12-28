@@ -37,8 +37,9 @@ class RobotSerialPort(Thread):
         self.log_data = log_data
         self.logger = logger  # reference to instance of the Logger class
 
-        # prevents data from being accessed from main and serial thread at the same time
-        self.property_lock = Lock()
+        # prevents data from being accessed from main and serial thread at the
+        # same time. Assigned externally
+        self.property_lock = None
 
         # from address_format, generate possible addresses
         # attempt to open the serial port
@@ -54,10 +55,16 @@ class RobotSerialPort(Thread):
         self.thread_time = 0
 
         self.packet_parse_successful = True
+        self.port_assigned = False
 
         super(RobotSerialPort, self).__init__()
 
     def run(self):
+        if not self.port_assigned:
+            if self.debug_prints:
+                print("Port not assigned to a RobotObject")
+            self.stop()
+
         try:
             while not self.should_stop:
                 self.thread_time = int(time.time() - self.start_time)
@@ -73,7 +80,6 @@ class RobotSerialPort(Thread):
                     # unlock shared properties for this thread (pauses access
                     # activity in other threads)
                     self.property_lock.acquire()
-
 
                     # parse each packet according to its receive method
                     for packet in packets:
@@ -115,10 +121,19 @@ class RobotSerialPort(Thread):
                     self.property_lock.release()
         except:
             traceback.print_exc()
+        finally:
+            if self.debug_prints:
+                print("'%s' while loop exited" % self.who_i_am)
+            self.stop()
 
-        if self.debug_prints:
-            print("'%s' while loop exited" % self.who_i_am)
-        self.stop()
+    def assign_robot_object(self, robot_object):
+        self.robot_object = robot_object
+
+        # ensures properties being set by robot objects aren't being
+        # accessed by the port at the same time
+        self.property_lock = robot_object.property_lock
+
+        self.port_assigned = True
 
     def is_running(self):
         if self.should_stop:
@@ -281,7 +296,7 @@ class RobotObject:
         self.who_i_am = who_i_am
         self.address_format = address_format
         self.baud = baud
-        self.property_lock = None
+        self.property_lock = Lock()
         self.updated = False
 
         self.command_packets = Queue(maxsize=255)
@@ -382,12 +397,7 @@ class RobotInterface:
                                  "discovered ports... Are they all named "
                                  "correctly?" % who_i_am)
 
-            self.ports[who_i_am].robot_object = self.objects[who_i_am]
-
-            # ensures properties being set by robot objects aren't being
-            # accessed by the port at the same time
-            self.objects[who_i_am].property_lock = \
-                self.ports[who_i_am].property_lock
+            self.ports[who_i_am].assign_robot_object(self.objects[who_i_am])
 
             # send the first packet received to the object
             try:
@@ -404,6 +414,12 @@ class RobotInterface:
                     "receive_first function for '%s' raised an error." %
                     who_i_am
                 )
+
+        for who_i_am in self.ports.keys():
+            if not self.ports[who_i_am].port_assigned:
+                self.ports[who_i_am].stop()
+                print("Port with ID '%s' is not in use" % who_i_am)
+                del self.ports[who_i_am]
 
     def print_port_info(self):
         print("\nDiscovered ports:")
@@ -444,6 +460,23 @@ class RobotInterface:
     def run(self):
         """
         Call this method to start the robot and to start receiving data
+
+        This is where all threads start and stop. Stop events can be thrown by:
+            loop returning False (live plot in the loop returned False for example)
+            joystick returned False, the pygame window signaled to quit
+            are_threads_running() returned False
+
+        are_threads_running can be False for the following reasons:
+            robot_port.is_running found that the serial thread has been hanging
+                for more than 2 seconds
+            robot_port.is_running found that should_stop is False
+
+        should_stop can be False because:
+            A packet wasn't parsed correctly
+            The port never signaled ready
+            There weren't enough ports to match the number of objects
+            No ports with the requested who_i_am ID were found
+            The port wasn't matched to a RobotObject (it was unused)
         :return:
         """
         self._start()
