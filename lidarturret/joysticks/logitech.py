@@ -9,7 +9,7 @@ class Logitech(BuggyJoystick):
     def __init__(self):
         super(Logitech, self).__init__(
             ['left x', 'left y', 'right x', 'right y'],
-            [0.3, 0.3, 0.0, 0.3, 0.3, 0.0],
+            [0.05, 0.05, 0.05, 0.055],
             ['X', 'A', 'B', 'Y', 'L', 'R', 'ZL', 'ZR', 'back', 'left stick',
              'left stick', 'right stick'],
         )

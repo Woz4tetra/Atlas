@@ -22,7 +22,7 @@ class Dummy(RobotObject):
 
         self.time0 = time.time()
 
-        super(Dummy, self).__init__("dummy", "/dev/tty.usbmodem*")
+        super(Dummy, self).__init__("dummy")
 
     def receive_first(self, packet):
         data = packet.split("\t")
@@ -39,13 +39,10 @@ class Dummy(RobotObject):
         print("versions:", self.python_version, self.micropython_version)
 
     def receive(self, packet):
-        try:
-            data = packet.split("\t")
-            self.accel_x = int(data[0])
-            self.accel_y = int(data[1])
-            self.accel_z = int(data[2])
-        except:
-            print(packet)
+        data = packet.split("\t")
+        self.accel_x = int(data[0])
+        self.accel_y = int(data[1])
+        self.accel_z = int(data[2])
 
     def set_led(self, color, value):
         if type(color) == int:

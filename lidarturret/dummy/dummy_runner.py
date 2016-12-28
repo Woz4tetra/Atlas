@@ -1,10 +1,10 @@
 from atlasbuggy.interface import RobotInterface
+from dummy.dummy_bot import Dummy
 from joysticks.logitech import Logitech
-from dummy_bot import Dummy
 
 live_plotting = True
 if live_plotting:
-    from atlasbuggy.simulator import LivePlotter
+    from atlasbuggy.plotter import LivePlotter
 
 
 class DummyRunner(RobotInterface):
@@ -16,7 +16,7 @@ class DummyRunner(RobotInterface):
             self.live_plot = LivePlotter(data_range, data_range, data_range)
 
         super(DummyRunner, self).__init__(self.dummy, joystick=Logitech(),
-                                          log_data=False)
+                                          log_data=False, debug_prints=False)
 
     def loop(self):
         if self.dummy.did_update():
@@ -44,4 +44,3 @@ def run_dummy():
     DummyRunner().run()
 
 
-run_dummy()

@@ -1,14 +1,14 @@
 from atlasbuggy import project
-from atlasbuggy.simulator import Simulator
+from atlasbuggy.plotter import PostPlotter
 
-from dummy_bot import Dummy
+from dummy.dummy_bot import Dummy
 
 
-class DummySimulator(Simulator):
+class DummyPostPlotter(PostPlotter):
     def __init__(self, file_name, directory, enable_3d, use_pickled_data,
                  **plot_info):
         self.dummy = Dummy()
-        super(DummySimulator, self).__init__(
+        super(DummyPostPlotter, self).__init__(
             file_name, directory, plot_info, enable_3d, use_pickled_data,
             self.dummy)
 
@@ -26,11 +26,9 @@ class DummySimulator(Simulator):
 
 def simulate_dummy():
     file_name, directory = project.parse_arguments(-1, -1)
-    DummySimulator(file_name, directory,
-                   enable_3d=True, use_pickled_data=False,
-                   plot_dummy=dict(
+    DummyPostPlotter(file_name, directory,
+                     enable_3d=True, use_pickled_data=False,
+                     plot_dummy=dict(
                        color='red', label="dummy"
                    )).run()
 
-
-simulate_dummy()

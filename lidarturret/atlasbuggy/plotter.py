@@ -6,7 +6,7 @@ import mpl_toolkits.mplot3d.axes3d as p3
 import numpy as np
 from matplotlib import pyplot as plt
 
-from atlasbuggy.analysis import *
+from atlasbuggy.logs import *
 
 pickled_sim_directory = ":simulations"
 
@@ -27,6 +27,8 @@ class LivePlotter:
         self.enable_3d = True if z_range is not None else False
 
         self.fig = plt.figure(0)
+        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+        self.is_running = True
 
         if self.enable_3d:
             self.min_z = z_range[0]
@@ -37,19 +39,27 @@ class LivePlotter:
             self.ax = p3.Axes3D(self.fig)
 
             self.plot_data = \
-                self.ax.plot([0], [0], [0], '-', color='red', markersize=1)[0]
+                self.ax.plot([0], [0], [0], '-', markersize=1)[0]
             self.current_data_point = \
                 self.ax.plot([0], [0], [0], '.',
                              color='black', markersize=10)[0]
         else:
-            # self.ax = self.fig.add_subplot(111)
-            self.ax = self.fig.gca()
+            self.ax = self.fig.add_subplot(111)
+            # self.ax = self.fig.gca()
             self.plot_data = self.ax.plot(0, 0, '-')[0]
-            self.ax.plot(0, 0, 'o', color='black', markersize=10)
+            self.current_data_point = \
+                self.ax.plot(0, 0, 'o', color='black', markersize=10)[0]
 
         super(LivePlotter, self).__init__()
 
+    def handle_close(self):
+        # print("Plot window closed")
+        self.is_running = False
+        self.close()
+
     def plot(self, x, y, z=None):
+        if not self.is_running:
+            return False
         try:
             self.x_data = np.append(self.x_data, x)
             self.y_data = np.append(self.y_data, y)
@@ -95,18 +105,20 @@ class LivePlotter:
 
             return True
         except:
-            print("plot closing")
+            # print("plot closing")
             traceback.print_exc()
+
+            self.is_running = False
             return False
 
     def close(self):
-        plt.ioff()
-        plt.show()
-        plt.close('all')
-        plt.gcf()
+        if self.is_running:
+            plt.ioff()
+            plt.close('all')
+            plt.gcf()
 
 
-class Simulator:
+class PostPlotter:
     def __init__(self, file_name, directory, plot_info, enable_3d,
                  use_pickled_data, *robot_objects):
         self.simulated_ports = {}
@@ -195,7 +207,7 @@ class Simulator:
 
     def run(self):
         for index, timestamp, who_i_am, packet in self.parser:
-            if timestamp == "first":
+            if timestamp == -1:
                 self.simulated_ports[who_i_am].receive_first(packet)
             else:
                 self.simulated_ports[who_i_am].receive(packet)
