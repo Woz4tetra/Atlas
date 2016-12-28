@@ -1,6 +1,6 @@
 import time
 
-from robot.interface import RobotObject
+from atlasbuggy.interface import RobotObject
 
 
 class Dummy(RobotObject):
@@ -13,10 +13,10 @@ class Dummy(RobotObject):
 
         self.leds = [False, False, False]
         self.led_names = {
-            "red": 0, "green": 1, "yellow": 2
+            "r": 0, "g": 1, "y": 2
         }
         self.led_indices = {
-            0: "red", 1: "green", 2: "yellow"
+            0: "r", 1: "g", 2: "y"
         }
         self.blue_led = 0
 
@@ -39,17 +39,20 @@ class Dummy(RobotObject):
         print("versions:", self.python_version, self.micropython_version)
 
     def receive(self, packet):
-        data = packet.split("\t")
-        self.accel_x = int(data[0])
-        self.accel_y = int(data[1])
-        self.accel_z = int(data[2])
+        try:
+            data = packet.split("\t")
+            self.accel_x = int(data[0])
+            self.accel_y = int(data[1])
+            self.accel_z = int(data[2])
+        except:
+            print(packet)
 
     def set_led(self, color, value):
         if type(color) == int:
             color = self.led_indices[color]
 
         self.send("%s%i" % (color[0], int(value)))
-        if color == "blue":
+        if color == "b":
             self.blue_led = value
         else:
             self.leds[self.led_names[color]] = value

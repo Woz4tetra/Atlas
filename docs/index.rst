@@ -9,6 +9,9 @@ Atlas Buggy Documentation
 .. automodule:: interface
     :members:
 
+.. autoclass:: interface.RobotObject
+   :members:
+
 Indices and tables
 ==================
 

@@ -1,7 +1,7 @@
 import math
 import time
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 from robot.interface import RobotObject, RobotInterface
 
 

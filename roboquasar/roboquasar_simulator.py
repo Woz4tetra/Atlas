@@ -1,9 +1,9 @@
 import numpy as np
-from autobuggy import project
+from atlasbuggy import project
 
-from autobuggy.simulator import Simulator
-from autobuggy.microcontroller.logger import get_map, parse_arguments
-from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
+from atlasbuggy.simulator import Simulator
+from atlasbuggy.microcontroller.logger import get_map, parse_arguments
+from atlasbuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 from roboquasar_constants import constants
 

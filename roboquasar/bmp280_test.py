@@ -1,4 +1,4 @@
-from autobuggy.robot import Robot
+from atlasbuggy.robot import Robot
 from joysticks.gc_joystick import GCjoystick
 
 
@@ -78,7 +78,7 @@ class BmpRobot(Robot):
             self.blue.set('off')
 
     def print_sensor(self):
-        print("%0.4f m, %0.4f°C, %0.4f Pa" % self.bmp.get(all=True), end='\r')
+        print("%0.4f m, %0.4fC, %0.4f Pa" % self.bmp.get(all=True), end='\r')
 
     def close_fn(self):
         print("Pressure Test closing")

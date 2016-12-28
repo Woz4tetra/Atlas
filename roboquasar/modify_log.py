@@ -1,4 +1,4 @@
-from autobuggy.microcontroller.logger import *
+from atlasbuggy.microcontroller.logger import *
 import math
 
 

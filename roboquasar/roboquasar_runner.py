@@ -4,7 +4,7 @@ import math
 import os
 from roboquasar_bot import RoboQuasarBot
 from roboquasar_constants import constants
-from autobuggy.filters.kalman_filter import GrovesKalmanFilter, \
+from atlasbuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 
 initialize_with_checkpoints = True

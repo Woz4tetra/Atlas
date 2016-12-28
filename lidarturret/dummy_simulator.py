@@ -1,13 +1,16 @@
-from robot.simulator import Simulator
+from atlasbuggy import project
+from atlasbuggy.simulator import Simulator
+
 from dummy_bot import Dummy
-import project
+
 
 class DummySimulator(Simulator):
     def __init__(self, file_name, directory, enable_3d, use_pickled_data,
                  **plot_info):
         self.dummy = Dummy()
         super(DummySimulator, self).__init__(
-            file_name, directory, plot_info, enable_3d, use_pickled_data, self.dummy)
+            file_name, directory, plot_info, enable_3d, use_pickled_data,
+            self.dummy)
 
     def step(self, index, timestamp, who_i_am, robot_object):
         if who_i_am == self.dummy.who_i_am:

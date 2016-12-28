@@ -1,5 +1,5 @@
 
-from autobuggy.buggy_joystick import BuggyJoystick
+from atlasbuggy.buggy_joystick import BuggyJoystick
 
 
 class GCjoystick(BuggyJoystick):
