@@ -14,7 +14,6 @@ class RobotSerialPort(Thread):
     def __init__(self, port_info, baud, packet_end, logger, log_data,
                  debug_prints):
         self.address = port_info.device  # directory to open (in /dev)
-        self.serial_ref = None  # pyserial Serial class reference, assigned when connection is made
         self.port_info = port_info
 
         self.debug_prints = debug_prints
@@ -32,7 +31,6 @@ class RobotSerialPort(Thread):
         self.buffer = ""
         self.first_packet = ""
 
-        self.should_stop = False
 
         self.log_data = log_data
         self.logger = logger  # reference to instance of the Logger class
@@ -51,9 +49,10 @@ class RobotSerialPort(Thread):
         # RobotObject later
         self.find_who_i_am()
 
+        # status variables
+        self.should_stop = False
         self.start_time = time.time()
         self.thread_time = 0
-
         self.packet_parse_successful = True
         self.port_assigned = False
 
