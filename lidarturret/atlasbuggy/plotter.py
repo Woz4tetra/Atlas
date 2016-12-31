@@ -133,7 +133,7 @@ class PostPlotter:
                  use_pickled_data, *robot_objects):
         self.simulated_ports = {}
         for robot_object in robot_objects:
-            self.simulated_ports[robot_object.who_i_am] = robot_object
+            self.simulated_ports[robot_object.whoiam] = robot_object
 
         self.plot_data = {}
         self.plot_info = plot_info
@@ -170,15 +170,12 @@ class PostPlotter:
 
         self.use_pickled_data = use_pickled_data
 
-        self.pickle_file_name = self.parser.file_name[
-                                :-len(log_file_type)] + pickle_file_type
-        self.log_pickle_dir = project.interpret_dir(
-            pickled_sim_directory)
+        self.pickle_file_name = self.parser.file_name[:-len(log_file_type)] + pickle_file_type
+        self.log_pickle_dir = project.interpret_dir(pickled_sim_directory)
 
         if self.use_pickled_data:
-            if os.path.isfile(self.log_pickle_dir + self.pickle_file_name):
-                with open(self.log_pickle_dir + self.pickle_file_name,
-                          'rb') as pickle_file:
+            if os.path.isfile(os.path.join(self.log_pickle_dir, self.pickle_file_name)):
+                with open(os.path.join(self.log_pickle_dir, self.pickle_file_name), 'rb') as pickle_file:
                     self.plot_data, self.enable_3d = pickle.load(pickle_file)
                 print("Using picked simulation")
             else:
@@ -212,17 +209,17 @@ class PostPlotter:
             assert z is not None
             self.plot_data[plot_name][2].append(z)
 
-    def step(self, index, timestamp, who_i_am, robot_object):
+    def step(self, index, timestamp, whoiam, robot_object):
         pass
 
     def run(self):
-        for index, timestamp, who_i_am, packet in self.parser:
+        for index, timestamp, whoiam, packet in self.parser:
             if timestamp == -1:
-                self.simulated_ports[who_i_am].receive_first(packet)
+                self.simulated_ports[whoiam].receive_first(packet)
             else:
-                self.simulated_ports[who_i_am].receive(packet)
-                self.step(index, timestamp, who_i_am,
-                          self.simulated_ports[who_i_am])
+                self.simulated_ports[whoiam].receive(packet)
+                self.step(index, timestamp, whoiam,
+                          self.simulated_ports[whoiam])
 
                 self.timestamps.append(timestamp)
 
@@ -290,10 +287,8 @@ class PostPlotter:
         pass
 
     def plot(self):
-        with open(self.log_pickle_dir + self.pickle_file_name,
-                  'wb') as pickle_file:
-            pickle.dump((self.plot_data, self.enable_3d), pickle_file,
-                        pickle.HIGHEST_PROTOCOL)
+        with open(os.path.join(self.log_pickle_dir, self.pickle_file_name), 'wb') as pickle_file:
+            pickle.dump((self.plot_data, self.enable_3d), pickle_file, pickle.HIGHEST_PROTOCOL)
 
         self.before_plot()
 

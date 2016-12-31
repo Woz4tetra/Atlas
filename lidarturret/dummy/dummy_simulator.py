@@ -12,8 +12,8 @@ class DummyPostPlotter(PostPlotter):
             file_name, directory, plot_info, enable_3d, use_pickled_data,
             self.dummy)
 
-    def step(self, index, timestamp, who_i_am, robot_object):
-        if who_i_am == self.dummy.who_i_am:
+    def step(self, index, timestamp, whoiam, robot_object):
+        if whoiam == self.dummy.whoiam:
             if not self.enable_3d:
                 self.append_data(
                     "plot_dummy", robot_object.accel_x, robot_object.accel_y)
@@ -25,7 +25,7 @@ class DummyPostPlotter(PostPlotter):
 
 
 def simulate_dummy():
-    file_name, directory = project.parse_arguments(-1, -1)
+    file_name, directory = project.parse_arguments(-1, -2)
     DummyPostPlotter(file_name, directory,
                      enable_3d=True, use_pickled_data=False,
                      plot_dummy=dict(

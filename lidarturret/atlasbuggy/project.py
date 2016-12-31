@@ -41,7 +41,7 @@ def interpret_dir(directory="."):
     A directory shortcut starts with ":"
     For example:
         ":logs" becomes "[full path to]/logs/"
-        ":logs/Dec 27 2016" becomes "[full path to]/logs/Dec 27 2016"
+        ":logs/Dec 27 2016" becomes "[full path to]/logs/Dec 27 2016/"
 
     :return: Absolute path to directory
     """
@@ -79,18 +79,18 @@ def parse_dir(directory, default, sort_fn=None):
     elif directory == ":random":
         directories = []
         for local_dir in os.listdir(interpret_dir(default)):
-            directory = interpret_dir(default) + local_dir
+            directory = os.path.join(interpret_dir(default), local_dir)
             if os.path.isdir(directory):
                 directories.append(directory)
         directory = random.choice(directories)
         print("Using directory '%s'" % directory)
+
     elif type(directory) == int:
         directory = _get_dirs(interpret_dir(default), sort_fn)[directory]
-    elif os.path.isdir(interpret_dir(default) + directory):
-        directory = interpret_dir(default) + directory
 
-    if directory[-1] != "/":
-        directory += "/"
+    elif os.path.isdir(os.path.join(interpret_dir(default), directory)):
+        directory = os.path.join(interpret_dir(default), directory)
+
     return directory
 
 
@@ -121,13 +121,13 @@ def _get_files(directory, file_types):
     """
     if type(file_types) == str:
         file_types = [file_types]
-    log_files = []
+    file_names = []
     contents = sorted(os.listdir(directory), key=lambda v: v.lower())
     for item in contents:
         for file_type in file_types:
             if item.endswith(file_type):
-                log_files.append(item)
-    return log_files
+                file_names.append(item)
+    return file_names
 
 
 def get_file_name(file_name, directory, file_types):
@@ -156,7 +156,7 @@ def get_file_name(file_name, directory, file_types):
 
 def _get_gpx_map(file_name, directory):
     """Parse a map from a GPX file"""
-    with open(directory + file_name, 'r') as gpx_file:
+    with open(os.path.join(directory, file_name), 'r') as gpx_file:
         contents = gpx_file.read()
 
     gps_map = []

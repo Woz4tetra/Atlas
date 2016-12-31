@@ -20,7 +20,7 @@ class DummyRunner(RobotInterface):
         self.time0 = time.time()
 
         super(DummyRunner, self).__init__(self.dummy, joystick=Logitech(),
-                                          log_data=False, debug_prints=False)
+                                          log_data=True, debug_prints=False)
 
     def loop(self):
         if self.dummy.did_update():

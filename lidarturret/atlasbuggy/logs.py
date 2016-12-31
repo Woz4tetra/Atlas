@@ -42,8 +42,7 @@ class Logger:
 
         # Format the file name. Mac doesn't support colons in file names
         # If file format is provided but not a name, insert timestamp
-        if file_name is None or \
-                        file_name.replace("." + log_file_type, "") == "":
+        if file_name is None or file_name.replace("." + log_file_type, "") == "":
             file_name = filename_now() + "." + log_file_type
 
         elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
@@ -51,21 +50,20 @@ class Logger:
 
         # Parse the input directory using the project module
         if directory == ":today":  # for creating logs
-            directory = project.interpret_dir(
-                log_directory) + todays_log_folder()
+            directory = os.path.join(project.interpret_dir(log_directory), todays_log_folder())
         elif directory is None:
             directory = project.interpret_dir(log_directory)
         else:
             if directory[-1] != "/":
                 directory += "/"
             if not os.path.isdir(directory):
-                directory = project.interpret_dir(log_directory) + directory
+                directory = os.path.join(project.interpret_dir(log_directory), directory)
 
         if not os.path.exists(directory):
             os.makedirs(directory)
-        print("Writing to:", directory + file_name)
+        print("Writing to:", os.path.join(directory, file_name))
 
-        self.data_file = open(directory + file_name, 'w+')
+        self.data_file = open(os.path.join(directory, file_name), 'w+')
 
         self.time0 = 0
         self.log_started = False
@@ -92,9 +90,7 @@ class Logger:
             else:
                 timestamp = time.time() - self.time0
             self.data_file.write(
-                "%s%s%s%s%s\n" % (
-                    timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep,
-                    packet)
+                str(timestamp) + time_whoiam_sep + who_i_am + whoiam_packet_sep + packet + "\n"
             )
 
             self.log_lock.release()
@@ -141,7 +137,7 @@ class Parser:
         print("Using file named '%s'" % self.file_name)
 
         # read the whole file as a string
-        with open(self.directory + self.file_name, 'r') as data_file:
+        with open(os.path.join(self.directory, self.file_name), 'r') as data_file:
             self.contents = data_file.read()
 
         # try to parse the name as a timestamp. If it succeeds, see if the
@@ -169,13 +165,12 @@ class Parser:
             sub_directory = self.local_dir
         else:
             sub_directory = ""
-        log_pickle_dir = project.interpret_dir(
-            pickle_directory) + sub_directory
+        log_pickle_dir = os.path.join(project.interpret_dir(pickle_directory), sub_directory)
 
-        if os.path.isfile(log_pickle_dir + pickle_file_name):
+        if os.path.isfile(os.path.join(log_pickle_dir, pickle_file_name)):
             print("Using pickled data")
             time0 = time.time()
-            with open(log_pickle_dir + pickle_file_name, 'rb') as pickle_file:
+            with open(os.path.join(log_pickle_dir, pickle_file_name), 'rb') as pickle_file:
                 self.data = pickle.load(pickle_file)
             print("Took %s seconds" % (time.time() - time0))
         else:
@@ -187,9 +182,9 @@ class Parser:
 
             if not os.path.isdir(log_pickle_dir):
                 os.mkdir(log_pickle_dir)
-            with open(log_pickle_dir + pickle_file_name, 'wb') as pickle_file:
+            with open(os.path.join(log_pickle_dir, pickle_file_name), 'wb') as pickle_file:
                 pickle.dump(self.data, pickle_file, pickle.HIGHEST_PROTOCOL)
-            print("Wrote pickle to: " + log_pickle_dir + pickle_file_name)
+            print("Wrote pickle to: " + os.path.join(log_pickle_dir, pickle_file_name))
 
     def __iter__(self):
         """
