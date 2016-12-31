@@ -12,8 +12,13 @@ pickled_sim_directory = ":simulations"
 
 
 class LivePlotter:
-    def __init__(self, x_range, y_range, z_range=None):
-        plt.ion()
+    is_interactive = False
+    fig_num = 0
+
+    def __init__(self, x_range, y_range, z_range=None, color='blue', linestyle='-', marker=None):
+        if not LivePlotter.is_interactive:
+            plt.ion()
+            LivePlotter.is_interactive = True
 
         self.min_x = x_range[0]
         self.max_x = x_range[1]
@@ -26,7 +31,10 @@ class LivePlotter:
 
         self.enable_3d = True if z_range is not None else False
 
-        self.fig = plt.figure(0)
+        self.my_fig_num = LivePlotter.fig_num
+
+        self.fig = plt.figure(LivePlotter.fig_num)
+        LivePlotter.fig_num += 1
         self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
         self.is_running = True
 
@@ -39,14 +47,14 @@ class LivePlotter:
             self.ax = p3.Axes3D(self.fig)
 
             self.plot_data = \
-                self.ax.plot([0], [0], [0], '-', markersize=1)[0]
+                self.ax.plot([0], [0], [0], color=color, linestyle=linestyle, marker=marker, markersize=1)[0]
             self.current_data_point = \
                 self.ax.plot([0], [0], [0], '.',
                              color='black', markersize=10)[0]
         else:
-            self.ax = self.fig.add_subplot(111)
-            # self.ax = self.fig.gca()
-            self.plot_data = self.ax.plot(0, 0, '-')[0]
+            # self.ax = self.fig.add_subplot(111)
+            self.ax = self.fig.gca()
+            self.plot_data = self.ax.plot(0, 0, color=color, linestyle=linestyle, marker=marker)[0]
             self.current_data_point = \
                 self.ax.plot(0, 0, 'o', color='black', markersize=10)[0]
 
@@ -61,6 +69,8 @@ class LivePlotter:
         if not self.is_running:
             return False
         try:
+            self.fig = plt.figure(self.my_fig_num)
+
             self.x_data = np.append(self.x_data, x)
             self.y_data = np.append(self.y_data, y)
 

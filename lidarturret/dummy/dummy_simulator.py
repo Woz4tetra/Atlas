@@ -29,6 +29,5 @@ def simulate_dummy():
     DummyPostPlotter(file_name, directory,
                      enable_3d=True, use_pickled_data=False,
                      plot_dummy=dict(
-                       color='red', label="dummy"
-                   )).run()
-
+                         color='red', label="dummy"
+                     )).run()

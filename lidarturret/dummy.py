@@ -1,8 +1,8 @@
 
-# live = True
+live = True
 
 try:
-    live = True
+    print("Running live:", live)
 
     from dummy.dummy_runner import run_dummy
 

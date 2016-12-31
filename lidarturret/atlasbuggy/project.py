@@ -8,15 +8,15 @@ import sys
 
 # dictionary of important local project directories
 project_dirs = {
-    'logs': "logs/",
-    'maps': "maps/",
-    'pickled': "pickled/",
-    'gpx': "maps/gpx/",
-    'videos': "videos/",
-    'images': "images/",
-    'joysticks': "joysticks/",
+    'logs'       : "logs/",
+    'maps'       : "maps/",
+    'pickled'    : "pickled/",
+    'gpx'        : "maps/gpx/",
+    'videos'     : "videos/",
+    'images'     : "images/",
+    'joysticks'  : "joysticks/",
     'simulations': "pickled/simulations/",
-    'project': "",
+    'project'    : "",
 }
 
 
@@ -33,26 +33,30 @@ def get_platform():
         return None
 
 
-def interpret_dir(directory=""):
+def interpret_dir(directory="."):
     """
     Search project_dirs and format the directory into an absolute
     directory. If the directory doesn't exist, make it
+
+    A directory shortcut starts with ":"
+    For example:
+        ":logs" becomes "[full path to]/logs/"
+        ":logs/Dec 27 2016" becomes "[full path to]/logs/Dec 27 2016"
+
+    :return: Absolute path to directory
     """
     if len(directory) > 0 and directory[0] == ':':
         shortcut_start = directory.find(":") + 1
         shortcut_end = directory.find("/", shortcut_start)
         if shortcut_end == -1:
             key = directory[shortcut_start:]
-            abs_directory = project_dirs[key]
+            directory = project_dirs[key]
         else:
             key = directory[shortcut_start: shortcut_end]
-            abs_directory = os.path.join(project_dirs[key],
-                                         directory[shortcut_end + 1:])
+            directory = os.path.join(project_dirs[key],
+                                     directory[shortcut_end + 1:])
 
-    elif len(directory) > 0 and directory[0] == '/':
-        abs_directory = directory
-    else:
-        abs_directory = os.path.join(autobuggy_dir, directory) + "/"
+    abs_directory = os.path.abspath(directory)
 
     if not os.path.isdir(abs_directory):
         os.mkdir(abs_directory)

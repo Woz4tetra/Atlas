@@ -34,7 +34,7 @@ class Dummy(RobotObject):
             self.leds[index] = bool(int(led_state))
             index += 1
 
-        self.blue_led = int(data[5])
+        self.blue_led = int(data[6])
 
         print("versions:", self.python_version, self.micropython_version)
 

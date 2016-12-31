@@ -3,7 +3,7 @@
 #define LED13 13
 
 char character = '\0';
-char command_type = '\0';
+// char command_type = '\0';
 String command = "";
 
 void write_who_i_am()
@@ -25,8 +25,7 @@ void read_serial()
 
     if (character == '\n')
     {
-        character = '\0';
-        command_type = command.charAt(0);
+        // command_type = command.charAt(0);
 
 
         if (command.equals("whoareyou")) {
@@ -41,7 +40,7 @@ void read_serial()
         }
 
         /* Put other commands here */
-
+        character = '\0';
         command = "";
     }
 }

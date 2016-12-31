@@ -68,7 +68,7 @@ class Logger:
         self.data_file = open(directory + file_name, 'w+')
 
         self.time0 = 0
-        self.log_start = 0
+        self.log_started = False
 
         self.is_open = True
 
@@ -76,7 +76,7 @@ class Logger:
         self.log_lock.acquire()
 
         self.time0 = time.time()
-        self.log_start = self.time0
+        self.log_started = True
 
         self.log_lock.release()
 
@@ -87,7 +87,7 @@ class Logger:
         if self.is_open:
             self.log_lock.acquire()
 
-            if self.time0 == 0:
+            if not self.log_started:
                 timestamp = -1
             else:
                 timestamp = time.time() - self.time0

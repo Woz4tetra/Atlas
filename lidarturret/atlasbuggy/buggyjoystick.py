@@ -1,6 +1,7 @@
 import pygame
 import os
 from atlasbuggy import project
+from atlasbuggy.errors import JoysticksNotFoundError
 
 try:
     with os.popen('stty size', 'r') as terminal_window:
@@ -11,7 +12,15 @@ except ValueError:
 
 
 class BuggyJoystick:
+    """
+    A generic joystick class using pygame. This class captures any joystick events
+    """
     def __init__(self, axes_mapping, axes_dead_zones, button_mapping):
+        """
+        :param axes_mapping: A list of axis names that correspond to the axis number pygame assigns
+        :param axes_dead_zones: If the corresponding axis number is less than a value in this list, it is considered zero
+        :param button_mapping: A list of button names that correspond to the button number pygame assigns
+        """
         platform = project.get_platform()
         if platform != "mac":
             os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -21,7 +30,9 @@ class BuggyJoystick:
         # search for all available joysticks and initialize them
         joysticks = [pygame.joystick.Joystick(x) for x in
                      range(pygame.joystick.get_count())]
-        assert len(joysticks) > 0
+        if len(joysticks) == 0:
+            raise JoysticksNotFoundError("No joysticks found!")
+
         for joy in joysticks:
             joy.init()
             # print(joy.get_name(), joy.get_id(), joy.get_init(),
@@ -52,6 +63,8 @@ class BuggyJoystick:
         """
         Turn a list of strings into a dictionary that maps the strings
         to an index in the list
+
+        :param list_mapping: a list of parameter names
         """
         dict_mapping = {}
         for index, name in enumerate(list_mapping):
@@ -60,6 +73,17 @@ class BuggyJoystick:
         return dict_mapping
 
     def update(self):
+        """
+        Go through every queued pygame event.
+        If an event is JOYAXISMOTION, assign to the axes property list
+        If an event is JOYHATMOTION, assign to the dpad tuple
+        If an event is JOYBUTTONDOWN, assign True to the buttons property list
+        If an event is JOYBUTTONUp, assign False to the buttons property list
+
+        If an axis or button isn't encapsulated in the list, raise an error.
+
+        :return: False if pygame signals the QUIT event
+        """
         # Go through every event pygame sees
         for event in pygame.event.get():
             # if event.type != pygame.NOEVENT:
@@ -109,12 +133,22 @@ class BuggyJoystick:
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
+        return True
 
     def get_button(self, name):
-        """Get the value of a button using the name as reference"""
+        """
+        Get the value of a button using the name as reference
+        :param name: The name of a button listed in button_mapping in __init__
+        :return: The value of the button (bool)
+        """
         return self.buttons[self.name_to_button[name]]
 
     def button_updated(self, name):
+        """
+        Check if the button updated its value
+        :param name: The name of a button listed in button_mapping in __init__
+        :return: bool
+        """
         prev_button = self.prev_buttons[self.name_to_button[name]]
         button = self.buttons[self.name_to_button[name]]
         if prev_button != button:
@@ -123,18 +157,33 @@ class BuggyJoystick:
         else:
             return False
 
+    def get_axis(self, name):
+        """
+        Get the value of an axis using the name as reference
+        :param name: The name of an axis listed in axis_mapping in __init__
+        :return: The value of the axis (float, 0.0...1.0)
+        """
+        return self.axes[self.name_to_axis[name]]
+
     def axis_updated(self, name):
+        """
+        Check if the axis updated its value
+        :param name: The name of an axis listed in axis_mapping in __init__
+        :return: bool
+        """
         if self.axis_changed[self.name_to_axis[name]]:
             self.axis_changed[self.name_to_axis[name]] = False
             return True
         else:
             return False
 
-    def get_axis(self, name):
-        """Get the value of an axis using the name as reference"""
-        return self.axes[self.name_to_axis[name]]
-
-    def fill_line(self, line):
+    @staticmethod
+    def fill_line(line):
+        """
+        Fill the rest of the line with spaces according to the terminal window size
+        :param line: a string
+        :return: a string filled with spaces
+        """
         if terminal_cols != -1:
             return line + (" " * (terminal_cols - len(line)))
         else:
