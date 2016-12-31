@@ -25,7 +25,7 @@ class DummyPostPlotter(PostPlotter):
 
 
 def simulate_dummy():
-    file_name, directory = project.parse_arguments(-1, -2)
+    file_name, directory = project.parse_arguments(-1, -1)
     DummyPostPlotter(file_name, directory,
                      enable_3d=True, use_pickled_data=False,
                      plot_dummy=dict(

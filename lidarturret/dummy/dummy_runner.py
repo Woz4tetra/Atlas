@@ -20,7 +20,7 @@ class DummyRunner(RobotInterface):
         self.time0 = time.time()
 
         super(DummyRunner, self).__init__(self.dummy, joystick=Logitech(),
-                                          log_data=True, debug_prints=False)
+                                          log_data=False, debug_prints=False)
 
     def loop(self):
         if self.dummy.did_update():
@@ -47,7 +47,7 @@ class DummyRunner(RobotInterface):
         if self.joystick.button_updated('X'):
             self.dummy.set_led('g', self.joystick.get_button('X'))
         if self.joystick.button_updated('Y'):
-            self.dummy.set_led('y', self.joystick.get_button('y'))
+            self.dummy.set_led('y', self.joystick.get_button('Y'))
 
         if self.joystick.axis_updated("right y"):
             self.dummy.set_led('b', abs(

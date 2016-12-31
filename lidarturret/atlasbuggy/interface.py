@@ -11,6 +11,220 @@ from atlasbuggy.logs import Logger
 from atlasbuggy.errors import *
 
 
+class RobotObject:
+    def __init__(self, whoiam):
+        self.whoiam = whoiam
+        self._updated = False
+
+        self.command_packets = Queue(maxsize=255)
+
+    def receive_first(self, packet):
+        """
+        Overwrite this method when subclassing RobotObject if you're expecting initial data
+
+        Initialize any data here. If the who_am_i packet contains data, it's passed here
+        :param packet: The first packet received by the robot object's port
+        :return: None
+        """
+        pass
+
+    def receive(self, packet):
+        """
+        Overwrite this method when subclassing RobotObject
+
+        Parse incoming packets received by the corresponding port.
+        This method is called on the RobotSerialPort's thread.
+        I would recommend ONLY parsing packets here and not doing anything else.
+        Use did_update for any event based function calls in the main thread.
+
+        :param packet: A packet (string) received from the robot object's port
+        :return: None
+        """
+        pass
+
+    def send(self, packet):
+        """
+        Do NOT overwrite this method when subclassing RobotObject
+
+        Queue a new packet for sending
+        :param packet: A packet (string) to send to the microcontroller
+        :return: None
+        """
+        self.command_packets.put(packet)
+
+    def did_update(self):
+        """
+        Returns True if the corresponding RobotSerialPort object received new packets
+        :return: bool
+        """
+        if self._updated:
+            self._updated = False
+            return True
+        else:
+            return False
+
+
+class RobotInterface:
+    def __init__(self, *robot_objects, joystick=None,
+                 log_data=True, log_name=None, log_dir=None, debug_prints=False):
+        """
+        :param robot_objects: subclasses of RobotObject
+        :param joystick: A subclass instance of BuggyJoystick
+        :param log_data: A boolean indicating whether or not the received data should be written to a log file
+        :param log_name: The name of the log file. If None, it will be today's date and time
+        :param log_dir: The directory of the log file. If None, it will be today's date.
+            See project.py for details
+        :param debug_prints: Enable verbose prints
+        """
+        self.debug_prints = debug_prints
+
+        self.log_data = log_data
+        if self.log_data:
+            # if no directory provided, use the ":today" flag
+            # (follows the project.py directory reference convention)
+            if log_dir is None:
+                log_dir = ":today"
+            self.logger = Logger(log_name, log_dir)
+        else:
+            self.logger = None
+
+        self.joystick = joystick
+
+        self.ports = {}
+        self.objects = {}
+        for robot_object in robot_objects:
+            self.objects[robot_object.whoiam] = robot_object
+
+        # open all available ports
+        for port_info in serial.tools.list_ports.comports():
+            if port_info.serial_number is not None:
+                port = RobotSerialPort(port_info, self.logger, log_data, self.debug_prints)
+                self.ports[port.whoiam] = port
+
+                if not port.configured:
+                    self._close_ports()
+                    self.print_port_info(port)
+
+                    raise RobotSerialPortNotConfiguredError("Port not configured!", port)
+
+        # assign ports based on identity
+        for whoiam in self.objects.keys():
+            if whoiam in self.ports.keys():
+                # Assign the robot_object to the corresponding port
+                self.ports[whoiam].assign_robot_object(self.objects[whoiam])
+
+                # signal first packet event
+                success = self.ports[whoiam].parse_first_packet()
+                if not success:
+                    self._close_ports()
+                    self.print_port_info(self.ports[whoiam])
+
+                    raise ReceivePacketError("Failed to parse the first packet.", self.ports[whoiam])
+            else:
+                self._close_ports()
+                self.print_port_info(self.ports[whoiam])
+
+                raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
+
+        for whoiam in self.ports.keys():
+            if not self.ports[whoiam].port_assigned:
+                self._close_ports()
+                self.print_port_info(self.ports[whoiam])
+
+                RobotSerialPortUnassignedError("Port not assigned to an object.", self.ports[whoiam])
+
+    def print_port_info(self, port):
+        if self.debug_prints:
+            pprint.pprint(port.port_info.__dict__)
+            print()
+            time.sleep(0.01)
+
+    @property
+    def dt(self):
+        if self.logger.log_started:
+            return time.time() - self.logger.time0
+        else:
+            return 0.0
+
+    def _start_ports(self):
+        for robot_port in self.ports.values():
+            robot_port.start()
+
+        if self.log_data:
+            self.logger.start_time()
+
+    def _close_ports(self):
+        """
+        Kill all RobotSerialPort threads and close their serial ports
+        :return: None
+        """
+        if self.debug_prints:
+            print("Closing all ports")
+        for robot_port in self.ports.values():
+            robot_port.stop()
+
+    def loop(self):
+        """
+        Similar to Arduino's loop function. This will be run in a while True loop
+        :return:
+        """
+        pass
+
+    def close(self):
+        pass
+
+    def _are_ports_active(self):
+        for robot_port in self.ports.values():
+            status = robot_port.is_running()
+            if status < 1:
+                self._close_ports()
+                if status == 0:
+                    raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
+                elif status == -1:
+                    raise RobotSerialPortTimeoutError("Port with ID '%s' timed out" % robot_port.whoiam)
+        return True
+
+    def run(self):
+        """
+        Call this method to start the robot and to start receiving data
+
+        This is where all threads start and stop. Stop events can be thrown by:
+            loop returning False (live plot in the loop returned False for example)
+            joystick returned False, the pygame window signaled to quit
+            are_threads_running() returned False
+
+        are_threads_running can be False for the following reasons:
+            robot_port.is_running found that the serial thread has been hanging
+                for more than 2 seconds
+            robot_port.is_running found that should_stop is False
+
+        should_stop can be False because:
+            A packet wasn't parsed correctly
+            The port never signaled ready
+            There weren't enough ports to match the number of objects
+            No ports with the requested whoiam ID were found
+            The port wasn't matched to a RobotObject (it was unused)
+        :return:
+        """
+        self._start_ports()
+
+        try:
+            while self._are_ports_active():
+                if self.loop() is False:
+                    if self.debug_prints:
+                        print("loop signaled to exit")
+                    break
+
+                if self.joystick is not None:
+                    if self.joystick.update() is False:
+                        break
+        except KeyboardInterrupt:
+            pass
+
+        self.close()
+        self._close_ports()
+
+
 class RobotSerialPort(Thread):
     """
     A multi-threaded wrapper for an instance of pyserial Serial.
@@ -371,217 +585,3 @@ class RobotSerialPort(Thread):
 
             if self.debug_prints:
                 print("Closing serial")
-
-
-class RobotObject:
-    def __init__(self, whoiam):
-        self.whoiam = whoiam
-        self._updated = False
-
-        self.command_packets = Queue(maxsize=255)
-
-    def receive_first(self, packet):
-        """
-        Overwrite this method when subclassing RobotObject if you're expecting initial data
-
-        Initialize any data here. If the who_am_i packet contains data, it's passed here
-        :param packet: The first packet received by the robot object's port
-        :return: None
-        """
-        pass
-
-    def receive(self, packet):
-        """
-        Overwrite this method when subclassing RobotObject
-
-        Parse incoming packets received by the corresponding port.
-        This method is called on the RobotSerialPort's thread.
-        I would recommend ONLY parsing packets here and not doing anything else.
-        Use did_update for any event based function calls in the main thread.
-
-        :param packet: A packet (string) received from the robot object's port
-        :return: None
-        """
-        pass
-
-    def send(self, packet):
-        """
-        Do NOT overwrite this method when subclassing RobotObject
-
-        Queue a new packet for sending
-        :param packet: A packet (string) to send to the microcontroller
-        :return: None
-        """
-        self.command_packets.put(packet)
-
-    def did_update(self):
-        """
-        Returns True if the corresponding RobotSerialPort object received new packets
-        :return: bool
-        """
-        if self._updated:
-            self._updated = False
-            return True
-        else:
-            return False
-
-
-class RobotInterface:
-    def __init__(self, *robot_objects, joystick=None,
-                 log_data=True, log_name=None, log_dir=None, debug_prints=False):
-        """
-        :param robot_objects: subclasses of RobotObject
-        :param joystick: A subclass instance of BuggyJoystick
-        :param log_data: A boolean indicating whether or not the received data should be written to a log file
-        :param log_name: The name of the log file. If None, it will be today's date and time
-        :param log_dir: The directory of the log file. If None, it will be today's date.
-            See project.py for details
-        :param debug_prints: Enable verbose prints
-        """
-        self.debug_prints = debug_prints
-
-        self.log_data = log_data
-        if self.log_data:
-            # if no directory provided, use the ":today" flag
-            # (follows the project.py directory reference convention)
-            if log_dir is None:
-                log_dir = ":today"
-            self.logger = Logger(log_name, log_dir)
-        else:
-            self.logger = None
-
-        self.joystick = joystick
-
-        self.ports = {}
-        self.objects = {}
-        for robot_object in robot_objects:
-            self.objects[robot_object.whoiam] = robot_object
-
-        # open all available ports
-        for port_info in serial.tools.list_ports.comports():
-            if port_info.serial_number is not None:
-                port = RobotSerialPort(port_info, self.logger, log_data, self.debug_prints)
-                self.ports[port.whoiam] = port
-
-                if not port.configured:
-                    self._close_ports()
-                    self.print_port_info(port)
-
-                    raise RobotSerialPortNotConfiguredError("Port not configured!", port)
-
-        # assign ports based on identity
-        for whoiam in self.objects.keys():
-            if whoiam in self.ports.keys():
-                # Assign the robot_object to the corresponding port
-                self.ports[whoiam].assign_robot_object(self.objects[whoiam])
-
-                # signal first packet event
-                success = self.ports[whoiam].parse_first_packet()
-                if not success:
-                    self._close_ports()
-                    self.print_port_info(self.ports[whoiam])
-
-                    raise ReceivePacketError("Failed to parse the first packet.", self.ports[whoiam])
-            else:
-                self._close_ports()
-                self.print_port_info(self.ports[whoiam])
-
-                raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
-
-        for whoiam in self.ports.keys():
-            if not self.ports[whoiam].port_assigned:
-                self._close_ports()
-                self.print_port_info(self.ports[whoiam])
-
-                RobotSerialPortUnassignedError("Port not assigned to an object.", self.ports[whoiam])
-
-    def print_port_info(self, port):
-        if self.debug_prints:
-            pprint.pprint(port.port_info.__dict__)
-            print()
-            time.sleep(0.01)
-
-    @property
-    def dt(self):
-        if self.logger.log_started:
-            return time.time() - self.logger.time0
-        else:
-            return 0.0
-
-    def _start_ports(self):
-        for robot_port in self.ports.values():
-            robot_port.start()
-
-        if self.log_data:
-            self.logger.start_time()
-
-    def _close_ports(self):
-        """
-        Kill all RobotSerialPort threads and close their serial ports
-        :return: None
-        """
-        if self.debug_prints:
-            print("Closing all ports")
-        for robot_port in self.ports.values():
-            robot_port.stop()
-
-    def loop(self):
-        """
-        Similar to Arduino's loop function. This will be run in a while True loop
-        :return:
-        """
-        pass
-
-    def close(self):
-        pass
-
-    def _are_ports_active(self):
-        for robot_port in self.ports.values():
-            status = robot_port.is_running()
-            if status < 1:
-                self._close_ports()
-                if status == 0:
-                    raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
-                elif status == -1:
-                    raise RobotSerialPortTimeoutError("Port with ID '%s' timed out" % robot_port.whoiam)
-        return True
-
-    def run(self):
-        """
-        Call this method to start the robot and to start receiving data
-
-        This is where all threads start and stop. Stop events can be thrown by:
-            loop returning False (live plot in the loop returned False for example)
-            joystick returned False, the pygame window signaled to quit
-            are_threads_running() returned False
-
-        are_threads_running can be False for the following reasons:
-            robot_port.is_running found that the serial thread has been hanging
-                for more than 2 seconds
-            robot_port.is_running found that should_stop is False
-
-        should_stop can be False because:
-            A packet wasn't parsed correctly
-            The port never signaled ready
-            There weren't enough ports to match the number of objects
-            No ports with the requested whoiam ID were found
-            The port wasn't matched to a RobotObject (it was unused)
-        :return:
-        """
-        self._start_ports()
-
-        try:
-            while self._are_ports_active():
-                if self.loop() is False:
-                    if self.debug_prints:
-                        print("loop signaled to exit")
-                    break
-
-                if self.joystick is not None:
-                    if self.joystick.update() is False:
-                        break
-        except KeyboardInterrupt:
-            pass
-
-        self.close()
-        self._close_ports()
