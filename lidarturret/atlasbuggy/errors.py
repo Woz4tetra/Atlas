@@ -6,8 +6,8 @@ class RobotObjectBaseError(Exception):
         for line in port.error_message:
             port_error_message += str(line).strip() + "\n"
 
-        port_error_info = "\n\naddress: '%s', ID: '%s'\n\nError message from port:\n%s" % (
-            port.address, port.whoiam, port_error_message
+        port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: '%s'" % (
+            port_error_message, port.address, port.whoiam
         )
         super(RobotObjectBaseError, self).__init__(error_message + port_error_info)
 

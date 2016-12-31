@@ -1,7 +1,3 @@
-"""
-
-"""
-
 import time
 import traceback
 from queue import Queue
@@ -22,11 +18,9 @@ class RobotSerialPort(Thread):
     This class is for internal use only
     """
 
-    def __init__(self, port_info, baud, packet_end, logger, log_data, debug_prints):
+    def __init__(self, port_info, logger, log_data, debug_prints):
         """
         :param port_info: A ListPortInfo object returned by serial.tools.list_ports.comports()
-        :param baud: This is the communication rate. This value must match the microcontroller's baud rate
-        :param packet_end: A string (typically single character) that signals the end of a packet
         :param logger: An instance of the Logger class defined in logs.py
         :param log_data: A boolean that signals whether or not to log data (to use the logger instance or not)
         :param debug_prints: Enable verbose print statements
@@ -46,8 +40,8 @@ class RobotSerialPort(Thread):
 
         self.whoiam = None  # ID tag of the microcontroller
         self.whoiam_header = "iam"  # whoiam packets start with "iam"
-        self.packet_end = packet_end  # what this microcontroller's packets end with
-        assert len(self.packet_end) > 0
+        self.packet_end = "\n"  # what this microcontroller's packets end with
+        self.baud_rate = 115200
 
         # object to pass packets to for parsing, set externally after all
         # discovered ports have been opened
@@ -62,7 +56,7 @@ class RobotSerialPort(Thread):
 
         # attempt to open the serial port
         try:
-            self.serial_ref = serial.Serial(port=self.address, baudrate=baud)
+            self.serial_ref = serial.Serial(port=self.address, baudrate=self.baud_rate)
         except SerialException as error:
             self.handle_error(error)
 
@@ -198,42 +192,47 @@ class RobotSerialPort(Thread):
                     self.stop()
                     raise RobotSerialPortReadPacketError("Failed to read packets")
 
-                # parse each packet according to its receive method
-                for packet in packets:
-                    try:
-                        # Parse the packet using robot_object's receive method
-                        self.robot_object.receive(packet)
-                    except:
-                        self.stop()
-                        raise ReceivePacketError(
-                            "Robot object's receive method threw an exception\n"
-                            "Received packets:\n%s\n"
-                            "Error packet: %s" % (
-                                pprint.pformat(packets), repr(packet)
-                            ), self
-                        )
+                self.parse_packets(packets)
+                self.send_commands()
 
-                    if self.log_data and self.logger.time0 != 0:
-                        self.logger.record(self.whoiam, packet)
+    def send_commands(self):
+        # to avoid an endless loop of objects having references to
+        # ports and ports to objects, the port just checks if the
+        # object updated its command packet and sends it
 
-                    # if any packets were received, signal the object updated
-                    self.robot_object._updated = True
+        # dequeue all command packets and write them (send from the end to the front)
+        while not self.robot_object.command_packets.empty():
+            command = self.robot_object.command_packets.get()
 
-                # to avoid an endless loop of objects having references to
-                # ports and ports to objects, the port just checks if the
-                # object updated its command packet and sends it
+            # TODO: add command logging
+            # if self.log_data and self.logger.time0 != 0:
+            #     self.logger.record(self.whoiam, command)
 
-                # dequeue all command packets and write them (send from the end to the front)
-                while not self.robot_object.command_packets.empty():
-                    command = self.robot_object.command_packets.get()
+            if not self.write_packet(command):
+                self.stop()
+                raise RobotSerialPortWritePacketError("Failed to send command:", command)
 
-                    # TODO: add command logging
-                    # if self.log_data and self.logger.time0 != 0:
-                    #     self.logger.record(self.whoiam, command)
+    def parse_packets(self, packets):
+        # parse each packet according to its receive method
+        for packet in packets:
+            try:
+                # Parse the packet using robot_object's receive method
+                self.robot_object.receive(packet)
+            except:
+                self.stop()
+                raise ReceivePacketError(
+                    "Robot object's receive method threw an exception\n"
+                    "Received packets:\n%s\n"
+                    "Error packet: %s" % (
+                        pprint.pformat(packets), repr(packet)
+                    ), self
+                )
 
-                    if not self.write_packet(command):
-                        self.stop()
-                        raise RobotSerialPortWritePacketError("Failed to send command:", command)
+            if self.log_data and self.logger.time0 != 0:
+                self.logger.record(self.whoiam, packet)
+
+            # if any packets were received, signal the object updated
+            self.robot_object._updated = True
 
     def read_packets(self):
         """
@@ -428,13 +427,11 @@ class RobotObject:
 
 
 class RobotInterface:
-    def __init__(self, *robot_objects, joystick=None, baud_rate=115200, packet_end='\n',
+    def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None, debug_prints=False):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
-        :param baud_rate: This value should match the baud rate defined in the microcontroller
-        :param packet_end: The string that signals the end of a packet
         :param log_data: A boolean indicating whether or not the received data should be written to a log file
         :param log_name: The name of the log file. If None, it will be today's date and time
         :param log_dir: The directory of the log file. If None, it will be today's date.
@@ -463,7 +460,7 @@ class RobotInterface:
         # open all available ports
         for port_info in serial.tools.list_ports.comports():
             if port_info.serial_number is not None:
-                port = RobotSerialPort(port_info, baud_rate, packet_end, self.logger, log_data, self.debug_prints)
+                port = RobotSerialPort(port_info, self.logger, log_data, self.debug_prints)
                 self.ports[port.whoiam] = port
 
                 if not port.configured:
