@@ -6,6 +6,7 @@ from atlasbuggy.interface import RobotObject
 class Dummy(RobotObject):
     def __init__(self):
         self.accel_x, self.accel_y, self.accel_z = 0, 0, 0
+        self.dt = 0.0
         self.switch = False
 
         self.python_version = None
@@ -40,9 +41,10 @@ class Dummy(RobotObject):
 
     def receive(self, packet):
         data = packet.split("\t")
-        self.accel_x = int(data[0])
-        self.accel_y = int(data[1])
-        self.accel_z = int(data[2])
+        self.dt = self.hex_to_float(data[0])
+        self.accel_x = int(data[1])
+        self.accel_y = int(data[2])
+        self.accel_z = int(data[3])
 
     def set_led(self, color, value):
         if type(color) == int:

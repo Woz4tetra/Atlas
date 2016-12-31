@@ -1,19 +1,27 @@
 # ----- interface.py exceptions -----
 
-class RobotObjectBaseError(Exception):
-    def __init__(self, error_message, port):
-        port_error_message = ""
-        for line in port.error_message:
-            port_error_message += str(line).strip() + "\n"
 
-        port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: '%s'" % (
-            port_error_message, port.address, port.whoiam
-        )
+class RobotObjectBaseError(Exception):
+    def __init__(self, error_message, port=None):
+        if port is not None:
+            port_error_message = ""
+            for line in port.error_message:
+                port_error_message += str(line).strip() + "\n"
+
+            port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: '%s'" % (
+                port_error_message, port.address, port.whoiam
+            )
+        else:
+            port_error_info = ""
         super(RobotObjectBaseError, self).__init__(error_message + port_error_info)
 
 
 class ReceivePacketError(RobotObjectBaseError):
     """Failed to parse a packet from serial"""
+
+
+class LoopSignalledExitError(Exception):
+    """Loop method threw an exception"""
 
 
 class RobotSerialPortUnassignedError(RobotObjectBaseError):

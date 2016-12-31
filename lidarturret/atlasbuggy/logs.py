@@ -90,7 +90,7 @@ class Logger:
             else:
                 timestamp = time.time() - self.time0
             self.data_file.write(
-                str(timestamp) + time_whoiam_sep + who_i_am + whoiam_packet_sep + packet + "\n"
+                "%s%s%s%s%s\n" % (timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep, packet)
             )
 
             self.log_lock.release()
@@ -119,7 +119,7 @@ class Parser:
     return the IMU's data three times and then the GPS last
     """
 
-    def __init__(self, file_name, directory=None):
+    def __init__(self, file_name, directory=None, start_index=0, end_index=-1):
         # pick a subdirectory of logs
         self.directory = project.parse_dir(
             directory, log_directory,
@@ -185,6 +185,8 @@ class Parser:
             with open(os.path.join(log_pickle_dir, pickle_file_name), 'wb') as pickle_file:
                 pickle.dump(self.data, pickle_file, pickle.HIGHEST_PROTOCOL)
             print("Wrote pickle to: " + os.path.join(log_pickle_dir, pickle_file_name))
+
+        self.data = self.data[start_index: end_index]
 
     def __iter__(self):
         """

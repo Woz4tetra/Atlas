@@ -130,7 +130,7 @@ class LivePlotter:
 
 class PostPlotter:
     def __init__(self, file_name, directory, plot_info, enable_3d,
-                 use_pickled_data, *robot_objects):
+                 use_pickled_data, start_index=0, end_index=-1, *robot_objects):
         self.simulated_ports = {}
         for robot_object in robot_objects:
             self.simulated_ports[robot_object.whoiam] = robot_object
@@ -159,7 +159,7 @@ class PostPlotter:
                 self.plot_data[plot_name] = \
                     [[] for _ in range(3 if self.enable_3d else 2)]
 
-        self.parser = Parser(file_name, directory)
+        self.parser = Parser(file_name, directory, start_index, end_index)
 
         self.timestamps = []
 

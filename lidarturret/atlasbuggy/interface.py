@@ -1,4 +1,5 @@
 import time
+import struct
 import traceback
 from queue import Queue
 from threading import Thread
@@ -14,7 +15,7 @@ from atlasbuggy.errors import *
 class RobotObject:
     def __init__(self, whoiam):
         self.whoiam = whoiam
-        self._updated = False
+        self.num_packets = False
 
         self.command_packets = Queue(maxsize=255)
 
@@ -42,6 +43,14 @@ class RobotObject:
         """
         pass
 
+    @staticmethod
+    def float_to_hex(number):
+        return "%0.8x" % struct.unpack('<I', struct.pack('<f', number))[0]
+
+    @staticmethod
+    def hex_to_float(hex_string):
+        return struct.unpack('!f', bytes.fromhex(hex_string))[0]
+
     def send(self, packet):
         """
         Do NOT overwrite this method when subclassing RobotObject
@@ -57,11 +66,10 @@ class RobotObject:
         Returns True if the corresponding RobotSerialPort object received new packets
         :return: bool
         """
-        if self._updated:
-            self._updated = False
-            return True
-        else:
-            return False
+        return self.num_packets > 0
+
+    def receive_all_updates(self):
+        return range(self.num_packets)
 
 
 class RobotInterface:
@@ -87,6 +95,7 @@ class RobotInterface:
             self.logger = Logger(log_name, log_dir)
         else:
             self.logger = None
+            self.time0 = time.time()
 
         self.joystick = joystick
 
@@ -102,7 +111,7 @@ class RobotInterface:
                 self.ports[port.whoiam] = port
 
                 if not port.configured:
-                    self._close_ports()
+                    self._close_all()
                     self.print_port_info(port)
 
                     raise RobotSerialPortNotConfiguredError("Port not configured!", port)
@@ -116,19 +125,19 @@ class RobotInterface:
                 # signal first packet event
                 success = self.ports[whoiam].parse_first_packet()
                 if not success:
-                    self._close_ports()
+                    self._close_all()
                     self.print_port_info(self.ports[whoiam])
 
                     raise ReceivePacketError("Failed to parse the first packet.", self.ports[whoiam])
             else:
-                self._close_ports()
+                self._close_all()
                 self.print_port_info(self.ports[whoiam])
 
                 raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
 
         for whoiam in self.ports.keys():
             if not self.ports[whoiam].port_assigned:
-                self._close_ports()
+                self._close_all()
                 self.print_port_info(self.ports[whoiam])
 
                 RobotSerialPortUnassignedError("Port not assigned to an object.", self.ports[whoiam])
@@ -141,10 +150,13 @@ class RobotInterface:
 
     @property
     def dt(self):
-        if self.logger.log_started:
-            return time.time() - self.logger.time0
+        if self.log_data:
+            if self.logger.log_started:
+                return time.time() - self.logger.time0
+            else:
+                return 0.0
         else:
-            return 0.0
+            return time.time() - self.time0
 
     def _start_ports(self):
         for robot_port in self.ports.values():
@@ -152,12 +164,15 @@ class RobotInterface:
 
         if self.log_data:
             self.logger.start_time()
+        else:
+            self.time0 = time.time()
 
-    def _close_ports(self):
+    def _close_all(self):
         """
         Kill all RobotSerialPort threads and close their serial ports
         :return: None
         """
+        self.close()
         if self.debug_prints:
             print("Closing all ports")
         for robot_port in self.ports.values():
@@ -166,9 +181,9 @@ class RobotInterface:
     def loop(self):
         """
         Similar to Arduino's loop function. This will be run in a while True loop
-        :return:
+        :return: True if everything is ok. False if something signaled to close
         """
-        pass
+        return True
 
     def close(self):
         pass
@@ -177,7 +192,7 @@ class RobotInterface:
         for robot_port in self.ports.values():
             status = robot_port.is_running()
             if status < 1:
-                self._close_ports()
+                self._close_all()
                 if status == 0:
                     raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
                 elif status == -1:
@@ -218,11 +233,13 @@ class RobotInterface:
                 if self.joystick is not None:
                     if self.joystick.update() is False:
                         break
+        except Exception as error:
+            self._close_all()
+            raise LoopSignalledExitError(error)
         except KeyboardInterrupt:
             pass
 
-        self.close()
-        self._close_ports()
+        self._close_all()
 
 
 class RobotSerialPort(Thread):
@@ -247,7 +264,6 @@ class RobotSerialPort(Thread):
         self.configured = True
         self.error_message = None
         self.port_assigned = False
-        self.stop_sent = False
 
         self.start_time = time.time()
         self.thread_time = 0
@@ -370,6 +386,7 @@ class RobotSerialPort(Thread):
         # wait for the correct response
         while not abides_protocol:
             packets, status = self.read_packets()
+            self.print_packets(packets)
             if not status:
                 self.handle_error("Serial read failed... Board never signaled ready")
                 return False
@@ -377,7 +394,6 @@ class RobotSerialPort(Thread):
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % send_packet)
                 return False
 
-            self.print_packets(packets)
             abides_protocol = receive_fn(packets)
 
         return True  # when the while loop exits, abides_protocol must be True
@@ -392,11 +408,12 @@ class RobotSerialPort(Thread):
 
     def run(self):
         """Called when RobotSerialPort.start is called (inherited from threading.Thread)"""
-        while not self.stop_sent:
+        while self.configured:
             # update the internal timer. Acts as a check to see if the thread is running properly
             self.thread_time = int(time.time() - self.start_time)
             if not self.serial_ref.is_open:
                 self.stop()
+                self.close_port()
                 raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...")
 
             if self.serial_ref.in_waiting > 0:
@@ -404,10 +421,12 @@ class RobotSerialPort(Thread):
                 packets, status = self.read_packets()
                 if not status:
                     self.stop()
+                    self.close_port()
                     raise RobotSerialPortReadPacketError("Failed to read packets")
 
                 self.parse_packets(packets)
                 self.send_commands()
+        self.close_port()
 
     def send_commands(self):
         # to avoid an endless loop of objects having references to
@@ -434,6 +453,7 @@ class RobotSerialPort(Thread):
                 self.robot_object.receive(packet)
             except:
                 self.stop()
+                self.handle_error(ReceivePacketError("Robot object's receive method threw an exception"))
                 raise ReceivePacketError(
                     "Robot object's receive method threw an exception\n"
                     "Received packets:\n%s\n"
@@ -446,7 +466,7 @@ class RobotSerialPort(Thread):
                 self.logger.record(self.whoiam, packet)
 
             # if any packets were received, signal the object updated
-            self.robot_object._updated = True
+            self.robot_object.num_packets = len(packets)
 
     def read_packets(self):
         """
@@ -457,11 +477,12 @@ class RobotSerialPort(Thread):
         """
         try:
             # read every available character
-            incoming = self.serial_ref.read(self.serial_ref.in_waiting)
+            if self.serial_ref.is_open:
+                incoming = self.serial_ref.read(self.serial_ref.in_waiting)
+            else:
+                self.handle_error("Serial port wasn't open for reading...")
+                return [], False
         except SerialException as error:
-            self.handle_error(error)
-            return [], False
-        except portNotOpenError as error:
             self.handle_error(error)
             return [], False
 
@@ -499,11 +520,12 @@ class RobotSerialPort(Thread):
             return False
 
         try:
-            self.serial_ref.write(data)
+            if self.serial_ref.is_open:
+                self.serial_ref.write(data)
+            else:
+                self.handle_error("Serial port wasn't open for writing...")
+                return False
         except SerialException as error:
-            self.handle_error(error)
-            return False
-        except portNotOpenError as error:
             self.handle_error(error)
             return False
 
@@ -569,11 +591,7 @@ class RobotSerialPort(Thread):
         Don't wait for feedback from the microcontroller. There's some weird race condition going on
         :return: None
         """
-        if not self.stop_sent:
-            self.stop_sent = True
-
-            self.configured = False
-
+        if self.configured:
             time.sleep(0.05)
             self.write_packet("stop\n")
 
@@ -581,6 +599,10 @@ class RobotSerialPort(Thread):
                 print("Sent stop flag")
             time.sleep(0.05)
 
+            self.configured = False
+
+    def close_port(self):
+        if self.serial_ref.is_open:
             self.serial_ref.close()
 
             if self.debug_prints:

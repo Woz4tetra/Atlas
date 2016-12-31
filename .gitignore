@@ -119,6 +119,8 @@ images
 images/
 tunes
 tunes/
+pickled
+pickled/
 __pycache__/
 
 # Xcode Project Files #
