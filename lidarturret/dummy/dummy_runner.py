@@ -2,9 +2,9 @@ from atlasbuggy.interface import RobotInterface
 from dummy.dummy_bot import Dummy
 from joysticks.logitech import Logitech
 
-live_plotting = True
+live_plotting = False
 if live_plotting:
-    from atlasbuggy.plotter import LivePlotter
+    from atlasbuggy.plotters import LivePlotter
 
 
 class DummyRunner(RobotInterface):
@@ -19,8 +19,11 @@ class DummyRunner(RobotInterface):
         super(DummyRunner, self).__init__(self.dummy, joystick=Logitech(),
                                           log_data=False, debug_prints=False)
 
-    def loop(self):
-        if self.dummy.did_update():
+    def packet_received(self, timestamp, whoiam):
+        if self.dummy.did_update(whoiam):
+            print(timestamp, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
+            # print(timestamp, self.dummy.dt, timestamp - self.dummy.dt)
+
             if live_plotting:
                 status1 = self.live_plot1.plot(
                     self.dummy.accel_x,
@@ -28,7 +31,7 @@ class DummyRunner(RobotInterface):
                     self.dummy.accel_z
                 )
                 status2 = self.live_plot2.plot(
-                    self.dt,
+                    timestamp,
                     self.dummy.accel_y,
                     self.dummy.accel_z
                 )
@@ -36,9 +39,7 @@ class DummyRunner(RobotInterface):
                 if not status1 or not status2:
                     return False
 
-        for num in self.dummy.receive_all_updates():
-            print(num, self.dt, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
-
+    def loop(self):
         if self.joystick.button_updated('A'):
             self.dummy.set_led('r', self.joystick.get_button('A'))
         if self.joystick.button_updated('B'):

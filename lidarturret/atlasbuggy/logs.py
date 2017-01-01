@@ -3,7 +3,6 @@ from datetime import datetime
 import pickle
 import os
 import sys
-from threading import Lock
 
 from atlasbuggy import project
 
@@ -36,10 +35,7 @@ class Logger:
     """A class for recording data from a robot to a log file"""
 
     def __init__(self, file_name, directory):
-        # Logger can be accessed by the main thread and any robot port threads.
         # This lock prevents multiple threads writing data at the same time
-        self.log_lock = Lock()
-
         # Format the file name. Mac doesn't support colons in file names
         # If file format is provided but not a name, insert timestamp
         if file_name is None or file_name.replace("." + log_file_type, "") == "":
@@ -65,40 +61,19 @@ class Logger:
 
         self.data_file = open(os.path.join(directory, file_name), 'w+')
 
-        self.time0 = 0
-        self.log_started = False
-
         self.is_open = True
 
-    def start_time(self):
-        self.log_lock.acquire()
-
-        self.time0 = time.time()
-        self.log_started = True
-
-        self.log_lock.release()
-
-    def record(self, who_i_am, packet):
+    def record(self, timestamp, who_i_am, packet):
         """
         Record incoming packet using the appropriate separator characters
         """
         if self.is_open:
-            self.log_lock.acquire()
-
-            if not self.log_started:
-                timestamp = -1
-            else:
-                timestamp = time.time() - self.time0
             self.data_file.write(
                 "%s%s%s%s%s\n" % (timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep, packet)
             )
 
-            self.log_lock.release()
-
     def close(self):
-        self.log_lock.acquire()
         self.data_file.close()
-        self.log_lock.release()
 
         self.is_open = False
 

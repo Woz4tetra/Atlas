@@ -23,6 +23,8 @@ class ReceivePacketError(RobotObjectBaseError):
 class LoopSignalledExitError(Exception):
     """Loop method threw an exception"""
 
+class PacketReceivedSignalledExitError(Exception):
+    """packet_received method threw an exception"""
 
 class RobotSerialPortUnassignedError(RobotObjectBaseError):
     """Port was open successfully but no objects use it"""

@@ -1,5 +1,5 @@
 
-# live = True
+live = True
 
 try:
     if live:

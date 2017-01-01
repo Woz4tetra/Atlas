@@ -1,6 +1,7 @@
 import math
 import traceback
 from collections import defaultdict
+from multiprocessing import Process, Lock, Queue, Event
 
 import mpl_toolkits.mplot3d.axes3d as p3
 import numpy as np
@@ -11,7 +12,7 @@ from atlasbuggy.logs import *
 pickled_sim_directory = ":simulations"
 
 
-class LivePlotter:
+class LivePlotter(Process):
     is_interactive = False
     fig_num = 0
 
@@ -58,83 +59,89 @@ class LivePlotter:
             self.current_data_point = \
                 self.ax.plot(0, 0, 'o', color='black', markersize=10)[0]
 
-        super(LivePlotter, self).__init__()
+        self.plot_lock = Lock()
+        self.data_queue = Queue()
+        self.exit_event = Event()
+        super(LivePlotter, self).__init__(target=self.update_plot, args=(self.data_queue, self.plot_lock))
+
+        self.start()
 
     def handle_close(self):
         # print("Plot window closed")
         self.is_running = False
         self.close()
 
+    # def update_plot(self):
+    #     while not self.exit_event.is_set():
+
+
     def plot(self, x, y, z=None):
-        if not self.is_running:
-            return False
-        try:
-            self.fig = plt.figure(self.my_fig_num)
+        with self.plot_lock:
+            if not self.is_running:
+                return False
+            try:
+                self.fig = plt.figure(self.my_fig_num)
 
-            self.x_data = np.append(self.x_data, x)
-            self.y_data = np.append(self.y_data, y)
+                self.x_data = np.append(self.x_data, x)
+                self.y_data = np.append(self.y_data, y)
 
-            self.plot_data.set_xdata(self.x_data)
-            self.plot_data.set_ydata(self.y_data)
+                self.plot_data.set_xdata(self.x_data)
+                self.plot_data.set_ydata(self.y_data)
 
-            self.current_data_point.set_xdata([x])
-            self.current_data_point.set_ydata([y])
+                self.current_data_point.set_xdata([x])
+                self.current_data_point.set_ydata([y])
 
-            if x < self.min_x:
-                self.min_x = x
-            if x > self.max_x:
-                self.max_x = x
+                if x < self.min_x:
+                    self.min_x = x
+                if x > self.max_x:
+                    self.max_x = x
 
-            if y < self.min_y:
-                self.min_y = y
-            if y > self.max_y:
-                self.max_y = y
+                if y < self.min_y:
+                    self.min_y = y
+                if y > self.max_y:
+                    self.max_y = y
 
-            if self.enable_3d:
-                assert z is not None
+                if self.enable_3d:
+                    assert z is not None
 
-                if z < self.min_z:
-                    self.min_z = z
-                if z > self.max_z:
-                    self.max_z = z
+                    if z < self.min_z:
+                        self.min_z = z
+                    if z > self.max_z:
+                        self.max_z = z
 
-                self.z_data = np.append(self.z_data, z)
+                    self.z_data = np.append(self.z_data, z)
 
-                self.current_data_point.set_3d_properties([z])
+                    self.current_data_point.set_3d_properties([z])
 
-                self.plot_data.set_3d_properties(self.z_data)
+                    self.plot_data.set_3d_properties(self.z_data)
 
-                self.ax.set_xlim3d([self.min_x, self.max_x])
-                self.ax.set_ylim3d([self.min_y, self.max_y])
-                self.ax.set_zlim3d([self.min_z, self.max_z])
-            else:
-                plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
+                    self.ax.set_xlim3d([self.min_x, self.max_x])
+                    self.ax.set_ylim3d([self.min_y, self.max_y])
+                    self.ax.set_zlim3d([self.min_z, self.max_z])
+                else:
+                    plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
 
-            self.fig.canvas.draw()
-            plt.pause(0.01)  # can't be less than ~0.005
+                self.fig.canvas.draw()
+                plt.pause(0.01)  # can't be less than ~0.005
 
-            return True
-        except:
-            # print("plot closing")
-            traceback.print_exc()
+                return True
+            except:
+                # print("plot closing")
+                traceback.print_exc()
 
-            self.is_running = False
-            return False
+                self.is_running = False
+                return False
 
     def close(self):
+        self.exit_event.set()
         if self.is_running:
             plt.ioff()
             plt.close('all')
             plt.gcf()
 
 
-class PostPlotter:
-    def __init__(self, file_name, directory, plot_info, enable_3d,
-                 use_pickled_data, start_index=0, end_index=-1, *robot_objects):
-        self.simulated_ports = {}
-        for robot_object in robot_objects:
-            self.simulated_ports[robot_object.whoiam] = robot_object
-
+class StaticPlotter:
+    def __init__(self, parser, plot_info, enable_3d, use_pickled_data):
         self.plot_data = {}
         self.plot_info = plot_info
         self.plot_enabled = defaultdict(lambda: False)
@@ -159,8 +166,6 @@ class PostPlotter:
                 self.plot_data[plot_name] = \
                     [[] for _ in range(3 if self.enable_3d else 2)]
 
-        self.parser = Parser(file_name, directory, start_index, end_index)
-
         self.timestamps = []
 
         self.percent = 0
@@ -170,7 +175,7 @@ class PostPlotter:
 
         self.use_pickled_data = use_pickled_data
 
-        self.pickle_file_name = self.parser.file_name[:-len(log_file_type)] + pickle_file_type
+        self.pickle_file_name = parser.file_name[:-len(log_file_type)] + pickle_file_type
         self.log_pickle_dir = project.interpret_dir(pickled_sim_directory)
 
         if self.use_pickled_data:
@@ -190,7 +195,7 @@ class PostPlotter:
             self.ax = p3.Axes3D(self.fig)
         else:
             self.ax = self.fig.gca()
-        self.fig.canvas.set_window_title(self.parser.file_name[:-4])
+        self.fig.canvas.set_window_title(parser.file_name[:-4])
 
     def draw_dot(self, x, y, z=0, color='black'):
         if self.enable_3d:
@@ -212,29 +217,7 @@ class PostPlotter:
     def step(self, index, timestamp, whoiam, robot_object):
         pass
 
-    def run(self):
-        for index, timestamp, whoiam, packet in self.parser:
-            if timestamp == -1:
-                self.simulated_ports[whoiam].receive_first(packet)
-            else:
-                self.simulated_ports[whoiam].receive(packet)
-                self.step(index, timestamp, whoiam,
-                          self.simulated_ports[whoiam])
-
-                self.timestamps.append(timestamp)
-
-                percent = 100 * index / len(self.parser)
-                self.percent = int(percent * 10)
-                if self.percent != self.prev_percent:
-                    self.prev_percent = self.percent
-                    print(("%0.1f" % percent) + "%", end='\r')
-
-        print("plotting...")
-        self.plot()
-        self.close()
-
-    def angled_line_segment(self, plot_option, x0, y0, angle, length,
-                            vx=None, vy=None, v_scale=None):
+    def angled_line_segment(self, plot_option, x0, y0, angle, length):
         if not self.enable_3d:
             if self.plot_enabled[plot_option]:
                 cycler = self.plot_info[plot_option]["line_seg_counter"] % \
@@ -283,14 +266,9 @@ class PostPlotter:
             else:
                 self.ax.set_zlim([z1, z0])
 
-    def before_plot(self):
-        pass
-
     def plot(self):
         with open(os.path.join(self.log_pickle_dir, self.pickle_file_name), 'wb') as pickle_file:
             pickle.dump((self.plot_data, self.enable_3d), pickle_file, pickle.HIGHEST_PROTOCOL)
-
-        self.before_plot()
 
         if self.plot_data.keys() != self.plot_info.keys():
             print("WARNING: plot options in current simulator don't match "
@@ -331,6 +309,3 @@ class PostPlotter:
         plt.legend(loc='upper right', shadow=True, fontsize='x-small')
 
         plt.show()
-
-    def close(self):
-        pass
