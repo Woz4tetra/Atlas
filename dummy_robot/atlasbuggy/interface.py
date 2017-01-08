@@ -65,7 +65,7 @@ class RobotObject:
 
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
-                 log_data=True, log_name=None, log_dir=None, debug_prints=False):
+                 log_data=True, log_name=None, log_dir=None, debug_prints=False, updates_per_second=120):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -76,6 +76,7 @@ class RobotInterface:
         :param debug_prints: Enable verbose prints
         """
         self.debug_prints = debug_prints
+        self.updates_per_second = updates_per_second
 
         self.log_data = log_data
         if self.log_data:
@@ -100,16 +101,16 @@ class RobotInterface:
 
         # open all available ports
         for port_info in serial.tools.list_ports.comports():
-            self.configure_port(port_info)
+            self.configure_port(port_info, self.updates_per_second)
 
         self.check_objects()
         self.check_ports()
         self.send_first_packets()
 
-    def configure_port(self, port_info):
+    def configure_port(self, port_info, updates_per_second):
         if port_info.serial_number is not None:
             port = RobotSerialPort(port_info, self.debug_prints,
-                                   self.packet_queue, self.queue_lock)
+                                   self.packet_queue, self.queue_lock, updates_per_second)
             self.ports[port.whoiam] = port
 
             if not port.configured:
@@ -212,6 +213,8 @@ class RobotInterface:
         self._start_all()
 
         try:
+            clock = Clock(self.updates_per_second)
+
             while self._are_ports_active():
                 if not self.packet_queue.empty():
                     whoiam, timestamp, packet = self.packet_queue.get()
@@ -247,6 +250,9 @@ class RobotInterface:
                 if self.joystick is not None:
                     if self.joystick.update() is False:
                         break
+
+                clock.update()
+
         except KeyboardInterrupt:
             pass
 
@@ -284,6 +290,21 @@ class RobotInterfaceSimulator:
         pass
 
 
+class Clock:
+    def __init__(self, loops_per_second):
+        self.loop_time = time.time()
+        self.loops_per_second = loops_per_second
+
+    def update(self):
+        measured_ups = 1 / (time.time() - self.loop_time)
+        offset = self.loops_per_second - measured_ups
+        if offset > 0:
+            time.sleep(1 / offset)
+        self.loop_time = time.time()
+
+        return offset > 0
+
+
 class RobotSerialPort(Process):
     """
     A multi-threaded wrapper for an instance of pyserial Serial.
@@ -291,7 +312,7 @@ class RobotSerialPort(Process):
     This class is for internal use only
     """
 
-    def __init__(self, port_info, debug_prints, queue, lock):
+    def __init__(self, port_info, debug_prints, queue, lock, updates_per_second):
         """
         :param port_info: A ListPortInfo object returned by serial.tools.list_ports.comports()
         :param debug_prints: Enable verbose print statements
@@ -307,6 +328,8 @@ class RobotSerialPort(Process):
 
         self.start_time = 0.0
         self.thread_time = 0
+        self.loop_time = 0.0
+        self.updates_per_second = updates_per_second
 
         self.whoiam = None  # ID tag of the microcontroller
         self.whoiam_header = "iam"  # whoiam packets start with "iam"
@@ -440,6 +463,7 @@ class RobotSerialPort(Process):
         """Called when RobotSerialPort.start is called (inherited from threading.Thread)"""
 
         self.start_time = time.time()
+        clock = Clock(self.updates_per_second)
 
         try:
             while not self.exit_event.is_set():
@@ -462,7 +486,8 @@ class RobotSerialPort(Process):
                         for packet in packets:
                             queue.put((self.whoiam, time.time() - self.start_time, packet))
 
-                            # self.send_commands()
+                clock.update()
+
         except KeyboardInterrupt:
             pass
 

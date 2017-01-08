@@ -12,7 +12,13 @@ from atlasbuggy.logs import *
 pickled_sim_directory = ":simulations"
 
 
-class LivePlotter(Process):
+class PlotObject:
+    def __init__(self, **matplotlib_props):
+        self.x_data = np.empty()
+        self.y_data = np.empty()
+
+
+class LivePlotter:
     is_interactive = False
     fig_num = 0
 
@@ -59,81 +65,68 @@ class LivePlotter(Process):
             self.current_data_point = \
                 self.ax.plot(0, 0, 'o', color='black', markersize=10)[0]
 
-        self.plot_lock = Lock()
-        self.data_queue = Queue()
-        self.exit_event = Event()
-        super(LivePlotter, self).__init__(target=self.update_plot, args=(self.data_queue, self.plot_lock))
-
-        self.start()
-
     def handle_close(self):
         # print("Plot window closed")
         self.is_running = False
         self.close()
 
-    # def update_plot(self):
-    #     while not self.exit_event.is_set():
-
-
     def plot(self, x, y, z=None):
-        with self.plot_lock:
-            if not self.is_running:
-                return False
-            try:
-                self.fig = plt.figure(self.my_fig_num)
+        if not self.is_running:
+            return False
+        try:
+            self.fig = plt.figure(self.my_fig_num)
 
-                self.x_data = np.append(self.x_data, x)
-                self.y_data = np.append(self.y_data, y)
+            self.x_data = np.append(self.x_data, x)
+            self.y_data = np.append(self.y_data, y)
 
-                self.plot_data.set_xdata(self.x_data)
-                self.plot_data.set_ydata(self.y_data)
+            self.plot_data.set_xdata(self.x_data)
+            self.plot_data.set_ydata(self.y_data)
 
-                self.current_data_point.set_xdata([x])
-                self.current_data_point.set_ydata([y])
+            self.current_data_point.set_xdata([x])
+            self.current_data_point.set_ydata([y])
 
-                if x < self.min_x:
-                    self.min_x = x
-                if x > self.max_x:
-                    self.max_x = x
+            if x < self.min_x:
+                self.min_x = x
+            if x > self.max_x:
+                self.max_x = x
 
-                if y < self.min_y:
-                    self.min_y = y
-                if y > self.max_y:
-                    self.max_y = y
+            if y < self.min_y:
+                self.min_y = y
+            if y > self.max_y:
+                self.max_y = y
 
-                if self.enable_3d:
-                    assert z is not None
+            if self.enable_3d:
+                assert z is not None
 
-                    if z < self.min_z:
-                        self.min_z = z
-                    if z > self.max_z:
-                        self.max_z = z
+                if z < self.min_z:
+                    self.min_z = z
+                if z > self.max_z:
+                    self.max_z = z
 
-                    self.z_data = np.append(self.z_data, z)
+                self.z_data = np.append(self.z_data, z)
 
-                    self.current_data_point.set_3d_properties([z])
+                self.current_data_point.set_3d_properties([z])
 
-                    self.plot_data.set_3d_properties(self.z_data)
+                self.plot_data.set_3d_properties(self.z_data)
 
-                    self.ax.set_xlim3d([self.min_x, self.max_x])
-                    self.ax.set_ylim3d([self.min_y, self.max_y])
-                    self.ax.set_zlim3d([self.min_z, self.max_z])
-                else:
-                    plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
+                self.ax.set_xlim3d([self.min_x, self.max_x])
+                self.ax.set_ylim3d([self.min_y, self.max_y])
+                self.ax.set_zlim3d([self.min_z, self.max_z])
+            else:
+                plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
 
-                self.fig.canvas.draw()
-                plt.pause(0.01)  # can't be less than ~0.005
+            self.fig.canvas.draw()
+            plt.pause(0.01)  # can't be less than ~0.005
 
-                return True
-            except:
-                # print("plot closing")
-                traceback.print_exc()
+            return True
+        except:
+            # print("plot closing")
+            traceback.print_exc()
 
-                self.is_running = False
-                return False
+            self.is_running = False
+            return False
 
     def close(self):
-        self.exit_event.set()
         if self.is_running:
             plt.ioff()
             plt.close('all')
