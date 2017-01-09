@@ -41,7 +41,7 @@ class Dummy(RobotObject):
 
     def receive(self, packet):
         data = packet.split("\t")
-        self.dt = self.hex_to_float(data[0])
+        self.dt = float(data[0])
         self.accel_x = int(data[1])
         self.accel_y = int(data[2])
         self.accel_z = int(data[3])

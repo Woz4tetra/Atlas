@@ -12,12 +12,6 @@ from atlasbuggy.logs import *
 pickled_sim_directory = ":simulations"
 
 
-class PlotObject:
-    def __init__(self, **matplotlib_props):
-        self.x_data = np.empty()
-        self.y_data = np.empty()
-
-
 class LivePlotter:
     is_interactive = False
     fig_num = 0

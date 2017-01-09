@@ -1,19 +1,19 @@
 #define DEFAULT_RATE 115200
-#define WHO_I_AM ""  // put ID here
+#define WHOIAM ""  // define whoiam ID here (unique to each robot object)
 #define LED13 13
 
 char character = '\0';
 // char command_type = '\0';
 String command = "";
 
-void write_who_i_am()
+void write_whoiam()
 {
     Serial.print("iam");
-    Serial.print(WHO_I_AM);
+    Serial.print(WHOIAM);
     Serial.print('\n');
 }
 
-void read_serial()
+void readSerial()
 {
     while (Serial.available() && character != '\n')
     {
@@ -29,10 +29,13 @@ void read_serial()
 
 
         if (command.equals("whoareyou")) {
-            write_who_i_am();
+            write_whoiam();
         }
-        else if (command.equals("ready?")) {
-            Serial.print("ready!\n");
+        else if (command.equals("init?")) {
+            Serial.print("init:");
+            // Put other initialization data here
+
+            Serial.print("\n");
         }
         else if (command.equals("stop")) {
             digitalWrite(LED13, HIGH);
@@ -48,7 +51,6 @@ void read_serial()
 void setup()
 {
     Serial.begin(DEFAULT_RATE);
-    Serial.print("ready!\n");
 
     pinMode(LED13, OUTPUT);
 
@@ -57,7 +59,7 @@ void setup()
 
 void loop()
 {
-    read_serial();
+    readSerial();
 
 
 }

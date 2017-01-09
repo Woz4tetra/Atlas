@@ -55,12 +55,18 @@ class Logger:
             if not os.path.isdir(directory):
                 directory = os.path.join(project.interpret_dir(log_directory), directory)
 
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        print("Writing to:", os.path.join(directory, file_name))
+        self.file_name = file_name
+        self.directory = directory
 
-        self.data_file = open(os.path.join(directory, file_name), 'w+')
+        self.data_file = None
+        self.is_open = False
 
+    def open(self):
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+        print("Writing to:", os.path.join(self.directory, self.file_name))
+
+        self.data_file = open(os.path.join(self.directory, self.file_name), 'w+')
         self.is_open = True
 
     def record(self, timestamp, who_i_am, packet):
@@ -73,9 +79,9 @@ class Logger:
             )
 
     def close(self):
-        self.data_file.close()
-
-        self.is_open = False
+        if self.is_open:
+            self.data_file.close()
+            self.is_open = False
 
 
 class Parser:

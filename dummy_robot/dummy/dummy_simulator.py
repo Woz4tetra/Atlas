@@ -5,12 +5,12 @@ from atlasbuggy.interface import RobotInterfaceSimulator
 from dummy.dummy_bot import Dummy
 
 
-class DummyPostPlotter(RobotInterfaceSimulator):
+class DummySimulator(RobotInterfaceSimulator):
     def __init__(self, file_name, directory, enable_3d, use_pickled_data, start_index=0, end_index=-1,
                  **plot_info):
         self.dummy = Dummy()
 
-        super(DummyPostPlotter, self).__init__(
+        super(DummySimulator, self).__init__(
             file_name, directory, start_index, end_index,
             self.dummy
         )
@@ -34,8 +34,8 @@ class DummyPostPlotter(RobotInterfaceSimulator):
 
 def simulate_dummy():
     file_name, directory = project.parse_arguments(-1, -1)
-    DummyPostPlotter(file_name, directory,
-                     enable_3d=True, use_pickled_data=False,
-                     plot_dummy=dict(
+    DummySimulator(file_name, directory,
+                   enable_3d=True, use_pickled_data=False,
+                   plot_dummy=dict(
                          color='red', label="dummy"
                      )).run()

@@ -13,6 +13,16 @@ from atlasbuggy.errors import *
 
 class RobotObject:
     def __init__(self, whoiam):
+        """
+        A container for data received from the corresponding microcontroller.
+
+        Make sure the whoiam ID corresponds to the one defined on the microcontroller
+        (see templates for details).
+
+        Define object variables here
+
+        :param whoiam:
+        """
         self.whoiam = whoiam
 
         self.command_packets = Queue(maxsize=255)
@@ -21,7 +31,9 @@ class RobotObject:
         """
         Overwrite this method when subclassing RobotObject if you're expecting initial data
 
-        Initialize any data here. If the who_am_i packet contains data, it's passed here
+        Initialize any data defined in __init__ here.
+        If the who_am_i packet contains data, it's passed here. Otherwise, this method isn't called
+
         :param packet: The first packet received by the robot object's port
         :return: None
         """
@@ -41,31 +53,22 @@ class RobotObject:
         """
         pass
 
-    @staticmethod
-    def float_to_hex(number):
-        return "%0.8x" % struct.unpack('<I', struct.pack('<f', number))[0]
-
-    @staticmethod
-    def hex_to_float(hex_string):
-        return struct.unpack('!f', bytes.fromhex(hex_string))[0]
-
     def send(self, packet):
         """
         Do NOT overwrite this method when subclassing RobotObject
 
-        Queue a new packet for sending
-        :param packet: A packet (string) to send to the microcontroller
+        Queue a new packet for sending. The packet end (\n) will automatically be appended
+
+        :param packet: A packet (string) to send to the microcontroller without the packet end character
         :return: None
         """
         self.command_packets.put(packet)
 
-    def did_update(self, whoiam):
-        return self.whoiam == whoiam
-
 
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
-                 log_data=True, log_name=None, log_dir=None, debug_prints=False, updates_per_second=120):
+                 log_data=True, log_name=None, log_dir=None,
+                 debug_prints=False, updates_per_second=60):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -74,119 +77,39 @@ class RobotInterface:
         :param log_dir: The directory of the log file. If None, it will be today's date.
             See project.py for details
         :param debug_prints: Enable verbose prints
+        :param updates_per_second: How quickly each port process should run.
         """
+
         self.debug_prints = debug_prints
         self.updates_per_second = updates_per_second
+        self.lag_warning_thrown = False  # prevents the terminal from being spammed
 
-        self.log_data = log_data
-        if self.log_data:
+        if log_dir is None:
             # if no directory provided, use the ":today" flag
             # (follows the project.py directory reference convention)
-            if log_dir is None:
-                log_dir = ":today"
-            self.logger = Logger(log_name, log_dir)
-        else:
-            self.logger = None
-            self.time0 = time.time()
+            log_dir = ":today"
+        self.logger = Logger(log_name, log_dir)
+        if log_data:
+            self.logger.open()
 
         self.joystick = joystick
 
+        # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
         self.queue_lock = Lock()
 
-        self.ports = {}
         self.objects = {}
         for robot_object in robot_objects:
             self.objects[robot_object.whoiam] = robot_object
 
         # open all available ports
+        self.ports = {}
         for port_info in serial.tools.list_ports.comports():
-            self.configure_port(port_info, self.updates_per_second)
+            self._configure_port(port_info, self.updates_per_second)
 
-        self.check_objects()
-        self.check_ports()
-        self.send_first_packets()
-
-    def configure_port(self, port_info, updates_per_second):
-        if port_info.serial_number is not None:
-            port = RobotSerialPort(port_info, self.debug_prints,
-                                   self.packet_queue, self.queue_lock, updates_per_second)
-            self.ports[port.whoiam] = port
-
-            if not port.configured:
-                self._close_all()
-                self.print_port_info(port)
-
-                raise RobotSerialPortNotConfiguredError("Port not configured!", port)
-
-    def check_objects(self):
-        for whoiam in self.objects.keys():
-            if whoiam not in self.ports.keys():
-                self._close_all()
-                self.print_port_info(self.ports[whoiam])
-
-                raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
-
-    def check_ports(self):
-        for whoiam in self.ports.keys():
-            if whoiam not in self.objects.keys():
-                self._close_all()
-                self.print_port_info(self.ports[whoiam])
-
-                RobotSerialPortUnassignedError("Port not assigned to an object.", self.ports[whoiam])
-
-    def send_first_packets(self):
-        for whoiam in self.objects.keys():
-            first_packet = self.ports[whoiam].first_packet
-            self.objects[whoiam].receive_first(first_packet)
-
-            if self.log_data:
-                self.logger.record(-1, whoiam, first_packet)
-
-    def print_port_info(self, port):
-        if self.debug_prints:
-            pprint.pprint(port.port_info.__dict__)
-            print()
-            time.sleep(0.01)
-
-    def _start_all(self):
-        for whoiam in self.ports.keys():
-            self.ports[whoiam].start()
-
-    def _close_all(self):
-        """
-        Kill all RobotSerialPort threads and close their serial ports
-        :return: None
-        """
-        self.close()
-        if self.debug_prints:
-            print("Closing all ports")
-        for robot_port in self.ports.values():
-            robot_port.stop()
-
-    def packet_received(self, timestamp, whoiam):
-        return True
-
-    def loop(self):
-        """
-        Similar to Arduino's loop function. This will be run in a while True loop
-        :return: True if everything is ok. False if something signalled to close
-        """
-        return True
-
-    def close(self):
-        pass
-
-    def _are_ports_active(self):
-        for robot_port in self.ports.values():
-            status = robot_port.is_running()
-            if status < 1:
-                self._close_all()
-                if status == 0:
-                    raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
-                elif status == -1:
-                    raise RobotSerialPortTimeoutError("Port with ID '%s' timed out" % robot_port.whoiam)
-        return True
+        self._check_objects()
+        self._check_ports()
+        self._send_first_packets()
 
     def run(self):
         """
@@ -216,47 +139,206 @@ class RobotInterface:
             clock = Clock(self.updates_per_second)
 
             while self._are_ports_active():
-                if not self.packet_queue.empty():
-                    whoiam, timestamp, packet = self.packet_queue.get()
-                    self.objects[whoiam].receive(packet)
+                if not self._dequeue_packets():
+                    break
 
-                    if self.log_data:
-                        self.logger.record(timestamp, whoiam, packet)
-                    try:
-                        if self.packet_received(timestamp, whoiam) is False:
-                            if self.debug_prints:
-                                print("packet_received signalled to exit")
-                            break
-                    except BaseException as error:
-                        self._close_all()
-                        raise PacketReceivedSignalledExitError(error)
+                if not self._main_loop():
+                    break
 
-                    try:
-                        if self.loop() is False:
-                            if self.debug_prints:
-                                print("loop signalled to exit")
-                            break
-                    except BaseException as error:
-                        self._close_all()
-                        raise LoopSignalledExitError(error)
-
-                for whoiam in self.objects.keys():
-                    while not self.objects[whoiam].command_packets.empty():
-                        command = self.objects[whoiam].command_packets.get()
-                        if not self.ports[whoiam].write_packet(command):
-                            self._close_all()
-                            raise RobotSerialPortWritePacketError("Failed to send command:", command)
+                self._send_commands()
 
                 if self.joystick is not None:
                     if self.joystick.update() is False:
                         break
 
-                clock.update()
+                if not clock.update() and not self.lag_warning_thrown:
+                    print("Warning. Main loop is running slow.")
+                    self.lag_warning_thrown = True
 
         except KeyboardInterrupt:
             pass
 
         self._close_all()
+
+    def packet_received(self, timestamp, whoiam):
+        """
+        Overwrite this method
+
+        A callback function for every time a packet is received
+
+        :param timestamp: The time the packet arrived
+        :param whoiam: Which robot object the packet went to
+        :return: return False if the program should exit for some reason
+        """
+        return True
+
+    def loop(self):
+        """
+        Overwrite this method
+
+        Similar to Arduino's loop function. This will be run in a while True loop
+
+        :return: True if everything is ok. False if something signalled to close
+        """
+        return True
+
+    def close(self):
+        """
+        Code that should be run before the ports close
+
+        :return: None
+        """
+        pass
+
+    def _configure_port(self, port_info, updates_per_second):
+        """
+        Initialize a serial port recognized by pyserial.
+        Only devices that are plugged in should be recognized
+
+        :param port_info: an instance of serial.tools.list_ports_common.ListPortInfo
+        :param updates_per_second: how often the port should update
+        :return: None
+        """
+        if port_info.serial_number is not None:
+            port = RobotSerialPort(port_info, self.debug_prints,
+                                   self.packet_queue, self.queue_lock, updates_per_second)
+            self.ports[port.whoiam] = port
+
+            if not port.configured:
+                self._close_all()
+                self._print_port_info(port)
+
+                raise RobotSerialPortNotConfiguredError("Port not configured!", port)
+
+    def _check_objects(self):
+        """
+        Validate that all objects are assigned to ports. Throw RobotObjectNotFoundError otherwise
+        :return: None
+        """
+        for whoiam in self.objects.keys():
+            if whoiam not in self.ports.keys():
+                self._close_all()
+                self._print_port_info(self.ports[whoiam])
+
+                raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
+
+    def _check_ports(self):
+        """
+        Validate that all ports are assigned to objects. Throw RobotSerialPortUnassignedError otherwise
+        :return: None
+        """
+        for whoiam in self.ports.keys():
+            if whoiam not in self.objects.keys():
+                self._close_all()
+                self._print_port_info(self.ports[whoiam])
+
+                RobotSerialPortUnassignedError("Port not assigned to an object.", self.ports[whoiam])
+
+    def _send_first_packets(self):
+        """
+        Send each port's first packet to the corresponding object if it isn't an empty string
+        :return: None
+        """
+        for whoiam in self.objects.keys():
+            first_packet = self.ports[whoiam].first_packet
+            if len(first_packet) > 0:
+                self.objects[whoiam].receive_first(first_packet)
+
+                self.logger.record(-1, whoiam, first_packet)
+
+    def _print_port_info(self, port):
+        """
+        Print the crashed port's info
+        :param port:
+        :return:
+        """
+        if self.debug_prints:
+            pprint.pprint(port.port_info.__dict__)
+            print()
+            time.sleep(0.01)
+
+    def _start_all(self):
+        """
+        Start all port processes
+        :return: None
+        """
+        for whoiam in self.ports.keys():
+            self.ports[whoiam].start()
+
+    def _close_all(self):
+        """
+        Kill all RobotSerialPort threads and close their serial ports
+        :return: None
+        """
+        self.close()
+        if self.debug_prints:
+            print("Closing all ports")
+        for robot_port in self.ports.values():
+            robot_port.stop()
+
+    def _are_ports_active(self):
+        """
+        Using each robot port's is_running method, check if the processes are running properly
+        :return:
+        """
+        for robot_port in self.ports.values():
+            status = robot_port.is_running()
+            if status < 1:
+                self._close_all()
+                if status == 0:
+                    raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
+                elif status == -1:
+                    raise RobotSerialPortTimeoutError("Port with ID '%s' timed out" % robot_port.whoiam)
+        return True
+
+    def _dequeue_packets(self):
+        """
+        dequeue all packets from packet_queue. Pass them to the corresponding robot objects
+        :return: what packet_received returns (True or False signalled to exit or not)
+        """
+        with self.queue_lock:
+            while not self.packet_queue.empty():
+                whoiam, timestamp, packet = self.packet_queue.get()
+                self.objects[whoiam].receive(packet)
+
+                self.logger.record(timestamp, whoiam, packet)
+                try:
+                    if self.packet_received(timestamp, whoiam) is False:
+                        if self.debug_prints:
+                            print("packet_received signalled to exit")
+                        return False
+                except BaseException as error:
+                    self._close_all()
+                    raise PacketReceivedSignalledExitError(error)
+            return True
+
+    def _main_loop(self):
+        """
+        Call the loop method safely
+        :return: True or False signalled to exit or not
+        """
+        try:
+            if self.loop() is False:
+                if self.debug_prints:
+                    print("loop signalled to exit")
+                return False
+        except BaseException as error:
+            self._close_all()
+            raise LoopSignalledExitError(error)
+
+        return True
+
+    def _send_commands(self):
+        """
+        Check every robot object. Send all commands if there are any
+        :return:
+        """
+        for whoiam in self.objects.keys():
+            while not self.objects[whoiam].command_packets.empty():
+                command = self.objects[whoiam].command_packets.get()
+                if not self.ports[whoiam].write_packet(command):
+                    self._close_all()
+                    raise RobotSerialPortWritePacketError("Failed to send command:", command)
 
 
 class RobotInterfaceSimulator:
@@ -296,13 +378,17 @@ class Clock:
         self.loops_per_second = loops_per_second
 
     def update(self):
-        measured_ups = 1 / (time.time() - self.loop_time)
-        offset = self.loops_per_second - measured_ups
-        if offset > 0:
-            time.sleep(1 / offset)
-        self.loop_time = time.time()
+        current_time = time.time()
+        if current_time != self.loop_time:
+            measured_ups = 1 / (current_time - self.loop_time)
+            offset = measured_ups - self.loops_per_second
+            if offset > 0:
+                time.sleep(1 / offset)
+            self.loop_time = time.time()
 
-        return offset > 0
+            return offset > 0
+        else:
+            return False
 
 
 class RobotSerialPort(Process):
@@ -333,12 +419,17 @@ class RobotSerialPort(Process):
 
         self.whoiam = None  # ID tag of the microcontroller
         self.whoiam_header = "iam"  # whoiam packets start with "iam"
+        self.whoiam_ask = "whoareyou"
+
+        self.first_packet = None
+        self.first_packet_ask = "init?"
+        self.first_packet_header = "init:"
+
         self.packet_end = "\n"  # what this microcontroller's packets end with
         self.baud_rate = 115200
 
         # buffer for putting packets into
         self.buffer = ""
-        self.first_packet = ""
 
         # attempt to open the serial port
         try:
@@ -347,94 +438,51 @@ class RobotSerialPort(Process):
             self.handle_error(error)
 
         if self.configured:
-            # check if the microcontroller signals ready
-            if self.is_ready():
-                # Find the ID of this port. The ports will be matched up to the correct RobotObject later
-                self.find_whoiam()
+            # Find the ID of this port. The ports will be matched up to the correct RobotObject later
+            self.find_whoiam()
+            if self.whoiam is not None:
+                self.find_first_packet()
+            elif self.debug_prints:
+                print("whoiam ID was None, skipping find_first_packet")
+        elif self.debug_prints:
+            print("Port not configured. Skipping find_whoiam")
 
         self.exit_event = Event()
         super(RobotSerialPort, self).__init__(target=self.update, args=(queue, lock))
 
     # ----- initialization methods -----
 
-    def is_ready(self):
-        """
-        Check if microcontroller is ready. This method will wait 1 second
-        until the packet is received
-        :return: None
-        """
-
-        is_ready = self.check_protocol("ready?", self.parse_for_ready_packet)
-
-        if is_ready:
-            if self.debug_prints:
-                print("%s is ready" % self.address)
-            else:
-                print("%s is ready" % self.address, end=" ")
-        else:
-            print("%s is NOT ready!" % self.address)
-
-        return is_ready
-
-    @staticmethod
-    def parse_for_ready_packet(packets):
-        return "ready!" in packets
-
     def find_whoiam(self):
         """
         Get the whoiam packet from the microcontroller. This method will wait 1 second
         until the packet is received
 
+        example: "iamlidar"
+
         When the packet is found, parse_whoiam_packet is called and whoiam is assigned
         :return: whoiam packet and first_packet
         """
 
-        abides_protocol = self.check_protocol("whoareyou", self.parse_for_whoiam_packet)
+        self.whoiam = self.check_protocol(self.whoiam_ask, self.whoiam_header)
 
-        if abides_protocol:
-            if self.debug_prints:
-                print("%s has ID '%s'" % (self.address, self.whoiam))
-            else:
-                print("and has ID '%s'" % self.whoiam)
-
-    def parse_for_whoiam_packet(self, packets):
-        """
-        Check if the packet is a whoiam packet (starts with "iam")
-        Parses any accompanying data
-
-        example: "iamlidar\t0,1,2"
-            \t indicates extra data to be sent to robot_object.receive_first
-            if there is no tab character, first_packet is "" and receive_first is not called
-        :param packets: a packet that may or may not be a whoiam packet
-        :return: whoiam and first_packet if they are found None and "" otherwise
-        """
-        for packet in packets:
-            # if packet contains whoiam_header
-            if packet[0:len(self.whoiam_header)] == self.whoiam_header:
-                # remove the "iam" header
-                packet = packet[len(self.whoiam_header):]
-
-                # whoiam packets can contain initialization data, this is indicated by a tab character.
-                # If it exists, assign the rest of the packet to first_packet
-                data_index = packet.find("\t")
-                if data_index != -1:
-                    self.whoiam = packet[:data_index]
-                    self.first_packet = packet[data_index + 1:]
-                else:
-                    self.whoiam = packet
-                    self.first_packet = ""
-
-                return True
-        return False
-
-    def check_protocol(self, send_packet, receive_fn):
         if self.debug_prints:
-            print("Checking '%s' protocol" % send_packet)
-        if not self.write_packet(send_packet):
-            return False
+            print("%s has ID '%s'" % (self.address, self.whoiam))
+
+    def find_first_packet(self):
+        self.first_packet = self.check_protocol(self.first_packet_ask, self.first_packet_header)
+
+        if self.debug_prints:
+            print("%s sent initialization data: %s" % (self.address, repr(self.first_packet)))
+
+    def check_protocol(self, ask_packet, recv_packet_header):
+        if self.debug_prints:
+            print("Checking '%s' protocol" % ask_packet)
+        if not self.write_packet(ask_packet):
+            return None
 
         start_time = time.time()
         abides_protocol = False
+        answer_packet = ""
 
         # wait for the correct response
         while not abides_protocol:
@@ -444,12 +492,21 @@ class RobotSerialPort(Process):
                 self.handle_error("Serial read failed... Board never signalled ready")
                 return False
             if (time.time() - start_time) > 1:
-                self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % send_packet)
+                self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
                 return False
 
-            abides_protocol = receive_fn(packets)
+            for packet in packets:
+                if packet[0:len(recv_packet_header)] == recv_packet_header:
+                    if self.debug_prints:
+                        print("received packet:", repr(packet))
+                    answer_packet = packet[len(recv_packet_header):]
+                    if self.debug_prints:
+                        print("answer packet:", repr(answer_packet))
+                    abides_protocol = True
 
-        return True  # when the while loop exits, abides_protocol must be True
+        if self.debug_prints:
+            print("returning answer packet:", repr(answer_packet))
+        return answer_packet  # when the while loop exits, abides_protocol must be True
 
     def handle_error(self, error):
         self.configured = False
@@ -489,10 +546,11 @@ class RobotSerialPort(Process):
                 clock.update()
 
         except KeyboardInterrupt:
-            pass
+            if self.debug_prints:
+                print("KeyboardInterrupt in port loop")
 
         if self.debug_prints:
-            print("While loop exited. Process loop event triggered. Closing port")
+            print("While loop exited. Exit event triggered. Closing port")
         self.close_port()
 
     def read_packets(self):
@@ -599,12 +657,10 @@ class RobotSerialPort(Process):
         """
 
         if self.configured:
-            time.sleep(0.05)
             self.write_packet("stop\n")
 
             if self.debug_prints:
                 print("Sent stop flag")
-            time.sleep(0.05)
 
             self.configured = False
 
