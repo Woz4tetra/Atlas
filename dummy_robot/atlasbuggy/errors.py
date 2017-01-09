@@ -8,8 +8,12 @@ class RobotObjectBaseError(Exception):
             for line in port.error_message:
                 port_error_message += str(line).strip() + "\n"
 
-            port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: '%s'" % (
-                port_error_message, port.address, port.whoiam
+            if type(port.whoiam) == str:
+                whoiam_info = '%s' % port.whoiam
+            else:
+                whoiam_info = str(port.whoiam)
+            port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: %s" % (
+                port_error_message, port.address, whoiam_info
             )
         else:
             port_error_info = ""
@@ -20,11 +24,17 @@ class ReceivePacketError(RobotObjectBaseError):
     """Failed to parse a packet from serial"""
 
 
-class LoopSignalledExitError(Exception):
+class LoopSignalledError(Exception):
     """Loop method threw an exception"""
+
+
+class CloseSignalledExitError(Exception):
+    """Loop method threw an exception"""
+
 
 class PacketReceivedSignalledExitError(Exception):
     """packet_received method threw an exception"""
+
 
 class RobotSerialPortUnassignedError(RobotObjectBaseError):
     """Port was open successfully but no objects use it"""

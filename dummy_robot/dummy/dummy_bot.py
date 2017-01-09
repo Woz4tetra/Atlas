@@ -1,5 +1,3 @@
-import time
-
 from atlasbuggy.interface import RobotObject
 
 
@@ -20,8 +18,6 @@ class Dummy(RobotObject):
             0: "r", 1: "g", 2: "y"
         }
         self.blue_led = 0
-
-        self.time0 = time.time()
 
         super(Dummy, self).__init__("dummy")
 

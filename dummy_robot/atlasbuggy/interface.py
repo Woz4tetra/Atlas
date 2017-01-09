@@ -68,7 +68,7 @@ class RobotObject:
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None,
-                 debug_prints=False, updates_per_second=60):
+                 debug_prints=False, loop_updates_per_second=60, port_updates_per_second=720):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -81,7 +81,8 @@ class RobotInterface:
         """
 
         self.debug_prints = debug_prints
-        self.updates_per_second = updates_per_second
+        self.loop_updates_per_second = loop_updates_per_second
+        self.port_updates_per_second = port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
 
         if log_dir is None:
@@ -105,7 +106,7 @@ class RobotInterface:
         # open all available ports
         self.ports = {}
         for port_info in serial.tools.list_ports.comports():
-            self._configure_port(port_info, self.updates_per_second)
+            self._configure_port(port_info, self.port_updates_per_second)
 
         self._check_objects()
         self._check_ports()
@@ -136,7 +137,9 @@ class RobotInterface:
         self._start_all()
 
         try:
-            clock = Clock(self.updates_per_second)
+            self.start()
+
+            clock = Clock(self.loop_updates_per_second)
 
             while self._are_ports_active():
                 if not self._dequeue_packets():
@@ -154,6 +157,8 @@ class RobotInterface:
                 if not clock.update() and not self.lag_warning_thrown:
                     print("Warning. Main loop is running slow.")
                     self.lag_warning_thrown = True
+
+                    # print("offset:", clock.offset)
 
         except KeyboardInterrupt:
             pass
@@ -181,6 +186,14 @@ class RobotInterface:
         :return: True if everything is ok. False if something signalled to close
         """
         return True
+
+    def start(self):
+        """
+        Code that should be run just after the ports are opened
+
+        :return: None
+        """
+        pass
 
     def close(self):
         """
@@ -265,16 +278,24 @@ class RobotInterface:
         for whoiam in self.ports.keys():
             self.ports[whoiam].start()
 
+    def _stop_all_ports(self):
+        if self.debug_prints:
+            print("Closing all ports")
+        for robot_port in self.ports.values():
+            robot_port.stop()
+
     def _close_all(self):
         """
         Kill all RobotSerialPort threads and close their serial ports
         :return: None
         """
-        self.close()
-        if self.debug_prints:
-            print("Closing all ports")
-        for robot_port in self.ports.values():
-            robot_port.stop()
+        try:
+            self.close()
+        except BaseException as error:
+            self._stop_all_ports()
+            raise CloseSignalledExitError(error)
+
+        self._stop_all_ports()
 
     def _are_ports_active(self):
         """
@@ -324,7 +345,7 @@ class RobotInterface:
                 return False
         except BaseException as error:
             self._close_all()
-            raise LoopSignalledExitError(error)
+            raise LoopSignalledError(error)
 
         return True
 
@@ -375,18 +396,30 @@ class RobotInterfaceSimulator:
 class Clock:
     def __init__(self, loops_per_second):
         self.loop_time = time.time()
-        self.loops_per_second = loops_per_second
+        if loops_per_second is not None:
+            self.seconds_per_loop = 1 / loops_per_second
+        else:
+            self.seconds_per_loop = None
+
+        self.current_time = time.time()
+        self.time_diff = 0
+        self.offset = 0
 
     def update(self):
-        current_time = time.time()
-        if current_time != self.loop_time:
-            measured_ups = 1 / (current_time - self.loop_time)
-            offset = measured_ups - self.loops_per_second
-            if offset > 0:
-                time.sleep(1 / offset)
+        if self.seconds_per_loop is None:
+            return True
+
+        self.current_time = time.time()
+        if self.current_time != self.loop_time:
+            self.time_diff = self.current_time - self.loop_time
+            self.offset = self.seconds_per_loop - self.time_diff
+
+            if self.offset > 0:
+                time.sleep(self.offset)
+
             self.loop_time = time.time()
 
-            return offset > 0
+            return self.offset > 0
         else:
             return False
 
@@ -466,13 +499,19 @@ class RobotSerialPort(Process):
         self.whoiam = self.check_protocol(self.whoiam_ask, self.whoiam_header)
 
         if self.debug_prints:
-            print("%s has ID '%s'" % (self.address, self.whoiam))
+            if self.whoiam is not None:
+                print("%s has ID '%s'" % (self.address, self.whoiam))
+            else:
+                print("Failed to obtain whoiam ID!")
 
     def find_first_packet(self):
         self.first_packet = self.check_protocol(self.first_packet_ask, self.first_packet_header)
 
         if self.debug_prints:
-            print("%s sent initialization data: %s" % (self.address, repr(self.first_packet)))
+            if self.first_packet is not None:
+                print("%s sent initialization data: %s" % (self.address, repr(self.first_packet)))
+            else:
+                print("Failed to obtain first packet!")
 
     def check_protocol(self, ask_packet, recv_packet_header):
         if self.debug_prints:
@@ -490,10 +529,10 @@ class RobotSerialPort(Process):
             self.print_packets(packets)
             if not status:
                 self.handle_error("Serial read failed... Board never signalled ready")
-                return False
+                return None
             if (time.time() - start_time) > 1:
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
-                return False
+                return None
 
             for packet in packets:
                 if packet[0:len(recv_packet_header)] == recv_packet_header:

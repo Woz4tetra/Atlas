@@ -16,28 +16,35 @@ class DummyRunner(RobotInterface):
             self.live_plot1 = LivePlotter(data_range, data_range, data_range, color='red', marker='+')
             self.live_plot2 = LivePlotter((0, 0), data_range, (0, 180), linestyle='-', marker='+')
 
-        super(DummyRunner, self).__init__(self.dummy,  # joystick=Logitech(),
-                                          log_data=False, debug_prints=True)
+        super(DummyRunner, self).__init__(
+            self.dummy,
+            # joystick=Logitech(),
+            log_data=False,
+            debug_prints=True,
+            port_updates_per_second=180
+        )
 
     def packet_received(self, timestamp, whoiam):
         if whoiam == self.dummy.whoiam:
-            print(timestamp, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
-            # print(timestamp, self.dummy.dt, timestamp - self.dummy.dt)
-
             if live_plotting:
                 status1 = self.live_plot1.plot(
                     self.dummy.accel_x,
                     self.dummy.accel_y,
                     self.dummy.accel_z
                 )
+                if not status1:
+                    return False
+
                 status2 = self.live_plot2.plot(
                     timestamp,
                     self.dummy.accel_y,
                     self.dummy.accel_z
                 )
-
-                if not status1 or not status2:
+                if not status2:
                     return False
+            else:
+                # print(timestamp, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
+                print("Behind by %7.5fs (%7.5f, %7.5f)" % (timestamp - self.dummy.dt, timestamp, self.dummy.dt))
 
     def loop(self):
         if self.joystick is not None:
@@ -62,3 +69,5 @@ class DummyRunner(RobotInterface):
 
 def run_dummy():
     DummyRunner().run()
+
+run_dummy()

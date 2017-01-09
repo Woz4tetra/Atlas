@@ -39,3 +39,5 @@ def simulate_dummy():
                    plot_dummy=dict(
                          color='red', label="dummy"
                      )).run()
+
+simulate_dummy()

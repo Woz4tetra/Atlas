@@ -110,7 +110,7 @@ class LivePlotter:
                 plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
 
             self.fig.canvas.draw()
-            plt.pause(0.01)  # can't be less than ~0.005
+            plt.pause(0.005)  # can't be less than ~0.005
 
             return True
         except:
