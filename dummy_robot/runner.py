@@ -14,10 +14,10 @@ class DummyRunner(RobotInterface):
         if live_plotting:
             gravity_range = (-90, 90)
             self.xyz_plot = RobotPlot("dummy xyz",
-                                      flat_plot=False, skip_count=100, color="red",
+                                      flat_plot=False, skip_count=200, color="red",
                                       x_range=gravity_range, y_range=gravity_range, z_range=gravity_range)
             self.xtz_plot = RobotPlot("dummy xtz",
-                                      flat_plot=False, skip_count=100, color="blue",
+                                      flat_plot=False, skip_count=200, color="blue",
                                       x_range=gravity_range, z_range=gravity_range)
             self.container_plot = RobotPlot("container", plot_enabled=False,
                                             flat_plot=True, skip_count=200, color="green",
@@ -40,6 +40,18 @@ class DummyRunner(RobotInterface):
     def packet_received(self, timestamp, whoiam):
         if whoiam == self.dummy.whoiam:
             if live_plotting:
+                # if self.clock.on_time:
+                #     self.xtz_plot.skip_count -= 1
+                #     self.xyz_plot.skip_count -= 1
+                # else:
+                #     self.xtz_plot.skip_count += 1
+                #     self.xyz_plot.skip_count += 1
+                # if self.xtz_plot.skip_count < 1:
+                #     self.xtz_plot.skip_count = 1
+                # if self.xyz_plot.skip_count < 1:
+                #     self.xyz_plot.skip_count = 1
+                #
+                # print(self.xyz_plot.skip_count)
                 self.xtz_plot.append(self.dummy.accel_x, self.dummy.dt, self.dummy.accel_z)
                 self.xyz_plot.append(self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
 
