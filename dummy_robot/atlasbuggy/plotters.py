@@ -12,33 +12,101 @@ from atlasbuggy.logs import *
 pickled_sim_directory = ":simulations"
 
 
+class RobotPlot:
+    def __init__(self, plot_name, flat_plot=True, x_range=None, y_range=None, z_range=None,
+                 line_segments=False, log_based_plot=True, line_seg_freq=1, skip_count=0,
+                 plot_enabled=True,
+
+                 **plot_properties):
+        self.name = plot_name
+        self.is_flat = flat_plot
+        self.enabled = plot_enabled
+
+        self.properties = plot_properties
+
+        self.line_segments = line_segments
+        self.log_based_plot = log_based_plot
+        self.line_seg_freq = line_seg_freq
+        self.skip_count = skip_count
+
+        if self.x_range is None:
+            self.x_range = (0, 0)
+        else:
+            self.x_range = x_range
+
+        if self.y_range is None:
+            self.y_range = (0, 0)
+        else:
+            self.y_range = y_range
+
+        if self.z_range is None:
+            self.z_range = (0, 0)
+        else:
+            self.z_range = z_range
+
+        self.line_seg_counter = 0
+
+        if self.line_segments:
+            self.data = []
+        else:
+            self.data = \
+                [[] for _ in range(2 if flat_plot else 3)]
+
+
 class LivePlotter:
     is_interactive = False
-    fig_num = 0
+    initialized = False
 
-    def __init__(self, x_range, y_range, z_range=None, color='blue', linestyle='-', marker=None):
+    def __init__(self, num_columns, *robot_plots):
+        if LivePlotter.initialized:
+            raise Exception("Can't have multiple LivePlotter instances!")
+        LivePlotter.initialized = True
+
         if not LivePlotter.is_interactive:
             plt.ion()
             LivePlotter.is_interactive = True
 
-        self.min_x = x_range[0]
-        self.max_x = x_range[1]
-
-        self.min_y = y_range[0]
-        self.max_y = y_range[1]
-
-        self.x_data = np.array([])
-        self.y_data = np.array([])
-
-        self.enable_3d = True if z_range is not None else False
-
-        self.my_fig_num = LivePlotter.fig_num
-
-        self.fig = plt.figure(LivePlotter.fig_num)
-        LivePlotter.fig_num += 1
-        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
         self.is_running = True
 
+        self.robot_plots = robot_plots
+
+        self.fig = plt.figure(0)
+        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+
+        num_plots = len(self.robot_plots)
+        num_rows = num_plots // num_columns
+        num_rows += num_plots % num_columns
+
+        self.axes = {}
+
+        plot_num = 0
+        for plot in self.robot_plots:
+            self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
+            plot_num += 1
+
+            if plot.flat:
+                plot.data = self.axes[plot.name].plot([0], [0], [0], **plot.properties)[0]
+            else:
+                plot.data = self.axes[plot.name].plot(0, 0, **plot.properties)[0]
+
+    
+
+    def handle_close(self):
+        self.is_running = False
+        self.close()
+
+    def close(self):
+        if self.is_running:
+            plt.ioff()
+            plt.close('all')
+            plt.gcf()
+
+
+class LivePlotterOld:
+    is_interactive = False
+    fig_num = 0
+
+    def __init__(self, x_range, y_range, z_range=None, color='blue', linestyle='-', marker=None):
         if self.enable_3d:
             self.min_z = z_range[0]
             self.max_z = z_range[1]
