@@ -15,13 +15,13 @@ class LivePlotter:
         # plt.axis([0, len(xs), 0, 1000])
         ax = self.fig.add_subplot(111)
 
-        self.lidar_cloud, = ax.plot(xs, ys, '.')
-        ax.plot(0, 0, 'o', color='black', markersize=10)
+        self.lidar_cloud, = ax.append(xs, ys, '.')
+        ax.append(0, 0, 'o', color='black', markersize=10)
 
     def plot_scatter(self, xs, ys):
         self.lidar_cloud.set_xdata(xs)
         self.lidar_cloud.set_ydata(ys)
-        self.fig.canvas.draw()
+        self.fig.canvas.plot()
         # plt.scatter(xs, ys)
 
         # plt.show()

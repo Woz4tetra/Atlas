@@ -2,9 +2,9 @@ from atlasbuggy.interface import RobotInterface
 from dummy.dummy_bot import Dummy
 from joysticks.logitech import Logitech
 
-live_plotting = False
+live_plotting = True
 if live_plotting:
-    from atlasbuggy.plotters import LivePlotter
+    from atlasbuggy.plotters import LivePlotter, RobotPlot
 
 
 class DummyRunner(RobotInterface):
@@ -12,30 +12,45 @@ class DummyRunner(RobotInterface):
         self.dummy = Dummy()
 
         if live_plotting:
-            data_range = (-90, 90)
-            self.live_plot = LivePlotter(data_range, data_range, data_range, color='red', marker='+')
+            gravity_range = (-90, 90)
+            self.xyz_plot = RobotPlot("dummy xyz",
+                                      flat_plot=False, skip_count=100, color="red",
+                                      x_range=gravity_range, y_range=gravity_range, z_range=gravity_range)
+            self.xtz_plot = RobotPlot("dummy xtz",
+                                      flat_plot=False, skip_count=100, color="blue",
+                                      x_range=gravity_range, z_range=gravity_range)
+            self.container_plot = RobotPlot("container", plot_enabled=False,
+                                            flat_plot=True, skip_count=200, color="green",
+                                            linestyle="None", marker=".",
+                                            x_range=gravity_range, y_range=gravity_range)
+
+            self.xs = [0] * 180
+            self.ys = [0] * 180
+
+            self.live_plot = LivePlotter(2, self.xyz_plot, self.xtz_plot, self.container_plot)
 
         super(DummyRunner, self).__init__(
             self.dummy,
             # joystick=Logitech(),
             log_data=False,
-            debug_prints=True,
+            debug_prints=False,
             port_updates_per_second=180
         )
 
     def packet_received(self, timestamp, whoiam):
         if whoiam == self.dummy.whoiam:
             if live_plotting:
-                status = self.live_plot.plot(
-                    self.dummy.accel_x,
-                    self.dummy.accel_y,
-                    self.dummy.accel_z
-                )
-                if not status:
-                    return False
+                self.xtz_plot.append(self.dummy.accel_x, self.dummy.dt, self.dummy.accel_z)
+                self.xyz_plot.append(self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
 
-            else:
+                if self.container_plot.enabled:
+                    self.xs[self.dummy.accel_z % 180] = self.dummy.accel_x
+                    self.ys[self.dummy.accel_z % 180] = self.dummy.accel_y
+                self.container_plot.update(self.xs, self.ys)
                 # print(timestamp, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
+                if not self.live_plot.plot():
+                    return False
+            else:
                 print("Behind by %7.5fs (%7.5f, %7.5f)" % (timestamp - self.dummy.dt, timestamp, self.dummy.dt))
 
     def loop(self):
@@ -60,5 +75,6 @@ class DummyRunner(RobotInterface):
 
 def run_dummy():
     DummyRunner().run()
+
 
 run_dummy()

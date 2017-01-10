@@ -95,6 +95,8 @@ class RobotInterface:
 
         self.joystick = joystick
 
+        self.clock = Clock(self.loop_updates_per_second)
+
         # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
         self.queue_lock = Lock()
@@ -139,7 +141,7 @@ class RobotInterface:
         try:
             self.start()
 
-            clock = Clock(self.loop_updates_per_second)
+            self.clock.start()
 
             while self._are_ports_active():
                 if not self._dequeue_packets():
@@ -154,11 +156,9 @@ class RobotInterface:
                     if self.joystick.update() is False:
                         break
 
-                if not clock.update() and not self.lag_warning_thrown:
+                if not self.clock.update() and not self.lag_warning_thrown:
                     print("Warning. Main loop is running slow.")
                     self.lag_warning_thrown = True
-
-                    # print("offset:", clock.offset)
 
         except KeyboardInterrupt:
             pass
@@ -395,15 +395,21 @@ class RobotInterfaceSimulator:
 
 class Clock:
     def __init__(self, loops_per_second):
-        self.loop_time = time.time()
+        self.loop_time = 0
         if loops_per_second is not None:
             self.seconds_per_loop = 1 / loops_per_second
         else:
             self.seconds_per_loop = None
 
-        self.current_time = time.time()
+        self.current_time = 0
         self.time_diff = 0
         self.offset = 0
+
+        self.on_time = True
+
+    def start(self):
+        self.loop_time = time.time()
+        self.current_time = time.time()
 
     def update(self):
         if self.seconds_per_loop is None:
@@ -415,7 +421,10 @@ class Clock:
             self.offset = self.seconds_per_loop - self.time_diff
 
             if self.offset > 0:
+                self.on_time = True
                 time.sleep(self.offset)
+            else:
+                self.on_time = False
 
             self.loop_time = time.time()
 
@@ -530,7 +539,7 @@ class RobotSerialPort(Process):
             if not status:
                 self.handle_error("Serial read failed... Board never signalled ready")
                 return None
-            if (time.time() - start_time) > 1:
+            if (time.time() - start_time) > 2:
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
                 return None
 
@@ -560,6 +569,7 @@ class RobotSerialPort(Process):
 
         self.start_time = time.time()
         clock = Clock(self.updates_per_second)
+        clock.start()
 
         try:
             while not self.exit_event.is_set():

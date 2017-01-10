@@ -1,12 +1,9 @@
 import math
 import traceback
 from collections import defaultdict
-from multiprocessing import Process, Lock, Queue, Event
 
 import mpl_toolkits.mplot3d.axes3d as p3
-import numpy as np
 from matplotlib import pyplot as plt
-
 from atlasbuggy.logs import *
 
 pickled_sim_directory = ":simulations"
@@ -15,11 +12,10 @@ pickled_sim_directory = ":simulations"
 class RobotPlot:
     def __init__(self, plot_name, flat_plot=True, x_range=None, y_range=None, z_range=None,
                  line_segments=False, log_based_plot=True, line_seg_freq=1, skip_count=0,
-                 plot_enabled=True,
-
+                 plot_enabled=True, range_offset=1,
                  **plot_properties):
         self.name = plot_name
-        self.is_flat = flat_plot
+        self.flat = flat_plot
         self.enabled = plot_enabled
 
         self.properties = plot_properties
@@ -28,33 +24,87 @@ class RobotPlot:
         self.log_based_plot = log_based_plot
         self.line_seg_freq = line_seg_freq
         self.skip_count = skip_count
+        self.skip_counter = 0
 
-        if self.x_range is None:
-            self.x_range = (0, 0)
-        else:
-            self.x_range = x_range
-
-        if self.y_range is None:
-            self.y_range = (0, 0)
-        else:
-            self.y_range = y_range
-
-        if self.z_range is None:
-            self.z_range = (0, 0)
-        else:
-            self.z_range = z_range
+        self.x_range = x_range
+        if type(self.x_range) == tuple:
+            self.x_range = list(x_range)
+        self.y_range = y_range
+        if type(self.y_range) == tuple:
+            self.y_range = list(y_range)
+        self.z_range = z_range
+        if type(self.z_range) == tuple:
+            self.z_range = list(z_range)
+        self.range_offset = range_offset
 
         self.line_seg_counter = 0
 
         if self.line_segments:
             self.data = []
         else:
-            self.data = \
-                [[] for _ in range(2 if flat_plot else 3)]
+            self.data = [[] for _ in range(2 if flat_plot else 3)]
+
+    def should_skip(self):
+        if self.skip_count == 0:
+            return False
+        else:
+            self.skip_counter += 1
+            return self.skip_counter % self.skip_count
+
+    def update(self, xs, ys, zs=None):
+        if not self.enabled:
+            return
+
+        self.data[0] = xs
+        min_x, max_x = min(xs), max(xs)
+        self.x_range = self.update_range(min_x, self.x_range)
+        self.x_range = self.update_range(max_x, self.x_range)
+
+        self.data[1] = ys
+        min_y, max_y = min(ys), max(ys)
+        self.y_range = self.update_range(min_y, self.y_range)
+        self.y_range = self.update_range(max_y, self.y_range)
+
+        if not self.flat:
+            self.data[2] = zs
+            min_z, max_z = min(zs), max(zs)
+            self.z_range = self.update_range(min_z, self.z_range)
+            self.z_range = self.update_range(max_z, self.z_range)
+
+    def append(self, x, y, z=None):
+        if not self.enabled:
+            return
+
+        self.append_x(x)
+        self.append_y(y)
+        if not self.flat:
+            self.append_z(z)
+
+    def update_range(self, value, range_list):
+        if range_list is None:
+            range_list = [value - self.range_offset, value + self.range_offset]
+
+        if value < range_list[0]:
+            range_list[0] = value - self.range_offset
+        if value > range_list[1]:
+            range_list[1] = value + self.range_offset
+
+        return range_list
+
+    def append_x(self, x):
+        self.data[0].append(x)
+        self.x_range = self.update_range(x, self.x_range)
+
+    def append_y(self, y):
+        self.data[1].append(y)
+        self.y_range = self.update_range(y, self.y_range)
+
+    def append_z(self, z):
+        self.data[2].append(z)
+        self.z_range = self.update_range(z, self.z_range)
 
 
 class LivePlotter:
-    is_interactive = False
     initialized = False
 
     def __init__(self, num_columns, *robot_plots):
@@ -62,137 +112,89 @@ class LivePlotter:
             raise Exception("Can't have multiple LivePlotter instances!")
         LivePlotter.initialized = True
 
-        if not LivePlotter.is_interactive:
-            plt.ion()
-            LivePlotter.is_interactive = True
+        self.should_skip = False
 
-        self.is_running = True
+        self.closed = True
 
-        self.robot_plots = robot_plots
-
-        self.fig = plt.figure(0)
-        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+        self.robot_plots = list(robot_plots)
+        for plot in self.robot_plots:
+            if not plot.enabled:
+                self.robot_plots.remove(plot)
+                continue
 
         num_plots = len(self.robot_plots)
         num_rows = num_plots // num_columns
         num_rows += num_plots % num_columns
 
         self.axes = {}
+        self.live_lines = {}
 
-        plot_num = 0
+        self.fig = plt.figure(0)
+        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+
+        plot_num = 1
         for plot in self.robot_plots:
-            self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
+            if plot.flat:
+                self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
+                self.live_lines[plot.name] = self.axes[plot.name].plot([], [], **plot.properties)[0]
+            else:
+                self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num, projection='3d')
+                self.live_lines[plot.name] = self.axes[plot.name].plot([], [], [], **plot.properties)[0]
+
             plot_num += 1
 
-            if plot.flat:
-                plot.data = self.axes[plot.name].plot([0], [0], [0], **plot.properties)[0]
-            else:
-                plot.data = self.axes[plot.name].plot(0, 0, **plot.properties)[0]
+        self.closed = False
+        plt.show(block=False)
 
-    
-
-    def handle_close(self):
-        self.is_running = False
-        self.close()
-
-    def close(self):
-        if self.is_running:
-            plt.ioff()
-            plt.close('all')
-            plt.gcf()
-
-
-class LivePlotterOld:
-    is_interactive = False
-    fig_num = 0
-
-    def __init__(self, x_range, y_range, z_range=None, color='blue', linestyle='-', marker=None):
-        if self.enable_3d:
-            self.min_z = z_range[0]
-            self.max_z = z_range[1]
-            self.z_data = np.array([])
-
-            # self.fig, self.ax = plt.subplots(subplot_kw=dict(projection='3d'))
-            self.ax = p3.Axes3D(self.fig)
-
-            self.plot_data = \
-                self.ax.plot([0], [0], [0], color=color, linestyle=linestyle, marker=marker, markersize=1)[0]
-            self.current_data_point = \
-                self.ax.plot([0], [0], [0], '.',
-                             color='black', markersize=10)[0]
-        else:
-            # self.ax = self.fig.add_subplot(111)
-            self.ax = self.fig.gca()
-            self.plot_data = self.ax.plot(0, 0, color=color, linestyle=linestyle, marker=marker)[0]
-            self.current_data_point = \
-                self.ax.plot(0, 0, 'o', color='black', markersize=10)[0]
-
-    def handle_close(self):
-        # print("Plot window closed")
-        self.is_running = False
-        self.close()
-
-    def plot(self, x, y, z=None):
-        if not self.is_running:
+    def plot(self):
+        if self.closed:
             return False
-        try:
-            self.fig = plt.figure(self.my_fig_num)
 
-            self.x_data = np.append(self.x_data, x)
-            self.y_data = np.append(self.y_data, y)
+        for plot in self.robot_plots:
+            if plot.should_skip():
+                self.should_skip = True
+                continue
 
-            self.plot_data.set_xdata(self.x_data)
-            self.plot_data.set_ydata(self.y_data)
+            self.live_lines[plot.name].set_xdata(plot.data[0])
+            self.live_lines[plot.name].set_ydata(plot.data[1])
 
-            self.current_data_point.set_xdata([x])
-            self.current_data_point.set_ydata([y])
+            if not plot.flat:
+                self.live_lines[plot.name].set_3d_properties(plot.data[2])
 
-            if x < self.min_x:
-                self.min_x = x
-            if x > self.max_x:
-                self.max_x = x
-
-            if y < self.min_y:
-                self.min_y = y
-            if y > self.max_y:
-                self.max_y = y
-
-            if self.enable_3d:
-                assert z is not None
-
-                if z < self.min_z:
-                    self.min_z = z
-                if z > self.max_z:
-                    self.max_z = z
-
-                self.z_data = np.append(self.z_data, z)
-
-                self.current_data_point.set_3d_properties([z])
-
-                self.plot_data.set_3d_properties(self.z_data)
-
-                self.ax.set_xlim3d([self.min_x, self.max_x])
-                self.ax.set_ylim3d([self.min_y, self.max_y])
-                self.ax.set_zlim3d([self.min_z, self.max_z])
+            if plot.flat:
+                self.axes[plot.name].set_xlim(plot.x_range[0], plot.x_range[1])
+                self.axes[plot.name].set_ylim(plot.y_range[0], plot.y_range[1])
             else:
-                plt.axis([self.min_x, self.max_x, self.min_y, self.max_y])
+                self.axes[plot.name].set_xlim3d([plot.x_range[0], plot.x_range[1]])
+                self.axes[plot.name].set_ylim3d([plot.y_range[0], plot.y_range[1]])
+                self.axes[plot.name].set_zlim3d([plot.z_range[0], plot.z_range[1]])
 
+        if self.should_skip:
+            self.should_skip = False
+            return True
+
+        try:
             self.fig.canvas.draw()
             plt.pause(0.005)  # can't be less than ~0.005
 
-            return True
-        except:
-            # print("plot closing")
+        except BaseException as error:
             traceback.print_exc()
+            print("plot closing:", error)
 
-            self.is_running = False
+            self.close()
             return False
 
+        return True
+
+    def handle_close(self):
+        self.close()
+
     def close(self):
-        if self.is_running:
+        if not self.closed:
+            self.closed = True
             plt.ioff()
-            plt.close('all')
             plt.gcf()
+            plt.close('all')
 
 
 class StaticPlotter:
@@ -254,9 +256,9 @@ class StaticPlotter:
 
     def draw_dot(self, x, y, z=0, color='black'):
         if self.enable_3d:
-            self.ax.plot([x], [y], [z], 'o', color=color, markersize=10)
+            self.ax.append([x], [y], [z], 'o', color=color, markersize=10)
         else:
-            self.ax.plot(x, y, 'o', color=color, markersize=10)
+            self.ax.append(x, y, 'o', color=color, markersize=10)
 
     def set_default_value(self, data_name, key, default):
         if key not in self.plot_info[data_name].keys():
@@ -353,11 +355,11 @@ class StaticPlotter:
                                  markersize=data_info["markersize"],
                                  alpha=data_info["alpha"])
                     else:
-                        self.ax.plot(data_array[0], data_array[1],
-                                     data_array[2], color=data_info["color"],
-                                     linewidth=1,
-                                     antialiased=False,
-                                     label=data_info["label"])
+                        self.ax.append(data_array[0], data_array[1],
+                                       data_array[2], color=data_info["color"],
+                                       linewidth=1,
+                                       antialiased=False,
+                                       label=data_info["label"])
             else:
                 print(plot_option, "not found in pickled data, skipping")
 
