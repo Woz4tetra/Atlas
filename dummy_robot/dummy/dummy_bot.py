@@ -1,5 +1,5 @@
 from atlasbuggy.robot.robotobject import RobotObject
-from atlasbuggy.plotters import RobotPlot
+from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class Dummy(RobotObject):
@@ -22,19 +22,39 @@ class Dummy(RobotObject):
 
         # ----- plot objects -----
         gravity_range = (-90, 90)
-        self.xyz_plot = RobotPlot("dummy xyz",
-                                  # plot_enabled=False,
-                                  flat_plot=False, color="red",
-                                  x_range=gravity_range, y_range=gravity_range, z_range=gravity_range)
-        self.xtz_plot = RobotPlot("dummy xtz",
-                                  # plot_enabled=False,
-                                  flat_plot=False, color="blue",
-                                  x_range=gravity_range, z_range=gravity_range)
-        self.container_plot = RobotPlot("container",
-                                        plot_enabled=False,
-                                        flat_plot=True, color="green",
-                                        linestyle="None", marker=".",
-                                        x_range=gravity_range, y_range=gravity_range)
+        self.xyz_plot = RobotPlot(
+            "dummy xyz",
+            # plot_enabled=False,
+            flat_plot=False, color="red",
+            x_range=gravity_range, y_range=gravity_range, z_range=gravity_range
+        )
+        self.xtz_plot = RobotPlot(
+            "dummy xtz",
+            # plot_enabled=False,
+            flat_plot=False, color="blue",
+            x_range=gravity_range, z_range=gravity_range
+        )
+        self.container_plot = RobotPlot(
+            "container",
+            # plot_enabled=False,
+            flat_plot=True, color="green",
+            linestyle="None", marker=".",
+            x_range=gravity_range, y_range=gravity_range
+        )
+
+        self.port_lag = RobotPlot(
+            "port t",
+            # plot_enabled=False
+        )
+        self.dummy_lag = RobotPlot(
+            "dummy t",
+            # plot_enabled=False
+        )
+
+        self.time_plot = RobotPlotCollection(
+            "time plot", self.port_lag, self.dummy_lag,
+            # plot_enabled=False
+        )
 
         self.xs = [0] * 180
         self.ys = [0] * 180

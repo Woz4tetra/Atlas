@@ -9,20 +9,22 @@ class RobotInterfaceSimulator:
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
 
-    def packet_received(self, timestamp, whoiam):
+    def packet_received(self, timestamp, whoiam, packet):
         return True
 
     def run(self):
         for index, timestamp, whoiam, packet in self.parser:
-            if timestamp == -1:
-                self.objects[whoiam].receive_first(packet)
-            else:
-                self.objects[whoiam].receive(packet)
-                if not self.packet_received(timestamp, whoiam):
-                    print("packet_received signalled to exit")
-                    break
+            if whoiam in self.objects.keys():
+                if timestamp == -1:
+                    self.objects[whoiam].receive_first(packet)
+                    continue
+                else:
+                    self.objects[whoiam].receive(packet)
 
             self.current_index = index
+            if not self.packet_received(timestamp, whoiam, packet):
+                print("packet_received signalled to exit")
+                break
 
         self.close()
 

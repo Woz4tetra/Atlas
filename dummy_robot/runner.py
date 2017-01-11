@@ -12,7 +12,11 @@ class DummyRunner(RobotInterface):
         self.dummy = Dummy()
 
         if live_plotting:
-            self.live_plot = LivePlotter(2, self.dummy.xyz_plot, self.dummy.xtz_plot, self.dummy.container_plot)
+            self.live_plot = LivePlotter(
+                2, self.dummy.xyz_plot, self.dummy.xtz_plot, self.dummy.container_plot,
+                self.dummy.time_plot,
+                legend_args=dict(loc="upper left")
+            )
 
         super(DummyRunner, self).__init__(
             self.dummy,
@@ -21,7 +25,7 @@ class DummyRunner(RobotInterface):
             # debug_prints=True,
         )
 
-    def packet_received(self, timestamp, whoiam):
+    def packet_received(self, timestamp, whoiam, packet):
         if whoiam == self.dummy.whoiam:
             if live_plotting:
                 if self.live_plot.should_update(timestamp):
@@ -33,11 +37,16 @@ class DummyRunner(RobotInterface):
                         self.dummy.ys[self.dummy.accel_z % 180] = self.dummy.accel_y
                     self.dummy.container_plot.update(self.dummy.xs, self.dummy.ys)
                     # print(timestamp, self.dummy.dt, self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
+
+                    self.dummy.port_lag.append(self.dt, timestamp)
+                    self.dummy.dummy_lag.append(self.dt, self.dummy.dt)
+
                     if not self.live_plot.plot():
                         return False
-
             else:
                 print("Behind by %7.5fs (%7.5f, %7.5f)" % (timestamp - self.dummy.dt, timestamp, self.dummy.dt))
+
+            self.record("time lag", "%7.5f\t%7.5f" % (timestamp, self.dummy.dt))
 
     def loop(self):
         if self.joystick is not None:

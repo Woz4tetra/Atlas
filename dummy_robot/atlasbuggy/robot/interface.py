@@ -14,7 +14,7 @@ from atlasbuggy.robot.robotport import RobotSerialPort
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None,
-                 debug_prints=False, loop_updates_per_second=60, port_updates_per_second=None):
+                 debug_prints=False, loop_updates_per_second=120, port_updates_per_second=1000):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -36,6 +36,7 @@ class RobotInterface:
             # (follows the project.py directory reference convention)
             log_dir = ":today"
         self.logger = Logger(log_name, log_dir)
+        self.user_log_time0 = 0
         if log_data:
             self.logger.open()
 
@@ -88,6 +89,7 @@ class RobotInterface:
             self.start()
 
             self.clock.start()
+            self.user_log_time0 = time.time()
 
             while self._are_ports_active():
                 if not self._dequeue_packets():
@@ -103,7 +105,7 @@ class RobotInterface:
                         break
 
                 self.clock.update()
-                if not self.clock.on_time and not self.lag_warning_thrown:
+                if not self.lag_warning_thrown and self.dt > 0.5 and not self.clock.on_time:
                     print("Warning. Main loop is running slow.")
                     self.lag_warning_thrown = True
 
@@ -112,7 +114,14 @@ class RobotInterface:
 
         self._close_all()
 
-    def packet_received(self, timestamp, whoiam):
+    @property
+    def dt(self):
+        return time.time() - self.user_log_time0
+
+    def record(self, tag, string):
+        self.logger.record(self.dt, tag, string)
+
+    def packet_received(self, timestamp, whoiam, packet):
         """
         Overwrite this method
 
@@ -120,6 +129,7 @@ class RobotInterface:
 
         :param timestamp: The time the packet arrived
         :param whoiam: Which robot object the packet went to
+        :param packet: The packet received
         :return: return False if the program should exit for some reason
         """
         return True
@@ -271,7 +281,7 @@ class RobotInterface:
 
                 self.logger.record(timestamp, whoiam, packet)
                 try:
-                    if self.packet_received(timestamp, whoiam) is False:
+                    if self.packet_received(timestamp, whoiam, packet) is False:
                         if self.debug_prints:
                             print("packet_received signalled to exit")
                         return False

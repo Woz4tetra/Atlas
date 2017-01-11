@@ -2,15 +2,9 @@ from matplotlib import pyplot as plt
 
 
 class BasePlotter:
-    initialized = False
+    fig_num = 0
 
-    def __init__(self, num_columns, *robot_plots):
-        if BasePlotter.initialized:
-            raise Exception("Can't have multiple plotter instances!")
-        BasePlotter.initialized = True
-
-        self.should_skip = False
-
+    def __init__(self, num_columns, legend_args, *robot_plots):
         self.closed = True
 
         self.robot_plots = []
@@ -25,35 +19,36 @@ class BasePlotter:
         num_rows = num_plots // num_columns
         num_rows += num_plots % num_columns
 
+        self.legend_args = legend_args
+
         self.axes = {}
         self.lines = {}
 
-        self.fig = plt.figure(0)
-        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+        self.fig = plt.figure(BasePlotter.fig_num)
+        BasePlotter.fig_num += 1
 
         plot_num = 1
         for plot in self.robot_plots:
             if plot.flat:
                 self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
-                self.lines[plot.name] = self.axes[plot.name].plot([], [], **plot.properties)[0]
             else:
                 self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num, projection='3d')
-                self.lines[plot.name] = self.axes[plot.name].plot([], [], [], **plot.properties)[0]
 
             self.axes[plot.name].set_title(plot.name)
             plot_num += 1
 
         self.closed = False
 
+    def init_legend(self):
+        if self.legend_args is None:
+            self.legend_args = {}
+
+        if "fontsize" not in self.legend_args:
+            self.legend_args["fontsize"] = 'x-small'
+        if "shadow" not in self.legend_args:
+            self.legend_args["shadow"] = 'True'
+
+        plt.legend(**self.legend_args)
+
     def plot(self):
         return True
-
-    def handle_close(self):
-        self.close()
-
-    def close(self):
-        if not self.closed:
-            self.closed = True
-            plt.ioff()
-            plt.gcf()
-            plt.close('all')
