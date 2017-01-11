@@ -1,4 +1,5 @@
-from atlasbuggy.interface import RobotObject
+from atlasbuggy.robot.robotobject import RobotObject
+from atlasbuggy.plotters import RobotPlot
 
 
 class Dummy(RobotObject):
@@ -18,6 +19,25 @@ class Dummy(RobotObject):
             0: "r", 1: "g", 2: "y"
         }
         self.blue_led = 0
+
+        # ----- plot objects -----
+        gravity_range = (-90, 90)
+        self.xyz_plot = RobotPlot("dummy xyz",
+                                  # plot_enabled=False,
+                                  flat_plot=False, color="red",
+                                  x_range=gravity_range, y_range=gravity_range, z_range=gravity_range)
+        self.xtz_plot = RobotPlot("dummy xtz",
+                                  # plot_enabled=False,
+                                  flat_plot=False, color="blue",
+                                  x_range=gravity_range, z_range=gravity_range)
+        self.container_plot = RobotPlot("container",
+                                        plot_enabled=False,
+                                        flat_plot=True, color="green",
+                                        linestyle="None", marker=".",
+                                        x_range=gravity_range, y_range=gravity_range)
+
+        self.xs = [0] * 180
+        self.ys = [0] * 180
 
         super(Dummy, self).__init__("dummy")
 

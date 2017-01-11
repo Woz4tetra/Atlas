@@ -1,87 +1,10 @@
-import time
-from datetime import datetime
-import pickle
-import os
 import sys
+import os
+import pickle
+from datetime import datetime
 
+from atlasbuggy.logs import *
 from atlasbuggy import project
-
-# log file data separators (end markers)
-time_whoiam_sep = ":\t"  # timestamp
-whoiam_packet_sep = ";\t"  # data name
-
-# all data before this date may not work correctly with the current code
-obsolete_data = "Nov 14 2016"
-log_file_type = "txt"  # easily change file types (not that you should need to)
-pickle_file_type = "pkl"
-
-log_directory = ":logs"
-pickle_directory = ":pickled"
-
-log_folder_format = '%b %d %Y'
-log_file_format = '%H;%M;%S, %a %b %d %Y'
-
-
-def todays_log_folder():
-    """Generate a log folder name based on the current date"""
-    return time.strftime(log_folder_format) + "/"
-
-
-def filename_now():
-    return time.strftime(log_file_format)
-
-
-class Logger:
-    """A class for recording data from a robot to a log file"""
-
-    def __init__(self, file_name, directory):
-        # This lock prevents multiple threads writing data at the same time
-        # Format the file name. Mac doesn't support colons in file names
-        # If file format is provided but not a name, insert timestamp
-        if file_name is None or file_name.replace("." + log_file_type, "") == "":
-            file_name = filename_now() + "." + log_file_type
-
-        elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
-            file_name += "." + log_file_type
-
-        # Parse the input directory using the project module
-        if directory == ":today":  # for creating logs
-            directory = os.path.join(project.interpret_dir(log_directory), todays_log_folder())
-        elif directory is None:
-            directory = project.interpret_dir(log_directory)
-        else:
-            if directory[-1] != "/":
-                directory += "/"
-            if not os.path.isdir(directory):
-                directory = os.path.join(project.interpret_dir(log_directory), directory)
-
-        self.file_name = file_name
-        self.directory = directory
-
-        self.data_file = None
-        self.is_open = False
-
-    def open(self):
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-        print("Writing to:", os.path.join(self.directory, self.file_name))
-
-        self.data_file = open(os.path.join(self.directory, self.file_name), 'w+')
-        self.is_open = True
-
-    def record(self, timestamp, who_i_am, packet):
-        """
-        Record incoming packet using the appropriate separator characters
-        """
-        if self.is_open:
-            self.data_file.write(
-                "%s%s%s%s%s\n" % (timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep, packet)
-            )
-
-    def close(self):
-        if self.is_open:
-            self.data_file.close()
-            self.is_open = False
 
 
 class Parser:

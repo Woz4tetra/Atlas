@@ -1,13 +1,12 @@
 from atlasbuggy import project
-from atlasbuggy.plotters import StaticPlotter
-from atlasbuggy.interface import RobotInterfaceSimulator
+from atlasbuggy.plotters.staticplotter import StaticPlotter
+from atlasbuggy.robot.simulator import RobotInterfaceSimulator
 
 from dummy.dummy_bot import Dummy
 
 
 class DummySimulator(RobotInterfaceSimulator):
-    def __init__(self, file_name, directory, enable_3d, use_pickled_data, start_index=0, end_index=-1,
-                 **plot_info):
+    def __init__(self, file_name, directory, start_index=0, end_index=-1):
         self.dummy = Dummy()
 
         super(DummySimulator, self).__init__(
@@ -15,17 +14,12 @@ class DummySimulator(RobotInterfaceSimulator):
             self.dummy
         )
 
-        self.plotter = StaticPlotter(self.parser, plot_info, enable_3d, use_pickled_data)
+        self.plotter = StaticPlotter(2, self.dummy.xyz_plot, self.dummy.xtz_plot)
 
     def packet_received(self, timestamp, whoiam):
         if whoiam == self.dummy.whoiam:
-            if not self.plotter.enable_3d:
-                self.plotter.append_data(
-                    "plot_dummy", self.dummy.accel_x, self.dummy.accel_y)
-            else:
-                self.plotter.append_data(
-                    "plot_dummy", self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z
-                )
+            self.dummy.xyz_plot.append(self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
+            self.dummy.xtz_plot.append(self.dummy.accel_x, self.dummy.dt, self.dummy.accel_z)
         return True
 
     def close(self):
@@ -34,10 +28,7 @@ class DummySimulator(RobotInterfaceSimulator):
 
 def simulate_dummy():
     file_name, directory = project.parse_arguments(-1, -1)
-    DummySimulator(file_name, directory,
-                   enable_3d=True, use_pickled_data=False,
-                   plot_dummy=dict(
-                         color='red', label="dummy"
-                     )).run()
+    DummySimulator(file_name, directory).run()
+
 
 simulate_dummy()

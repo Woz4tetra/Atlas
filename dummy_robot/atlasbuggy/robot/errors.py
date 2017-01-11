@@ -1,6 +1,3 @@
-# ----- interface.py exceptions -----
-
-
 class RobotObjectBaseError(Exception):
     def __init__(self, error_message, port=None):
         if port is not None:
@@ -66,10 +63,3 @@ class RobotSerialPortSignalledExitError(Exception):
 
 class RobotSerialPortTimeoutError(Exception):
     """Port thread timed out"""
-
-
-# ----- buggyjoystick.py exceptions -----
-
-
-class JoysticksNotFoundError(Exception):
-    """No joysticks found"""

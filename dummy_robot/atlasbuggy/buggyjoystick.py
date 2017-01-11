@@ -1,7 +1,8 @@
-import pygame
 import os
+
+import pygame
+
 from atlasbuggy import project
-from atlasbuggy.errors import JoysticksNotFoundError
 
 try:
     with os.popen('stty size', 'r') as terminal_window:
@@ -11,10 +12,15 @@ except ValueError:
     terminal_rows = terminal_cols = -1
 
 
+class JoysticksNotFoundError(Exception):
+    """No joysticks found"""
+
+
 class BuggyJoystick:
     """
     A generic joystick class using pygame. This class captures any joystick events
     """
+
     def __init__(self, axes_mapping, axes_dead_zones, button_mapping):
         """
         :param axes_mapping: A list of axis names that correspond to the axis number pygame assigns
