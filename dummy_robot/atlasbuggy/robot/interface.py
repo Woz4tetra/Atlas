@@ -1,6 +1,6 @@
 import pprint
 import time
-from multiprocessing import Lock, Queue
+from multiprocessing import Lock, Queue, Value
 
 import serial
 import serial.tools.list_ports
@@ -36,7 +36,7 @@ class RobotInterface:
             # (follows the project.py directory reference convention)
             log_dir = ":today"
         self.logger = Logger(log_name, log_dir)
-        self.user_log_time0 = 0
+        self.start_time = 0
         if log_data:
             self.logger.open()
 
@@ -46,6 +46,7 @@ class RobotInterface:
 
         # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
+        self.packet_counter = Value('i', 0)
         self.queue_lock = Lock()
 
         self.objects = {}
@@ -83,14 +84,14 @@ class RobotInterface:
             The port wasn't matched to a RobotObject (it was unused)
         :return:
         """
+
+        self.start_time = time.time()
+        self.clock.start(self.start_time)
+
         self._start_all()
+        self.start()
 
         try:
-            self.start()
-
-            self.clock.start()
-            self.user_log_time0 = time.time()
-
             while self._are_ports_active():
                 if not self._dequeue_packets():
                     break
@@ -116,7 +117,7 @@ class RobotInterface:
 
     @property
     def dt(self):
-        return time.time() - self.user_log_time0
+        return time.time() - self.start_time
 
     def record(self, tag, string):
         self.logger.record(self.dt, tag, string)
@@ -160,6 +161,10 @@ class RobotInterface:
         """
         pass
 
+    def queue_len(self):
+        return self.packet_counter.value
+
+
     def _configure_port(self, port_info, updates_per_second):
         """
         Initialize a serial port recognized by pyserial.
@@ -171,7 +176,7 @@ class RobotInterface:
         """
         if port_info.serial_number is not None:
             port = RobotSerialPort(port_info, self.debug_prints,
-                                   self.packet_queue, self.queue_lock, updates_per_second)
+                                   self.packet_queue, self.queue_lock, self.packet_counter, updates_per_second)
             self.ports[port.whoiam] = port
 
             if not port.configured:
@@ -278,11 +283,13 @@ class RobotInterface:
         with self.queue_lock:
             while not self.packet_queue.empty():
                 whoiam, timestamp, packet = self.packet_queue.get()
+                self.packet_counter.value -= 1
+
                 self.objects[whoiam].receive(packet)
 
-                self.logger.record(timestamp, whoiam, packet)
+                self.logger.record(timestamp - self.start_time, whoiam, packet)
                 try:
-                    if self.packet_received(timestamp, whoiam, packet) is False:
+                    if self.packet_received(timestamp - self.start_time, whoiam, packet) is False:
                         if self.debug_prints:
                             print("packet_received signalled to exit")
                         return False

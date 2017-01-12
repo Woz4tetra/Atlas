@@ -39,12 +39,11 @@ class LivePlotter(BasePlotter):
         self.init_legend()
         plt.show(block=False)
 
+    def start_time(self, time0):
+        self.time0 = time0
+
     def should_update(self, packet_timestamp):
         # likely source of rare bug where the plot lags badly
-        if self.time0 is None:
-            self.time0 = time.time()
-            return True
-
         current_time = time.time() - self.time0
 
         return abs(packet_timestamp - current_time) < self.lag_cap

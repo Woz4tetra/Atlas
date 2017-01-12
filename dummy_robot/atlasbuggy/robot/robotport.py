@@ -16,7 +16,7 @@ class RobotSerialPort(Process):
     This class is for internal use only
     """
 
-    def __init__(self, port_info, debug_prints, queue, lock, updates_per_second):
+    def __init__(self, port_info, debug_prints, queue, lock, counter, updates_per_second):
         """
         :param port_info: A ListPortInfo object returned by serial.tools.list_ports.comports()
         :param debug_prints: Enable verbose print statements
@@ -66,7 +66,7 @@ class RobotSerialPort(Process):
             print("Port not configured. Skipping find_whoiam")
 
         self.exit_event = Event()
-        super(RobotSerialPort, self).__init__(target=self.update, args=(queue, lock))
+        super(RobotSerialPort, self).__init__(target=self.update, args=(queue, lock, counter))
 
     # ----- initialization methods -----
 
@@ -140,7 +140,7 @@ class RobotSerialPort(Process):
 
     # ----- run methods -----
 
-    def update(self, queue, lock):
+    def update(self, queue, lock, counter):
         """Called when RobotSerialPort.start is called (inherited from threading.Thread)"""
 
         self.start_time = time.time()
@@ -166,7 +166,8 @@ class RobotSerialPort(Process):
 
                     with lock:
                         for packet in packets:
-                            queue.put((self.whoiam, time.time() - self.start_time, packet))
+                            queue.put((self.whoiam, time.time(), packet))
+                        counter.value += len(packets)
 
                 clock.update()
 

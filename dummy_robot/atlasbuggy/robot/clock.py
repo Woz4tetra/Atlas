@@ -15,9 +15,11 @@ class Clock:
 
         self.on_time = True
 
-    def start(self):
-        self.loop_time = time.time()
-        self.current_time = time.time()
+    def start(self, start_time=None):
+        if start_time is None:
+            start_time = time.time()
+        self.loop_time = start_time
+        self.current_time = start_time
 
     def update(self):
         if self.seconds_per_loop is None:

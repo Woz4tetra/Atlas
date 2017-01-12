@@ -29,8 +29,8 @@ class DummySimulator(RobotInterfaceSimulator):
             port_dt = float(data[0])
             dummy_dt = float(data[1])
 
-            self.dummy.port_lag.append(self.current_index, port_dt)
-            self.dummy.dummy_lag.append(self.current_index, dummy_dt)
+            self.dummy.time_lag.append(self.current_index, port_dt)
+            self.dummy.queue_count.append(self.current_index, dummy_dt)
 
         self.print_percent()
         return True
