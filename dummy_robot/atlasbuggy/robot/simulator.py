@@ -1,4 +1,4 @@
-from atlasbuggy.logs.parser import Parser
+from atlasbuggy.logfiles.parser import Parser
 
 
 class RobotInterfaceSimulator:
@@ -8,6 +8,16 @@ class RobotInterfaceSimulator:
             self.objects[robot_object.whoiam] = robot_object
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
+
+        self.prev_percent = 0
+        self.percent = 0
+
+    def print_percent(self):
+        percent = 100 * self.parser.content_index / len(self.parser.contents)
+        self.percent = int(percent * 10)
+        if self.percent != self.prev_percent:
+            self.prev_percent = self.percent
+            print(("%0.1f" % percent) + "%", end='\r')
 
     def packet_received(self, timestamp, whoiam, packet):
         return True

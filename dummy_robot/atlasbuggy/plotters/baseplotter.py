@@ -5,12 +5,16 @@ class BasePlotter:
     fig_num = 0
 
     def __init__(self, num_columns, legend_args, *robot_plots):
-        self.closed = True
-
         self.robot_plots = []
         for plot in robot_plots:
             if plot.enabled:
                 self.robot_plots.append(plot)
+
+        if len(self.robot_plots) == 0:
+            self.plotter_enabled = False
+            return
+        else:
+            self.plotter_enabled = True
 
         num_plots = len(self.robot_plots)
         if num_plots < num_columns:
@@ -36,8 +40,6 @@ class BasePlotter:
 
             self.axes[plot.name].set_title(plot.name)
             plot_num += 1
-
-        self.closed = False
 
     def init_legend(self):
         if self.legend_args is None:

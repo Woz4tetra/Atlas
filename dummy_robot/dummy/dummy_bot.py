@@ -36,7 +36,7 @@ class Dummy(RobotObject):
         )
         self.container_plot = RobotPlot(
             "container",
-            # plot_enabled=False,
+            plot_enabled=False,
             flat_plot=True, color="green",
             linestyle="None", marker=".",
             x_range=gravity_range, y_range=gravity_range
@@ -53,7 +53,7 @@ class Dummy(RobotObject):
 
         self.time_plot = RobotPlotCollection(
             "time plot", self.port_lag, self.dummy_lag,
-            # plot_enabled=False
+            plot_enabled=False
         )
 
         self.xs = [0] * 180

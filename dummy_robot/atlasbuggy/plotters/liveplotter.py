@@ -34,20 +34,23 @@ class LivePlotter(BasePlotter):
         self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
         self.time0 = None
         self.lag_cap = lag_cap
+        self.closed = False
 
         self.init_legend()
         plt.show(block=False)
 
     def should_update(self, packet_timestamp):
+        # likely source of rare bug where the plot lags badly
         if self.time0 is None:
             self.time0 = time.time()
             return True
 
         current_time = time.time() - self.time0
+
         return abs(packet_timestamp - current_time) < self.lag_cap
 
     def plot(self):
-        if self.closed:
+        if self.closed or not self.plotter_enabled:
             return False
 
         for plot in self.robot_plots:
@@ -63,6 +66,7 @@ class LivePlotter(BasePlotter):
                     self.lines[plot.name][subplot.name].set_ydata(subplot.data[1])
                     if not plot.flat:
                         self.lines[plot.name][subplot.name].set_3d_properties(subplot.data[2])
+
             else:
                 return False
 
@@ -91,7 +95,7 @@ class LivePlotter(BasePlotter):
         self.close()
 
     def close(self):
-        if not self.closed:
+        if self.plotter_enabled and not self.closed:
             self.closed = True
             plt.ioff()
             plt.gcf()

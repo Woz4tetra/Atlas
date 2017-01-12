@@ -4,8 +4,8 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class StaticPlotter(BasePlotter):
-    def __init__(self, num_columns, *robot_plots):
-        super(StaticPlotter, self).__init__(num_columns, *robot_plots)
+    def __init__(self, num_columns, *robot_plots, legend_args=None):
+        super(StaticPlotter, self).__init__(num_columns, legend_args, *robot_plots)
 
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):
@@ -22,9 +22,11 @@ class StaticPlotter(BasePlotter):
                 else:
                     for subplot in plot.plots:
                         self.lines[plot.name][subplot.name] = None
-        self.init_legend()
 
-    def plot(self, show=True):
+    def plot(self):
+        if not self.plotter_enabled:
+            return
+
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):
                 if plot.flat:
@@ -42,6 +44,16 @@ class StaticPlotter(BasePlotter):
                     for subplot in plot.plots:
                         self.lines[plot.name][subplot.name] = self.axes[plot.name].plot(
                             subplot.data[0], subplot.data[1], subplot.data[2], **subplot.properties)[0]
+        for plot in self.robot_plots:
+            if plot.flat:
+                self.axes[plot.name].set_xlim(plot.x_range)
+                self.axes[plot.name].set_ylim(plot.y_range)
+            else:
+                self.axes[plot.name].set_xlim3d(plot.x_range)
+                self.axes[plot.name].set_ylim3d(plot.y_range)
+                self.axes[plot.name].set_zlim3d(plot.z_range)
 
-        if show:
-            plt.show()
+        self.init_legend()
+
+    def show(self):
+        plt.show()

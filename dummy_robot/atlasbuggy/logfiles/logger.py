@@ -1,11 +1,13 @@
 import os
+import struct
+import gzip
 
-from atlasbuggy.logs import *
+from atlasbuggy.logfiles import *
 from atlasbuggy import project
 
 
 class Logger:
-    """A class for recording data from a robot to a log file"""
+    """A class for recording data from a robot to a logs file"""
 
     def __init__(self, file_name, directory):
         # This lock prevents multiple threads writing data at the same time
@@ -31,27 +33,55 @@ class Logger:
         self.file_name = file_name
         self.directory = directory
 
+        self.file_path = os.path.join(self.directory, self.file_name)
+
         self.data_file = None
         self.is_open = False
+
+        self.data = []
+        # self.index = 0
 
     def open(self):
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
-        print("Writing to:", os.path.join(self.directory, self.file_name))
+        print("Writing to:", self.file_path)
 
-        self.data_file = open(os.path.join(self.directory, self.file_name), 'w+')
+        self.data_file = open(self.file_path, "w+")
+
         self.is_open = True
 
-    def record(self, timestamp, who_i_am, packet):
+    @staticmethod
+    def float_to_hex(number):
+        return "%0.8x" % struct.unpack('<I', struct.pack('<f', number))[0]
+
+    def record(self, timestamp, whoiam, packet):
         """
         Record incoming packet using the appropriate separator characters
         """
         if self.is_open:
-            self.data_file.write(
-                "%s%s%s%s%s\n" % (timestamp, time_whoiam_sep, who_i_am, whoiam_packet_sep, packet)
-            )
+            hex_timestamp = self.float_to_hex(timestamp)
+
+            self.data.append("%s%s%s%s%s\n" % (hex_timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
+
+            if len(self.data) > 0xff:
+                self.dump_all()
+
+    def dump_all(self):
+        while len(self.data) > 0:
+            self.data_file.write(self.data.pop(0))
+
+    def compress(self):
+        with open(self.file_path, "rb") as file:
+            raw_data = file.read()
+
+        compressed_data = gzip.compress(raw_data)
+        with open(self.file_path, "wb") as file:
+            file.write(compressed_data)
+
 
     def close(self):
         if self.is_open:
+            self.dump_all()
             self.data_file.close()
+            self.compress()
             self.is_open = False

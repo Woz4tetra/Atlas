@@ -5,7 +5,7 @@ from multiprocessing import Lock, Queue
 import serial
 import serial.tools.list_ports
 
-from atlasbuggy.logs.logger import Logger
+from atlasbuggy.logfiles.logger import Logger
 from atlasbuggy.robot.clock import Clock
 from atlasbuggy.robot.errors import *
 from atlasbuggy.robot.robotport import RobotSerialPort
@@ -18,9 +18,9 @@ class RobotInterface:
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
-        :param log_data: A boolean indicating whether or not the received data should be written to a log file
-        :param log_name: The name of the log file. If None, it will be today's date and time
-        :param log_dir: The directory of the log file. If None, it will be today's date.
+        :param log_data: A boolean indicating whether or not the received data should be written to a logs file
+        :param log_name: The name of the logs file. If None, it will be today's date and time
+        :param log_dir: The directory of the logs file. If None, it will be today's date.
             See project.py for details
         :param debug_prints: Enable verbose prints
         :param updates_per_second: How quickly each port process should run.
@@ -105,7 +105,7 @@ class RobotInterface:
                         break
 
                 self.clock.update()
-                if not self.lag_warning_thrown and self.dt > 0.5 and not self.clock.on_time:
+                if not self.lag_warning_thrown and self.dt > 0.1 and not self.clock.on_time:
                     print("Warning. Main loop is running slow.")
                     self.lag_warning_thrown = True
 
@@ -253,6 +253,7 @@ class RobotInterface:
             raise CloseSignalledExitError(error)
 
         self._stop_all_ports()
+        self.logger.close()
 
     def _are_ports_active(self):
         """

@@ -10,12 +10,12 @@ import sys
 project_dirs = {
     'logs'       : "logs/",
     'maps'       : "maps/",
-    'pickled'    : "pickled/",
+    # 'pickled'    : "pickled/",
     'gpx'        : "maps/gpx/",
     'videos'     : "videos/",
     'images'     : "images/",
     'joysticks'  : "joysticks/",
-    'simulations': "pickled/simulations/",
+    # 'simulations': "pickled/simulations/",
     'project'    : "",
 }
 
