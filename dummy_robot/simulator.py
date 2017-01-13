@@ -14,8 +14,8 @@ class DummySimulator(RobotInterfaceSimulator):
             self.dummy
         )
 
-        self.dummy.xyz_plot.skip_count = 100
-        self.dummy.xtz_plot.skip_count = 100
+        # self.dummy.xyz_plot.skip_count = 100
+        # self.dummy.xtz_plot.skip_count = 100
 
         self.dummy_plotter = StaticPlotter(2, self.dummy.xyz_plot, self.dummy.xtz_plot)
         self.time_plotter = StaticPlotter(1, self.dummy.time_plot)

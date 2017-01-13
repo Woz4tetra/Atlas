@@ -1,3 +1,7 @@
+"""
+This module handles all features related to log files including creating and parsing them.
+"""
+
 import time
 
 # logs file data separators (end markers)

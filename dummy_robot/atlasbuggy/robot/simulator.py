@@ -1,8 +1,19 @@
+"""
+RobotInterfaceSimulator imitates RobotInterface except its data source is a log file.
+"""
+
 from atlasbuggy.logfiles.parser import Parser
 
 
 class RobotInterfaceSimulator:
     def __init__(self, file_name, directory, start_index=0, end_index=-1, *robot_objects):
+        """
+        :param file_name: log file name or number
+        :param directory: directory to search in
+        :param start_index:
+        :param end_index:
+        :param robot_objects:
+        """
         self.objects = {}
         for robot_object in robot_objects:
             self.objects[robot_object.whoiam] = robot_object
@@ -13,7 +24,7 @@ class RobotInterfaceSimulator:
         self.percent = 0
 
     def print_percent(self):
-        percent = 100 * self.parser.content_index / len(self.parser.contents)
+        percent = 100 * self.parser.index / len(self.parser.contents)
         self.percent = int(percent * 10)
         if self.percent != self.prev_percent:
             self.prev_percent = self.percent

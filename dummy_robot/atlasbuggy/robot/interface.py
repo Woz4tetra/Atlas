@@ -1,3 +1,7 @@
+"""
+This class manages all robot ports and pass data received to the corresponding robot objects.
+"""
+
 import pprint
 import time
 from multiprocessing import Lock, Queue, Value
@@ -27,8 +31,8 @@ class RobotInterface:
         """
 
         self.debug_prints = debug_prints
-        self.loop_updates_per_second = loop_updates_per_second
-        self.port_updates_per_second = port_updates_per_second
+        self.loop_ups = loop_updates_per_second
+        self.port_ups = port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
 
         if log_dir is None:
@@ -42,13 +46,14 @@ class RobotInterface:
 
         self.joystick = joystick
 
-        self.clock = Clock(self.loop_updates_per_second)
+        self.clock = Clock(self.loop_ups)
 
         # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
         self.packet_counter = Value('i', 0)
         self.queue_lock = Lock()
 
+        # assign robot objects by whoiam ID
         self.objects = {}
         for robot_object in robot_objects:
             self.objects[robot_object.whoiam] = robot_object
@@ -56,25 +61,25 @@ class RobotInterface:
         # open all available ports
         self.ports = {}
         for port_info in serial.tools.list_ports.comports():
-            self._configure_port(port_info, self.port_updates_per_second)
+            self._configure_port(port_info, self.port_ups)
 
-        self._check_objects()
-        self._check_ports()
-        self._send_first_packets()
+        self._check_objects()  # check that all objects are assigned a port
+        self._check_ports()  # check that all ports are assigned an object
+        self._send_first_packets()  # distribute initialization packets
 
     def run(self):
         """
         Call this method to start the robot and to start receiving data
 
-        This is where all threads start and stop. Stop events can be thrown by:
-            loop returning False (live plot in the loop returned False for example)
-            joystick returned False, the pygame window signalled to quit
-            are_threads_running() returned False
+        This is where all processes start and stop. Stop events can be thrown by:
+            loop returning False (live plot in the loop returned False for example),
+            joystick returned False (the pygame window signalled to quit),
+            _are_ports_active() returned False
 
-        are_threads_running can be False for the following reasons:
-            robot_port.is_running found that the serial thread has been hanging
+        _are_ports_active can be False for the following reasons:
+            robot_port.is_running found that the process has been hanging
                 for more than 2 seconds
-            robot_port.is_running found that should_stop is False
+            robot_port.is_running found that should_stop is False indicating the process crashed
 
         should_stop can be False because:
             A packet wasn't parsed correctly
@@ -82,30 +87,30 @@ class RobotInterface:
             There weren't enough ports to match the number of objects
             No ports with the requested whoiam ID were found
             The port wasn't matched to a RobotObject (it was unused)
-        :return:
+        :return: None
         """
 
         self.start_time = time.time()
         self.clock.start(self.start_time)
 
         self._start_all()
-        self.start()
+        self.start()  # call user's start method (empty by default)
 
         try:
             while self._are_ports_active():
-                if not self._dequeue_packets():
+                if not self._dequeue_packets():  # calls packet_received if the queue is occupied
                     break
 
-                if not self._main_loop():
+                if not self._main_loop():  # calls loop no matter what
                     break
 
-                self._send_commands()
+                self._send_commands()  # sends all commands in each robot object's command queue
 
                 if self.joystick is not None:
                     if self.joystick.update() is False:
                         break
 
-                self.clock.update()
+                self.clock.update()  # maintain a constant loop speed
                 if not self.lag_warning_thrown and self.dt > 0.1 and not self.clock.on_time:
                     print("Warning. Main loop is running slow.")
                     self.lag_warning_thrown = True
@@ -115,16 +120,34 @@ class RobotInterface:
 
         self._close_all()
 
+    # ----- utility methods -----
+
     @property
     def dt(self):
+        """
+        Access the clock. This time uses the same reference as all other objects
+        :return: time since the program's start in seconds
+        """
         return time.time() - self.start_time
 
     def record(self, tag, string):
+        """
+        Record data not created by a robot object.
+        
+        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any sensors 
+        :param string: Similar to a packet. String data to record
+        :return: None
+        """
         self.logger.record(self.dt, tag, string)
+    
+    def queue_len(self):
+        return self.packet_counter.value
+    
+    # ----- overridable methods -----
 
     def packet_received(self, timestamp, whoiam, packet):
         """
-        Overwrite this method
+        Override this method
 
         A callback function for every time a packet is received
 
@@ -137,7 +160,7 @@ class RobotInterface:
 
     def loop(self):
         """
-        Overwrite this method
+        Override this method
 
         Similar to Arduino's loop function. This will be run in a while True loop
 
@@ -147,7 +170,7 @@ class RobotInterface:
 
     def start(self):
         """
-        Code that should be run just after the ports are opened
+        Code that should be run just after the ports are opened and the clock is started
 
         :return: None
         """
@@ -161,9 +184,7 @@ class RobotInterface:
         """
         pass
 
-    def queue_len(self):
-        return self.packet_counter.value
-
+    # ----- configuration methods -----
 
     def _configure_port(self, port_info, updates_per_second):
         """
@@ -221,26 +242,33 @@ class RobotInterface:
 
                 self.logger.record(-1, whoiam, first_packet)
 
+    # ----- port management -----
+
     def _print_port_info(self, port):
         """
         Print the crashed port's info
         :param port:
-        :return:
+        :return: None
         """
         if self.debug_prints:
             pprint.pprint(port.port_info.__dict__)
             print()
-            time.sleep(0.01)
+            time.sleep(0.01)  # wait for error messages to print
 
     def _start_all(self):
         """
-        Start all port processes
+        Start all port processes. Send start flag
         :return: None
         """
         for whoiam in self.ports.keys():
             self.ports[whoiam].start()
+            self.ports[whoiam].send_start()
 
     def _stop_all_ports(self):
+        """
+        Close all robot port processes
+        :return: None
+        """
         if self.debug_prints:
             print("Closing all ports")
         for robot_port in self.ports.values():
@@ -248,12 +276,12 @@ class RobotInterface:
 
     def _close_all(self):
         """
-        Kill all RobotSerialPort threads and close their serial ports
+        Kill all RobotSerialPort processes and close their serial ports
         :return: None
         """
         try:
-            self.close()
-        except BaseException as error:
+            self.close()  # call the user's close function
+        except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
             raise CloseSignalledExitError(error)
 
@@ -263,7 +291,9 @@ class RobotInterface:
     def _are_ports_active(self):
         """
         Using each robot port's is_running method, check if the processes are running properly
-        :return:
+        An error will be thrown if not.
+
+        :return: True if the ports are ok
         """
         for robot_port in self.ports.values():
             status = robot_port.is_running()
@@ -274,6 +304,8 @@ class RobotInterface:
                 elif status == -1:
                     raise RobotSerialPortTimeoutError("Port with ID '%s' timed out" % robot_port.whoiam)
         return True
+
+    # ----- event handling -----
 
     def _dequeue_packets(self):
         """

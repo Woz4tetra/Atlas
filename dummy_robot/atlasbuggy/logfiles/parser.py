@@ -1,3 +1,6 @@
+"""
+Contains the Parser class. This class decompresses and parses log files for visualization and post analysis.
+"""
 import sys
 import os
 import gzip
@@ -16,7 +19,7 @@ class Parser:
 
     for example:
     parser = Parser("file name", "directory in logs")
-    for index, timestamp, name, values in parser:
+    for index, timestamp, whoiam, packet in parser:
         pass
 
     Parser returns data in the order that it was recorded. If, say, an IMU
@@ -25,6 +28,12 @@ class Parser:
     """
 
     def __init__(self, file_name, directory=None, start_index=0, end_index=-1):
+        """
+        :param file_name:
+        :param directory:
+        :param start_index:
+        :param end_index:
+        """
         # pick a subdirectory of logs
         self.directory = project.parse_dir(
             directory, log_directory,
@@ -43,11 +52,17 @@ class Parser:
 
         print("Using file named '%s'" % self.file_name)
 
-        # read the whole file as a string
+        # decompress the file and put the contents into self.contents
         with open(self.file_path, "rb") as data_file:
-            self.contents = gzip.decompress(data_file.read()).decode('utf-8')
-        self.iter_index = 0
-        self.content_index = 0
+            self.contents = gzip.decompress(data_file.read()).decode('utf-8').split("\n")
+
+        # index variables
+        self.start_index = start_index
+        self.end_index = end_index
+        self.index = start_index  # current packet number (or line number)
+
+        if self.end_index == -1:
+            self.end_index = len(self.contents)
 
         # try to parse the name as a timestamp. If it succeeds, see if the
         # file is obsolete. Otherwise, do nothing
@@ -64,6 +79,9 @@ class Parser:
         except ValueError:
             pass
 
+    def __len__(self):
+        return len(self.contents)
+
     def __iter__(self):
         """
         Iterate through the file. The recommended use of this class.
@@ -76,40 +94,54 @@ class Parser:
         return self
 
     def __next__(self):
-        if self.content_index < len(self.contents):
+        """
+        While self.content_index hasn't reached the end of the file, parse the current line
+        and return the contents. If the line wasn't parsed correctly, StopIteration is raised.
+        :return: tuple: (index # (int), timestamp (float), whoiam (string), packet (string))
+        """
+        if self.index < self.end_index:
             line = self.parse_line()
             if line is not None:
-                timestamp, name, values = line
-                self.iter_index += 1
-                return self.iter_index - 1, timestamp, name, values
+                timestamp, whoiam, packet = line
+                self.index += 1
+                return self.index - 1, timestamp, whoiam, packet
         raise StopIteration
 
     @staticmethod
     def hex_to_float(hex_string):
+        """
+        Turn a hexidecimal string to a floating point number according to IEEE 754.
+        This meant for timestamps
+
+        :param hex_string: string containing hex representation
+        :return: floating point equivalent
+        """
         return struct.unpack('!f', bytes.fromhex(hex_string))[0]
 
     def parse_line(self):
-        end_index = self.contents.find("\n", self.content_index)
+        """
+        Parse the current line using self.content_index and separator globals (e.g. time_whoiam_sep).
+        Return the contents found
+        :return: timestamp, who_i_am, packet; None if the line was parsed incorrectly
+        """
+        line = self.contents[self.index]
 
         # search for the timestamp from the current index to the end of the line
-        time_index = self.contents.find(time_whoiam_sep, self.content_index, end_index)
+        time_index = line.find(time_whoiam_sep)
 
         # search for the name from the current index to the end of the line
-        whoiam_index = self.contents.find(whoiam_packet_sep, self.content_index,
-                                          end_index)
+        whoiam_index = line.find(whoiam_packet_sep)
 
         # if the line was parsed correctly
-        if time_index != -1 and whoiam_index != -1 and end_index != -1:
+        if time_index != -1 and whoiam_index != -1:
             # the timestamp is the beginning of the line to time_index
-            timestamp = self.hex_to_float(self.contents[self.content_index: time_index])
+            timestamp = self.hex_to_float(line[0:time_index])
 
             # the name is from the end of the timestamp to name_index
-            who_i_am = self.contents[time_index + len(time_whoiam_sep): whoiam_index]
+            who_i_am = line[time_index + len(time_whoiam_sep): whoiam_index]
 
             # the values are from the end of the name to the end of the line
-            packet = self.contents[whoiam_index + len(whoiam_packet_sep):end_index]
-
-            self.content_index = end_index + 1
+            packet = line[whoiam_index + len(whoiam_packet_sep):]
 
             return timestamp, who_i_am, packet
         else:

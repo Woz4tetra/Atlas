@@ -1,4 +1,10 @@
-import mpl_toolkits.mplot3d.axes3d
+"""
+Contains the RobotPlot and RobotPlotCollection classes. These class define a subplot's properties.
+    RobotPlot defines a single line on a plot, its color, if it's a 2D plot, window range, etc.
+    RobotPlotCollection defines a subplot with multiple RobotPlot lines.
+"""
+
+import mpl_toolkits.mplot3d.axes3d  # loads 3D modules
 
 
 class RobotPlot:
@@ -6,6 +12,21 @@ class RobotPlot:
                  x_range=None, y_range=None, z_range=None, range_offset=0,
                  x_lim=None, y_lim=None, z_lim=None, skip_count=0,
                  max_length=None, **plot_properties):
+        """
+        :param plot_name: plot title and internal reference name. Make sure its unique
+        :param plot_enabled: Turn plots on and off easily with this flag
+        :param flat_plot: 2D if True, 3D if False
+        :param x_range: x axis range. If None, the axis will be unconstrained
+        :param y_range: y axis range. If None, the axis will be unconstrained
+        :param z_range: z axis range. If None, the axis will be unconstrained
+        :param range_offset: amount of trim to give to the range
+        :param x_lim: x bounds on axis range. If None, the axis will be unbounded
+        :param y_lim: y bounds on axis range. If None, the axis will be unbounded
+        :param z_lim: z bounds on axis range. If None, the axis will be unbounded
+        :param skip_count: Amount of data points to skip (improves performance)
+        :param max_length: Limit the amount of data points a plot has (improves performance)
+        :param plot_properties: parameters to supply to matplotlib's plot function (color, marker type, etc.)
+        """
         self.name = plot_name
         self.flat = flat_plot
         self.enabled = plot_enabled
@@ -15,12 +36,15 @@ class RobotPlot:
 
         self.properties = plot_properties
 
-        if type(x_range) == tuple:
+        if x_range is not None:
             x_range = list(x_range)
-        if type(y_range) == tuple:
+            assert len(x_range) == 2
+        if y_range is not None:
             y_range = list(y_range)
-        if type(z_range) == tuple:
+            assert len(y_range) == 2
+        if z_range is not None:
             z_range = list(z_range)
+            assert len(z_range) == 2
 
         self.ranges = [x_range, y_range, z_range]
         self.ranges_contrained = []
@@ -28,43 +52,61 @@ class RobotPlot:
             self.ranges_contrained.append(False if r is None else True)
         self.range_offset = range_offset
 
-        if type(x_lim) == tuple:
+        if x_lim is not None:
             x_lim = list(x_lim)
-        if type(y_lim) == tuple:
+            assert len(x_lim) == 2
+        if y_lim is not None:
             y_lim = list(y_lim)
-        if type(z_lim) == tuple:
+            assert len(y_lim) == 2
+        if z_lim is not None:
             z_lim = list(z_lim)
-
+            assert len(z_lim) == 2
         self.limits = [x_lim, y_lim, z_lim]
 
-        self.line_seg_counter = 0
-
-        # if self.line_segments:
-        #     self.data = []
-        # else:
         self.data = [[] for _ in range(2 if flat_plot else 3)]
 
     def update(self, xs, ys, zs=None):
+        """
+        Update the plot's data using the input lists if it is enabled
+
+        :param xs: a list of new values for the x axis
+        :param ys: a list of new values for the y axis
+        :param zs: a list of new values for the z axis
+        :return: None
+        """
         if not self.enabled:
             return
 
-        self.data[0] = xs
-        min_x, max_x = min(xs), max(xs)
-        self._update_range(min_x, 0)
-        self._update_range(max_x, 0)
+        self.skip_counter += 1
+        if self.skip_count > 0 and self.skip_counter % self.skip_count != 0:
+            return
 
-        self.data[1] = ys
-        min_y, max_y = min(ys), max(ys)
-        self._update_range(min_y, 1)
-        self._update_range(max_y, 1)
+        # Collect values into a list for convenience
+        if self.flat:
+            assert len(xs) == len(ys)
+            values = [xs, ys]
+        else:
+            assert len(xs) == len(ys) == len(zs)
+            values = [xs, ys, zs]
 
-        if not self.flat:
-            self.data[2] = zs
-            min_z, max_z = min(zs), max(zs)
-            self._update_range(min_z, 2)
-            self._update_range(max_z, 2)
+        # Replace the old data and update the range if it's not None
+        for axis_num in range(len(values)):
+            self.data[axis_num] = values[axis_num]
+
+            if self.ranges[axis_num] is not None:
+                min_value, max_value = min(values[axis_num]), max(values[axis_num])
+                self._update_range(min_value, axis_num)
+                self._update_range(max_value, axis_num)
 
     def append(self, x, y, z=None):
+        """
+        Append new values to the plot if it is enabled
+
+        :param x: A float value to append to the x axis
+        :param y: A float value to append to the y axis
+        :param z: A float value to append to the z axis
+        :return: None
+        """
         if not self.enabled:
             return
 
@@ -78,6 +120,14 @@ class RobotPlot:
             self._append_z(z)
 
     def _update_range(self, value, axis_num):
+        """
+        Determine if the new value is less than the minimum or greater than maximum.
+        If it is, update the range for the corresponding axis
+
+        :param value: new value added
+        :param axis_num: axis number to update
+        :return: None
+        """
         if self.ranges[axis_num] is None:
             if self.range_offset == 0:
                 offset = 0.001
@@ -97,6 +147,13 @@ class RobotPlot:
                 self.ranges[axis_num][1] = self.limits[axis_num][1]
 
     def _append_to_axis(self, datum, axis_num):
+        """
+        Append a new value to an axis number
+
+        :param datum: A floating point number
+        :param axis_num: Axis number to append the value to
+        :return: None
+        """
         self.data[axis_num].append(datum)
         self._update_range(datum, axis_num)
 
@@ -130,9 +187,19 @@ class RobotPlot:
 
 class RobotPlotCollection:
     def __init__(self, collection_name, *robot_plots, plot_enabled=True, flat_plot=True):
+        """
+        If you want to plot multiple lines on one subplot, pass your robot plot objects to a collection.
+        Each robot plot will be treated as one line on the subplot.
+
+        :param collection_name: plot title and internal reference name. Make sure its unique
+        :param robot_plots: RobotPlot instances
+        :param plot_enabled: Turn collections on and off easily with this flag. If False, all subplots will be disabled
+        :param flat_plot: 2D if True, 3D if False. All subplots will be assigned this value
+        """
         self.name = collection_name
         self.plots = []
 
+        # unify key properties between all subplots
         self.flat = flat_plot
         self.enabled = plot_enabled
         for plot in robot_plots:

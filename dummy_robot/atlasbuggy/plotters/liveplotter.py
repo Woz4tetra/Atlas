@@ -1,3 +1,8 @@
+"""
+Contains the LivePlotter class, a subclass of BasePlotter. This class plots incoming data in real time
+according to properties defined in RobotPlot.
+"""
+
 import time
 import traceback
 
@@ -9,18 +14,30 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 class LivePlotter(BasePlotter):
     def __init__(self, num_columns, *robot_plots, legend_args=None, lag_cap=0.005):
+        """
+        Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
+        windows don't behave well. This also conserves CPU usage.
+
+        :param num_columns: Configure how the subplots are arranged
+        :param robot_plots: RobotPlot or RobotPlotCollection instances. Each one will be a subplot
+        :param legend_args: dictionary of arguments to pass to plt.legend
+        :param lag_cap: Constrains how out of sync the plot can be with incoming packets. If the plot
+            is causing a time difference greater than the one specified, skip plotting the incoming data
+            until the plotter comes back in sync.
+        """
         if BasePlotter.fig_num > 0:
             raise Exception("Can't have multiple plotter instances!")
 
         super(LivePlotter, self).__init__(num_columns, legend_args, *robot_plots)
 
+        # create a plot line for each RobotPlot or RobotPlotCollection.
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):
-                if plot.flat:
+                if plot.flat:  # if the plot is 2D
                     self.lines[plot.name] = self.axes[plot.name].plot([], [], **plot.properties)[0]
                 else:
                     self.lines[plot.name] = self.axes[plot.name].plot([], [], [], **plot.properties)[0]
-            elif isinstance(plot, RobotPlotCollection):
+            elif isinstance(plot, RobotPlotCollection):  # similar to RobotPlot initialization except there are subplots
                 self.lines[plot.name] = {}
 
                 if plot.flat:
@@ -31,7 +48,8 @@ class LivePlotter(BasePlotter):
                         self.lines[plot.name][subplot.name] = \
                             self.axes[plot.name].plot([], [], [], **subplot.properties)[0]
 
-        self.fig.canvas.mpl_connect('close_event', lambda event: self.handle_close())
+        # define a clean close event
+        self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
         self.time0 = None
         self.lag_cap = lag_cap
         self.closed = False
@@ -40,15 +58,32 @@ class LivePlotter(BasePlotter):
         plt.show(block=False)
 
     def start_time(self, time0):
+        """
+        Supply a start time. This keeps all timers in sync
+
+        :param time0: a value supplied by time.time()
+        :return: None
+        """
         self.time0 = time0
 
     def should_update(self, packet_timestamp):
+        """
+        Signal whether or not the plot should update using self.lag_cap.
+        If the packet_timestamp - current_time is greater than self.lag_cap, return False
+
+        :param packet_timestamp: A timestamp received with a packet
+        :return: True or False whether the plot should update or not
+        """
         # likely source of rare bug where the plot lags badly
         current_time = time.time() - self.time0
 
         return abs(packet_timestamp - current_time) < self.lag_cap
 
     def plot(self):
+        """
+        Update plot using data supplied to the robot plot objects
+        :return: True or False if the plotting operation was successful
+        """
         if self.closed or not self.plotter_enabled:
             return False
 
@@ -90,10 +125,11 @@ class LivePlotter(BasePlotter):
 
         return True
 
-    def handle_close(self):
-        self.close()
-
     def close(self):
+        """
+        Close the plot safely
+        :return: None
+        """
         if self.plotter_enabled and not self.closed:
             self.closed = True
             plt.ioff()

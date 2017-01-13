@@ -1,3 +1,9 @@
+"""
+The RobotObject class acts a container for data received from and sent to the corresponding robot port.
+Data is directed using a RobotInterface class. Every robot object has a unique whoiam ID which is
+also defined on the microcontroller.
+"""
+
 from multiprocessing import Queue
 
 
@@ -11,7 +17,7 @@ class RobotObject:
 
         Define object variables here
 
-        :param whoiam:
+        :param whoiam: a unique string ID containing ascii characters
         """
         self.whoiam = whoiam
 
@@ -19,10 +25,10 @@ class RobotObject:
 
     def receive_first(self, packet):
         """
-        Overwrite this method when subclassing RobotObject if you're expecting initial data
+        Override this method when subclassing RobotObject if you're expecting initial data
 
         Initialize any data defined in __init__ here.
-        If the who_am_i packet contains data, it's passed here. Otherwise, this method isn't called
+        If the whoiam packet contains data, it's passed here. Otherwise, this method isn't called
 
         :param packet: The first packet received by the robot object's port
         :return: None
@@ -31,7 +37,7 @@ class RobotObject:
 
     def receive(self, packet):
         """
-        Overwrite this method when subclassing RobotObject
+        Override this method when subclassing RobotObject
 
         Parse incoming packets received by the corresponding port.
         This method is called on the RobotSerialPort's thread.
@@ -45,7 +51,7 @@ class RobotObject:
 
     def send(self, packet):
         """
-        Do NOT overwrite this method when subclassing RobotObject
+        Do NOT override this method when subclassing RobotObject
 
         Queue a new packet for sending. The packet end (\n) will automatically be appended
 

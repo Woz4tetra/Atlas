@@ -12,8 +12,8 @@ class DummyRunner(RobotInterface):
         self.dummy = Dummy()
 
         if live_plotting:
-            self.dummy.xyz_plot.max_length = 500
-            self.dummy.xtz_plot.max_length = 500
+            self.dummy.xyz_plot.max_length = 25
+            self.dummy.xtz_plot.max_length = 25
             self.dummy.time_lag.max_length = 50
             self.dummy.queue_count.max_length = 50
 
@@ -25,8 +25,8 @@ class DummyRunner(RobotInterface):
 
         super(DummyRunner, self).__init__(
             self.dummy,
-            # joystick=Logitech(),
-            # log_data=False,
+            joystick=Logitech(),
+            log_data=False,
             # debug_prints=True,
         )
 
@@ -50,12 +50,8 @@ class DummyRunner(RobotInterface):
 
                     if not self.live_plot.plot():
                         return False
-                self.record("time lag", "%7.5f\t%7.5f" % (timestamp, self.dummy.dt))
-            else:
-                print(self.queue_len())
-
-                # else:
-            #     print("Behind by %7.5fs (%7.5f, %7.5f)" % (timestamp - self.dummy.dt, timestamp, self.dummy.dt))
+                else:
+                    self.record("time lag", "%7.5f\t%7.5f" % (timestamp, self.dummy.dt))
 
     def loop(self):
         if self.joystick is not None:

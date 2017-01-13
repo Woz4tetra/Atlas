@@ -1,3 +1,7 @@
+"""
+The base class shared by liveplotter and staticplotter. Contains properties shared by the two types.
+"""
+
 from matplotlib import pyplot as plt
 
 
@@ -5,6 +9,12 @@ class BasePlotter:
     fig_num = 0
 
     def __init__(self, num_columns, legend_args, *robot_plots):
+        """
+        A plotter is one matplotlib figure. Having multiple robot plots creates subplots
+        :param num_columns: Configure how the subplots are arranged
+        :param legend_args: dictionary of arguments to pass to plt.legend
+        :param robot_plots: RobotPlot or RobotPlotCollection instances. Each one will be a subplot
+        """
         self.robot_plots = []
         for plot in robot_plots:
             if plot.enabled:
@@ -42,6 +52,10 @@ class BasePlotter:
             plot_num += 1
 
     def init_legend(self):
+        """
+        Create a legend. Static and live plots need them created at different times
+        :return:
+        """
         if self.legend_args is None:
             self.legend_args = {}
 
@@ -53,4 +67,8 @@ class BasePlotter:
         plt.legend(**self.legend_args)
 
     def plot(self):
+        """
+        Header method. Implemented in static and live plotter
+        :return: True or False depending on if the program should exit or not
+        """
         return True

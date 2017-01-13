@@ -1,3 +1,7 @@
+"""
+Possible errors robot ports, objects and interface might face.
+"""
+
 class RobotObjectBaseError(Exception):
     def __init__(self, error_message, port=None):
         if port is not None:
