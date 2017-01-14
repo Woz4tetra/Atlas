@@ -34,6 +34,7 @@ class Dummy(RobotObject):
             flat_plot=False, color="blue",
             x_range=gravity_range, z_range=gravity_range
         )
+
         self.container_plot = RobotPlot(
             "container",
             # plot_enabled=False,
@@ -75,12 +76,15 @@ class Dummy(RobotObject):
 
         print("versions:", self.python_version, self.micropython_version)
 
-    def receive(self, packet):
-        data = packet.split("\t")
-        self.dt = float(data[0])
-        self.accel_x = int(data[1])
-        self.accel_y = int(data[2])
-        self.accel_z = int(data[3])
+    def receive(self, timestamp, packet):
+        if packet[0] == "a":
+            data = packet[1:].split("\t")
+            self.dt = float(data[0])
+            self.accel_x = int(data[1])
+            self.accel_y = int(data[2])
+            self.accel_z = int(data[3])
+        elif packet[0] == "s":
+            print("switch pressed")
 
     def set_led(self, color, value):
         if type(color) == int:
@@ -91,3 +95,9 @@ class Dummy(RobotObject):
             self.blue_led = value
         else:
             self.leds[self.led_names[color]] = value
+
+    def parse_command(self, packet):
+        if packet[0] == "b":
+            self.blue_led = int(packet[1:])
+        else:
+            self.leds[self.led_names[packet[0]]] = bool(int(packet[1:]))

@@ -35,7 +35,7 @@ class RobotObject:
         """
         pass
 
-    def receive(self, packet):
+    def receive(self, timestamp, packet):
         """
         Override this method when subclassing RobotObject
 
@@ -44,6 +44,7 @@ class RobotObject:
         I would recommend ONLY parsing packets here and not doing anything else.
         Use did_update for any event based function calls in the main thread.
 
+        :param timestamp: The time the packet arrived
         :param packet: A packet (string) received from the robot object's port
         :return: None
         """

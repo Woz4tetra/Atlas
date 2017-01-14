@@ -3,6 +3,7 @@ RobotInterfaceSimulator imitates RobotInterface except its data source is a log 
 """
 
 from atlasbuggy.logfiles.parser import Parser
+from atlasbuggy.logfiles import packet_types
 
 
 class RobotInterfaceSimulator:
@@ -20,8 +21,14 @@ class RobotInterfaceSimulator:
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
 
+        self.ids_used = set()
+        self.ids_received = set()
+        self.prev_whoiam = None
+
         self.prev_percent = 0
         self.percent = 0
+
+        self.dt = None
 
     def print_percent(self):
         percent = 100 * self.parser.index / len(self.parser.contents)
@@ -30,22 +37,50 @@ class RobotInterfaceSimulator:
             self.prev_percent = self.percent
             print(("%0.1f" % percent) + "%", end='\r')
 
-    def packet_received(self, timestamp, whoiam, packet):
-        return True
+    def object_packet(self, timestamp):
+        pass
+
+    def user_packet(self, timestamp, packet):
+        pass
+
+    def command_packet(self, timestamp, packet):
+        pass
+
+    def did_receive(self, whoiam):
+        self.ids_used.add(whoiam)
+        return whoiam == self.prev_whoiam
 
     def run(self):
-        for index, timestamp, whoiam, packet in self.parser:
+        for index, packet_type, timestamp, whoiam, packet in self.parser:
+            self.dt = timestamp
+            self.prev_whoiam = whoiam
+            self.ids_received.add(whoiam)
+
             if whoiam in self.objects.keys():
                 if timestamp == -1:
                     self.objects[whoiam].receive_first(packet)
                     continue
                 else:
-                    self.objects[whoiam].receive(packet)
+                    self.objects[whoiam].receive(timestamp, packet)
 
             self.current_index = index
-            if not self.packet_received(timestamp, whoiam, packet):
-                print("packet_received signalled to exit")
-                break
+
+            if packet_type == "object":
+                self.object_packet(timestamp)
+            elif packet_type == "user":
+                self.user_packet(timestamp, packet)
+            elif packet_type == "command":
+                self.command_packet(timestamp, packet)
+
+        if self.ids_received != self.ids_used:
+            if len(self.ids_received - self.ids_used) > 0:
+                print("Warning IDs unused:")
+                for id in self.ids_received - self.ids_used:
+                    print("\t", id)
+            if len(self.ids_used - self.ids_received) > 0:
+                print("Warning IDs not in log file:")
+                for id in self.ids_used - self.ids_received:
+                    print("\t", id)
 
         self.close()
 

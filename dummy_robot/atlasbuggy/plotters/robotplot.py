@@ -163,6 +163,13 @@ class RobotPlot:
                 self.ranges[axis_num][0] = min(self.data[axis_num])
                 self.ranges[axis_num][1] = max(self.data[axis_num])
 
+    def ranges_set(self):
+        for r in self.ranges:
+            if r is None:
+                return False
+
+        return True
+
     def _append_x(self, x):
         self._append_to_axis(x, 0)
 
@@ -210,6 +217,12 @@ class RobotPlotCollection:
 
         if len(self.plots) == 0:
             self.enabled = False
+
+    def ranges_set(self):
+        for plot in self.plots:
+            if not plot.ranges_set():
+                return False
+        return True
 
     @property
     def x_range(self):

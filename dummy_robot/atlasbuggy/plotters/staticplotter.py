@@ -60,13 +60,14 @@ class StaticPlotter(BasePlotter):
                         self.lines[plot.name][subplot.name] = self.axes[plot.name].plot(
                             subplot.data[0], subplot.data[1], subplot.data[2], **subplot.properties)[0]
         for plot in self.robot_plots:
-            if plot.flat:
-                self.axes[plot.name].set_xlim(plot.x_range)
-                self.axes[plot.name].set_ylim(plot.y_range)
-            else:
-                self.axes[plot.name].set_xlim3d(plot.x_range)
-                self.axes[plot.name].set_ylim3d(plot.y_range)
-                self.axes[plot.name].set_zlim3d(plot.z_range)
+            if plot.ranges_set():
+                if plot.flat:
+                    self.axes[plot.name].set_xlim(plot.x_range)
+                    self.axes[plot.name].set_ylim(plot.y_range)
+                else:
+                    self.axes[plot.name].set_xlim3d(plot.x_range)
+                    self.axes[plot.name].set_ylim3d(plot.y_range)
+                    self.axes[plot.name].set_zlim3d(plot.z_range)
 
         self.init_legend()
 

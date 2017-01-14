@@ -69,19 +69,23 @@ class Logger:
         """
         return "%0.8x" % struct.unpack('<I', struct.pack('<f', number))[0]
 
-    def record(self, timestamp, whoiam, packet):
+    def record(self, timestamp, whoiam, packet, packet_type):
         """
         Record incoming packet.
 
         :param timestamp: time packet arrived. -1 if it's an initialization packet
         :param whoiam: whoiam ID of packet (see robotobject.py for details)
         :param packet: packet received by robot port
+        :param packet_type: packet decorator. Determines how the packet was used
         :return: None
         """
+        packet_type = packet_types[packet_type]
+
         if self.is_open:
             hex_timestamp = self.float_to_hex(timestamp)
 
-            self.data.append("%s%s%s%s%s\n" % (hex_timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
+            self.data.append("%s%s%s%s%s%s\n" % (
+                packet_type, hex_timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
 
             if len(self.data) > 0x1000:
                 self.dump_all()

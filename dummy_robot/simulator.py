@@ -20,20 +20,30 @@ class DummySimulator(RobotInterfaceSimulator):
         self.dummy_plotter = StaticPlotter(2, self.dummy.xyz_plot, self.dummy.xtz_plot)
         self.time_plotter = StaticPlotter(1, self.dummy.time_plot)
 
-    def packet_received(self, timestamp, whoiam, packet):
-        if whoiam == self.dummy.whoiam:
+    def object_packet(self, timestamp):
+        if self.did_receive(self.dummy.whoiam):
             self.dummy.xyz_plot.append(self.dummy.accel_x, self.dummy.accel_y, self.dummy.accel_z)
             self.dummy.xtz_plot.append(self.dummy.accel_x, self.dummy.dt, self.dummy.accel_z)
-        elif whoiam == "time lag":
-            data = packet.split("\t")
-            port_dt = float(data[0])
-            dummy_dt = float(data[1])
-
-            self.dummy.time_lag.append(self.current_index, port_dt)
-            self.dummy.queue_count.append(self.current_index, dummy_dt)
 
         self.print_percent()
-        return True
+
+    def user_packet(self, timestamp, packet):
+        if self.did_receive("time lag"):
+            data = packet.split("\t")
+            packet_timestamp = float(data[0])
+            queue_len = float(data[1])
+
+            self.dummy.time_lag.append(self.dt, packet_timestamp - self.dummy.dt)
+            self.dummy.queue_count.append(self.dt, queue_len)
+
+        self.print_percent()
+
+    def command_packet(self, timestamp, packet):
+        if self.did_receive(self.dummy.whoiam):
+            self.dummy.parse_command(packet)
+            print("r: %i, g: %i, y: %i, b: %i" % (
+                self.dummy.leds[0], self.dummy.leds[1], self.dummy.leds[2], self.dummy.blue_led))
+
 
     def close(self):
         print("plotting...")

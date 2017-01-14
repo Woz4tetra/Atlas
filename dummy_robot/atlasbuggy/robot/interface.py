@@ -51,7 +51,7 @@ class RobotInterface:
         # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
         self.packet_counter = Value('i', 0)
-        self.queue_lock = Lock()
+        self.port_lock = Lock()
 
         # assign robot objects by whoiam ID
         self.objects = {}
@@ -138,11 +138,11 @@ class RobotInterface:
         :param string: Similar to a packet. String data to record
         :return: None
         """
-        self.logger.record(self.dt, tag, string)
-    
+        self.logger.record(self.dt, tag, string, packet_type=None)
+
     def queue_len(self):
         return self.packet_counter.value
-    
+
     # ----- overridable methods -----
 
     def packet_received(self, timestamp, whoiam, packet):
@@ -197,7 +197,7 @@ class RobotInterface:
         """
         if port_info.serial_number is not None:
             port = RobotSerialPort(port_info, self.debug_prints,
-                                   self.packet_queue, self.queue_lock, self.packet_counter, updates_per_second)
+                                   self.packet_queue, self.port_lock, self.packet_counter, updates_per_second)
             self.ports[port.whoiam] = port
 
             if not port.configured:
@@ -240,7 +240,7 @@ class RobotInterface:
             if len(first_packet) > 0:
                 self.objects[whoiam].receive_first(first_packet)
 
-                self.logger.record(-1, whoiam, first_packet)
+                self.logger.record(-1, whoiam, first_packet, packet_type=True)
 
     # ----- port management -----
 
@@ -260,9 +260,13 @@ class RobotInterface:
         Start all port processes. Send start flag
         :return: None
         """
-        for whoiam in self.ports.keys():
-            self.ports[whoiam].start()
-            self.ports[whoiam].send_start()
+        # send start first
+        for robot_port in self.ports.values():
+            robot_port.send_start()
+
+        # then start receiving packets
+        for robot_port in self.ports.values():
+            robot_port.start()
 
     def _stop_all_ports(self):
         """
@@ -283,6 +287,7 @@ class RobotInterface:
             self.close()  # call the user's close function
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
+            self.logger.close()
             raise CloseSignalledExitError(error)
 
         self._stop_all_ports()
@@ -307,28 +312,41 @@ class RobotInterface:
 
     # ----- event handling -----
 
+    def _deliver_packet(self, dt, whoiam, packet):
+        try:
+            self.objects[whoiam].receive(dt, packet)
+        except BaseException as error:
+            self._close_all()
+            raise RobotObjectReceiveError(error)
+
+    def _signal_received(self, dt, whoiam, packet):
+        try:
+            if self.packet_received(dt, whoiam, packet) is False:
+                if self.debug_prints:
+                    print("packet_received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
+                return False
+        except BaseException as error:
+            self._close_all()
+            raise PacketReceivedError(error)
+        return True
+
     def _dequeue_packets(self):
         """
         dequeue all packets from packet_queue. Pass them to the corresponding robot objects
         :return: what packet_received returns (True or False signalled to exit or not)
         """
-        with self.queue_lock:
+        with self.port_lock:
             while not self.packet_queue.empty():
                 whoiam, timestamp, packet = self.packet_queue.get()
                 self.packet_counter.value -= 1
+                dt = timestamp - self.start_time
 
-                self.objects[whoiam].receive(packet)
+                self._deliver_packet(dt, whoiam, packet)
+                self.logger.record(dt, whoiam, packet, packet_type=True)
+                if not self._signal_received(dt, whoiam, packet):
+                    return False
 
-                self.logger.record(timestamp - self.start_time, whoiam, packet)
-                try:
-                    if self.packet_received(timestamp - self.start_time, whoiam, packet) is False:
-                        if self.debug_prints:
-                            print("packet_received signalled to exit")
-                        return False
-                except BaseException as error:
-                    self._close_all()
-                    raise PacketReceivedSignalledExitError(error)
-            return True
+        return True
 
     def _main_loop(self):
         """
@@ -354,6 +372,8 @@ class RobotInterface:
         for whoiam in self.objects.keys():
             while not self.objects[whoiam].command_packets.empty():
                 command = self.objects[whoiam].command_packets.get()
+                self.logger.record(self.dt, whoiam, command, packet_type=False)
+
                 if not self.ports[whoiam].write_packet(command):
                     self._close_all()
-                    raise RobotSerialPortWritePacketError("Failed to send command:", command)
+                    raise RobotSerialPortWritePacketError("Failed to send command %s to '%s'" % (command, whoiam))

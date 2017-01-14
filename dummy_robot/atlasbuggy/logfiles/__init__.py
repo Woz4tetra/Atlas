@@ -9,7 +9,7 @@ time_whoiam_sep = ":"  # timestamp
 whoiam_packet_sep = ";"  # data name
 
 # all data before this date may not work correctly with the current code
-obsolete_data = "Jan 11 2017"  # "Nov 14 2016"
+obsolete_data = "Jan 14 2017"  # "Nov 14 2016"
 log_file_type = "gzip"
 # pickle_file_type = "pkl"
 
@@ -19,6 +19,20 @@ log_directory = ":logs"
 
 log_folder_format = '%b %d %Y'
 log_file_format = '%H;%M;%S, %a %b %d %Y'
+
+packet_types = {
+    True     : "<",  # from a robot object
+    None     : "|",  # user logged
+    False    : ">",  # command sent
+
+    "object" : "<",  # from a robot object
+    "user"   : "|",  # user logged
+    "command": ">",  # command sent
+
+    "<"      : "object",
+    "|"      : "user",
+    ">"      : "command",
+}
 
 
 def todays_log_folder():

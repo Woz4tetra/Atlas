@@ -102,9 +102,9 @@ class Parser:
         if self.index < self.end_index:
             line = self.parse_line()
             if line is not None:
-                timestamp, whoiam, packet = line
+                packet_type, timestamp, whoiam, packet = line
                 self.index += 1
-                return self.index - 1, timestamp, whoiam, packet
+                return self.index - 1, packet_type, timestamp, whoiam, packet
         raise StopIteration
 
     @staticmethod
@@ -134,8 +134,12 @@ class Parser:
 
         # if the line was parsed correctly
         if time_index != -1 and whoiam_index != -1:
+            if line[0] not in packet_types.keys():
+                return None
+            packet_type = packet_types[line[0]]
+
             # the timestamp is the beginning of the line to time_index
-            timestamp = self.hex_to_float(line[0:time_index])
+            timestamp = self.hex_to_float(line[1:time_index])
 
             # the name is from the end of the timestamp to name_index
             who_i_am = line[time_index + len(time_whoiam_sep): whoiam_index]
@@ -143,6 +147,6 @@ class Parser:
             # the values are from the end of the name to the end of the line
             packet = line[whoiam_index + len(whoiam_packet_sep):]
 
-            return timestamp, who_i_am, packet
+            return packet_type, timestamp, who_i_am, packet
         else:
             return None
