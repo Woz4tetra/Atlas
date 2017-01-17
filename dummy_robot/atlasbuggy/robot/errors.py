@@ -2,12 +2,14 @@
 Possible errors robot ports, objects and interface might face.
 """
 
+
 class RobotObjectBaseError(Exception):
     def __init__(self, error_message, port=None):
         if port is not None:
             port_error_message = ""
-            for line in port.error_message:
-                port_error_message += str(line).strip() + "\n"
+            if port.error_message is not None:
+                for line in port.error_message:
+                    port_error_message += str(line).strip() + "\n"
 
             if type(port.whoiam) == str:
                 whoiam_info = '%s' % port.whoiam
@@ -40,9 +42,17 @@ class PacketReceivedError(Exception):
 class RobotObjectReceiveError(Exception):
     """robot_object.receive method threw an exception"""
 
+    def __init__(self, whoiam, packet):
+        super(RobotObjectReceiveError, self).__init__("Input packet from '%s': %s" % (whoiam, repr(packet)))
+
 
 class RobotSerialPortUnassignedError(RobotObjectBaseError):
     """Port was open successfully but no objects use it"""
+
+
+class RobotSerialPortWhoiamIdTaken(RobotObjectBaseError):
+    """whoiam ID is already being used by another port"""
+
 
 
 class RobotSerialPortNotConfiguredError(RobotObjectBaseError):

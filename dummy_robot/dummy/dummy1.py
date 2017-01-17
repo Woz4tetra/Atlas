@@ -2,7 +2,7 @@ from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
-class Dummy(RobotObject):
+class Dummy1(RobotObject):
     def __init__(self):
         self.accel_x, self.accel_y, self.accel_z = 0, 0, 0
         self.dt = 0.0
@@ -60,7 +60,7 @@ class Dummy(RobotObject):
         self.xs = [0] * 180
         self.ys = [0] * 180
 
-        super(Dummy, self).__init__("dummy")
+        super(Dummy1, self).__init__("dummy1")
 
     def receive_first(self, packet):
         data = packet.split("\t")

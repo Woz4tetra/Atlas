@@ -5,6 +5,7 @@ This class manages all robot ports and pass data received to the corresponding r
 import pprint
 import time
 from multiprocessing import Lock, Queue, Value
+import threading
 
 import serial
 import serial.tools.list_ports
@@ -13,6 +14,7 @@ from atlasbuggy.logfiles.logger import Logger
 from atlasbuggy.robot.clock import Clock
 from atlasbuggy.robot.errors import *
 from atlasbuggy.robot.robotport import RobotSerialPort
+from atlasbuggy.robot.robotobject import RobotObject
 
 
 class RobotInterface:
@@ -34,6 +36,7 @@ class RobotInterface:
         self.loop_ups = loop_updates_per_second
         self.port_ups = port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
+        self.prev_whoiam = ""
 
         if log_dir is None:
             # if no directory provided, use the ":today" flag
@@ -58,10 +61,16 @@ class RobotInterface:
         for robot_object in robot_objects:
             self.objects[robot_object.whoiam] = robot_object
 
-        # open all available ports
+        # open all available ports using multithreading
         self.ports = {}
+        threads = []
         for port_info in serial.tools.list_ports.comports():
-            self._configure_port(port_info, self.port_ups)
+            config_thread = threading.Thread(target=self._configure_port, args=(port_info, self.port_ups))
+            threads.append(config_thread)
+            config_thread.start()
+
+        for thread in threads:
+            thread.join()
 
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
@@ -143,6 +152,12 @@ class RobotInterface:
     def queue_len(self):
         return self.packet_counter.value
 
+    def did_receive(self, arg):
+        if isinstance(arg, RobotObject):
+            return arg.whoiam == self.prev_whoiam
+        else:
+            return arg == self.prev_whoiam
+
     # ----- overridable methods -----
 
     def packet_received(self, timestamp, whoiam, packet):
@@ -195,15 +210,19 @@ class RobotInterface:
         :param updates_per_second: how often the port should update
         :return: None
         """
-        if port_info.serial_number is not None:
+        if port_info.vid is not None:
             port = RobotSerialPort(port_info, self.debug_prints,
                                    self.packet_queue, self.port_lock, self.packet_counter, updates_per_second)
-            self.ports[port.whoiam] = port
+            if port.whoiam in self.ports.keys():
+                self._close_all()
+                self._print_port_info(port)
+                raise RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!", port)
+            else:
+                self.ports[port.whoiam] = port
 
             if not port.configured:
                 self._close_all()
                 self._print_port_info(port)
-
                 raise RobotSerialPortNotConfiguredError("Port not configured!", port)
 
     def _check_objects(self):
@@ -214,8 +233,6 @@ class RobotInterface:
         for whoiam in self.objects.keys():
             if whoiam not in self.ports.keys():
                 self._close_all()
-                self._print_port_info(self.ports[whoiam])
-
                 raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
 
     def _check_ports(self):
@@ -317,10 +334,11 @@ class RobotInterface:
             self.objects[whoiam].receive(dt, packet)
         except BaseException as error:
             self._close_all()
-            raise RobotObjectReceiveError(error)
+            raise RobotObjectReceiveError(whoiam, packet)
 
     def _signal_received(self, dt, whoiam, packet):
         try:
+            self.prev_whoiam = whoiam
             if self.packet_received(dt, whoiam, packet) is False:
                 if self.debug_prints:
                     print("packet_received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
@@ -354,6 +372,8 @@ class RobotInterface:
         :return: True or False signalled to exit or not
         """
         try:
+            if self.joystick is not None:
+                self.joystick.update()
             if self.loop() is False:
                 if self.debug_prints:
                     print("loop signalled to exit")

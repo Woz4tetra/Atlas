@@ -2,12 +2,12 @@ from atlasbuggy import project
 from atlasbuggy.plotters.staticplotter import StaticPlotter
 from atlasbuggy.robot.simulator import RobotInterfaceSimulator
 
-from dummy.dummy_bot import Dummy
+from dummy.dummy1 import Dummy1
 
 
 class DummySimulator(RobotInterfaceSimulator):
     def __init__(self, file_name, directory, start_index=0, end_index=-1):
-        self.dummy = Dummy()
+        self.dummy = Dummy1()
 
         super(DummySimulator, self).__init__(
             file_name, directory, start_index, end_index,
@@ -43,7 +43,6 @@ class DummySimulator(RobotInterfaceSimulator):
             self.dummy.parse_command(packet)
             print("r: %i, g: %i, y: %i, b: %i" % (
                 self.dummy.leds[0], self.dummy.leds[1], self.dummy.leds[2], self.dummy.blue_led))
-
 
     def close(self):
         print("plotting...")

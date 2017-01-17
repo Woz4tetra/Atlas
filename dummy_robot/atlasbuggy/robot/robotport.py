@@ -76,15 +76,17 @@ class RobotSerialPort(Process):
         except SerialException as error:
             self.handle_error(error)
 
+        time.sleep(2)  # wait for microcontroller to wake up
+
         if self.configured:
             # Find the ID of this port. The ports will be matched up to the correct RobotObject later
             self.find_whoiam()
             if self.whoiam is not None:
                 self.find_first_packet()
-            elif self.debug_prints:
-                print("whoiam ID was None, skipping find_first_packet")
-        elif self.debug_prints:
-            print("Port not configured. Skipping find_whoiam")
+            self.debug_print("whoiam ID was None, skipping find_first_packet")
+
+        else:
+            self.debug_print("Port not configured. Skipping find_whoiam")
 
         super(RobotSerialPort, self).__init__(target=self.update, args=(queue, lock, counter))
 
@@ -95,7 +97,7 @@ class RobotSerialPort(Process):
         Send the start flag
         :return: None
         """
-        self.write_packet("start!")
+        self.write_packet("start")
 
     def find_whoiam(self):
         """
@@ -112,11 +114,10 @@ class RobotSerialPort(Process):
 
         self.whoiam = self.check_protocol(self.whoiam_ask, self.whoiam_header)
 
-        if self.debug_prints:
-            if self.whoiam is not None:
-                print("%s has ID '%s'" % (self.address, self.whoiam))
-            else:
-                print("Failed to obtain whoiam ID!")
+        if self.whoiam is not None:
+            self.debug_print("%s has ID '%s'" % (self.address, self.whoiam))
+        else:
+            self.debug_print("Failed to obtain whoiam ID!", ignore_flag=True)
 
     def find_first_packet(self):
         """
@@ -134,11 +135,10 @@ class RobotSerialPort(Process):
         """
         self.first_packet = self.check_protocol(self.first_packet_ask, self.first_packet_header)
 
-        if self.debug_prints:
-            if self.first_packet is not None:
-                print("%s sent initialization data: %s" % (self.address, repr(self.first_packet)))
-            else:
-                print("Failed to obtain first packet!")
+        if self.first_packet is not None:
+            self.debug_print("sent initialization data: %s" % repr(self.first_packet))
+        else:
+            self.debug_print("Failed to obtain first packet!", ignore_flag=True)
 
     def check_protocol(self, ask_packet, recv_packet_header):
         """
@@ -149,8 +149,8 @@ class RobotSerialPort(Process):
         :param recv_packet_header: what the received packet should start with
         :return: the packet received without the header and packet end
         """
-        if self.debug_prints:
-            print("Checking '%s' protocol" % ask_packet)
+        self.debug_print("Checking '%s' protocol" % ask_packet)
+
         if not self.write_packet(ask_packet):
             return None  # return None if write failed
 
@@ -161,6 +161,7 @@ class RobotSerialPort(Process):
         # wait for the correct response
         while not abides_protocol:
             packets = self.read_packets()
+            self.print_packets(packets)
 
             # return None if read failed
             if packets is None:
@@ -172,22 +173,17 @@ class RobotSerialPort(Process):
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
                 return None
 
-            self.print_packets(packets)
-
             # parse received packets
             for packet in packets:
                 if packet[0:len(recv_packet_header)] == recv_packet_header:  # if the packet starts with the header,
-                    if self.debug_prints:
-                        print("received packet:", repr(packet))
+                    self.debug_print("received packet: " + repr(packet))
 
                     answer_packet = packet[len(recv_packet_header):]  # record it and return it
 
-                    if self.debug_prints:
-                        print("answer packet:", repr(answer_packet))
+                    self.debug_print("answer packet: " + repr(answer_packet))
                     abides_protocol = True
 
-        if self.debug_prints:
-            print("returning answer packet:", repr(answer_packet))
+        self.debug_print("returning answer packet:" + repr(answer_packet))
         return answer_packet  # when the while loop exits, abides_protocol must be True
 
     def handle_error(self, error):
@@ -252,11 +248,9 @@ class RobotSerialPort(Process):
                 clock.update()  # maintain a constant loop speed
 
         except KeyboardInterrupt:
-            if self.debug_prints:
-                print("KeyboardInterrupt in port loop")
+            self.debug_print("KeyboardInterrupt in port loop")
 
-        if self.debug_prints:
-            print("While loop exited. Exit event triggered. Closing port")
+        self.debug_print("While loop exited. Exit event triggered. Closing port")
         self.close_port()
 
     def read_packets(self):
@@ -327,11 +321,14 @@ class RobotSerialPort(Process):
         :param packets: a list of received packets
         :return: None
         """
-        if self.debug_prints:
-            for packet in packets:
-                print("> %s" % repr(packet))
+        for packet in packets:
+            self.debug_print("> %s" % repr(packet))
 
     # ----- external and status methods -----
+
+    def debug_print(self, string, ignore_flag=False):
+        if self.debug_prints or ignore_flag:
+            print("[%s] %s" % (self.address, string))
 
     def is_running(self):
         """
@@ -364,10 +361,7 @@ class RobotSerialPort(Process):
 
         if self.configured:
             self.write_packet("stop\n")
-
-            if self.debug_prints:
-                print("Sent stop flag")
-
+            self.debug_print("Sent stop flag")
             self.configured = False
 
         self.exit_event.set()
@@ -379,8 +373,6 @@ class RobotSerialPort(Process):
         """
         if self.serial_ref.is_open:
             self.serial_ref.close()
-
-            if self.debug_prints:
-                print("Closing serial")
+            self.debug_print("Closing serial")
         else:
             print("Serial port was already closed!")
