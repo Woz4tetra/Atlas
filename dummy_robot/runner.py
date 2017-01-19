@@ -37,7 +37,7 @@ class DummyRunner(RobotInterface):
             # debug_prints=True,
         )
 
-    def start(self):
+    def start(self):   
         self.live_plot.start_time(self.start_time)
 
     def packet_received(self, timestamp, whoiam, packet):
