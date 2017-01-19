@@ -5,7 +5,6 @@ from LidarTurret import LidarTurret
 class LidarRunner(RobotInterface):
     def __init__(self):
     	self.LidarTurret = LidarTurret()
-
     	super(LidarRunner, self).__init__(
     		self.LidarTurret,
     		#joystick=Logitech(),
@@ -14,9 +13,9 @@ class LidarRunner(RobotInterface):
     	)
 
 	def packet_received(self, timestamp, whoiam, packet):
-		if self.did_receive(self.LidarTurret) # replace dummy with something else
-			# breezy slam code
-			# make point cloud and pass directly into breezy slam code
+		if self.did_receive(self.LidarTurret):
+            if self.LidarTurret.SLAM != None:
+                self.LidarTurret.SLAM.updateSLAM(timestamp)
 
 
 def run_lidar():
