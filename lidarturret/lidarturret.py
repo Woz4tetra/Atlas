@@ -57,8 +57,11 @@ class LidarTurret(RobotObject):
 
     def receive(self, timestamp, packet):
         data = packet.split("\t")
+        if len(data) < 2:
+            return False
+
         delta_tick = int(data[0])
-        if data[1] == "> nack":
+        if data[1] == "> nack\r":
             return False
         distance = int(data[1]) * 10  # convert cm to mm
 

@@ -363,7 +363,8 @@ class RobotInterface:
                 self.packet_counter.value -= 1
                 dt = timestamp - self.start_time
 
-                self._deliver_packet(dt, whoiam, packet)
+                if self._deliver_packet(dt, whoiam, packet) is False:
+                    return False
                 self.logger.record(dt, whoiam, packet, packet_type=True)
                 if not self._signal_received(dt, whoiam, packet):
                     return False

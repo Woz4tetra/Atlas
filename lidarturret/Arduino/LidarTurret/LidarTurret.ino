@@ -16,10 +16,11 @@ unsigned int numPulses = 0;
 boolean direction;
 unsigned long long numRotations = 0;
 
-#define MACRO_ENCODER_THRESH 600
+#define MACRO_ENCODER_THRESH 850
 bool macro_enc_low = false;
 int macro_enc = 0;
 int prev_macro_enc = 0;
+// unsigned long long macro_acq_t0 = millis();
 
 LIDARLite myLidarLite;
 
@@ -126,7 +127,10 @@ void encoderInit()
 
 bool checkMacroEnc()
 {
+    // if (numPulses > 1000) {
     macro_enc = analogRead(MACRO_ENCODER_PIN);
+    // Serial.print("\nmacro_enc:");
+    // Serial.println(macro_enc);
 
     if (macro_enc > MACRO_ENCODER_THRESH && macro_enc_low)
     {
@@ -136,6 +140,7 @@ bool checkMacroEnc()
     else if (macro_enc < MACRO_ENCODER_THRESH) {
         macro_enc_low = true;
     }
+    // }
     return false;
 }
 
