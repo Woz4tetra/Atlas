@@ -34,15 +34,13 @@ class BuggyJoystick:
         pygame.joystick.init()
 
         # search for all available joysticks and initialize them
-        joysticks = [pygame.joystick.Joystick(x) for x in
-                     range(pygame.joystick.get_count())]
+        joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
         if len(joysticks) == 0:
             raise JoysticksNotFoundError("No joysticks found!")
 
         for joy in joysticks:
             joy.init()
-            # print(joy.get_name(), joy.get_id(), joy.get_init(),
-            #       joy.get_numaxes())
+            # print(joy.get_name(), joy.get_id(), joy.get_init(), joy.get_numaxes())
 
         self.axis_to_name = axes_mapping
         self.button_to_name = button_mapping

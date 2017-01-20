@@ -31,7 +31,7 @@ class RobotObject:
         If the whoiam packet contains data, it's passed here. Otherwise, this method isn't called
 
         :param packet: The first packet received by the robot object's port
-        :return: None
+        :return: False if program need to exit for some reason, None or True otherwise
         """
         pass
 
@@ -46,7 +46,7 @@ class RobotObject:
 
         :param timestamp: The time the packet arrived
         :param packet: A packet (string) received from the robot object's port
-        :return: None
+        :return: False if program need to exit for some reason, None or True otherwise
         """
         pass
 

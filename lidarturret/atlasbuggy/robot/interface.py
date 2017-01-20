@@ -169,9 +169,8 @@ class RobotInterface:
         :param timestamp: The time the packet arrived
         :param whoiam: Which robot object the packet went to
         :param packet: The packet received
-        :return: return False if the program should exit for some reason
+        :return: return False if the program should exit for some reason, True or None otherwise
         """
-        return True
 
     def loop(self):
         """
@@ -179,9 +178,8 @@ class RobotInterface:
 
         Similar to Arduino's loop function. This will be run in a while True loop
 
-        :return: True if everything is ok. False if something signalled to close
+        :return: True or None if everything is ok. False if something signalled to close
         """
-        return True
 
     def start(self):
         """
@@ -255,7 +253,10 @@ class RobotInterface:
         for whoiam in self.objects.keys():
             first_packet = self.ports[whoiam].first_packet
             if len(first_packet) > 0:
-                self.objects[whoiam].receive_first(first_packet)
+                if self.objects[whoiam].receive_first(first_packet) is False:
+                    self._close_all()
+                    raise RobotObjectReceiveError(
+                        "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet)
 
                 self.logger.record(-1, whoiam, first_packet, packet_type=True)
 
@@ -331,7 +332,10 @@ class RobotInterface:
 
     def _deliver_packet(self, dt, whoiam, packet):
         try:
-            self.objects[whoiam].receive(dt, packet)
+            if self.objects[whoiam].receive(dt, packet) is False:
+                if self.debug_prints:
+                    print("receive signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
+                return False
         except BaseException as error:
             self._close_all()
             raise RobotObjectReceiveError(whoiam, packet)

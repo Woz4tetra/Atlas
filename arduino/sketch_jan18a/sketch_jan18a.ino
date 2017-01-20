@@ -5,6 +5,7 @@
 
 #define ENCODER_PIN_1 2
 #define ENCODER_PIN_2 4
+#define MACRO_ENCODER_PIN A0
 
 byte encoderPin1Last;
 int numPulses;
@@ -19,7 +20,8 @@ int motor_speed = 0;
 void encoderInit()
 {
     direction = true;  //default -> Forward
-    pinMode(ENCODER_PIN_2,INPUT);
+    pinMode(ENCODER_PIN_2, INPUT);
+    pinMode(MACRO_ENCODER_PIN, INPUT);
     attachInterrupt(0, wheelSpeed, CHANGE);//int.0
 }
 
@@ -56,6 +58,8 @@ void setup() {
 
 void loop() {
     Serial.print(myLidarLite.distance());
+    Serial.print('\t');
+    Serial.print(analogRead(MACRO_ENCODER_PIN));
     Serial.print('\t');
     Serial.println(numPulses);
     numPulses = 0;

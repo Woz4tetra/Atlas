@@ -93,10 +93,17 @@ class RobotPlot:
         for axis_num in range(len(values)):
             self.data[axis_num] = values[axis_num]
 
-            if self.ranges[axis_num] is not None:
-                min_value, max_value = min(values[axis_num]), max(values[axis_num])
-                self._update_range(min_value, axis_num)
-                self._update_range(max_value, axis_num)
+            if self.ranges[axis_num] is not None and len(values[axis_num]) > 0:
+                # self.ranges[axis_num][0] = min(values[axis_num])
+                # self.ranges[axis_num][1] = max(values[axis_num])
+                #
+                # if self.limits[axis_num] is not None:
+                #     if self.ranges[axis_num][0] > self.limits[axis_num][0]:
+                #         self.ranges[axis_num][0] = self.limits[axis_num][0]
+                #     if self.ranges[axis_num][1] > self.limits[axis_num][1]:
+                #         self.ranges[axis_num][1] = self.limits[axis_num][1]
+                self._update_range(min(values[axis_num]), axis_num)
+                self._update_range(max(values[axis_num]), axis_num)
 
     def append(self, x, y, z=None):
         """

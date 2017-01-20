@@ -3,11 +3,11 @@ RobotInterfaceSimulator imitates RobotInterface except its data source is a log 
 """
 
 from atlasbuggy.logfiles.parser import Parser
-from atlasbuggy.logfiles import packet_types
+from atlasbuggy.robot.robotobject import RobotObject
 
 
 class RobotInterfaceSimulator:
-    def __init__(self, file_name, directory, start_index=0, end_index=-1, *robot_objects):
+    def __init__(self, file_name, directory, *robot_objects, start_index=0, end_index=-1):
         """
         :param file_name: log file name or number
         :param directory: directory to search in
@@ -46,9 +46,13 @@ class RobotInterfaceSimulator:
     def command_packet(self, timestamp, packet):
         pass
 
-    def did_receive(self, whoiam):
-        self.ids_used.add(whoiam)
-        return whoiam == self.prev_whoiam
+    def did_receive(self, arg):
+        if isinstance(arg, RobotObject):
+            self.ids_used.add(arg.whoiam)
+            return arg.whoiam == self.prev_whoiam
+        else:
+            self.ids_used.add(arg)
+            return arg == self.prev_whoiam
 
     def run(self):
         for index, packet_type, timestamp, whoiam, packet in self.parser:

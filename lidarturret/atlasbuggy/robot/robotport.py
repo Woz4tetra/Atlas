@@ -83,7 +83,8 @@ class RobotSerialPort(Process):
             self.find_whoiam()
             if self.whoiam is not None:
                 self.find_first_packet()
-            self.debug_print("whoiam ID was None, skipping find_first_packet")
+            else:
+                self.debug_print("whoiam ID was None, skipping find_first_packet")
 
         else:
             self.debug_print("Port not configured. Skipping find_whoiam")
