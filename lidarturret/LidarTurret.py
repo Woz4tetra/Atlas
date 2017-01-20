@@ -1,28 +1,38 @@
-class LidarTurret(RobotOject):
+from breezyslam import *
+from atlasbuggy.robot.robotobject import RobotObject
+
+class LidarTurret(RobotObject):
 	#Change this to desired values, need to test how they change the outcome
 	def __init__(self):
 		#other stuff
 		self.SLAM = None
 		#CHange this to test different results with different algorithms
-		self.flag = SLAM.STATIONARY
+		self.flag = SLAMObject.STATIONARY
 		self.e_tick = 0
+		self.total_ticks = 0
 		#INT ARRAY
-		self.pointcloud = 0
+		self.pointcloud = []
+		self.distance = 0
 		super(LidarTurret, self).__init__("LidarTurret")
 	def receive_first(self, packet):
 		# <scan_size, scan_rate, detection_angle, distance_no_detection> (int)
-		data = packet.split()
+		data = packet.split("\t")
 		data = list(map(int,data))
 		self.SLAM = SLAMObject(pybreezyslam.Laser(data),flag = self.flag)
 	def receive(self, timestamp, packet):
-		# <angle, distance> (int)	
-		data = packet.split()
+		# <angle, distance> (int)
+		data = packet.split("\t")
 		self.e_tick = int(data[0])
-		self.pointcloud = int(data[1:])
+		self.distance = int(data[1])
+		self.pointcloud.append(distance)
+		self.total_ticks += self.e_tick
 
 	def updateSLAM(self,timestamp):
-		self.SLAM.update(timestamp,self.pointcloud,self.e_tick)
-		
+		if total_ticks == 661:
+			self.SLAM.update(timestamp,self.pointcloud,self.e_tick)
+			self.total_ticks = 0
+			self.pointcloud = []
+
 
 class SLAMObject (object):
 	"""
@@ -33,9 +43,11 @@ class SLAMObject (object):
 	MOVING = 1
 	MOVING_ODOMETRY = 2
 
-	def __init__(self,laser, map_pixels=0,map_size =0, flag = SLAM.STATIONARY):
+	def __init__(self,laser, map_pixels=0,map_size =0, flag = None):
+	#def __init__(self, laser, map_pixels=0, map_size=0):
 		self.laser = laser
-		self.flag = flag
+		if flag is None:
+			self.flag = SLAMObject.STATIONARY
 		#For odometry
 		self.velocities = (0,0,0)
 		self.set_algorithm()
