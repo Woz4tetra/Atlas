@@ -10,7 +10,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot
 
 
 class LidarTurret(RobotObject):
-    def __init__(self, enable_slam):
+    def __init__(self, enable_slam=True):
         self.current_tick = 0  # current tick received
         self.distances = []  # lidar distance readings in mm
         self.ticks = []  # tick readings in units of encoder counts
