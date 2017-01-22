@@ -6,29 +6,69 @@ from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
 from PIL import Image
 
 from atlasbuggy.robot.robotobject import RobotObject
-from atlasbuggy.plotters.robotplot import RobotPlot
+from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
+
+
+class DynamicList:
+    def __init__(self, *item):
+        self.l = list(item)
+        self.index = 0
+        self.end_index = 0
+
+    def append(self, *x):
+        if len(self.l) <= self.index:
+            if len(x) > 1:
+                self.l.append(list(x))
+            else:
+                self.l.append(x[0])
+        else:
+            if len(x) > 1:
+                for sub_index in range(len(x)):
+                    self.l[self.index][sub_index] = x[sub_index]
+            else:
+                self.l[self.index] = x[0]
+        self.index += 1
+
+    def get(self):
+        return self.l[0:self.end_index]
+
+    def cap(self):
+        self.end_index = self.index
+        self.index = 0
+
+    def __getitem__(self, item):
+        return self.l[item % self.end_index]
+
+    def __len__(self):
+        return self.end_index
 
 
 class LidarTurret(RobotObject):
     def __init__(self, enable_slam=True):
         self.current_tick = 0  # current tick received
-        self.distances = []  # lidar distance readings in mm
-        self.ticks = []  # tick readings in units of encoder counts
-        self.current_index = 0  # index to add next piece of data to
-        self.end_index = -1  # where the current set of data ends
-
         self.ticks_per_rotation = 0
-        self.prev_timestamp = 0
+        self.prev_hz_time = 0
         self.update_rate_hz = 0.0
 
-        self.point_cloud_xs = []  # x points in mm
-        self.point_cloud_ys = []  # y points in mm
-        self.cloud_updated = False
+        self.dist_timestamp = 0
+        self.distances = DynamicList()
 
-        lidar_range = (-4000, 4000)
+        self.tick_timestamp = 0
+        self.ticks = DynamicList()
+
+        self.rotations = 0
+
+        self.point_cloud_xs = DynamicList()
+        self.point_cloud_ys = DynamicList()
+
+        lidar_range = (-100, 100)
         self.point_cloud_plot = RobotPlot(
-            "point cloud", x_range=lidar_range, y_range=lidar_range, range_offset=1
+            "point cloud",
+            x_range=lidar_range, y_range=lidar_range, range_offset=1,
+            marker='.', linestyle=''
         )
+
+        self.cloud_updated = True
 
         self.enable_slam = enable_slam
         self.laser = None
@@ -67,29 +107,27 @@ class LidarTurret(RobotObject):
 
         self.current_tick += delta_tick
 
-        if self.current_index >= len(self.distances):
-            self.distances.append(distance)
-            self.ticks.append(self.current_tick)
-        else:
-            self.distances[self.current_index] = distance
-            self.ticks[self.current_index] = self.current_tick
-        self.current_index += 1
+        self.distances.append(distance)
+        self.ticks.append(self.current_tick)
 
         if len(data) == 3:
-            self.end_index = self.current_index
-            self.current_index = 0
-            rotations = int(data[2])
-            print(timestamp, rotations, self.current_tick, 1 / (timestamp - self.prev_timestamp), self.end_index)
-            self.prev_timestamp = timestamp
+            self.distances.cap()
+            self.ticks.cap()
+            self.ticks_per_rotation = self.current_tick
+            self.current_tick = 0
+
+            self.rotations = int(data[2])
+            self.update_rate_hz = 1 / (timestamp - self.prev_hz_time)
+            self.prev_hz_time = timestamp
+
+            print("Rotation #%4.0d @ %5.2fs (%4.2fHz), Ticks: %s, Points: %s" % (
+                self.rotations, timestamp, self.update_rate_hz, self.current_tick, len(self.distances)))
 
             self.make_point_cloud()
             self.cloud_updated = True
-            self.point_cloud_plot.update(self.point_cloud_xs[0:self.end_index],
-                                         self.point_cloud_ys[0:self.end_index])
+            self.point_cloud_plot.update(self.point_cloud_xs.get(), self.point_cloud_ys.get())
 
-            self.current_tick = 0
-
-            if rotations > 2 and self.enable_slam:
+            if self.rotations > 2 and self.enable_slam:
                 self.update_slam(timestamp)
 
     def did_cloud_update(self):
@@ -100,29 +138,25 @@ class LidarTurret(RobotObject):
             return False
 
     def make_point_cloud(self):
-        self.ticks_per_rotation = self.current_tick
-        if self.ticks_per_rotation > 0:
-            for index in range(self.end_index):
+        if self.rotations > 1:
+            for index in range(len(self.distances)):
                 angle = self.ticks[index] / self.ticks_per_rotation * 2 * math.pi
                 x = self.distances[index] * math.cos(angle)
                 y = self.distances[index] * math.sin(angle)
-                if index >= len(self.point_cloud_xs):
-                    self.point_cloud_xs.append(x)
-                else:
-                    self.point_cloud_xs[index] = x
 
-                if index >= len(self.point_cloud_ys):
-                    self.point_cloud_ys.append(y)
-                else:
-                    self.point_cloud_ys[index] = y
+                self.point_cloud_xs.append(x)
+                self.point_cloud_ys.append(y)
+
+            self.point_cloud_xs.cap()
+            self.point_cloud_ys.cap()
 
     @property
     def point_cloud(self):
-        return self.point_cloud_xs[:self.end_index], self.point_cloud_ys[:self.end_index]
+        return self.point_cloud_xs.get(), self.point_cloud_ys.get()
 
     def update_slam(self, timestamp):
         if self.enable_slam:
-            self.slam.update(timestamp, self.distances[0:self.end_index], self.ticks_per_rotation)
+            self.slam.update(timestamp, self.distances.get(), self.ticks_per_rotation)
 
     def set_paused(self, paused=None):
         if paused is None:

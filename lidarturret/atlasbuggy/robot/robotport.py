@@ -158,10 +158,15 @@ class RobotSerialPort(Process):
         start_time = time.time()
         abides_protocol = False
         answer_packet = ""
+        attempts = 0
+        prev_rounded_time = 0
+        rounded_time = 0
 
         # wait for the correct response
         while not abides_protocol:
             packets = self.read_packets()
+            if packets is None:
+                return None
             self.print_packets(packets)
 
             # return None if read failed
@@ -169,7 +174,15 @@ class RobotSerialPort(Process):
                 self.handle_error("Serial read failed... Board never signalled ready")
                 return None
 
-            # return None if operation timed out
+            prev_rounded_time = rounded_time
+            rounded_time = int((time.time() - start_time) * 10)
+            if rounded_time % 10 == 0 and rounded_time > 5 and prev_rounded_time != rounded_time:
+                attempts += 1
+                self.debug_print("Writing '%s' again" % ask_packet)
+                if not self.write_packet(ask_packet):
+                    return None
+
+                # return None if operation timed out
             if (time.time() - start_time) > 2:
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
                 return None
@@ -227,7 +240,6 @@ class RobotSerialPort(Process):
                 # close the process if the serial port isn't open
                 if not self.serial_ref.is_open:
                     self.stop()
-                    self.close_port()
                     raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...")
 
                 if self.serial_ref.in_waiting > 0:
@@ -235,7 +247,6 @@ class RobotSerialPort(Process):
                     packets = self.read_packets()
                     if packets is None:  # if the read failed
                         self.stop()
-                        self.close_port()
                         raise RobotSerialPortReadPacketError("Failed to read packets")
 
                     # put data found into the queue
@@ -251,8 +262,7 @@ class RobotSerialPort(Process):
         except KeyboardInterrupt:
             self.debug_print("KeyboardInterrupt in port loop")
 
-        self.debug_print("While loop exited. Exit event triggered. Closing port")
-        self.close_port()
+        self.debug_print("While loop exited. Exit event triggered.")
 
     def read_packets(self):
         """
@@ -360,12 +370,16 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        if self.configured:
-            self.write_packet("stop\n")
-            self.debug_print("Sent stop flag")
+        if not self.exit_event.is_set():
+            self.check_protocol("stop", "stopping")
+            if not self.configured:
+                self.debug_print("Failed to send stop flag!!!")
+            else:
+                self.debug_print("Sent stop flag")
             self.configured = False
 
         self.exit_event.set()
+        self.close_port()
 
     def close_port(self):
         """

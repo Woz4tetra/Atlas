@@ -72,3 +72,4 @@ class BasePlotter:
         :return: True or False depending on if the program should exit or not
         """
         return True
+

@@ -46,6 +46,10 @@ class RobotObjectReceiveError(Exception):
         super(RobotObjectReceiveError, self).__init__("Input packet from '%s': %s" % (whoiam, repr(packet)))
 
 
+class RobotObjectInitializationError(Exception):
+    """Object passed isn't a RobotObject"""
+
+
 class RobotSerialPortUnassignedError(RobotObjectBaseError):
     """Port was open successfully but no objects use it"""
 

@@ -15,6 +15,7 @@ from atlasbuggy.robot.clock import Clock
 from atlasbuggy.robot.errors import *
 from atlasbuggy.robot.robotport import RobotSerialPort
 from atlasbuggy.robot.robotobject import RobotObject
+from atlasbuggy.robot.robotcollection import RobotObjectCollection
 
 
 class RobotInterface:
@@ -59,7 +60,14 @@ class RobotInterface:
         # assign robot objects by whoiam ID
         self.objects = {}
         for robot_object in robot_objects:
-            self.objects[robot_object.whoiam] = robot_object
+            if isinstance(robot_object, RobotObject):
+                self.objects[robot_object.whoiam] = robot_object
+            elif isinstance(robot_object, RobotObjectCollection):
+                for whoiam in robot_object.whoiam_ids:
+                    self.objects[whoiam] = robot_object
+            else:
+                raise RobotObjectInitializationError(
+                    "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
 
         # open all available ports using multithreading
         self.ports = {}
@@ -127,6 +135,7 @@ class RobotInterface:
         except KeyboardInterrupt:
             pass
 
+        self._debug_print("Closing all from run (KeyboardInterrupt)")
         self._close_all()
 
     # ----- utility methods -----
@@ -155,6 +164,9 @@ class RobotInterface:
     def did_receive(self, arg):
         if isinstance(arg, RobotObject):
             return arg.whoiam == self.prev_whoiam
+        elif isinstance(arg, RobotObjectCollection):
+            for whoiam in arg.whoiam_ids:
+                return whoiam == self.prev_whoiam
         else:
             return arg == self.prev_whoiam
 
@@ -250,10 +262,19 @@ class RobotInterface:
         Send each port's first packet to the corresponding object if it isn't an empty string
         :return: None
         """
+        status = True
         for whoiam in self.objects.keys():
             first_packet = self.ports[whoiam].first_packet
             if len(first_packet) > 0:
-                if self.objects[whoiam].receive_first(first_packet) is False:
+                if isinstance(self.objects[whoiam], RobotObject):
+                    if self.objects[whoiam].receive_first(first_packet) is False:
+                        status = False
+                elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                    if self.objects[whoiam].receive_first(whoiam, first_packet) is False:
+                        status = False
+
+                if not status:
+                    self._debug_print("Closing all from _send_first_packets")
                     self._close_all()
                     raise RobotObjectReceiveError(
                         "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet)
@@ -269,8 +290,7 @@ class RobotInterface:
         :return: None
         """
         if self.debug_prints:
-            pprint.pprint(port.port_info.__dict__)
-            print()
+            self._debug_print(pprint.pformat(port.port_info.__dict__) + "\n")
             time.sleep(0.01)  # wait for error messages to print
 
     def _start_all(self):
@@ -291,8 +311,7 @@ class RobotInterface:
         Close all robot port processes
         :return: None
         """
-        if self.debug_prints:
-            print("Closing all ports")
+        self._debug_print("Closing all ports")
         for robot_port in self.ports.values():
             robot_port.stop()
 
@@ -302,6 +321,7 @@ class RobotInterface:
         :return: None
         """
         try:
+            self._debug_print("Calling user's close function")
             self.close()  # call the user's close function
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
@@ -321,6 +341,7 @@ class RobotInterface:
         for robot_port in self.ports.values():
             status = robot_port.is_running()
             if status < 1:
+                self._debug_print("Closing all from _are_ports_active")
                 self._close_all()
                 if status == 0:
                     raise RobotSerialPortSignalledExitError("Port with ID '%s' signalled to exit" % robot_port.whoiam)
@@ -332,11 +353,18 @@ class RobotInterface:
 
     def _deliver_packet(self, dt, whoiam, packet):
         try:
-            if self.objects[whoiam].receive(dt, packet) is False:
-                if self.debug_prints:
-                    print("receive signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
-                return False
+            if isinstance(self.objects[whoiam], RobotObject):
+                if self.objects[whoiam].receive(dt, packet) is False:
+                    self._debug_print(
+                        "receive for object signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
+                    return False
+            elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                if self.objects[whoiam].receive(dt, whoiam, packet) is False:
+                    self._debug_print("receive for collection signalled to exit. whoiam ID: '%s', packet: %s" % (
+                        whoiam, repr(packet)))
+                    return False
         except BaseException as error:
+            self._debug_print("Closing all from _deliver_packet")
             self._close_all()
             raise RobotObjectReceiveError(whoiam, packet)
 
@@ -344,10 +372,11 @@ class RobotInterface:
         try:
             self.prev_whoiam = whoiam
             if self.packet_received(dt, whoiam, packet) is False:
-                if self.debug_prints:
-                    print("packet_received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
+                self._debug_print(
+                    "packet_received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
                 return False
         except BaseException as error:
+            self._debug_print("Closing all from _signal_received")
             self._close_all()
             raise PacketReceivedError(error)
         return True
@@ -380,10 +409,10 @@ class RobotInterface:
             if self.joystick is not None:
                 self.joystick.update()
             if self.loop() is False:
-                if self.debug_prints:
-                    print("loop signalled to exit")
+                self._debug_print("loop signalled to exit")
                 return False
         except BaseException as error:
+            self._debug_print("Closing all from _main_loop")
             self._close_all()
             raise LoopSignalledError(error)
 
@@ -395,10 +424,22 @@ class RobotInterface:
         :return:
         """
         for whoiam in self.objects.keys():
-            while not self.objects[whoiam].command_packets.empty():
+            robot_object = self.objects[whoiam]
+            if isinstance(robot_object, RobotObject):
+                command_packets = robot_object.command_packets
+            elif isinstance(robot_object, RobotObjectCollection):
+                command_packets = robot_object.command_packets[whoiam]
+            else:
+                break
+            while not command_packets.empty():
                 command = self.objects[whoiam].command_packets.get()
                 self.logger.record(self.dt, whoiam, command, packet_type=False)
 
                 if not self.ports[whoiam].write_packet(command):
+                    self._debug_print("Closing all from _send_commands")
                     self._close_all()
                     raise RobotSerialPortWritePacketError("Failed to send command %s to '%s'" % (command, whoiam))
+
+    def _debug_print(self, string, ignore_flag=False):
+        if self.debug_prints or ignore_flag:
+            print("[Interface] %s" % string)

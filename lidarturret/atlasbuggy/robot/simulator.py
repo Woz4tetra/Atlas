@@ -4,7 +4,8 @@ RobotInterfaceSimulator imitates RobotInterface except its data source is a log 
 
 from atlasbuggy.logfiles.parser import Parser
 from atlasbuggy.robot.robotobject import RobotObject
-
+from atlasbuggy.robot.robotcollection import RobotObjectCollection
+from atlasbuggy.robot.errors import RobotObjectInitializationError
 
 class RobotInterfaceSimulator:
     def __init__(self, file_name, directory, *robot_objects, start_index=0, end_index=-1):
@@ -17,7 +18,14 @@ class RobotInterfaceSimulator:
         """
         self.objects = {}
         for robot_object in robot_objects:
-            self.objects[robot_object.whoiam] = robot_object
+            if isinstance(robot_object, RobotObject):
+                self.objects[robot_object.whoiam] = robot_object
+            elif isinstance(robot_object, RobotObjectCollection):
+                for whoiam in robot_object.whoiam_ids:
+                    self.objects[whoiam] = robot_object
+            else:
+                raise RobotObjectInitializationError(
+                    "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
 
@@ -50,6 +58,11 @@ class RobotInterfaceSimulator:
         if isinstance(arg, RobotObject):
             self.ids_used.add(arg.whoiam)
             return arg.whoiam == self.prev_whoiam
+        elif isinstance(arg, RobotObjectCollection):
+            for whoiam in arg.whoiam_ids:
+                if whoiam == self.prev_whoiam:
+                    self.ids_used.add(whoiam)
+                    return True
         else:
             self.ids_used.add(arg)
             return arg == self.prev_whoiam
@@ -62,19 +75,29 @@ class RobotInterfaceSimulator:
 
             if whoiam in self.objects.keys():
                 if timestamp == -1:
-                    self.objects[whoiam].receive_first(packet)
+                    if isinstance(self.objects[whoiam], RobotObject):
+                        self.objects[whoiam].receive_first(packet)
+                    elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                        self.objects[whoiam].receive_first(whoiam, packet)
                     continue
                 else:
-                    self.objects[whoiam].receive(timestamp, packet)
+                    if isinstance(self.objects[whoiam], RobotObject):
+                        self.objects[whoiam].receive(timestamp, packet)
+                    elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                        self.objects[whoiam].receive(timestamp, whoiam, packet)
+
 
             self.current_index = index
 
             if packet_type == "object":
-                self.object_packet(timestamp)
+                if self.object_packet(timestamp) is False:
+                    break
             elif packet_type == "user":
-                self.user_packet(timestamp, packet)
+                if self.user_packet(timestamp, packet) is False:
+                    break
             elif packet_type == "command":
-                self.command_packet(timestamp, packet)
+                if self.command_packet(timestamp, packet) is False:
+                    break
 
         if self.ids_received != self.ids_used:
             if len(self.ids_received - self.ids_used) > 0:
