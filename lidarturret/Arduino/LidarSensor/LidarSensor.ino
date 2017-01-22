@@ -180,10 +180,9 @@ void readSerial()
 void writeSerial()
 {
     Serial.print(int2str(myLidarLite.distance()));  // distance in CM
-    Serial.print('\t');
-    Serial.print(dt());
+    // Serial.print('\t');
+    // Serial.print(dt());
     Serial.print('\n');
-    delay(2);
 }
 
 void writeInit()

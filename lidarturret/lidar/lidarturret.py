@@ -93,8 +93,9 @@ class LidarTurret(RobotObjectCollection):
 
     def distance_parse(self, timestamp, packet):
         data = packet.split("\t")
-        self.dist_timestamp += int(data[1]) * 1E-6
-        self.distances.append(int(data[0]), timestamp - self.prev_time)
+        # self.dist_timestamp += int(data[1]) * 1E-6
+        self.distances.append(int(data[0]))
+        self.ticks.append(self.current_tick)
 
         self.time_plot2.append(timestamp, timestamp - self.prev_time2)
         self.prev_time2 = timestamp
@@ -106,8 +107,6 @@ class LidarTurret(RobotObjectCollection):
         if len(data) >= 2:
             self.current_tick += int(data[0])
             self.tick_timestamp += int(data[1]) * 1E-6
-
-            self.ticks.append(self.current_tick, timestamp - self.prev_time)
 
         if len(data) == 3:
             self.rotations = int(data[2])
@@ -128,19 +127,19 @@ class LidarTurret(RobotObjectCollection):
 
     def make_point_cloud(self):
         if self.rotations > 2:
-            tick_index = 0
             self.distances.cap()
-            # self.ticks.cap()
+            self.ticks.cap()
 
-            # ticks = self.ticks.get()
-            for distance, timestamp in self.distances.get():
+            distances = self.distances.get()
+            ticks = self.ticks.get()
+            print(len(distances))
+            for index in range(len(distances)):
                 # while timestamp - ticks[tick_index][1] > 0:
                 #     print(distance, timestamp, ticks[tick_index][1])
-                tick_index += 1
 
-                angle = tick_index / self.distances.end_index * 2 * math.pi
-                x = distance * math.cos(angle)
-                y = distance * math.sin(angle)
+                angle = ticks[index] / self.ticks_per_rotation * 2 * math.pi
+                x = distances[index] * math.cos(angle)
+                y = distances[index] * math.sin(angle)
 
                 self.point_cloud_xs.append(x)
                 self.point_cloud_ys.append(y)

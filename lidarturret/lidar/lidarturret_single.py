@@ -6,46 +6,12 @@ from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
 from PIL import Image
 
 from atlasbuggy.robot.robotobject import RobotObject
-from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
-
-
-class DynamicList:
-    def __init__(self, *item):
-        self.l = list(item)
-        self.index = 0
-        self.end_index = 0
-
-    def append(self, *x):
-        if len(self.l) <= self.index:
-            if len(x) > 1:
-                self.l.append(list(x))
-            else:
-                self.l.append(x[0])
-        else:
-            if len(x) > 1:
-                for sub_index in range(len(x)):
-                    self.l[self.index][sub_index] = x[sub_index]
-            else:
-                self.l[self.index] = x[0]
-        self.index += 1
-
-    def get(self):
-        return self.l[0:self.end_index]
-
-    def cap(self):
-        self.end_index = self.index
-        self.index = 0
-
-    def __getitem__(self, item):
-        return self.l[item % self.end_index]
-
-    def __len__(self):
-        return self.end_index
+from atlasbuggy.plotters.robotplot import RobotPlot
 
 
 class LidarTurret(RobotObject):
     def __init__(self, enable_slam=True):
-        self.current_tick = 0  # current tick received
+        self.current_tick = 0
         self.ticks_per_rotation = 0
         self.prev_hz_time = 0
         self.update_rate_hz = 0.0
@@ -229,3 +195,37 @@ class SLAM:
         needs implementation
         """
         pass
+
+
+class DynamicList:
+    def __init__(self, *item):
+        self.l = list(item)
+        self.index = 0
+        self.end_index = 0
+
+    def append(self, *x):
+        if len(self.l) <= self.index:
+            if len(x) > 1:
+                self.l.append(list(x))
+            else:
+                self.l.append(x[0])
+        else:
+            if len(x) > 1:
+                for sub_index in range(len(x)):
+                    self.l[self.index][sub_index] = x[sub_index]
+            else:
+                self.l[self.index] = x[0]
+        self.index += 1
+
+    def get(self):
+        return self.l[0:self.end_index]
+
+    def cap(self):
+        self.end_index = self.index
+        self.index = 0
+
+    def __getitem__(self, item):
+        return self.l[item % self.end_index]
+
+    def __len__(self):
+        return self.end_index
