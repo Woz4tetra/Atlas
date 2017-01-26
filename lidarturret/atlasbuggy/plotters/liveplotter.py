@@ -13,6 +13,8 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class LivePlotter(BasePlotter):
+    initialized = False
+
     def __init__(self, num_columns, *robot_plots, legend_args=None, lag_cap=0.005):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
@@ -25,8 +27,9 @@ class LivePlotter(BasePlotter):
             is causing a time difference greater than the one specified, skip plotting the incoming data
             until the plotter comes back in sync.
         """
-        if BasePlotter.fig_num > 0:
+        if LivePlotter.initialized:
             raise Exception("Can't have multiple plotter instances!")
+        LivePlotter.initialized = True
 
         super(LivePlotter, self).__init__(num_columns, legend_args, *robot_plots)
 

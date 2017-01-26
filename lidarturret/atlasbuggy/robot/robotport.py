@@ -182,8 +182,8 @@ class RobotSerialPort(Process):
                 if not self.write_packet(ask_packet):
                     return None
 
-                # return None if operation timed out
-            if (time.time() - start_time) > 2:
+            # return None if operation timed out
+            if (time.time() - start_time) > 4:
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
                 return None
 

@@ -18,6 +18,7 @@ from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.robot.robotcollection import RobotObjectCollection
 
 
+
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None,
@@ -80,6 +81,11 @@ class RobotInterface:
         for thread in threads:
             thread.join()
 
+        for port in self.ports.values():
+            if not port.configured:
+                self._print_port_info(port)
+                raise RobotSerialPortNotConfiguredError("Port not configured!", port)
+
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
         self._send_first_packets()  # distribute initialization packets
@@ -135,7 +141,7 @@ class RobotInterface:
         except KeyboardInterrupt:
             pass
 
-        self._debug_print("Closing all from run (KeyboardInterrupt)")
+        self._debug_print("Closing all from run")
         self._close_all()
 
     # ----- utility methods -----
@@ -229,11 +235,6 @@ class RobotInterface:
                 raise RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!", port)
             else:
                 self.ports[port.whoiam] = port
-
-            if not port.configured:
-                self._close_all()
-                self._print_port_info(port)
-                raise RobotSerialPortNotConfiguredError("Port not configured!", port)
 
     def _check_objects(self):
         """

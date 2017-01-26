@@ -37,18 +37,21 @@ class BasePlotter:
 
         self.axes = {}
         self.lines = {}
+        self.plots_dict = {}
 
         self.fig = plt.figure(BasePlotter.fig_num)
         BasePlotter.fig_num += 1
 
         plot_num = 1
         for plot in self.robot_plots:
+            self.plots_dict[plot.name] = plot
             if plot.flat:
                 self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
             else:
                 self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num, projection='3d')
 
             self.axes[plot.name].set_title(plot.name)
+
             plot_num += 1
 
     def init_legend(self):
@@ -65,6 +68,12 @@ class BasePlotter:
             self.legend_args["shadow"] = 'True'
 
         plt.legend(**self.legend_args)
+
+    def draw_dot(self, sub_plot_name, x, y, z=None, **dot_properties):
+        if self.plots_dict[sub_plot_name].flat:
+            self.axes[sub_plot_name].plot(x, y, 'o', **dot_properties)
+        else:
+            self.axes[sub_plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
     def plot(self):
         """

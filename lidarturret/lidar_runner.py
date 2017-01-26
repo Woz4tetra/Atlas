@@ -1,6 +1,7 @@
 from atlasbuggy.robot.interface import RobotInterface
-# from lidar.lidarturret_single import LidarTurret
 from lidar.lidarturret import LidarTurret
+
+# from lidar.lidarturret import LidarTurret
 
 live_plotting = True
 if live_plotting:
@@ -16,13 +17,13 @@ class LidarRunner(RobotInterface):
                 2, self.turret.point_cloud_plot,
                 legend_args=dict(loc="upper left")
             )
-            self.live_plot.axes["point cloud"].plot(0, 0, 'o', color='orange', markersize=5)
+            self.live_plot.draw_dot("point cloud", 0, 0, color='orange', markersize=5)
 
         super(LidarRunner, self).__init__(
             self.turret,
             # joystick=WiiUJoystick(),
             log_data=False,
-            # debug_prints=True,
+            debug_prints=True,
         )
 
     def start(self):
@@ -32,7 +33,7 @@ class LidarRunner(RobotInterface):
     def packet_received(self, timestamp, whoiam, packet):
         if self.did_receive(self.turret):
             if live_plotting:
-                if self.turret.did_cloud_update() and self.queue_len() < 50:  # and self.live_plot.should_update(timestamp):
+                if self.turret.did_cloud_update() and self.queue_len() < 25:  # and self.live_plot.should_update(timestamp):
                     if not self.live_plot.plot():
                         return False
 
@@ -45,8 +46,6 @@ class LidarRunner(RobotInterface):
     def close(self):
         if live_plotting:
             self.live_plot.close()
-            # if self.turret.enable_slam:
-            #     self.turret.slam.make_image("something")
 
 
 def run_lidar():
