@@ -50,7 +50,7 @@ void readSerial()
 {
     while (Serial.available())
     {
-        command = Serial.readStringUntil('\n');
+        String command = Serial.readStringUntil('\n');
 
         // if (character == '\n')
         // {
@@ -85,13 +85,13 @@ void updateIMU() {
     imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
 
     /* Display the floating point data */
-    Serial.print("X: ");
+    // Serial.print("X: ");
     Serial.print(euler.x());
-    Serial.print(" Y: ");
+    Serial.print('\t');
     Serial.print(euler.y());
-    Serial.print(" Z: ");
+    Serial.print('\t');
     Serial.print(euler.z());
-    Serial.print("\t\t");
+    Serial.print('\n');
 
     /*
     // Quaternion data
@@ -108,16 +108,17 @@ void updateIMU() {
     */
 
     /* Display calibration status for each sensor. */
-    uint8_t system, gyro, accel, mag = 0;
-    bno.getCalibration(&system, &gyro, &accel, &mag);
-    Serial.print("CALIBRATION: Sys=");
-    Serial.print(system, DEC);
-    Serial.print(" Gyro=");
-    Serial.print(gyro, DEC);
-    Serial.print(" Accel=");
-    Serial.print(accel, DEC);
-    Serial.print(" Mag=");
-    Serial.println(mag, DEC);
+    // uint8_t system, gyro, accel, mag = 0;
+    // bno.getCalibration(&system, &gyro, &accel, &mag);
+    // Serial.print("CALIBRATION: Sys=");
+    // Serial.print(system, DEC);
+    // Serial.print(" Gyro=");
+    // Serial.print(gyro, DEC);
+    // Serial.print(" Accel=");
+    // Serial.print(accel, DEC);
+    // Serial.print(" Mag=");
+    // Serial.print(mag, DEC);
+    // Serial.print('\n');
 
     delay(BNO055_SAMPLERATE_DELAY_MS);
 }
@@ -137,14 +138,14 @@ void setup() {
 
   /* Display the current temperature */
   int8_t temp = bno.getTemp();
-  Serial.print("Current Temperature: ");
-  Serial.print(temp);
-  Serial.println(" C");
-  Serial.println("");
+  // Serial.print("Current Temperature: ");
+  // Serial.print(temp);
+  // Serial.println(" C");
+  // Serial.println("");
 
   bno.setExtCrystalUse(true);
 
-  Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
+  // Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
 
 }
 

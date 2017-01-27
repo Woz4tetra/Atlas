@@ -197,6 +197,7 @@ class RobotInterface:
 
         :return: True or None if everything is ok. False if something signalled to close
         """
+        pass
 
     def start(self):
         """

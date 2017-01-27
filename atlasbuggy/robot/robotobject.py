@@ -33,7 +33,7 @@ class RobotObject:
         :param packet: The first packet received by the robot object's port
         :return: False if program need to exit for some reason, None or True otherwise
         """
-        pass
+        raise NotImplementedError("Please override this method when subclassing RobotObject")
 
     def receive(self, timestamp, packet):
         """
@@ -48,7 +48,7 @@ class RobotObject:
         :param packet: A packet (string) received from the robot object's port
         :return: False if program need to exit for some reason, None or True otherwise
         """
-        pass
+        raise NotImplementedError("Please override this method when subclassing RobotObject")
 
     def send(self, packet):
         """
