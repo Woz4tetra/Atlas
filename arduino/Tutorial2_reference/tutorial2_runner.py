@@ -9,7 +9,8 @@ class TutRunner(RobotInterface):
     def __init__(self):
         self.tut = GPS()
         self.time_plot = RobotPlot("gps time")
-        self.plotter = LivePlotter(2, self.time_plot)
+        self.minute_plot = RobotPlot("gps minutes")
+        self.plotter = LivePlotter(2, self.time_plot, self.minute_plot)
 
         super(TutRunner, self).__init__(
             self.tut,
@@ -24,6 +25,7 @@ class TutRunner(RobotInterface):
         if self.did_receive(self.tut):
             if self.queue_len() < 25:
                 self.time_plot.append(timestamp, self.tut.second)
+                self.minute_plot.append(timestamp, self.tut.minute)
                 if not self.plotter.plot():
                     return False
 

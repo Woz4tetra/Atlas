@@ -18,7 +18,6 @@ from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.robot.robotcollection import RobotObjectCollection
 
 
-
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None,

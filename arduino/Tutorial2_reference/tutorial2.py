@@ -30,7 +30,7 @@ class GPS(RobotObject):
                  """, re.VERBOSE)
 
         self.update_rate = 0
-        
+
         self.hour = 0
         self.minute = 0
         self.second = 0

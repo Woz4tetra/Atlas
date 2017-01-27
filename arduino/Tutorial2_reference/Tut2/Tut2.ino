@@ -6,7 +6,6 @@
 #define WHOIAM "gps"  // define whoiam ID here (unique to each robot object)
 #define LED13 13
 
-char character = '\0';
 String command = "";
 bool led_state = false;
 bool paused = true;
