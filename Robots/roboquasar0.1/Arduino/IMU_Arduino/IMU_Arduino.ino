@@ -91,6 +91,24 @@ void updateIMU() {
     Serial.print(euler.y());
     Serial.print('\t');
     Serial.print(euler.z());
+    Serial.print('\t');
+
+    imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+
+    Serial.print(magnetometer.x());
+    Serial.print('\t');
+    Serial.print(magnetometer.y());
+    Serial.print('\t');
+    Serial.print(magnetometer.z());
+    Serial.print('\t');
+
+    imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+
+    Serial.print(gyro.x());
+    Serial.print('\t');
+    Serial.print(gyro.y());
+    Serial.print('\t');
+    Serial.print(gyro.z());
     Serial.print('\n');
 
     /*
@@ -99,13 +117,13 @@ void updateIMU() {
     Serial.print("qW: ");
     Serial.print(quat.w(), 4);
     Serial.print(" qX: ");
-    Serial.print(quat.y(), 4);
+    Serial.print(quat.y(), 4); 
     Serial.print(" qY: ");
     Serial.print(quat.x(), 4);
     Serial.print(" qZ: ");
     Serial.print(quat.z(), 4);
     Serial.print("\t\t");
-    */
+    /*
 
     /* Display calibration status for each sensor. */
     // uint8_t system, gyro, accel, mag = 0;
