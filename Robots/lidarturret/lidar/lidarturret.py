@@ -63,25 +63,22 @@ class LidarTurret(RobotObject):
         print("initialized with data:", data)
 
     def receive(self, timestamp, packet):
-        data = packet.split("\t")
+        if packet[0] == 'l':
+            data = packet[1:].split("\t")
 
-        if len(data) < 2:
-            return False
+            delta_tick = int(data[0])
+            distance = int(data[1])  # millimeters
 
-        delta_tick = int(data[0])
-        distance = int(data[1])  # millimeters
+            self.current_tick += delta_tick
 
-        self.current_tick += delta_tick
-
-        self.distances.append(distance)
-        self.ticks.append(self.current_tick)
-
-        if len(data) == 3:
+            self.distances.append(distance)
+            self.ticks.append(self.current_tick)
+        elif packet[0] == 'r':
             self.distances.cap()
             self.ticks.cap()
             self.ticks_per_rotation = self.current_tick
 
-            self.rotations = int(data[2])
+            self.rotations = int(packet[1:])
             self.update_rate_hz = 1 / (timestamp - self.prev_hz_time)
             self.prev_hz_time = timestamp
 

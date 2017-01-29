@@ -8,32 +8,21 @@
 
 #define ENCODER_PIN_1 2
 #define ENCODER_PIN_2 4
-#define MACRO_ENCODER_PIN A0
-#define EMITTER_PIN 5
+
+#define BREAKBEAM_PIN 6
+unsigned long numRotations = 0;
+int beamState = 0, lastBeamState = 0;
 
 byte encoderPin1Last;
 int numPulses = 0;
 boolean direction;
-unsigned long numRotations = 0;
 long encCounts = 0;
-#define APPROX_TPR 1000  // approximate ticks per rotation
-
-#define MACRO_ENCODER_THRESH 850
-bool macro_enc_low = false;
-int macro_enc = 0;
-int prev_macro_enc = 0;
-// unsigned long long macro_acq_t0 = millis();
 
 unsigned long pulseWidth;
 #define TRIGGER 8
 #define MONITOR 9
 
-char character = '\0';
-char command_type = '\0';
-String command = "";
-
 bool paused = true;
-
 bool led_state = false;
 
 // Extremely fast string to int function
@@ -124,26 +113,21 @@ void encoderInit()
 {
     direction = true;  //default -> Forward
     pinMode(ENCODER_PIN_2, INPUT);
-    pinMode(MACRO_ENCODER_PIN, INPUT);
     attachInterrupt(0, wheelSpeed, CHANGE);//int.0
-    macro_enc_low = analogRead(MACRO_ENCODER_PIN) < MACRO_ENCODER_THRESH;
 }
 
 bool checkMacroEnc()
 {
-    if (encCounts > APPROX_TPR)
-    {
-        macro_enc = analogRead(MACRO_ENCODER_PIN);
-
-        if (macro_enc > MACRO_ENCODER_THRESH && macro_enc_low)
-        {
-            macro_enc_low = false;
-            return true;
-        }
-        else if (macro_enc < MACRO_ENCODER_THRESH) {
-            macro_enc_low = true;
-        }
+    beamState = digitalRead(BREAKBEAM_PIN);
+    if (beamState && !lastBeamState) {
+        lastBeamState = beamState;
+        setLed(HIGH);
+        return true;
     }
+    if (!beamState && lastBeamState) {
+        setLed(LOW);
+    }
+    lastBeamState = beamState;
     return false;
 }
 
@@ -181,7 +165,6 @@ void setLed(bool state)
 
 void pause()
 {
-    digitalWrite(EMITTER_PIN, LOW);
     analogWrite(MOTOR_PIN, 0);
 
     Serial.print("stopping\n");
@@ -191,7 +174,6 @@ void pause()
 
 void unpause()
 {
-    digitalWrite(EMITTER_PIN, HIGH);
     analogWrite(MOTOR_PIN, 255);
 
     paused = false;
@@ -199,64 +181,45 @@ void unpause()
 
 void readSerial()
 {
-    while (Serial.available() && character != '\n')
+    while (Serial.available())
     {
-        character = Serial.read();
-        if (character != '\n') {
-            command += character;
-        }
-    }
+        String command = Serial.readStringUntil('\n');
 
-    if (character == '\n')
-    {
-        command_type = command.charAt(0);
         if (command.equals("whoareyou")) {
             writeWhoiam();
         }
-        else if (command.equals("init?"))
-        {
-            digitalWrite(LED13, HIGH);
+        else if (command.equals("init?")) {
             writeInit();
         }
         else if (command.equals("start"))
         {
-            digitalWrite(LED13, HIGH);
+            setLed(HIGH);
             unpause();
         }
         else if (command.equals("stop"))
         {
-            digitalWrite(LED13, LOW);
+            setLed(LOW);
             pause();
         }
-        else if (command_type == 'p')
-        {
-           if ((bool)(command.substring(1).toInt())) {
-               pause();
-           }
-           else{
-               unpause();
-           }
-        }
-       /* else if (command_type == 'l')
-        {
-            switch(command.substring(1).toInt()) {
-                case 0: setLed(LOW); break;
-                case 1: setLed(HIGH); break;
-                case 2: setLed(!led_state); break;
-            }
-        }*/
-
-        character = '\0';
-        command = "";
     }
+
 }
 
 void writeSerial()
 {
+    if (checkMacroEnc()) {
+        Serial.print('r');
+        numRotations++;
+        Serial.print(numRotations);
+        Serial.print('\n');
+        encCounts = 0;
+    }
+
     pulseWidth = pulseIn(MONITOR, HIGH);
     if (pulseWidth != 0)
     {
         // ticks, distance (tab seperated)
+        Serial.print('l');
         noInterrupts();
         Serial.print(numPulses);
         encCounts += numPulses;
@@ -264,15 +227,8 @@ void writeSerial()
         interrupts();
 
         Serial.print('\t');
-
         Serial.print(pulseWidth);  // distance in CM
 
-        if (checkMacroEnc()) {
-            Serial.print('\t');
-            numRotations++;
-            Serial.print(numRotations);
-            encCounts = 0;
-        }
         Serial.print('\n');
     }
 }
@@ -305,7 +261,8 @@ void setup()
 
     pinMode(MOTOR_PIN, OUTPUT);
     pinMode(LED13, OUTPUT);
-    pinMode(EMITTER_PIN, OUTPUT);
+    pinMode(BREAKBEAM_PIN, INPUT);
+    digitalWrite(BREAKBEAM_PIN, HIGH);  // turn on the pullup
 }
 
 void loop()
