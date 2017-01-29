@@ -11,6 +11,7 @@ if live_plotting:
 class LidarRunner(RobotInterface):
     def __init__(self):
         self.turret = LidarTurret(enable_slam=False)
+        self.turret.cloud_time_plot.enabled = False
 
         if live_plotting:
             self.live_plot = LivePlotter(
