@@ -7,7 +7,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot
 
 class Runner(RobotInterface):
     def __init__(self):
-        # self.gps = GPS()
+        self.gps = GPS(enabled=False)
         self.imu = IMU()
 
         self.imu_plot = RobotPlot("imu data", flat_plot=False)
@@ -16,8 +16,8 @@ class Runner(RobotInterface):
 
         super(Runner, self).__init__(
             self.imu,
-            # self.gps,
-            # debug_prints=True,
+            self.gps,
+            debug_prints=True,
             log_data=False
         )
 
@@ -29,8 +29,8 @@ class Runner(RobotInterface):
                 self.imu_plot.append(self.imu.x, self.imu.y, self.imu.z)
                 if self.plotter.plot() is False:
                     return False
-                # elif self.did_receive(self.gps):
-        #     print("--")
+            elif self.did_receive(self.gps):
+                print("--")
 
     def loop(self):
         pass

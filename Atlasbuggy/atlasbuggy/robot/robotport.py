@@ -69,6 +69,7 @@ class RobotSerialPort(Process):
 
         # variable to signal exit
         self.exit_event = Event()
+        self.start_event = Event()
 
         # attempt to open the serial port
         try:
@@ -159,8 +160,9 @@ class RobotSerialPort(Process):
         abides_protocol = False
         answer_packet = ""
         attempts = 0
-        prev_rounded_time = 0
         rounded_time = 0
+
+        self.start_event.set()
 
         # wait for the correct response
         while not abides_protocol:
@@ -371,11 +373,12 @@ class RobotSerialPort(Process):
         """
 
         if not self.exit_event.is_set():
-            self.check_protocol("stop", "stopping")
-            if not self.configured:
-                self.debug_print("Failed to send stop flag!!!")
-            else:
-                self.debug_print("Sent stop flag")
+            if self.start_event.is_set():
+                self.check_protocol("stop", "stopping")
+                if not self.configured:
+                    self.debug_print("Failed to send stop flag!!!")
+                else:
+                    self.debug_print("Sent stop flag")
             self.configured = False
 
         self.exit_event.set()

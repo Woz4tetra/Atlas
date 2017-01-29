@@ -2,13 +2,13 @@ from atlasbuggy.robot.robotobject import RobotObject
 
 
 class IMU(RobotObject):
-    def __init__(self):
+    def __init__(self, enabled=True):
         self.sample_rate = None
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
 
-        super(IMU, self).__init__("imu")
+        super(IMU, self).__init__("imu", enabled)
 
     def receive_first(self, packet):
         header = "delay:"

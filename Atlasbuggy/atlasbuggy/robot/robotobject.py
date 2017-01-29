@@ -8,7 +8,7 @@ from multiprocessing import Queue
 
 
 class RobotObject:
-    def __init__(self, whoiam):
+    def __init__(self, whoiam, enabled=True):
         """
         A container for data received from the corresponding microcontroller.
 
@@ -20,6 +20,7 @@ class RobotObject:
         :param whoiam: a unique string ID containing ascii characters
         """
         self.whoiam = whoiam
+        self.enabled = enabled
 
         self.command_packets = Queue(maxsize=255)
 
