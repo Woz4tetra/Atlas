@@ -41,7 +41,7 @@ class Parser:
         )
 
         # Get the selected local directory
-        self.local_dir = self.directory[self.directory.rfind("/", 0, -1) + 1:]
+        self.local_dir = os.path.split(self.directory)[-1]
 
         # parse the file name. Get the full directory of the file
         self.file_name = project.get_file_name(
@@ -67,7 +67,7 @@ class Parser:
         # try to parse the name as a timestamp. If it succeeds, see if the
         # file is obsolete. Otherwise, do nothing
         try:
-            if (datetime.strptime(self.directory.split("/")[-2], '%b %d %Y') <
+            if (datetime.strptime(self.local_dir, '%b %d %Y') <
                     datetime.strptime(obsolete_data, '%b %d %Y')):
                 print("WARNING: You are using a data set that is obsolete "
                       "with the current parser. Continue? (y/n)", end="")
