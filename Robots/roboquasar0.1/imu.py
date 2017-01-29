@@ -31,3 +31,6 @@ class IMU(RobotObject):
         self.gyro_x = float(data[6])
         self.gyro_y = float(data[7])
         self.gyro_z = float(data[8])
+        self.accel_x = float(data[9])
+        self.accel_y = float(data[10])
+        self.accel_z = float(data[11])
