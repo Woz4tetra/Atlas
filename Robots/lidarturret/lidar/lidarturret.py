@@ -1,7 +1,7 @@
 import math
 
-from breezyslam.components import Laser
-from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
+#from breezyslam.components import Laser
+#from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
 
 from PIL import Image
 
