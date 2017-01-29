@@ -34,6 +34,14 @@ class LidarTurret(RobotObject):
             marker='.', linestyle=''
         )
 
+        self.cloud_time_plot = RobotPlot(
+            "point cloud",
+            plot_enabled=True,
+            x_range=lidar_range, y_range=lidar_range, range_offset=1,
+            marker='.', linestyle='', markersize=2,
+            # skip_count=10
+        )
+
         self.cloud_updated = True
 
         self.enable_slam = enable_slam
@@ -109,6 +117,8 @@ class LidarTurret(RobotObject):
 
                 self.point_cloud_xs.append(x)
                 self.point_cloud_ys.append(y)
+
+                self.cloud_time_plot.append(x, y)
 
             self.point_cloud_xs.cap()
             self.point_cloud_ys.cap()
