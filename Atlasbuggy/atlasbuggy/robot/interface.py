@@ -59,12 +59,22 @@ class RobotInterface:
 
         # assign robot objects by whoiam ID
         self.objects = {}
+        self.inactive_ids = set()
         for robot_object in robot_objects:
             if isinstance(robot_object, RobotObject):
-                self.objects[robot_object.whoiam] = robot_object
+                if robot_object.enabled:
+                    self.objects[robot_object.whoiam] = robot_object
+                else:
+                    self.inactive_ids.add(robot_object.whoiam)
+
             elif isinstance(robot_object, RobotObjectCollection):
-                for whoiam in robot_object.whoiam_ids:
-                    self.objects[whoiam] = robot_object
+                if robot_object.enabled:
+                    for whoiam in robot_object.whoiam_ids:
+                        self.objects[whoiam] = robot_object
+                else:
+                    for whoiam in robot_object.whoiam_ids:
+                        self.inactive_ids.add(whoiam)
+
             else:
                 raise RobotObjectInitializationError(
                     "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
@@ -233,6 +243,8 @@ class RobotInterface:
                 self._close_all()
                 self._print_port_info(port)
                 raise RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!", port)
+            elif port.whoiam in self.inactive_ids:
+                port.stop()
             else:
                 self.ports[port.whoiam] = port
 

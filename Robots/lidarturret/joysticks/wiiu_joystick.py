@@ -2,14 +2,11 @@ from atlasbuggy.buggyjoystick import BuggyJoystick
 
 
 class WiiUJoystick(BuggyJoystick):
-    def __init__(self, button_down_fn=None, button_up_fn=None,
-                 axis_active_fn=None, axis_inactive_fn=None,
-                 dpad_active_fn=None, dpad_inactive_fn=None):
+    def __init__(self):
         super(WiiUJoystick, self).__init__(
-            ['left x', 'left y', 'ZL', 'right x', 'right y', 'ZR'],
-            [0.3, 0.3, 0.0, 0.3, 0.3, 0.0],
-            ['A', 'B', 'X', 'Y', 'L', 'R', '-', '+', '', 'left stick',
-             'right stick'],
+            ['left x', 'left y', 'right x', 'right y', 'ZL', 'ZR'],
+            [0.3, -0.3, 0.0, 0.3, 0.3, 0.0],
+            ['up', 'down', 'left', 'right', '+', '-', 'left stick', 'right stick', 'L', 'R', 'home', 'A', 'B', 'X', 'Y'],
         )
 
 
@@ -19,5 +16,6 @@ if __name__ == '__main__':
     joystick = WiiUJoystick()
 
     while True:
+        joystick.update()
         print(joystick)
         time.sleep(0.15)

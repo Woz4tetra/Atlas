@@ -1,5 +1,5 @@
 import os
-
+import math
 import pygame
 
 from atlasbuggy import project
@@ -51,7 +51,8 @@ class BuggyJoystick:
         self.name_to_axis = self.create_mapping(axes_mapping)
         self.name_to_button = self.create_mapping(button_mapping)
 
-        self.dead_zones = axes_dead_zones
+        self.dead_zones = [abs(value) for value in axes_dead_zones]
+        self.axis_flipped = [math.copysign(1, value) for value in axes_dead_zones]
 
         # current values
         self.axes = [0.0] * len(axes_mapping)
@@ -102,9 +103,10 @@ class BuggyJoystick:
                 # set value to the axis if it is outside the deadzone
                 # else set it to zero
                 if event.axis < len(self.axes):
-                    value = event.value if abs(event.value) > \
-                                           self.dead_zones[
-                                               event.axis] else 0.0
+                    if abs(event.value) > self.dead_zones[event.axis]:
+                        value = self.axis_flipped[event.axis] * event.value
+                    else:
+                        value = 0.0
 
                     # if the value changed
                     if self.axes[event.axis] != value:

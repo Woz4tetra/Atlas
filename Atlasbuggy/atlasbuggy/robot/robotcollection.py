@@ -2,8 +2,9 @@ from multiprocessing import Queue
 
 
 class RobotObjectCollection:
-    def __init__(self, *whoiam_ids):
+    def __init__(self, *whoiam_ids, enabled=True):
         self.whoiam_ids = whoiam_ids
+        self.enabled = enabled
 
         self.command_packets = {}
         for whoiam in self.whoiam_ids:
