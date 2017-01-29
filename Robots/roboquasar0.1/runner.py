@@ -10,9 +10,11 @@ class Runner(RobotInterface):
         # self.gps = GPS()
         self.imu = IMU()
 
-        self.imu_plot = RobotPlot("imu data", flat_plot=False)
+        self.imu_plot_eul = RobotPlot("imu eul", flat_plot=False, max_length=30)
+        self.imu_plot_gyro = RobotPlot("imu gyro", flat_plot=False, max_length=30)
+        self.imu_plot_mag = RobotPlot("imu mag", flat_plot=False, max_length=30)
 
-        self.plotter = LivePlotter(1, self.imu_plot)
+        self.plotter = LivePlotter(2, self.imu_plot_eul, self.imu_plot_gyro, self.imu_plot_mag)
 
         super(Runner, self).__init__(
             self.imu,
@@ -26,7 +28,9 @@ class Runner(RobotInterface):
             # print(timestamp, self.imu.x, self.imu.y, self.imu.z)
 
             if self.queue_len() < 25:
-                self.imu_plot.append(self.imu.x, self.imu.y, self.imu.z)
+                self.imu_plot_eul.append(self.imu.eul_x, self.imu.eul_y, self.imu.eul_z)
+                self.imu_plot_mag.append(self.imu.mag_x, self.imu.mag_y, self.imu.mag_z)
+                self.imu_plot_gyro.append(self.imu.gyro_x, self.imu.mag_y, self.imu.mag_z)
                 if self.plotter.plot() is False:
                     return False
                 # elif self.did_receive(self.gps):
