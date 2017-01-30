@@ -109,15 +109,23 @@ void updateIMU() {
     Serial.print(gyro.y());
     Serial.print('\t');
     Serial.print(gyro.z());
-    Serial.print('\n');
+    Serial.print('\t');
 
+    imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+
+    Serial.print(accel.x());
+    Serial.print('\t');
+    Serial.print(accel.y());
+    Serial.print('\t');
+    Serial.print(accel.z());
+    Serial.print('\n');
     /*
     // Quaternion data
     imu::Quaternion quat = bno.getQuat();
     Serial.print("qW: ");
     Serial.print(quat.w(), 4);
     Serial.print(" qX: ");
-    Serial.print(quat.y(), 4); 
+    Serial.print(quat.y(), 4);
     Serial.print(" qY: ");
     Serial.print(quat.x(), 4);
     Serial.print(" qZ: ");
