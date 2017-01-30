@@ -31,6 +31,10 @@ class LoopSignalledError(Exception):
     """Loop method threw an exception"""
 
 
+class StartSignalledError(Exception):
+    """User's start method threw an exception"""
+
+
 class CloseSignalledExitError(Exception):
     """Loop method threw an exception"""
 

@@ -126,7 +126,12 @@ class RobotInterface:
         self.clock.start(self.start_time)
 
         self._start_all()
-        self.start()  # call user's start method (empty by default)
+        try:
+            self.start()  # call user's start method (empty by default)
+        except BaseException as error:
+            self._debug_print("Closing all from user's start")
+            self._close_all()
+            raise StartSignalledError("Overridden start method threw an exception")
 
         try:
             while self._are_ports_active():
