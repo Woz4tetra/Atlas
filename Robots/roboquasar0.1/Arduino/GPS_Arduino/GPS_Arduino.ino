@@ -5,7 +5,7 @@ Adafruit_GPS GPS(&Serial1);
 #define DEFAULT_RATE 115200
 #define WHOIAM "GPS"
 #define LED13 13
-#define GPSECHO true
+#define GPSECHO false
 
 boolean usingInterrpt = false;
 
@@ -151,7 +151,7 @@ void setup()
     Serial.print("No GPS detected");
   }
 
-  useInterrupt(true)
+  useInterrupt(true);
 }
 
 void loop() 
