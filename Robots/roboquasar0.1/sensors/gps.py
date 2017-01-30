@@ -41,9 +41,9 @@ class GPS(RobotObject):
         self.second = float(data[2])
         self.milliseconds = float(data[3])
 
-        #date
+        # date
         self.day = float(data[4])
-        self.month = float (data[5])
+        self.month = float(data[5])
         self.year = float(data[6])
 
         # fix info
@@ -60,5 +60,5 @@ class GPS(RobotObject):
         # cool shit
         self.knots = float(data[14])
         self.angle = float(data[15])
-        self.altitude= float(data[16])
+        self.altitude = float(data[16])
         self.satellites = float(data[17])
