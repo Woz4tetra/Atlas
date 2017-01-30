@@ -18,8 +18,6 @@ void writeWhoiam()
 void writeInit()
 {
     Serial.print("init:");
-    Serial.print("delay:");
-    Serial.print(BNO055_SAMPLERATE_DELAY_MS);
     Serial.print('\n');
 }
 
@@ -66,11 +64,11 @@ void readSerial()
         }
         else if (command.substring(0,1).equals("p"))
         {
-          setPosition(command.substring(1,command.length()).toInt());
+          setPosition(command.substring(1).toInt());
         }
         else if (command.substring(0,1).equals("v"))
         {
-          setVelocity(command.substring(1,command.length()).toInt());
+          setVelocity(command.substring(1).toInt());
         }
     }
 }
@@ -91,7 +89,6 @@ void setup() {
   stepper.moveTo(24);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly
+void loop() {}
   stepper.run();
 }
