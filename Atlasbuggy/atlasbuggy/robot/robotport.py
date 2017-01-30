@@ -339,8 +339,9 @@ class RobotSerialPort(Process):
 
     # ----- external and status methods -----
 
-    def debug_print(self, string, ignore_flag=False):
+    def debug_print(self, *strings, ignore_flag=False):
         if self.debug_prints or ignore_flag:
+            string = "".join(strings)
             print("[%s] %s" % (self.address, string))
 
     def is_running(self):
@@ -372,6 +373,7 @@ class RobotSerialPort(Process):
         :return: None
         """
 
+        self.debug_print("Exit event is " + "set" if self.exit_event.is_set() else "not set")
         if not self.exit_event.is_set():
             if self.start_event.is_set():
                 self.check_protocol("stop", "stopping")
@@ -393,4 +395,4 @@ class RobotSerialPort(Process):
             self.serial_ref.close()
             self.debug_print("Closing serial")
         else:
-            print("Serial port was already closed!")
+            self.debug_print("Serial port was already closed!")

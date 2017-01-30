@@ -8,7 +8,7 @@
 #define LED13 13
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS (100)
+#define BNO055_SAMPLERATE_DELAY_MS 10
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
@@ -86,38 +86,38 @@ void updateIMU() {
 
     /* Display the floating point data */
     // Serial.print("X: ");
-    Serial.print(euler.x());
+    Serial.print(euler.x(), 4);
     Serial.print('\t');
-    Serial.print(euler.y());
+    Serial.print(euler.y(), 4);
     Serial.print('\t');
-    Serial.print(euler.z());
+    Serial.print(euler.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
-    Serial.print(magnetometer.x());
+    Serial.print(magnetometer.x(), 4);
     Serial.print('\t');
-    Serial.print(magnetometer.y());
+    Serial.print(magnetometer.y(), 4);
     Serial.print('\t');
-    Serial.print(magnetometer.z());
+    Serial.print(magnetometer.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
-    Serial.print(gyro.x());
+    Serial.print(gyro.x(), 4);
     Serial.print('\t');
-    Serial.print(gyro.y());
+    Serial.print(gyro.y(), 4);
     Serial.print('\t');
-    Serial.print(gyro.z());
+    Serial.print(gyro.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
-    Serial.print(accel.x());
+    Serial.print(accel.x(), 4);
     Serial.print('\t');
-    Serial.print(accel.y());
+    Serial.print(accel.y(), 4);
     Serial.print('\t');
-    Serial.print(accel.z());
+    Serial.print(accel.z(), 4);
     Serial.print('\n');
     /*
     // Quaternion data
