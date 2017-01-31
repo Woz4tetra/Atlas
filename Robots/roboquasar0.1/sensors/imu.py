@@ -8,6 +8,10 @@ class IMU(RobotObject):
         self.eul_y = 0.0
         self.eul_z = 0.0
 
+        self.accel_x = 0.0
+        self.accel_y = 0.0
+        self.accel_z = 0.0
+
         self.mag_x = 0.0
         self.mag_y = 0.0
         self.mag_z = 0.0
@@ -35,6 +39,7 @@ class IMU(RobotObject):
         self.gyro_x = float(data[6])
         self.gyro_y = float(data[7])
         self.gyro_z = float(data[8])
+
         self.accel_x = float(data[9])
         self.accel_y = float(data[10])
         self.accel_z = float(data[11])
