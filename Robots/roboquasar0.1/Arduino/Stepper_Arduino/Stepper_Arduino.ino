@@ -6,7 +6,8 @@
 
 bool led_state = false;
 bool paused = true;
-String command = "";
+
+AccelStepper stepper(AccelStepper::FULL4WIRE,2,3,4,5);
 
 void writeWhoiam()
 {
@@ -41,11 +42,8 @@ void readSerial()
 {
     while (Serial.available())
     {
-        command = Serial.readStringUntil('\n');
+        String command = Serial.readStringUntil('\n');
 
-        // if (character == '\n')
-        // {
-        // Serial.println(command);
         if (command.equals("whoareyou")) {
             writeWhoiam();
         }
@@ -81,14 +79,21 @@ void setVelocity(int v) {
   stepper.setSpeed(v);
 }
 
-AccelStepper stepper(AccelStepper::FULL4WIRE,2,3,4,5);
 
-void setup() {
-  stepper.setMaxSpeed(200.0);
-  stepper.setAcceleration(100.0);
-  stepper.moveTo(24);
+void setup()
+{
+    Serial.begin(DEFAULT_RATE);
+    stepper.setMaxSpeed(200.0);
+    stepper.setAcceleration(100.0);
+    // stepper.moveTo(24);
 }
 
-void loop() {}
-  stepper.run();
+void loop() {
+    if (!paused) {
+        stepper.run();
+    }
+    else {
+        delay(100);
+    }
+    readSerial();
 }
