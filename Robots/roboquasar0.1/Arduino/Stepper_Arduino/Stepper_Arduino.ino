@@ -13,6 +13,9 @@ unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
 #define MAX_SPEED 200
+#define LEFT_LIMIT -150
+#define RIGHT_LIMIT 150
+
 int position = 0;
 int speedCommand = 0;
 bool prevIsRunning = false;
@@ -39,6 +42,11 @@ void writeWhoiam()
 void writeInit()
 {
     Serial.print("init:");
+    Serial.print(MAX_SPEED);
+    Serial.print('\t');
+    Serial.print(LEFT_LIMIT);
+    Serial.print('\t');
+    Serial.print(RIGHT_LIMIT);
     Serial.print('\n');
 }
 
@@ -93,11 +101,18 @@ void unpause() {
 
 void setPosition(int p) {
     stepper.setSpeed(MAX_SPEED);
+    if (p > RIGHT_LIMIT) {
+        p = RIGHT_LIMIT;
+    }
+    else if (p < LEFT_LIMIT) {
+        p = LEFT_LIMIT;
+    }
     stepper.moveTo(p);
     speedCommand = 0;
 }
 
-void setVelocity(int v) {
+void setVelocity(int v)
+{
     stepper.setSpeed(v);
     speedCommand = v;
 }
@@ -179,24 +194,33 @@ void loop() {
     {
         if (speedCommand != 0) {
             stepper.runSpeed();
+
+            if (stepper.currentPosition() > RIGHT_LIMIT) {
+                setPosition(RIGHT_LIMIT);
+                speedCommand = 0;
+            }
+            else if (stepper.currentPosition() < LEFT_LIMIT) {
+                setPosition(LEFT_LIMIT);
+                speedCommand = 0;
+            }
         }
         else if (stepper.distanceToGo() != 0) {
             stepper.run();
         }
 
-        if (dt() > 50 && stepper.isRunning())
+        if (stepper.isRunning() && dt() > 50)
         {
             Serial.print('p');
             Serial.print(stepper.currentPosition());
             Serial.print('\n');
             setTime();
         }
-
-        if (!stepper.isRunning() && prevIsRunning != stepper.isRunning())
+        else if (!stepper.isRunning() && prevIsRunning != stepper.isRunning())
         {
             Serial.print('d');
             Serial.print(stepper.currentPosition());
             Serial.print('\n');
+            setVelocity(0);
         }
         prevIsRunning = stepper.isRunning();
     }
