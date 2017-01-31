@@ -31,7 +31,7 @@ class Runner(RobotInterface):
             self.steering,
             joystick=WiiUJoystick(),
             debug_prints=True,
-            log_data=False
+            # log_data=False
         )
 
     def packet_received(self, timestamp, whoiam, packet):
@@ -44,8 +44,8 @@ class Runner(RobotInterface):
                     self.imu_plot_accel.append(self.imu.accel_x, self.imu.accel_y, self.imu.accel_z)
                     if self.plotter.plot() is False:
                         return False
-            else:
-                print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+            # else:
+            #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
         elif self.did_receive(self.gps):
             print(self.gps.latitude, self.gps.longitude)
         # elif self.did_receive(self.steering):# and self.steering.goal_reached:
@@ -56,11 +56,9 @@ class Runner(RobotInterface):
             if self.joystick.axis_updated("left x"):
                 self.steering.set_speed(self.joystick.get_axis("left x"))
             elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
-                print("stepper 0")
                 self.steering.set_position(0)
             elif self.joystick.button_updated("B") and self.joystick.get_button("B"):
                 self.steering.set_position(200)
-                print("stepper 200")
 
     def start(self):
         if live_plotting:

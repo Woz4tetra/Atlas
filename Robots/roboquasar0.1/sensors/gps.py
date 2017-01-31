@@ -53,10 +53,12 @@ class GPS(RobotObject):
         self.fix_quality = float(data[7])
 
         # location info
-        self.latitude = float(data[8])
-        self.lat_direction = float(data[9])
-        self.longitude = float(data[10])
-        self.lon_direction = float(data[11])
+        self.lat_direction = 1 if data[9] == "N" else -1
+        self.latitude = self.lat_direction * float(data[8])
+
+        self.lon_direction = 1 if data[11] == "E" else -1
+        self.longitude = self.lon_direction * float(data[10])
+
         self.latitude_degree = float(data[12])
         self.longitude_degree = float(data[13])
 
