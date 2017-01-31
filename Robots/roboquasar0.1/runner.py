@@ -17,7 +17,7 @@ class Runner(RobotInterface):
     def __init__(self):
         self.gps = GPS()
         self.imu = IMU()
-        self.steering = Steering(enabled=False)
+        self.steering = Steering()
 
         if live_plotting:
             self.imu_plot_eul = RobotPlot("imu eul", flat_plot=False, max_length=30)
@@ -31,7 +31,7 @@ class Runner(RobotInterface):
             self.imu,
             self.gps,
             self.steering,
-            # joystick=WiiUJoystick(),
+            joystick=WiiUJoystick(),
             debug_prints=True,
             # log_data=False
         )

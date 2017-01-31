@@ -373,7 +373,7 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        self.debug_print("Exit event is " + "set" if self.exit_event.is_set() else "not set")
+        self.debug_print("Exit event is " + str("set" if self.exit_event.is_set() else "not set"))
         if not self.exit_event.is_set():
             if self.start_event.is_set():
                 self.check_protocol("stop", "stopping")

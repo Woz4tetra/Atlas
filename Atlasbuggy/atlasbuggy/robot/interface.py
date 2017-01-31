@@ -104,6 +104,13 @@ class RobotInterface:
         self._check_ports()  # check that all ports are assigned an object
         self._send_first_packets()  # distribute initialization packets
 
+        for whoiam in self.ports.keys():
+            self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
+
+        self._debug_print("Ignored IDs:")
+        for whoiam in self.inactive_ids:
+            self._debug_print(whoiam)
+
     def run(self):
         """
         Call this method to start the robot and to start receiving data
@@ -176,8 +183,8 @@ class RobotInterface:
     def record(self, tag, string):
         """
         Record data not created by a robot object.
-        
-        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any sensors 
+
+        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any sensors
         :param string: Similar to a packet. String data to record
         :return: None
         """
@@ -463,6 +470,7 @@ class RobotInterface:
                     self._close_all()
                     raise RobotSerialPortWritePacketError("Failed to send command %s to '%s'" % (command, whoiam))
 
-    def _debug_print(self, string, ignore_flag=False):
+    def _debug_print(self, *strings, ignore_flag=False):
         if self.debug_prints or ignore_flag:
+            string = "".join(strings)
             print("[Interface] %s" % string)
