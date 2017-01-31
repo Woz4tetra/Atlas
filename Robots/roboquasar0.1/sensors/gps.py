@@ -15,9 +15,9 @@ class GPS(RobotObject):
         self.fix_quality = 0
 
         self.latitude = 0
-        self.lat = 0
+        self.lat_direction = 0
         self.longitude = 0
-        self.lon = 0
+        self.lon_direction = 0
         self.latitude_degree = 0
         self.longitude_degree = 0
 
@@ -26,11 +26,14 @@ class GPS(RobotObject):
         self.altitude = 0
         self.satellites = 0
 
+        self.gps_update_delay = 0
+
         super(GPS, self).__init__("gps", enabled)
 
     def receive_first(self, packet):
-        # this shouldn't be called
-        pass
+        header = "delay:"
+        self.gps_update_delay = int(packet[len(header):])
+        print("update rate: ", 1000 / self.gps_update_delay)
 
     def receive(self, timestamp, packet):
         data = packet.split("\t")
@@ -51,9 +54,9 @@ class GPS(RobotObject):
 
         # location info
         self.latitude = float(data[8])
-        self.lat = float(data[9])
+        self.lat_direction = float(data[9])
         self.longitude = float(data[10])
-        self.lon = float(data[11])
+        self.lon_direction = float(data[11])
         self.latitude_degree = float(data[12])
         self.longitude_degree = float(data[13])
 

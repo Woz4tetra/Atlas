@@ -7,11 +7,13 @@
 #define GPSECHO false
 void useInterrupt(boolean);
 
-boolean usingInterrpt = false;
+boolean usingInterrupt = false;
+#define GPS_UPDATE_RATE_HZ 1
 unsigned long gps_update_delay = (unsigned long)(1.0 / ((float)(GPS_UPDATE_RATE_HZ)) * 1000);
 
-Adafruit_GPS GPS(&gpsSerial);
 SoftwareSerial gpsSerial(3, 2);
+Adafruit_GPS GPS(&gpsSerial);
+
 bool led_state = false;
 bool paused = true;
 uint32_t timer = millis();
@@ -100,7 +102,7 @@ void readSerial()
 
 void updateGPS()
 {
-  if (!usingInterrupt) 
+    if (!usingInterrupt)
     {
         // read data from the GPS in the 'main loop'
         char c = GPS.read();
@@ -108,75 +110,84 @@ void updateGPS()
         if (GPSECHO)
         if (c) Serial.print(c);
     }
-  
-  if (GPS.newNMEAreceived()) 
-  {
-    if (!GPS.parse(GPS.lastNMEA()))
+
+    if (GPS.newNMEAreceived()) {
+        if (!GPS.parse(GPS.lastNMEA())) {
+            return;
+        }
+    }
+
+    if (timer > millis())  timer = millis();
+
+    if (millis() - timer > gps_update_delay)
     {
-      return;  
-    } 
+        timer = millis(); // reset the timer
 
-  }
-
-  if (timer > millis())  timer = millis();
-
-  if (millis() - timer > gps_update_delay)
-    {
-        timer = millis(); // reset the timer 
-        
-        if (GPS.fix) 
+        if (GPS.fix)
         {
-          Serial.print(GPS.hour, DEC); Serial.print('\t');
-          Serial.print(GPS.minute, DEC); Serial.print('\t');
-          Serial.print(GPS.seconds, DEC); Serial.print('\t');
-          Serial.print(GPS.milliseconds); Serial.print('\t');
-           
-          Serial.print(GPS.day, DEC); Serial.print('\t');
-          Serial.print(GPS.month, DEC); Serial.print('\t');
-          Serial.print(GPS.year, DEC); Serial.print('\t'); 
-          Serial.print((int)GPS.fixquality); Serial.print('\t');
-            
-          Serial.print(GPS.latitude, 4); Serial.print('\t');
-          Serial.print(GPS.lat); Serial.print('\t');
-          Serial.print(GPS.longitude, 4); Serial.print('\t');
-          Serial.print(GPS.lon); Serial.print('\t');
-          Serial.print(GPS.latitudeDegrees, 4); Serial.print('\t');
-          Serial.print(GPS.longitudeDegrees, 4); Serial.print('\t');
-        
-          Serial.print(GPS.speed); Serial.print('\t');
-          Serial.print(GPS.angle); Serial.print('\t');
-          Serial.print(GPS.altitude); Serial.print('\t');
-          Serial.print((int)GPS.satellites); Serial.print('\t');
-        
-          Serial.print('\n');
+            Serial.print(GPS.hour, DEC); Serial.print('\t');
+            Serial.print(GPS.minute, DEC); Serial.print('\t');
+            Serial.print(GPS.seconds, DEC); Serial.print('\t');
+            Serial.print(GPS.milliseconds); Serial.print('\t');
+
+            Serial.print(GPS.day, DEC); Serial.print('\t');
+            Serial.print(GPS.month, DEC); Serial.print('\t');
+            Serial.print(GPS.year, DEC); Serial.print('\t');
+            Serial.print((int)GPS.fixquality); Serial.print('\t');
+
+            Serial.print(GPS.latitude, 4); Serial.print('\t');
+            Serial.print(GPS.lat); Serial.print('\t');
+            Serial.print(GPS.longitude, 4); Serial.print('\t');
+            Serial.print(GPS.lon); Serial.print('\t');
+            Serial.print(GPS.latitudeDegrees, 4); Serial.print('\t');
+            Serial.print(GPS.longitudeDegrees, 4); Serial.print('\t');
+
+            Serial.print(GPS.speed); Serial.print('\t');
+            Serial.print(GPS.angle); Serial.print('\t');
+            Serial.print(GPS.altitude); Serial.print('\t');
+            Serial.print((int)GPS.satellites); Serial.print('\t');
+
+            Serial.print('\n');
         }
     }
 }
 
 
 
-void setup() 
+void setup()
 {
-  Serial.begin(DEFAULT_RATE);
-  GPS.begin(9600);
+    Serial.begin(DEFAULT_RATE);
+    GPS.begin(9600);
 
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // this is where you set the update hertz- betwen 1 and 10 hz
-  GPS.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+    if (GPS_UPDATE_RATE_HZ == 1) {
+        GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+        GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
+        GPS.sendCommand(PMTK_API_SET_FIX_CTL_1HZ);
+    }
+    else if (GPS_UPDATE_RATE_HZ == 5) {
+        GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+        GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);
+        GPS.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+    }
+    else if (GPS_UPDATE_RATE_HZ == 10) {
+        GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+        GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
+        GPS.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+    }
 
-  useInterrupt(true);
+    useInterrupt(true);
 }
 
-void loop() 
+void loop()
 {
-  // put your main code here, to run repeatedly:
-  if (!paused) 
-  {
-      updateGPS();
-  }
-  else 
-  {
-      delay(100);
-  }
-  readSerial();
+    // put your main code here, to run repeatedly:
+    if (!paused)
+    {
+        updateGPS();
+    }
+    else
+    {
+        delay(100);
+    }
+    readSerial();
 }

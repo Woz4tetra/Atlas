@@ -13,7 +13,7 @@ live_plotting = False
 
 class Runner(RobotInterface):
     def __init__(self):
-        self.gps = GPS(enabled=False)
+        self.gps = GPS()
         self.imu = IMU()
         self.steering = Steering()
 
@@ -44,12 +44,12 @@ class Runner(RobotInterface):
                     self.imu_plot_accel.append(self.imu.accel_x, self.imu.accel_y, self.imu.accel_z)
                     if self.plotter.plot() is False:
                         return False
-            # else:
-            #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+            else:
+                print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
         elif self.did_receive(self.gps):
-            print("--")
-        elif self.did_receive(self.steering):# and self.steering.goal_reached:
-            print(self.steering.current_step)
+            print(self.gps.latitude, self.gps.longitude)
+        # elif self.did_receive(self.steering):# and self.steering.goal_reached:
+            # print(self.steering.current_step)
 
     def loop(self):
         if self.joystick is not None and self.steering.calibrated:
