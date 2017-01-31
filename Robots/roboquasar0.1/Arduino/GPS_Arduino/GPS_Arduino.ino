@@ -2,7 +2,7 @@
 #include <SoftwareSerial.h>
 
 #define DEFAULT_RATE 115200
-#define WHOIAM "GPS"
+#define WHOIAM "gps"
 #define LED13 13
 #define GPSECHO false
 void useInterrupt(boolean);

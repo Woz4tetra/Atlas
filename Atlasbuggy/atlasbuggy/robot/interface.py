@@ -21,7 +21,7 @@ from atlasbuggy.robot.robotcollection import RobotObjectCollection
 class RobotInterface:
     def __init__(self, *robot_objects, joystick=None,
                  log_data=True, log_name=None, log_dir=None,
-                 debug_prints=False, loop_updates_per_second=120, port_updates_per_second=1000):
+                 debug_prints=False, debug_to_log=False, loop_updates_per_second=120, port_updates_per_second=1000):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -33,7 +33,12 @@ class RobotInterface:
         :param updates_per_second: How quickly each port process should run.
         """
 
-        self.debug_prints = debug_prints
+        self.debug_to_log = debug_to_log  # TODO: put debug messages into a log file
+        if debug_to_log:
+            self.debug_prints = True
+        else:
+            self.debug_prints = debug_prints
+
         self.loop_ups = loop_updates_per_second
         self.port_ups = port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
