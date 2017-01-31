@@ -3,11 +3,31 @@
 #define DEFAULT_RATE 115200
 #define WHOIAM "steering"
 #define LED13 13
+#define DELIMITER_PIN 6
 
 bool led_state = false;
 bool paused = true;
 
-AccelStepper stepper(AccelStepper::FULL4WIRE,2,3,4,5);
+unsigned long prev_time = 0;
+unsigned long curr_time = 0;
+unsigned long delta_time = 0;
+
+#define MAX_SPEED 200
+int position = 0;
+int speedCommand = 0;
+bool prevIsRunning = false;
+
+#define STEPPER_PIN_1 2
+#define STEPPER_PIN_2 3
+#define STEPPER_PIN_3 4
+#define STEPPER_PIN_4 5
+
+AccelStepper stepper(AccelStepper::FULL4WIRE,
+    STEPPER_PIN_1,
+    STEPPER_PIN_2,
+    STEPPER_PIN_3,
+    STEPPER_PIN_4
+);
 
 void writeWhoiam()
 {
@@ -28,14 +48,87 @@ void setLed(bool state)
     digitalWrite(LED13, led_state);
 }
 
+unsigned long dt()
+{
+    curr_time = millis();
+    if (prev_time < curr_time) {
+        delta_time = (0xffffffffUL - prev_time) + curr_time;
+    }
+    else {
+        delta_time = curr_time - prev_time;
+    }
+
+    return delta_time;
+}
+
+
+void setTime() {
+    prev_time = curr_time;
+}
+
+
+void disengageStepper()
+{
+    digitalWrite(STEPPER_PIN_1, LOW);
+    digitalWrite(STEPPER_PIN_2, LOW);
+    digitalWrite(STEPPER_PIN_3, LOW);
+    digitalWrite(STEPPER_PIN_4, LOW);
+}
+
 void pause()
 {
     Serial.print("stopping\n");
     paused = true;
+    disengageStepper();
+
+    prev_time = millis();
+    curr_time = millis();
+    delta_time = millis();
 }
 
 void unpause() {
     paused = false;
+    calibrate();
+}
+
+void setPosition(int p) {
+    stepper.setSpeed(MAX_SPEED);
+    stepper.moveTo(p);
+    speedCommand = 0;
+}
+
+void setVelocity(int v) {
+    stepper.setSpeed(v);
+    speedCommand = v;
+}
+
+void approachSwitch(int speed)
+{
+    stepper.setCurrentPosition(0);
+    stepper.setSpeed(speed);
+    while (digitalRead(DELIMITER_PIN)) {
+        stepper.runSpeed();
+    }
+    stepper.setCurrentPosition(0);
+}
+
+void calibrate()
+{
+    Serial.print("calibrating\n");
+    if (!digitalRead(DELIMITER_PIN)) {
+        stepper.setSpeed(200);
+        stepper.runToNewPosition(-50);
+        stepper.setCurrentPosition(0);
+    }
+    approachSwitch(200);
+    stepper.runToNewPosition(-20);
+
+    approachSwitch(15);
+    stepper.runToNewPosition(-150);
+    stepper.setSpeed(200);
+    stepper.setCurrentPosition(0);
+
+    Serial.print("done!\n");
 }
 
 void readSerial()
@@ -62,38 +155,54 @@ void readSerial()
         }
         else if (command.substring(0,1).equals("p"))
         {
-          setPosition(command.substring(1).toInt());
+            setPosition(command.substring(1).toInt());
         }
         else if (command.substring(0,1).equals("v"))
         {
-          setVelocity(command.substring(1).toInt());
+            setVelocity(command.substring(1).toInt());
         }
     }
 }
-
-void setPosition(int p) {
-  stepper.moveTo(p);
-}
-
-void setVelocity(int v) {
-  stepper.setSpeed(v);
-}
-
 
 void setup()
 {
     Serial.begin(DEFAULT_RATE);
-    stepper.setMaxSpeed(200.0);
-    stepper.setAcceleration(100.0);
-    // stepper.moveTo(24);
+
+    pinMode(DELIMITER_PIN, INPUT);
+
+    stepper.setMaxSpeed(MAX_SPEED);
+    stepper.setAcceleration(1000.0);
 }
 
 void loop() {
-    if (!paused) {
-        stepper.run();
+    if (!paused)
+    {
+        if (speedCommand != 0) {
+            stepper.runSpeed();
+        }
+        else if (stepper.distanceToGo() != 0) {
+            stepper.run();
+        }
+
+        if (dt() > 50 && stepper.isRunning())
+        {
+            Serial.print('p');
+            Serial.print(stepper.currentPosition());
+            Serial.print('\n');
+            setTime();
+        }
+
+        if (!stepper.isRunning() && prevIsRunning != stepper.isRunning())
+        {
+            Serial.print('d');
+            Serial.print(stepper.currentPosition());
+            Serial.print('\n');
+        }
+        prevIsRunning = stepper.isRunning();
     }
     else {
         delay(100);
     }
+
     readSerial();
 }
