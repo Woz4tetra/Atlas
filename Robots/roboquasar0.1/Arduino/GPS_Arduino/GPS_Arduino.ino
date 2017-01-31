@@ -129,6 +129,11 @@ void setup()
   {
     Serial.print("No GPS detected");
   }
+<<<<<<< HEAD
+=======
+
+  useInterrupt(true);
+>>>>>>> 651ec5cea5f32c22a42e215ef4ecb8f2790480f2
 }
 
 void loop() 
