@@ -3,10 +3,15 @@
 #define DEFAULT_RATE 115200
 #define WHOIAM "steering"
 #define LED13 13
+#define DELIMITER_PIN 6
 
 bool led_state = false;
 bool paused = true;
 String command = "";
+int position = 0;
+int speed = 0;
+
+AccelStepper stepper(AccelStepper::FULL4WIRE,2,3,4,5);
 
 void writeWhoiam()
 {
@@ -81,14 +86,39 @@ void setVelocity(int v) {
   stepper.setSpeed(v);
 }
 
-AccelStepper stepper(AccelStepper::FULL4WIRE,2,3,4,5);
+void calibrate() {
+  Serial.print("Calibrating stepper... \n");
+  while !(digitalRead(DELIMITER_PIN))
+  {
+    stepper.step(-5);
+  }
+  stepper.step(150);
+  Serial.print("done!\n");
+}
 
 void setup() {
+  Serial.begin(DEFAULT_RATE);
+
+  pinMode(DELIMITER_PIN, INPUT);
+
   stepper.setMaxSpeed(200.0);
   stepper.setAcceleration(100.0);
-  stepper.moveTo(24);
+
+  calibrate();
 }
 
 void loop() {}
-  stepper.run();
+
+  if (stepper.distanceToGo() != 0)
+  {
+    stepper.runSpeed();
+  }
+
+  if (stepper.isRunning())
+  {
+    delay(10);
+    Serial.print(stepper.currentPosition())
+  }
+
+  readSerial();
 }
