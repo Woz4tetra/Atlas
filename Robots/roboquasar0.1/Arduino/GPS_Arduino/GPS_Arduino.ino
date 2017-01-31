@@ -5,7 +5,7 @@ Adafruit_GPS GPS(&Serial1);
 #define DEFAULT_RATE 115200
 #define WHOIAM "GPS"
 #define LED13 13
-#define GPSECHO true
+#define GPSECHO false
 
 boolean usingInterrpt = false;
 
@@ -74,9 +74,7 @@ void updateGPS()
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
     char c = GPS.read();
-    // if you want to debug, this is a good time to do it!
-    if (GPSECHO)
-      if (c) Serial.print(c);
+
   }
   
   if (GPS.newNMEAreceived()) 
@@ -113,27 +111,10 @@ void updateGPS()
   }
 }
 
-// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
-SIGNAL(TIMER0_COMPA_vect) {
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-  if (GPSECHO)
-    if (c) Serial.print(c);  
+ 
 }
 
-void useInterrupt(boolean v) {
-  if (v) {
-    // Timer0 is already used for millis() - we'll just interrupt somewhere
-    // in the middle and call the "Compare A" function above
-    OCR0A = 0xAF;
-    TIMSK0 |= _BV(OCIE0A);
-    usingInterrupt = true;
-  } else {
-    // do not call the interrupt function COMPA anymore
-    TIMSK0 &= ~_BV(OCIE0A);
-    usingInterrupt = false;
-  }
-}
+
 
 void setup() 
 {
@@ -141,17 +122,13 @@ void setup()
   GPS.begin(9600);
 
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
-
-  useInterrupt(true);
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // this is where you set the update hertz- betwen 1 and 10 hz
 
   /* Initialise the sensor */
   if(!GPS.LOCUS_StartLogger())
   {
     Serial.print("No GPS detected");
   }
-
-  useInterrupt(true)
 }
 
 void loop() 
