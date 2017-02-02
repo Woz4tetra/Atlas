@@ -7,18 +7,22 @@ class IMU(RobotObject):
         self.eul_x = 0.0
         self.eul_y = 0.0
         self.eul_z = 0.0
+
         self.accel_x = 0.0
         self.accel_y = 0.0
         self.accel_z = 0.0
+
         self.mag_x = 0.0
         self.mag_y = 0.0
         self.mag_z = 0.0
+
         self.gyro_x = 0.0
         self.gyro_y = 0.0
         self.gyro_z = 0.0
-        self.accel_ng_x = 0.0
-        self.accel_ng_y = 0.0
-        self.accel_ng_z = 0.0
+
+        self.linaccel_x = 0.0
+        self.linaccel_y = 0.0
+        self.linaccel_z = 0.0
 
         self.data = [0]*12
 
@@ -30,7 +34,7 @@ class IMU(RobotObject):
 
     def receive(self, timestamp, packet):
         data = packet.split("\t")
-        print(packet)
+        print(repr(packet))
 
         self.eul_x = float(data[0][2:])
         self.eul_y = float(data[1][2:])
@@ -48,6 +52,6 @@ class IMU(RobotObject):
         self.accel_y = float(data[10][2:])
         self.accel_z = float(data[11][2:])
 
-        self.accel_ng_x = float(data[12][3:])
-        self.accel_ng_y = float(data[13][3:])
-        self.accel_ng_z = float(data[14][3:])
+        self.linaccel_x = float(data[12][3:])
+        self.linaccel_y = float(data[13][3:])
+        self.linaccel_z = float(data[14][3:])
