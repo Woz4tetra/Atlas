@@ -112,6 +112,8 @@ void updateIMU() {
     Serial.print('\t');
 
     imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    if (accel == None) accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+    if (accel == None) accel = bno.getVector(Adafruit_BNO055::VECTOR_GRAVITY);
 
     Serial.print(accel.x(), 4);
     Serial.print('\t');

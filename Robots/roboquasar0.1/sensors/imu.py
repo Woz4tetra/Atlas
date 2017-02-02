@@ -20,6 +20,8 @@ class IMU(RobotObject):
         self.gyro_y = 0.0
         self.gyro_z = 0.0
 
+        self.data = [0 for x in range[12]]
+
         super(IMU, self).__init__("imu", enabled)
 
     def receive_first(self, packet):
