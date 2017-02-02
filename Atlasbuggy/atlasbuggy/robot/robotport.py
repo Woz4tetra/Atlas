@@ -263,6 +263,9 @@ class RobotSerialPort(Process):
 
         except KeyboardInterrupt:
             self.debug_print("KeyboardInterrupt in port loop")
+        except BaseException as error:
+            self.handle_error(error)
+            self.debug_print("Error thrown in port loop")
 
         self.debug_print("While loop exited. Exit event triggered.")
 
