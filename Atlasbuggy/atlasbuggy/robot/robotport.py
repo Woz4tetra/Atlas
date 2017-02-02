@@ -39,7 +39,7 @@ class RobotSerialPort(Process):
         self.port_info = port_info
 
         # status variables
-        self.debug_prints = debug_prints
+        self.debug_enabled = debug_prints
         self.configured = True
         self.error_message = None
         self.port_assigned = False
@@ -260,12 +260,12 @@ class RobotSerialPort(Process):
                         counter.value += len(packets)
 
                 clock.update()  # maintain a constant loop speed
-
-        except KeyboardInterrupt:
-            self.debug_print("KeyboardInterrupt in port loop")
         except BaseException as error:
-            self.handle_error(error)
-            self.debug_print("Error thrown in port loop")
+            if isinstance(error, KeyboardInterrupt):
+                self.debug_print("KeyboardInterrupt in port loop")
+            else:
+                self.handle_error(error)
+                self.debug_print("Error thrown in port loop")
 
         self.debug_print("While loop exited. Exit event triggered.")
 
@@ -343,8 +343,8 @@ class RobotSerialPort(Process):
     # ----- external and status methods -----
 
     def debug_print(self, *strings, ignore_flag=False):
-        if self.debug_prints or ignore_flag:
-            string = "".join(strings)
+        if self.debug_enabled or ignore_flag:
+            string = " ".join(map(str, strings))
             print("[%s] %s" % (self.address, string))
 
     def is_running(self):
