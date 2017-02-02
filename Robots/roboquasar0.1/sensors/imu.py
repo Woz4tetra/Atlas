@@ -26,7 +26,7 @@ class IMU(RobotObject):
 
     def receive_first(self, packet):
         header = "delay:"
-        self.sample_rate = int(packet[len(header)])
+        self.sample_rate = int(packet[len(header):])
 
     def receive(self, timestamp, packet):
         data = packet.split("\t")
