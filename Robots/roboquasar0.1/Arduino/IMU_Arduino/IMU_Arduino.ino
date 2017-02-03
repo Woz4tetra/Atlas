@@ -82,45 +82,66 @@ void updateIMU() {
     // - VECTOR_EULER         - degrees
     // - VECTOR_LINEARACCEL   - m/s^2
     // - VECTOR_GRAVITY       - m/s^2
+
     imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
 
-    /* Display the floating point data */
-    // Serial.print("X: ");
+    Serial.print("ex");
     Serial.print(euler.x(), 4);
     Serial.print('\t');
+    Serial.print("ey");
     Serial.print(euler.y(), 4);
     Serial.print('\t');
+    Serial.print("ez");
     Serial.print(euler.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
+    Serial.print("mx");
     Serial.print(magnetometer.x(), 4);
     Serial.print('\t');
+    Serial.print("my");
     Serial.print(magnetometer.y(), 4);
     Serial.print('\t');
+    Serial.print("mz");
     Serial.print(magnetometer.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
+    Serial.print("gx");
     Serial.print(gyro.x(), 4);
     Serial.print('\t');
+    Serial.print("gy");
     Serial.print(gyro.y(), 4);
     Serial.print('\t');
+    Serial.print("gz");
     Serial.print(gyro.z(), 4);
     Serial.print('\t');
 
     imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    if (accel == None) accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-    if (accel == None) accel = bno.getVector(Adafruit_BNO055::VECTOR_GRAVITY);
 
+    Serial.print("ax");
     Serial.print(accel.x(), 4);
     Serial.print('\t');
+    Serial.print("ay");
     Serial.print(accel.y(), 4);
     Serial.print('\t');
+    Serial.print("az");
     Serial.print(accel.z(), 4);
+    Serial.print('\t');
+
+    imu::Vector<3> accel_wg = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+    Serial.print("agx");
+    Serial.print(accel_wg.x(), 4);
+    Serial.print('\t');
+    Serial.print("agy");
+    Serial.print(accel_wg.y(), 4);
+    Serial.print('\t');
+    Serial.print("agz");
+    Serial.print(accel_wg.z(), 4);
     Serial.print('\n');
+
     /*
     // Quaternion data
     imu::Quaternion quat = bno.getQuat();

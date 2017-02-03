@@ -1,4 +1,3 @@
-
 from atlasbuggy.robot.interface import RobotInterface
 
 from joysticks.wiiu_joystick import WiiUJoystick
@@ -12,6 +11,7 @@ live_plotting = False
 if live_plotting:
     from atlasbuggy.plotters.liveplotter import LivePlotter
     from atlasbuggy.plotters.robotplot import RobotPlot
+
 
 class Runner(RobotInterface):
     def __init__(self):
@@ -46,12 +46,12 @@ class Runner(RobotInterface):
                     self.imu_plot_accel.append(self.imu.accel_x, self.imu.accel_y, self.imu.accel_z)
                     if self.plotter.plot() is False:
                         return False
-            # else:
-            #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+                        # else:
+                        #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
         elif self.did_receive(self.gps):
             print(timestamp, self.gps.latitude, self.gps.longitude)
             print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
-        # elif self.did_receive(self.steering):# and self.steering.goal_reached:
+            # elif self.did_receive(self.steering):# and self.steering.goal_reached:
             # print(self.steering.current_step)
 
     def loop(self):
