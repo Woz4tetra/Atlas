@@ -6,7 +6,8 @@ corresponding robot object is paired in RobotInterface.
 
 import time
 import traceback
-from multiprocessing import Event, Process
+from multiprocessing import Event, Process, Queue, Lock
+import ctypes
 
 import serial
 import serial.tools.list_ports
@@ -41,12 +42,12 @@ class RobotSerialPort(Process):
         # status variables
         self.debug_enabled = debug_prints
         self.configured = True
-        self.error_message = None
+        self.message_lock = Lock()
+        self.error_message = Queue()
         self.port_assigned = False
 
         # time variables
         self.start_time = 0.0
-        self.thread_time = 0
         self.loop_time = 0.0
         self.updates_per_second = updates_per_second
 
@@ -68,6 +69,7 @@ class RobotSerialPort(Process):
         self.buffer = ""
 
         # variable to signal exit
+        self.event_lock = Lock()
         self.exit_event = Event()
         self.start_event = Event()
 
@@ -75,7 +77,8 @@ class RobotSerialPort(Process):
         try:
             self.serial_ref = serial.Serial(port=self.address, baudrate=self.baud_rate)
         except SerialException as error:
-            self.handle_error(error)
+            self.handle_error(error, traceback.format_stack())
+            self.configured = False
 
         time.sleep(2)  # wait for microcontroller to wake up
 
@@ -99,7 +102,7 @@ class RobotSerialPort(Process):
         Send the start flag
         :return: None
         """
-        self.write_packet("start")
+        return self.write_packet("start")
 
     def find_whoiam(self):
         """
@@ -119,6 +122,7 @@ class RobotSerialPort(Process):
         if self.whoiam is not None:
             self.debug_print("%s has ID '%s'" % (self.address, self.whoiam))
         else:
+            self.configured = False
             self.debug_print("Failed to obtain whoiam ID!", ignore_flag=True)
 
     def find_first_packet(self):
@@ -141,6 +145,7 @@ class RobotSerialPort(Process):
             self.debug_print("sent initialization data: %s" % repr(self.first_packet))
         else:
             self.debug_print("Failed to obtain first packet!", ignore_flag=True)
+            self.configured = False
 
     def check_protocol(self, ask_packet, recv_packet_header):
         """
@@ -162,8 +167,6 @@ class RobotSerialPort(Process):
         attempts = 0
         rounded_time = 0
 
-        self.start_event.set()
-
         # wait for the correct response
         while not abides_protocol:
             packets = self.read_packets()
@@ -173,7 +176,7 @@ class RobotSerialPort(Process):
 
             # return None if read failed
             if packets is None:
-                self.handle_error("Serial read failed... Board never signalled ready")
+                self.handle_error("Serial read failed... Board never signalled ready", traceback.format_stack())
                 return None
 
             prev_rounded_time = rounded_time
@@ -186,7 +189,8 @@ class RobotSerialPort(Process):
 
             # return None if operation timed out
             if (time.time() - start_time) > 4:
-                self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet)
+                self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet,
+                                  traceback.format_stack())
                 return None
 
             # parse received packets
@@ -202,21 +206,31 @@ class RobotSerialPort(Process):
         self.debug_print("returning answer packet:" + repr(answer_packet))
         return answer_packet  # when the while loop exits, abides_protocol must be True
 
-    def handle_error(self, error):
+    def handle_error(self, error, stack_trace):
         """
         When errors occur in a RobotSerialPort, the process doesn't crash. The error is recorded,
         self.update is stopped, and the main process is notified so all other ports can close safely
         :param error: The error message to record
         :return: None
         """
-        self.configured = False
-        if self.error_message is None:
-            self.error_message = traceback.format_stack()
-            if type(error) == str:
-                full_message = error
-            else:
-                full_message = "%s: %s" % (error.__class__.__name__, str(error))
-            self.error_message.append(full_message)
+        with self.event_lock:
+            self.exit_event.set()
+
+        full_message = ""
+        for line in stack_trace:
+            full_message += str(line)
+
+        if type(error) == str:
+            full_message += error
+        else:
+            full_message += "%s: %s" % (error.__class__.__name__, str(error))
+
+        with self.message_lock:
+            if self.error_message.empty():
+                # queue will always be size of one. Easiest way to share strings and avoid race conditions.
+                # (sometimes the error message would have arrived incomplete because
+                # it gets printed before it gets formed...)
+                self.error_message.put(full_message)
 
     # ----- run methods -----
 
@@ -234,22 +248,26 @@ class RobotSerialPort(Process):
         clock = Clock(self.updates_per_second)
         clock.start(self.start_time)
 
+        with self.event_lock:
+            self.start_event.set()
+
         try:
-            while not self.exit_event.is_set():
-                # update the internal timer. Acts as a check to see if the thread is running properly
-                self.thread_time = int(time.time() - self.start_time)
+            while True:
+                with self.event_lock:
+                    if self.exit_event.is_set():
+                        break
 
                 # close the process if the serial port isn't open
                 if not self.serial_ref.is_open:
                     self.stop()
-                    raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...")
+                    raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...", self)
 
                 if self.serial_ref.in_waiting > 0:
                     # read every possible character available and split them into packets
                     packets = self.read_packets()
                     if packets is None:  # if the read failed
                         self.stop()
-                        raise RobotSerialPortReadPacketError("Failed to read packets")
+                        raise RobotSerialPortReadPacketError("Failed to read packets", self)
 
                     # put data found into the queue
                     with lock:
@@ -264,7 +282,7 @@ class RobotSerialPort(Process):
             if isinstance(error, KeyboardInterrupt):
                 self.debug_print("KeyboardInterrupt in port loop")
             else:
-                self.handle_error(error)
+                self.handle_error(error, traceback.format_stack())
                 self.debug_print("Error thrown in port loop")
 
         self.debug_print("While loop exited. Exit event triggered.")
@@ -282,10 +300,10 @@ class RobotSerialPort(Process):
             if self.serial_ref.is_open:
                 incoming = self.serial_ref.read(self.serial_ref.in_waiting)
             else:
-                self.handle_error("Serial port wasn't open for reading...")
+                self.handle_error("Serial port wasn't open for reading...", traceback.format_stack())
                 return None
         except SerialException as error:
-            self.handle_error(error)
+            self.handle_error(error, traceback.format_stack())
             return None
 
         if len(incoming) > 0:
@@ -293,7 +311,7 @@ class RobotSerialPort(Process):
             try:
                 self.buffer += incoming.decode('ascii')
             except UnicodeDecodeError as error:
-                self.handle_error(error)
+                self.handle_error(error, traceback.format_stack())
                 return None
 
             if len(self.buffer) > len(self.packet_end):
@@ -316,17 +334,17 @@ class RobotSerialPort(Process):
         try:
             data = bytearray(packet + self.packet_end, 'ascii')
         except TypeError as error:
-            self.handle_error(error)
+            self.handle_error(error, traceback.format_stack())
             return False
 
         try:
             if self.serial_ref.is_open:
                 self.serial_ref.write(data)
             else:
-                self.handle_error("Serial port wasn't open for writing...")
+                self.handle_error("Serial port wasn't open for writing...", traceback.format_stack())
                 return False
         except SerialException as error:
-            self.handle_error(error)
+            self.handle_error(error, traceback.format_stack())
             return False
 
         return True
@@ -352,22 +370,22 @@ class RobotSerialPort(Process):
         Check if the port's thread is running correctly
 
         :return:
-            -1: timeout error
+            -1: event event thrown
             0: self.configured is False
             1: process hasn't started or everything is fine
         """
+        with self.event_lock:
+            if not self.start_event.is_set():  # process hasn't started
+                return 1
+
         if not self.configured:
             return 0
 
-        if self.start_time == 0.0:  # process hasn't started
-            return 1
+        with self.event_lock:
+            if self.exit_event.is_set():
+                return -1
 
-        current_time = int(time.time() - self.start_time)
-        status = abs(current_time - self.thread_time) < 2
-        if not status:
-            return -1
-        else:
-            return 1
+        return 1
 
     def stop(self):
         """
@@ -376,26 +394,31 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        self.debug_print("Exit event is " + str("set" if self.exit_event.is_set() else "not set"))
+        self.debug_print("Exit event is",
+                         "set. Skipping stop protocol!" if
+                         self.exit_event.is_set() else
+                         "not set. Proceeding to send stop")
         if not self.exit_event.is_set():
-            if self.start_event.is_set():
-                self.check_protocol("stop", "stopping")
-                if not self.configured:
-                    self.debug_print("Failed to send stop flag!!!")
-                else:
-                    self.debug_print("Sent stop flag")
-            self.configured = False
+            if self.check_protocol("stop", "stopping") is None:
+                self.debug_print("Failed to send stop flag!!!")
+            else:
+                self.debug_print("Sent stop flag")
+        else:
+            self.debug_print("exit_event already set!")
 
-        self.exit_event.set()
-        self.close_port()
+        with self.event_lock:
+            self.exit_event.set()
 
-    def close_port(self):
-        """
-        Close the serial port if it's open
-        :return: None
-        """
         if self.serial_ref.is_open:
             self.serial_ref.close()
             self.debug_print("Closing serial")
         else:
             self.debug_print("Serial port was already closed!")
+
+    def wait_for_close(self):
+        while True:
+            with self.message_lock:
+                if not self.error_message.empty():
+                    break
+        with self.event_lock:
+            self.exit_event.wait()

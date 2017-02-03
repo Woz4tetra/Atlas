@@ -21,17 +21,15 @@ log_folder_format = '%b %d %Y'
 log_file_format = '%H;%M;%S, %a %b %d %Y'
 
 packet_types = {
-    True     : "<",  # from a robot object
-    None     : "|",  # user logged
-    False    : ">",  # command sent
-
-    "object" : "<",  # from a robot object
-    "user"   : "|",  # user logged
-    "command": ">",  # command sent
+    "object" : "<",       # from a robot object
+    "user"   : "|",       # user logged
+    "command": ">",       # command sent
+    "error"  : "<!!!!>",  # printed error message
 
     "<"      : "object",
     "|"      : "user",
     ">"      : "command",
+    "<!!!!>" : "error",
 }
 
 

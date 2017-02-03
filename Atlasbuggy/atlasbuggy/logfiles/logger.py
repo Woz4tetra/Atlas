@@ -82,10 +82,10 @@ class Logger:
         packet_type = packet_types[packet_type]
 
         if self.is_open:
-            hex_timestamp = self.float_to_hex(timestamp)
+            # hex_timestamp = self.float_to_hex(timestamp)
 
             self.data.append("%s%s%s%s%s%s\n" % (
-                packet_type, hex_timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
+                packet_type, timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
 
             if len(self.data) > 0x1000:
                 self.dump_all()

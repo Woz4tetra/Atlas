@@ -3,27 +3,32 @@ Possible errors robot ports, objects and interface might face.
 """
 
 
-class RobotObjectBaseError(Exception):
-    def __init__(self, error_message, port=None):
+class RobotPortBaseError(Exception):
+    def __init__(self, error_message, prev_packet_info, port=None):
         if port is not None:
-            port_error_message = ""
-            if port.error_message is not None:
-                for line in port.error_message:
-                    port_error_message += str(line).strip() + "\n"
+            full_message = ""
+            with port.message_lock:
+                if not port.error_message.empty():
+                    full_message = port.error_message.get()
 
             if type(port.whoiam) == str:
                 whoiam_info = '%s' % port.whoiam
             else:
                 whoiam_info = str(port.whoiam)
-            port_error_info = "\nError message from port:\n%s\naddress: '%s', ID: %s" % (
-                port_error_message, port.address, whoiam_info
-            )
+            port_error_info = "\nError message from port:\n" \
+                              "%s\n\n" \
+                              "Address: '%s', ID: %s" % (
+                                  full_message, port.address, whoiam_info
+                              )
+            if any(prev_packet_info):  # if any values evaluate to True, print info
+                port_error_info += "\n\nPrevious packet sent (ID: %s, time: %s):\n%s" % (
+                    prev_packet_info[0], prev_packet_info[1], repr(prev_packet_info[2]))
         else:
             port_error_info = ""
-        super(RobotObjectBaseError, self).__init__(error_message + port_error_info)
+        super(RobotPortBaseError, self).__init__(error_message + port_error_info)
 
 
-class ReceivePacketError(RobotObjectBaseError):
+class ReceivePacketError(RobotPortBaseError):
     """Failed to parse a packet from serial"""
 
 
@@ -54,16 +59,15 @@ class RobotObjectInitializationError(Exception):
     """Object passed isn't a RobotObject"""
 
 
-class RobotSerialPortUnassignedError(RobotObjectBaseError):
+class RobotSerialPortUnassignedError(RobotPortBaseError):
     """Port was open successfully but no objects use it"""
 
 
-class RobotSerialPortWhoiamIdTaken(RobotObjectBaseError):
+class RobotSerialPortWhoiamIdTaken(RobotPortBaseError):
     """whoiam ID is already being used by another port"""
 
 
-
-class RobotSerialPortNotConfiguredError(RobotObjectBaseError):
+class RobotSerialPortNotConfiguredError(RobotPortBaseError):
     """Port was not opened successfully"""
 
 
@@ -71,21 +75,17 @@ class RobotObjectNotFoundError(Exception):
     """Failed to assign a robot object to a port"""
 
 
-class RobotSerialPortClosedPrematurelyError(Exception):
+class RobotSerialPortClosedPrematurelyError(RobotPortBaseError):
     """serial object signalled it wasn't open"""
 
 
-class RobotSerialPortReadPacketError(Exception):
+class RobotSerialPortReadPacketError(RobotPortBaseError):
     """A port failed to call read_packets successfully"""
 
 
-class RobotSerialPortWritePacketError(Exception):
+class RobotSerialPortWritePacketError(RobotPortBaseError):
     """A port failed to call write_packets successfully"""
 
 
-class RobotSerialPortSignalledExitError(Exception):
+class RobotSerialPortSignalledExitError(RobotPortBaseError):
     """Port signalled to exit"""
-
-
-class RobotSerialPortTimeoutError(Exception):
-    """Port thread timed out"""
