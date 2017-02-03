@@ -178,7 +178,7 @@ class GPS(RobotObject):
 
 
     def receive_first(self, packet):
-        header = "update delay:"
+        header = "delay:"
         self.gps_update_delay = int(packet[len(header):])
         print("update rate: ", 1000 / self.gps_update_delay)
 
