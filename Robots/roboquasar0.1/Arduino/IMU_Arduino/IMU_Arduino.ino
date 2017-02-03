@@ -3,12 +3,12 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 
-#define DEFAULT_RATE 115200
+#define DEFAULT_RATE 9600 //115200
 #define WHOIAM "imu"
 #define LED13 13
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS 10
+#define BNO055_SAMPLERATE_DELAY_MS 100
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 

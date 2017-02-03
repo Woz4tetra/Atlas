@@ -7,7 +7,7 @@ corresponding robot object is paired in RobotInterface.
 import time
 import traceback
 from multiprocessing import Event, Process, Queue, Lock
-import ctypes
+# import ctypes
 
 import serial
 import serial.tools.list_ports
@@ -63,7 +63,7 @@ class RobotSerialPort(Process):
 
         # misc. serial protocol
         self.packet_end = "\n"  # what this microcontroller's packets end with
-        self.baud_rate = 115200
+        self.baud_rate = 9600  # 115200
 
         # buffer for putting packets into
         self.buffer = ""

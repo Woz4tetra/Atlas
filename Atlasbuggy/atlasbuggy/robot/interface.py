@@ -6,7 +6,7 @@ import pprint
 import time
 from multiprocessing import Lock, Queue, Value
 import threading
-import traceback
+# import traceback
 
 import serial
 import serial.tools.list_ports
@@ -486,6 +486,7 @@ class RobotInterface:
                         self.ports[whoiam])
 
     # def _handle_error(self, traceback):
+
 
     def _debug_print(self, *strings, ignore_flag=False):
         if self.debug_prints or ignore_flag:
