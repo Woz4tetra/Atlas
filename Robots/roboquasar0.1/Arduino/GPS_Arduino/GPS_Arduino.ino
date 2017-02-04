@@ -1,11 +1,11 @@
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 
-#define DEFAULT_RATE 9600 
+#define DEFAULT_RATE 115200
 // baud rate must be 9600 for this. the different baud rate is what causes shit
 #define WHOIAM "gps"
 #define LED13 13
-#define GPSECHO true
+#define GPSECHO false
 #define GPS_UPDATE_RATE_HZ 5
 
 boolean usingInterrupt = false;
@@ -83,8 +83,7 @@ void updateGPS()
         // read data from the GPS in the 'main loop'
         char c = GPS.read();
         // if you want to debug, this is a good time to do it!
-        if (GPSECHO)
-        if (c) Serial.print(c);
+        Serial.print(c);
     }
 }
 //// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
