@@ -2,77 +2,14 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-
-#define DEFAULT_RATE 9600 //115200
-#define WHOIAM "imu"
-#define LED13 13
+#include <Atlasbuggy.h>
 
 /* Set the delay between fresh samples */
 #define BNO055_SAMPLERATE_DELAY_MS 100
 
+Atlasbuggy buggy("imu");
+
 Adafruit_BNO055 bno = Adafruit_BNO055();
-
-bool led_state = false;
-bool paused = true;
-
-void writeWhoiam()
-{
-    Serial.print("iam");
-    Serial.print(WHOIAM);
-    Serial.print('\n');
-}
-
-void writeInit()
-{
-    Serial.print("init:");
-    Serial.print("delay:");
-    Serial.print(BNO055_SAMPLERATE_DELAY_MS);
-    Serial.print('\n');
-}
-
-void setLed(bool state)
-{
-    led_state = state;
-    digitalWrite(LED13, led_state);
-}
-
-void pause()
-{
-    Serial.print("stopping\n");
-    paused = true;
-}
-
-void unpause() {
-    paused = false;
-}
-
-void readSerial()
-{
-    while (Serial.available())
-    {
-        String command = Serial.readStringUntil('\n');
-
-        // if (character == '\n')
-        // {
-        // Serial.println(command);
-        if (command.equals("whoareyou")) {
-            writeWhoiam();
-        }
-        else if (command.equals("init?")) {
-            writeInit();
-        }
-        else if (command.equals("start"))
-        {
-            setLed(HIGH);
-            unpause();
-        }
-        else if (command.equals("stop"))
-        {
-            setLed(LOW);
-            pause();
-        }
-    }
-}
 
 void updateIMU() {
     // Possible vector values can be:
@@ -173,7 +110,7 @@ void updateIMU() {
 }
 
 void setup() {
-  Serial.begin(DEFAULT_RATE);
+  buggy.begin();
 
   /* Initialise the sensor */
   if(!bno.begin())
@@ -194,16 +131,27 @@ void setup() {
 
   bno.setExtCrystalUse(true);
 
+  pinMode(LED13, OUTPUT);
+
   // Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
 
 }
 
 void loop() {
-  if (!paused) {
-      updateIMU();
-  }
-  else {
-      delay(100);
-  }
-  readSerial();
+
+    while (buggy.available()) {
+        buggy.readSerial();
+        // int status = buggy.readSerial();
+        // if (status == 2) {  // start event
+        //
+        // }
+        // else if (status == 1) {  // stop event
+        //
+        // }
+    }
+
+
+    if (!buggy.isPaused()) {
+        updateIMU();
+    }
 }

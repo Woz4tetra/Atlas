@@ -6,7 +6,7 @@ import pprint
 import time
 from multiprocessing import Lock, Queue, Value
 import threading
-# import traceback
+import traceback
 
 import serial
 import serial.tools.list_ports
@@ -36,9 +36,9 @@ class RobotInterface:
 
         self.debug_to_log = debug_to_log  # TODO: put debug messages into a log file
         if debug_to_log:
-            self.debug_prints = True
+            self.debug_enabled = True
         else:
-            self.debug_prints = debug_prints
+            self.debug_enabled = debug_prints
 
         self.loop_ups = loop_updates_per_second
         self.port_ups = port_updates_per_second
@@ -109,9 +109,10 @@ class RobotInterface:
         for whoiam in self.ports.keys():
             self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
 
-        self._debug_print("Ignored IDs:")
-        for whoiam in self.inactive_ids:
-            self._debug_print(whoiam)
+        if len(self.inactive_ids) > 0 and self.debug_enabled:
+            self._debug_print("Ignored IDs:")
+            for whoiam in self.inactive_ids:
+                self._debug_print(whoiam)
 
     def run(self):
         """
@@ -145,7 +146,10 @@ class RobotInterface:
         except BaseException as error:
             self._debug_print("Closing all from user's start")
             self._close_all()
-            raise StartSignalledError("Overridden start method threw an exception")
+            raise self._handle_error(
+                StartSignalledError("Overridden start method threw an exception"),
+                traceback.format_stack()
+            )
 
         try:
             while self._are_ports_active():
@@ -190,7 +194,7 @@ class RobotInterface:
         :param string: Similar to a packet. String data to record
         :return: None
         """
-        self.logger.record(self.dt, tag, string, packet_type="user")
+        self.logger.record(self.dt, tag, string, "user")
 
     def queue_len(self):
         return self.packet_counter.value
@@ -203,6 +207,15 @@ class RobotInterface:
                 return whoiam == self.prev_whoiam
         else:
             return arg == self.prev_whoiam
+
+    def change_port_rate(self, arg, new_baud_rate):
+        if isinstance(arg, RobotObject):
+            self.ports[arg.whoiam].change_rate(new_baud_rate)
+        elif isinstance(arg, RobotObjectCollection):
+            for whoiam in arg.whoiam_ids:
+                self.ports[whoiam].change_rate(new_baud_rate)
+        elif isinstance(arg, str):
+            self.ports[arg].change_rate(new_baud_rate)
 
     # ----- overridable methods -----
 
@@ -256,7 +269,7 @@ class RobotInterface:
         :return: None
         """
         if port_info.vid is not None:
-            port = RobotSerialPort(port_info, self.debug_prints,
+            port = RobotSerialPort(port_info, self.debug_enabled,
                                    self.packet_queue, self.port_lock, self.packet_counter, updates_per_second)
             if port.whoiam in self.ports.keys():
                 self._close_all()
@@ -313,7 +326,7 @@ class RobotInterface:
                     raise RobotObjectReceiveError(
                         "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet)
 
-                self.logger.record(-1, whoiam, first_packet, packet_type="object")
+                self.logger.record(None, whoiam, first_packet, "object")
 
     # ----- port management -----
 
@@ -323,7 +336,7 @@ class RobotInterface:
         :param port:
         :return: None
         """
-        if self.debug_prints:
+        if self.debug_enabled:
             self._debug_print(pprint.pformat(port.port_info.__dict__) + "\n")
             time.sleep(0.01)  # wait for error messages to print
 
@@ -342,15 +355,25 @@ class RobotInterface:
         for robot_port in self.ports.values():
             robot_port.start()
 
+    def _stop_port(self, robot_port):
+        robot_port.stop()
+        robot_port.wait_for_close()
+
     def _stop_all_ports(self):
         """
         Close all robot port processes
         :return: None
         """
         self._debug_print("Closing all ports")
+
+        threads = []
         for robot_port in self.ports.values():
-            robot_port.stop()
-            robot_port.wait_for_close()
+            stop_thread = threading.Thread(target=self._stop_port, args=(robot_port,))
+            threads.append(stop_thread)
+            stop_thread.start()
+
+        for thread in threads:
+            thread.join()
 
     def _close_all(self):
         """
@@ -362,11 +385,9 @@ class RobotInterface:
             self.close()  # call the user's close function
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
-            self.logger.close()
             raise CloseSignalledExitError(error)
 
         self._stop_all_ports()
-        self.logger.close()
 
     def _are_ports_active(self):
         """
@@ -384,8 +405,12 @@ class RobotInterface:
                     raise RobotSerialPortNotConfiguredError(
                         "Port with ID '%s' isn't configured!" % robot_port.whoiam, self.prev_packet_info, robot_port)
                 elif status == -1:
-                    raise RobotSerialPortSignalledExitError(
-                        "Port with ID '%s' signalled to exit" % robot_port.whoiam, self.prev_packet_info, robot_port)
+                    raise self._handle_error(
+                        RobotSerialPortSignalledExitError(
+                            "Port with ID '%s' signalled to exit" % robot_port.whoiam, self.prev_packet_info,
+                            robot_port),
+                        traceback.format_stack()
+                    )
         return True
 
     # ----- event handling -----
@@ -437,7 +462,7 @@ class RobotInterface:
 
                 if self._deliver_packet(dt, whoiam, packet) is False:
                     return False
-                self.logger.record(dt, whoiam, packet, packet_type="object")
+                self.logger.record(dt, whoiam, packet, "object")
                 if not self._signal_received(dt, whoiam, packet):
                     return False
 
@@ -476,7 +501,7 @@ class RobotInterface:
                 break
             while not command_packets.empty():
                 command = self.objects[whoiam].command_packets.get()
-                self.logger.record(self.dt, whoiam, command, packet_type="command")
+                self.logger.record(self.dt, whoiam, command, "command")
 
                 if not self.ports[whoiam].write_packet(command):
                     self._debug_print("Closing all from _send_commands")
@@ -485,10 +510,16 @@ class RobotInterface:
                         "Failed to send command %s to '%s'" % (command, whoiam), self.prev_packet_info,
                         self.ports[whoiam])
 
-    # def _handle_error(self, traceback):
-
+    def _handle_error(self, error, traceback):
+        if self.logger.is_open:
+            error_message = "".join(traceback[:-1])
+            error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
+            error_message += "\n".join(error.args[1:])
+            self.logger.record(self.dt, error.__class__.__name__, error_message, "error")
+        self.logger.close()
+        return error
 
     def _debug_print(self, *strings, ignore_flag=False):
-        if self.debug_prints or ignore_flag:
+        if self.debug_enabled or ignore_flag:
             string = "".join(strings)
             print("[Interface] %s" % string)

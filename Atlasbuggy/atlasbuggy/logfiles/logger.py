@@ -42,6 +42,8 @@ class Logger:
         self.data_file = None
         self.is_open = False
 
+        self.line_code = (("%s" * 6) + "\n")
+
         self.data = []
 
     def open(self):
@@ -79,12 +81,14 @@ class Logger:
         :param packet_type: packet decorator. Determines how the packet was used
         :return: None
         """
-        packet_type = packet_types[packet_type]
 
         if self.is_open:
+            if timestamp is None:
+                timestamp = no_timestamp
             # hex_timestamp = self.float_to_hex(timestamp)
 
-            self.data.append("%s%s%s%s%s%s\n" % (
+            packet_type = packet_types[packet_type]
+            self.data.append(self.line_code % (
                 packet_type, timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
 
             if len(self.data) > 0x1000:

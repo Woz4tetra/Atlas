@@ -6,6 +6,8 @@ from atlasbuggy.logfiles.parser import Parser
 from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.robot.robotcollection import RobotObjectCollection
 from atlasbuggy.robot.errors import RobotObjectInitializationError
+from atlasbuggy import logfiles
+
 
 class RobotInterfaceSimulator:
     def __init__(self, file_name, directory, *robot_objects, start_index=0, end_index=-1):
@@ -71,10 +73,11 @@ class RobotInterfaceSimulator:
         for index, packet_type, timestamp, whoiam, packet in self.parser:
             self.dt = timestamp
             self.prev_whoiam = whoiam
-            self.ids_received.add(whoiam)
+            if packet_type != "error":
+                self.ids_received.add(whoiam)
 
             if whoiam in self.objects.keys():
-                if timestamp == -1:
+                if timestamp == logfiles.no_timestamp:
                     if isinstance(self.objects[whoiam], RobotObject):
                         self.objects[whoiam].receive_first(packet)
                     elif isinstance(self.objects[whoiam], RobotObjectCollection):
@@ -85,7 +88,6 @@ class RobotInterfaceSimulator:
                         self.objects[whoiam].receive(timestamp, packet)
                     elif isinstance(self.objects[whoiam], RobotObjectCollection):
                         self.objects[whoiam].receive(timestamp, whoiam, packet)
-
 
             self.current_index = index
 
@@ -98,6 +100,10 @@ class RobotInterfaceSimulator:
             elif packet_type == "command":
                 if self.command_packet(timestamp, packet) is False:
                     break
+
+            elif packet_type == "error":
+                print(packet)
+                break
 
         if self.ids_received != self.ids_used:
             if len(self.ids_received - self.ids_used) > 0:

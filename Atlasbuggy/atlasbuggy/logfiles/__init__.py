@@ -21,16 +21,18 @@ log_folder_format = '%b %d %Y'
 log_file_format = '%H;%M;%S, %a %b %d %Y'
 
 packet_types = {
-    "object" : "<",       # from a robot object
-    "user"   : "|",       # user logged
-    "command": ">",       # command sent
-    "error"  : "<!!!!>",  # printed error message
+    "object"   : "<",  # from a robot object
+    "user"     : "|",  # user logged
+    "command"  : ">",  # command sent
+    "error"    : "!",  # printed error message
 
-    "<"      : "object",
-    "|"      : "user",
-    ">"      : "command",
-    "<!!!!>" : "error",
+    "<"        : "object",
+    "|"        : "user",
+    ">"        : "command",
+    "!"        : "error",
 }
+
+no_timestamp = "-"
 
 
 def todays_log_folder():

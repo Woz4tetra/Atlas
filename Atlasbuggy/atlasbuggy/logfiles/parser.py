@@ -102,12 +102,9 @@ class Parser:
         if self.index < self.end_index:
             line = self.parse_line()
             if line is not None:
-                if type(line) == str:
-                    packet_type, timestamp, whoiam, packet = line
-                    self.index += 1
-                    return self.index - 1, packet_type, timestamp, whoiam, packet
-                else:
-                    print(line)
+                packet_type, timestamp, whoiam, packet = line
+                self.index += 1
+                return self.index - 1, packet_type, timestamp, whoiam, packet
         raise StopIteration
 
     @staticmethod
@@ -125,7 +122,7 @@ class Parser:
         """
         Parse the current line using self.content_index and separator globals (e.g. time_whoiam_sep).
         Return the contents found
-        :return: timestamp, who_i_am, packet; None if the line was parsed incorrectly
+        :return: timestamp, whoiam, packet; None if the line was parsed incorrectly
         """
         line = self.contents[self.index]
 
@@ -140,18 +137,26 @@ class Parser:
             if line[0] not in packet_types.keys():
                 return None
             packet_type = packet_types[line[0]]
-            if packet_type != "error":
-                # the timestamp is the beginning of the line to time_index
-                timestamp = line[1:time_index]
 
-                # the name is from the end of the timestamp to name_index
-                who_i_am = line[time_index + len(time_whoiam_sep): whoiam_index]
+            # the timestamp is the beginning of the line to time_index
+            timestamp = line[1:time_index]
+            if timestamp != no_timestamp:
+                timestamp = float(timestamp)
 
-                # the values are from the end of the name to the end of the line
+            # the name is from the end of the timestamp to name_index
+            whoiam = line[time_index + len(time_whoiam_sep): whoiam_index]
+
+            # the values are from the end of the name to the end of the line
+            if packet_type == "error":
+                packet = "\n\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (timestamp, whoiam)
+                packet += "Traceback (most recent call last):\n"
+                packet += line[whoiam_index + len(whoiam_packet_sep):] + "\n"
+                for other_lines in self.contents[self.index + 1:]:
+                    packet += other_lines + "\n"
+                packet += "----- End error message -----\n"
+            else:
                 packet = line[whoiam_index + len(whoiam_packet_sep):]
 
-                return packet_type, timestamp, who_i_am, packet
-            else:
-                return self.contents[self.index:]
+            return packet_type, timestamp, whoiam, packet
         else:
             return None

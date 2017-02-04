@@ -2,10 +2,6 @@
 #define WHOIAM ""  // define whoiam ID here (unique to each robot object)
 #define LED13 13
 
-char character = '\0';
-// char command_type = '\0';
-String command = "";
-
 bool paused = true;
 
 void write_whoiam()
@@ -17,52 +13,27 @@ void write_whoiam()
 
 void readSerial()
 {
-    while (Serial.available() && character != '\n')
+    while (Serial.available())
     {
-        character = Serial.read();
-        if (character != '\n') {
-            command += character;
-        }
-    }
+        String command = Serial.readStringUntil('\n');
 
-    if (character == '\n')
-    {
-        // command_type = command.charAt(0);
         if (command.equals("whoareyou")) {
-            write_whoiam();
+            writeWhoiam();
         }
-        else if (command.equals("init?"))
+        else if (command.equals("init?")) {
+            writeInit();
+        }
+        else if (command.equals("start"))
         {
-            digitalWrite(LED13, HIGH);
-            paused = false;
-
-            Serial.print("init:");
-            // Put other initialization data here
-
-            Serial.print("\n");
+            setLed(HIGH);
+            unpause();
         }
         else if (command.equals("stop"))
         {
-            digitalWrite(LED13, LOW);
-            paused = true;
+            setLed(LOW);
+            pause();
         }
-        // Put other commands here
-        /*
-        else if (command.equals("do something cool"))
-        {
-            buildMeARobot("cheese");
-            flyToTheMoon(299792457, "m/s");
-        }
-        */
-
-        character = '\0';
-        command = "";
     }
-}
-
-void writeSerial()
-{
-    // Write sensor data to serial here
 }
 
 void setup()
@@ -77,7 +48,7 @@ void setup()
 void loop()
 {
     if (!paused) {
-        writeSerial();
+        // Write sensor data to serial here
     }
     else {
         delay(100);  // Minimize activity when not in use
