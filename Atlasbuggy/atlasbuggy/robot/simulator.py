@@ -31,6 +31,7 @@ class RobotInterfaceSimulator:
         self.parser = Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
 
+        self.packet = ""
         self.ids_used = set()
         self.ids_received = set()
         self.prev_whoiam = None
@@ -71,6 +72,7 @@ class RobotInterfaceSimulator:
 
     def run(self):
         for index, packet_type, timestamp, whoiam, packet in self.parser:
+            self.packet = packet
             self.dt = timestamp
             self.prev_whoiam = whoiam
             if packet_type != "error":

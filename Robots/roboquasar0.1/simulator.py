@@ -25,10 +25,11 @@ class Simulator(RobotInterfaceSimulator):
         )
 
     def object_packet(self, timestamp):
-        if self.did_receive(self.imu):
-            print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
-            self.imuPlot.append(self.imu.eul_x, self.imu.eul_y, self.imu.eul_z)
-            self.gpsPlot.append(self.gps.latitude, self.gps.longitude, self.gps.altitude)
+        print(self.packet)
+        # if self.did_receive(self.imu):
+            # print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+            # self.imuPlot.append(self.imu.eul_x, self.imu.eul_y, self.imu.eul_z)
+            # self.gpsPlot.append(self.gps.latitude, self.gps.longitude, self.gps.altitude)
 
     def close(self):
         self.staticPlot.plot()
