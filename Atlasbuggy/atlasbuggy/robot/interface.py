@@ -46,18 +46,10 @@ class RobotInterface:
         self.prev_whoiam = ""
         self.prev_packet_info = [None, None, None]
 
-        if log_dir is None:
-            # if no directory provided, use the ":today" flag
-            # (follows the project.py directory reference convention)
-            log_dir = ":today"
-        self.logger = Logger(log_name, log_dir)
-        self.start_time = 0
-        if log_data:
-            self.logger.open()
-
         self.joystick = joystick
 
         self.clock = Clock(self.loop_ups)
+        self.start_time = 0
 
         # a pipe from all port processes to the main loop
         self.packet_queue = Queue()
@@ -83,8 +75,11 @@ class RobotInterface:
                         self.inactive_ids.add(whoiam)
 
             else:
-                raise RobotObjectInitializationError(
-                    "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
+                raise self._handle_error(
+                    RobotObjectInitializationError(
+                        "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object)),
+                    traceback.format_stack()
+                )
 
         # open all available ports using multithreading
         self.ports = {}
@@ -100,11 +95,21 @@ class RobotInterface:
         for port in self.ports.values():
             if not port.configured:
                 self._print_port_info(port)
-                raise RobotSerialPortNotConfiguredError("Port not configured!", self.prev_packet_info, port)
+                raise self._handle_error(
+                    RobotSerialPortNotConfiguredError("Port not configured!", self.prev_packet_info, port),
+                    traceback.format_stack()
+                )
 
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
-        self._send_first_packets()  # distribute initialization packets
+
+        if log_dir is None:
+            # if no directory provided, use the ":today" flag
+            # (follows the project.py directory reference convention)
+            log_dir = ":today"
+        self.logger = Logger(log_name, log_dir)
+        if log_data:
+            self.logger.open()
 
         for whoiam in self.ports.keys():
             self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
@@ -113,6 +118,8 @@ class RobotInterface:
             self._debug_print("Ignored IDs:")
             for whoiam in self.inactive_ids:
                 self._debug_print(whoiam)
+
+        self._send_first_packets()  # distribute initialization packets
 
     def run(self):
         """
@@ -174,6 +181,8 @@ class RobotInterface:
             pass
 
         self._debug_print("Closing all from run")
+
+        self._close_log()
         self._close_all()
 
     # ----- utility methods -----
@@ -274,8 +283,11 @@ class RobotInterface:
             if port.whoiam in self.ports.keys():
                 self._close_all()
                 self._print_port_info(port)
-                raise RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!",
-                                                   self.prev_packet_info, port)
+                raise self._handle_error(
+                    RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!",
+                                                   self.prev_packet_info, port),
+                    traceback.format_stack()
+                )
             elif port.whoiam in self.inactive_ids:
                 port.stop()
             else:
@@ -289,7 +301,10 @@ class RobotInterface:
         for whoiam in self.objects.keys():
             if whoiam not in self.ports.keys():
                 self._close_all()
-                raise RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam)
+                raise self._handle_error(
+                    RobotObjectNotFoundError("Failed to assign robot object with ID '%s'" % whoiam),
+                    traceback.format_stack()
+                )
 
     def _check_ports(self):
         """
@@ -301,8 +316,11 @@ class RobotInterface:
                 self._close_all()
                 self._print_port_info(self.ports[whoiam])
 
-                raise RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
-                                                     self.ports[whoiam])
+                raise self._handle_error(
+                    RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
+                                                     self.ports[whoiam]),
+                    traceback.format_stack()
+                )
 
     def _send_first_packets(self):
         """
@@ -323,8 +341,11 @@ class RobotInterface:
                 if not status:
                     self._debug_print("Closing all from _send_first_packets")
                     self._close_all()
-                    raise RobotObjectReceiveError(
-                        "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet)
+                    raise self._handle_error(
+                        RobotObjectReceiveError(
+                        "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet),
+                        traceback.format_stack()
+                    )
 
                 self.logger.record(None, whoiam, first_packet, "object")
 
@@ -349,7 +370,10 @@ class RobotInterface:
         for robot_port in self.ports.values():
             if not robot_port.send_start():
                 self._close_all()
-                raise RobotSerialPortWritePacketError("Unable to send start packet!", self.prev_packet_info, robot_port)
+                raise self._handle_error(
+                    RobotSerialPortWritePacketError("Unable to send start packet!", self.prev_packet_info, robot_port),
+                    traceback.format_stack()
+                )
 
         # then start receiving packets
         for robot_port in self.ports.values():
@@ -385,7 +409,10 @@ class RobotInterface:
             self.close()  # call the user's close function
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
-            raise CloseSignalledExitError(error)
+            raise self._handle_error(
+                CloseSignalledExitError(error),
+                traceback.format_stack()
+            )
 
         self._stop_all_ports()
 
@@ -402,8 +429,11 @@ class RobotInterface:
                 self._debug_print("Closing all from _are_ports_active")
                 self._close_all()
                 if status == 0:
-                    raise RobotSerialPortNotConfiguredError(
-                        "Port with ID '%s' isn't configured!" % robot_port.whoiam, self.prev_packet_info, robot_port)
+                    raise self._handle_error(
+                        RobotSerialPortNotConfiguredError(
+                            "Port with ID '%s' isn't configured!" % robot_port.whoiam, self.prev_packet_info, robot_port),
+                        traceback.format_stack()
+                    )
                 elif status == -1:
                     raise self._handle_error(
                         RobotSerialPortSignalledExitError(
@@ -430,7 +460,10 @@ class RobotInterface:
         except BaseException as error:
             self._debug_print("Closing all from _deliver_packet")
             self._close_all()
-            raise RobotObjectReceiveError(whoiam, packet)
+            raise self._handle_error(
+                RobotObjectReceiveError(whoiam, packet),
+                traceback.format_stack()
+            )
 
     def _signal_received(self, dt, whoiam, packet):
         try:
@@ -442,7 +475,10 @@ class RobotInterface:
         except BaseException as error:
             self._debug_print("Closing all from _signal_received")
             self._close_all()
-            raise PacketReceivedError(error)
+            raise self._handle_error(
+                PacketReceivedError(error),
+                traceback.format_stack()
+            )
         return True
 
     def _dequeue_packets(self):
@@ -482,7 +518,10 @@ class RobotInterface:
         except BaseException as error:
             self._debug_print("Closing all from _main_loop")
             self._close_all()
-            raise LoopSignalledError(error)
+            raise self._handle_error(
+                LoopSignalledError(error),
+                traceback.format_stack()
+            )
 
         return True
 
@@ -506,9 +545,12 @@ class RobotInterface:
                 if not self.ports[whoiam].write_packet(command):
                     self._debug_print("Closing all from _send_commands")
                     self._close_all()
-                    raise RobotSerialPortWritePacketError(
+                    raise self._handle_error(
+                        RobotSerialPortWritePacketError(
                         "Failed to send command %s to '%s'" % (command, whoiam), self.prev_packet_info,
-                        self.ports[whoiam])
+                        self.ports[whoiam]),
+                        traceback.format_stack()
+                    )
 
     def _handle_error(self, error, traceback):
         if self.logger.is_open:
@@ -516,8 +558,13 @@ class RobotInterface:
             error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
             error_message += "\n".join(error.args[1:])
             self.logger.record(self.dt, error.__class__.__name__, error_message, "error")
-        self.logger.close()
+
+        self._close_log()
         return error
+
+    def _close_log(self):
+        self._debug_print("Logger closing")
+        self.logger.close()
 
     def _debug_print(self, *strings, ignore_flag=False):
         if self.debug_enabled or ignore_flag:

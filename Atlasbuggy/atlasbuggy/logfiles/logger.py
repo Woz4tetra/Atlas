@@ -119,6 +119,7 @@ class Logger:
         If the file hasn't been closed, close and compress it.
         :return: None
         """
+        
         if self.is_open:
             self.dump_all()
             self.data_file.close()
