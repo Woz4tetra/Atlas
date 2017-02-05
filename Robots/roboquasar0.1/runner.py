@@ -34,9 +34,9 @@ class Runner(RobotInterface):
             self.gps,
             self.steering,
             self.brakes,
-            # joystick=WiiUJoystick(),
+            joystick=WiiUJoystick(),
             debug_prints=True,
-            log_data=False
+            # log_data=False
         )
 
     def packet_received(self, timestamp, whoiam, packet):
@@ -51,21 +51,30 @@ class Runner(RobotInterface):
                         return False
                         # else:
                         #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
-        # elif self.did_receive(self.gps):
-        #     print(timestamp, self.gps.latitude, self.gps.longitude)
-        #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+        elif self.did_receive(self.gps):
+            # print(timestamp, self.gps.latitude, self.gps.longitude)
+            print(timestamp, self.imu)
             # elif self.did_receive(self.steering):# and self.steering.goal_reached:
             # print(self.steering.current_step)
 
     def loop(self):
-        if self.joystick is not None and self.steering.calibrated:
-            if self.joystick.axis_updated("left x"):
-                self.steering.set_speed(self.joystick.get_axis("left x"))
-            elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
-                self.steering.set_position(0)
-            elif self.joystick.button_updated("B") and self.joystick.get_button("B"):
-                self.steering.set_position(200)
+        if self.joystick is not None:
+            if self.steering.calibrated:
+                if self.joystick.axis_updated("left x"):
+                    self.steering.set_speed(self.joystick.get_axis("left x"))
+                elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
+                    self.steering.set_position(0)
+
+            if self.joystick.button_updated("B") and self.joystick.get_button("B"):
+                self.brakes.brake()
             elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
+                self.brakes.unbrake()
+            elif self.joystick.dpad_updated():
+                if self.joystick.dpad[1] == 1:
+                    self.brakes.set_brake(self.brakes.goal_position + 20)
+                elif self.joystick.dpad[1] == -1:
+                    self.brakes.set_brake(self.brakes.goal_position - 20)
+
 
 
     def start(self):

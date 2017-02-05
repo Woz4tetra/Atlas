@@ -6,22 +6,22 @@
 #include <Atlasbuggy.h>
 #include <PID_v1.h>
 
-#define POS_ERROR 3
+#define POS_ERROR 10
 #define POT_OFFSET 28.0
+#define MIN_OUTPUT 80
 
 #define relay1Pin 7
 #define relay2Pin 8
 #define potHighPin 12
 #define potReadPin 0
-#define powerPin 2
 #define pwmPin 6
 
 double goalPosition;
 double currentPosition;
 double pidOutput;
 
-double kp = 15.0;
-double kd = 5.0;
+double kp = 10.0;
+double kd = 3.0;
 double ki = 1.0;
 
 bool extending = false;
@@ -43,16 +43,14 @@ void setup() {
     pinMode(relay1Pin, OUTPUT);
     pinMode(relay2Pin, OUTPUT);
     pinMode(potHighPin, OUTPUT);
-    pinMode(powerPin, OUTPUT);
     pinMode(pwmPin, OUTPUT);
 
     digitalWrite(relay1Pin, LOW);
     digitalWrite(relay2Pin, LOW);
-    digitalWrite(powerPin, HIGH);
 
     digitalWrite(potHighPin, HIGH);
 
-    currentPosition = analogRead(potReadPin);
+    currentPosition = analogRead(potReadPin) - POT_OFFSET;
     goalPosition = currentPosition;
 
     linearAc.SetMode(AUTOMATIC);
@@ -80,16 +78,19 @@ void control() {
     else{
         innerPause = false;
     }
-    if (!prevPause && innerPause) {
-        Serial.print((int)(currentPosition));
-        Serial.print('\n');
-    }
+    // if (!prevPause && innerPause) {
+    //     Serial.print((int)(currentPosition));
+    //     Serial.print('\n');
+    // }
     prevPause = innerPause;
 
     if (!innerPause) {
         linearAc.Compute();
+        if (abs(pidOutput) < MIN_OUTPUT) {
+            pidOutput = MIN_OUTPUT * (pidOutput > 0) - (pidOutput < 0);
+        }
 
-        if (goalPosition <= currentPosition) {
+        if (goalPosition < currentPosition) {
             retracting = true;
             extending = false;
             digitalWrite(relay1Pin, LOW);
@@ -97,7 +98,7 @@ void control() {
             analogWrite(pwmPin, 255 - pidOutput);
             // Serial.println(255 - pidOutput);
         }
-        else if (goalPosition >= currentPosition) {
+        else if (goalPosition > currentPosition) {
             retracting = false;
             extending = true;
             digitalWrite(relay1Pin, HIGH);
@@ -110,6 +111,10 @@ void control() {
 
         if (millis() - timer > 100) {
             timer = millis(); // reset the timer
+            // Serial.print(pidOutput);
+            // Serial.print('\t');
+            // Serial.print((int)(goalPosition));
+            // Serial.print('\t');
             Serial.print((int)(currentPosition));
             Serial.print('\n');
         }
@@ -131,14 +136,17 @@ void control() {
 void loop() {
     while (buggy.available()) {
         int status = buggy.readSerial();
-        // if (status == 2) {  // start event
-        //
-        // }
+        if (status == 2) {  // start event
+            Serial.print((int)(currentPosition));
+            Serial.print('\n');
+        }
         // else if (status == 1) {  // stop event
         //
         // }
         if (status == 0) {  // user command
             goalPosition = (double)(buggy.getCommand().toInt());
+            // Serial.print("goalPosition: ");
+            // Serial.println(goalPosition);
         }
         // else if (status == -1)  // no command
     }

@@ -7,7 +7,7 @@ corresponding robot object is paired in RobotInterface.
 import re
 import time
 import traceback
-from multiprocessing import Event, Process, Queue, Lock
+from multiprocessing import Event, Process, Queue, Lock, Value
 
 import serial
 import serial.tools.list_ports
@@ -65,7 +65,8 @@ class RobotSerialPort(Process):
 
         # misc. serial protocol
         self.packet_end = "\n"  # what this microcontroller's packets end with
-        self.baud_rate = 115200
+        self.default_rate = 115200
+        self.baud_rate = Value('i', self.default_rate)
 
         # buffer for putting packets into
         self.buffer = ""
@@ -80,7 +81,7 @@ class RobotSerialPort(Process):
 
         # attempt to open the serial port
         try:
-            self.serial_ref = serial.Serial(port=self.address, baudrate=self.baud_rate)
+            self.serial_ref = serial.Serial(port=self.address, baudrate=self.baud_rate.value)
         except SerialException as error:
             self.handle_error(error, traceback.format_stack())
             self.configured = False
@@ -255,6 +256,15 @@ class RobotSerialPort(Process):
         with self.event_lock:
             self.start_event.set()
 
+        time.sleep(0.01)
+
+        with self.baud_rate.get_lock():
+            if self.baud_rate.value != self.default_rate:  # if changed externally
+                self.serial_ref.baudrate = self.baud_rate.value
+                self.debug_print("Baud is now", self.serial_ref.baudrate)
+            else:
+                self.debug_print("Baud rate unchanged")
+
         try:
             while True:
                 with self.event_lock:
@@ -289,6 +299,8 @@ class RobotSerialPort(Process):
                 self.handle_error(error, traceback.format_stack())
                 self.debug_print("Error thrown in port loop")
 
+        self.debug_print("Current buffer:", repr(self.buffer))
+        self.flush()
         self.debug_print("While loop exited. Exit event triggered.")
 
     def read_packets(self):
@@ -319,10 +331,10 @@ class RobotSerialPort(Process):
                 self.handle_error(error, traceback.format_stack())
                 return None
 
-            buffer = self.buffer_pattern.sub('', self.buffer)
-            if len(self.buffer) != len(buffer):
+            buf = self.buffer_pattern.sub('', self.buffer)
+            if len(self.buffer) != len(buf):
                 self.debug_print("Invalid characters found:", repr(self.buffer))
-            self.buffer = buffer
+            self.buffer = buf
 
             if len(self.buffer) > len(self.packet_end):
                 # split based on user defined packet end
@@ -342,7 +354,7 @@ class RobotSerialPort(Process):
         :return: True or False if the write was successful
         """
         try:
-            data = bytearray(packet + self.packet_end, 'ascii')
+            data = bytearray(str(packet) + self.packet_end, 'ascii')
         except TypeError as error:
             self.handle_error(error, traceback.format_stack())
             return False
@@ -368,6 +380,12 @@ class RobotSerialPort(Process):
         for packet in packets:
             self.debug_print("> %s" % repr(packet))
 
+    def flush(self):
+        self.debug_print("Flushing serial")
+        self.serial_ref.reset_input_buffer()
+        self.serial_ref.reset_output_buffer()
+        self.debug_print("Serial content:", self.serial_ref.in_waiting)
+
     # ----- external and status methods -----
 
     def debug_print(self, *strings, ignore_flag=False):
@@ -376,10 +394,11 @@ class RobotSerialPort(Process):
             print("[%s, %s] %s" % (self.address, self.whoiam, string))
 
     def change_rate(self, new_baud_rate):
-        with self.event_lock:
-            time.sleep(0.05)
-            self.serial_ref.baudrate = new_baud_rate
-            self.debug_print("Baud is now", self.serial_ref.baudrate)
+        # time.sleep(0.05)
+        self.debug_print("Setting baud to", new_baud_rate)
+        with self.baud_rate.get_lock():
+            self.baud_rate.value = new_baud_rate
+        self.debug_print("Set baud to", self.baud_rate.value)
 
     def is_running(self):
         """
@@ -410,17 +429,20 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        self.debug_print("Exit event is",
-                         "set. Skipping stop protocol!" if
-                         self.exit_event.is_set() else
-                         "not set. Proceeding to send stop")
-        if not self.exit_event.is_set():
-            if self.check_protocol("stop", "stopping") is None:
-                self.debug_print("Failed to send stop flag!!!")
+        if self.start_event.is_set():
+            self.debug_print("Exit event is",
+                             "set. Skipping stop protocol!" if
+                             self.exit_event.is_set() else
+                             "not set. Proceeding to send stop")
+            if not self.exit_event.is_set():
+                if self.check_protocol("stop", "stopping") is None:
+                    self.debug_print("Failed to send stop flag!!!")
+                else:
+                    self.debug_print("Sent stop flag")
             else:
-                self.debug_print("Sent stop flag")
+                self.debug_print("exit_event already set!")
         else:
-            self.debug_print("exit_event already set!")
+            self.debug_print("start_event not set!")
 
         with self.event_lock:
             self.exit_event.set()

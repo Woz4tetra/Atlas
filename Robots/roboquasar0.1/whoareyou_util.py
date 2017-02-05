@@ -3,6 +3,9 @@ import pprint
 
 from atlasbuggy.robot.robotport import RobotSerialPort
 
+if len(serial.tools.list_ports.comports()) == 0:
+    print("No ports found!")
+
 for port_info in serial.tools.list_ports.comports():
     if port_info.serial_number is not None:
         pprint.pprint(port_info.__dict__)

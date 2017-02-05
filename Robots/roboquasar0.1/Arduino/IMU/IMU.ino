@@ -69,13 +69,13 @@ void updateIMU() {
     Serial.print('\t');
 
     imu::Vector<3> accel_wg = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-    Serial.print("agx");
+    Serial.print("lx");
     Serial.print(accel_wg.x(), 4);
     Serial.print('\t');
-    Serial.print("agy");
+    Serial.print("ly");
     Serial.print(accel_wg.y(), 4);
     Serial.print('\t');
-    Serial.print("agz");
+    Serial.print("lz");
     Serial.print(accel_wg.z(), 4);
     Serial.print('\n');
 

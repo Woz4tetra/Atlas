@@ -4,9 +4,10 @@ from atlasbuggy.robot.robotobject import RobotObject
 class Brakes(RobotObject):
     def __init__(self, enabled=True):
         self.position = 0
+        self.goal_position = 0
 
-        self.brake_pos = 0
-        self.unbrake_pos = 255
+        self.brake_pos = 240
+        self.unbrake_pos = 150
 
         self.pos_error = None
 
@@ -17,12 +18,18 @@ class Brakes(RobotObject):
 
     def receive(self, timestamp, packet):
         self.position = int(packet)
+        print("brake position:", self.position)
 
     def brake(self):
-        self.send(self.brake_pos)
+        self.set_brake(self.brake_pos)
 
     def unbrake(self):
-        self.send(self.unbrake_pos)
+        self.set_brake(self.unbrake_pos)
+
+    def set_brake(self, position):
+        self.goal_position = position
+        print("sending position:", position)
+        self.send(position)
 
     def is_engaged(self):
         return

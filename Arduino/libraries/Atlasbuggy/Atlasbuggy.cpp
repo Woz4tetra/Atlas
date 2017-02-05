@@ -19,13 +19,11 @@ void Atlasbuggy::begin()
     _led13_state = false;
 }
 
-void Atlasbuggy::setInitData(String initData)
-{
+void Atlasbuggy::setInitData(String initData) {
     _initPacket = initData;
 }
 
-bool Atlasbuggy::available()
-{
+bool Atlasbuggy::available() {
     return Serial.available() > 0;
 }
 
@@ -55,6 +53,9 @@ int Atlasbuggy::readSerial()
         if (pause()) return 1;
         else return -1;
     }
+    else if (_command.substring(0, 1).equals("s")) {
+        return 5;
+    }
     else {
         if (!_paused) return 0;
         else return -1;
@@ -78,8 +79,7 @@ void Atlasbuggy::setLed(bool state)
     digitalWrite(LED13, state);
 }
 
-bool Atlasbuggy::getLed()
-{
+bool Atlasbuggy::getLed() {
     return _led13_state;
 }
 
@@ -122,7 +122,7 @@ bool Atlasbuggy::unpause()
 bool Atlasbuggy::pause()
 {
     if (!_paused) {
-        Serial.print("stopping\n");
+        Serial.print("\nstopping\n");
         setLed(HIGH);
         _paused = true;
         return true;

@@ -3,7 +3,6 @@
 #define DEFAULT_RATE 115200
 #define LED13 13
 #define PACKET_END '\n'
-// #define DEBUG
 
 class Atlasbuggy {
 public:

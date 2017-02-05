@@ -185,6 +185,15 @@ class BuggyJoystick:
         else:
             return False
 
+    def dpad_updated(self):
+        if self.prev_dpad != self.dpad:
+            self.prev_dpad = self.dpad
+            return True
+        else:
+            self.prev_dpad = self.dpad
+            return False
+
+
     @staticmethod
     def fill_line(line):
         """

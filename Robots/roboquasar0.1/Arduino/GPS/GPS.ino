@@ -11,6 +11,8 @@
 // Pick one up today at the Adafruit electronics shop
 // and help support open source hardware & software! -ada
 
+// #define DEBUG
+
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 #include <Atlasbuggy.h>
@@ -45,10 +47,11 @@ Adafruit_GPS GPS(&gpsSerial);
 #define GPS_UPDATE_RATE_HZ 5
 unsigned long gps_update_delay = 1000 / GPS_UPDATE_RATE_HZ;
 
+uint32_t timer = millis();
 
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
 // Set to 'true' if you want to debug and listen to the raw GPS sentences.
-#define GPSECHO  false
+#define GPSECHO false
 
 // this keeps track of whether we're using the interrupt
 // off by default!
@@ -94,16 +97,14 @@ void setup()
     // the nice thing about this code is you can have a timer0 interrupt go off
     // every 1 millisecond, and read data from the GPS for you. that makes the
     // loop code a heck of a lot easier!
-    useInterrupt(true);
+    useInterrupt(false);
 
     delay(1000);
     // Ask for firmware version
     gpsSerial.println(PMTK_Q_RELEASE);
 
     delay(50);
-
     GPS.standby();
-
     delay(50);
 
     String hz = String(GPS_UPDATE_RATE_HZ);
@@ -139,18 +140,22 @@ void useInterrupt(boolean v) {
     }
 }
 
-uint32_t timer = millis();
-void loop()                     // run over and over again
+void loop()  // run over and over again
 {
     while (buggy.available()) {
         int status = buggy.readSerial();
-        if (status == 2) {
+        if (status == 2) {  // start event
+            useInterrupt(true);
             GPS.wakeup();
             buggy.changeBaud(GPS_BAUD_RATE);
         }
-        else if (status == 1) {
+        else if (status == 1) {  // stop event
             GPS.standby();
+            useInterrupt(false);
             buggy.changeBaud(DEFAULT_RATE);
+        }
+        else if (status == 5) {
+            useInterrupt(false);
         }
     }
 
@@ -159,13 +164,13 @@ void loop()                     // run over and over again
     {
         // in case you are not using the interrupt above, you'll
         // need to 'hand query' the GPS, not suggested :(
-        if (!usingInterrupt) {
-            // read data from the GPS in the 'main loop'
-            char c = GPS.read();
-            // if you want to debug, this is a good time to do it!
-            if (GPSECHO)
-            if (c) Serial.print(c);
-        }
+        // if (!usingInterrupt) {
+        //     // read data from the GPS in the 'main loop'
+        //     char c = GPS.read();
+        //     // if you want to debug, this is a good time to do it!
+        //     if (GPSECHO)
+        //     if (c) Serial.print(c);
+        // }
 
         // if a sentence is received, we can check the checksum, parse it...
         if (GPS.newNMEAreceived()) {
@@ -185,31 +190,41 @@ void loop()                     // run over and over again
         if (millis() - timer > gps_update_delay) {
             timer = millis(); // reset the timer
 
-            Serial.print("\nTime: ");
+            Serial.print("t");
             Serial.print(GPS.hour, DEC); Serial.print(':');
             Serial.print(GPS.minute, DEC); Serial.print(':');
-            Serial.print(GPS.seconds, DEC); Serial.print('.');
-            Serial.println(GPS.milliseconds);
-            Serial.print("Date: ");
-            Serial.print(GPS.day, DEC); Serial.print('/');
-            Serial.print(GPS.month, DEC); Serial.print("/20");
-            Serial.println(GPS.year, DEC);
-            Serial.print("Fix: "); Serial.print((int)GPS.fix);
-            Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
-            if (GPS.fix) {
-                Serial.print("Location: ");
-                Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
-                Serial.print(", ");
-                Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-                Serial.print("Location (in degrees, works with Google Maps): ");
-                Serial.print(GPS.latitudeDegrees, 4);
-                Serial.print(", ");
-                Serial.println(GPS.longitudeDegrees, 4);
+            Serial.print(GPS.seconds, DEC); Serial.print(':');
+            Serial.print(GPS.milliseconds);
 
-                Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-                Serial.print("Angle: "); Serial.println(GPS.angle);
-                Serial.print("Altitude: "); Serial.println(GPS.altitude);
-                Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+            Serial.print("\td");
+            Serial.print(GPS.day, DEC); Serial.print('/');
+            Serial.print(GPS.month, DEC); Serial.print("/20");  // assuming this won't be around for 100 years
+            Serial.print(GPS.year, DEC);
+
+            Serial.print("\tf");
+            Serial.print((int)GPS.fix); Serial.print(",");
+            Serial.print((int)GPS.fixquality);
+            if (GPS.fix) {
+                Serial.print("\tl");
+                Serial.print(GPS.latitude, 6); Serial.print(",");
+                Serial.print(GPS.lat); Serial.print(",");
+                Serial.print(GPS.longitude, 6); Serial.print(",");
+                Serial.print(GPS.lon);
+
+                Serial.print("\tg");
+                Serial.print(GPS.latitudeDegrees, 6);
+                Serial.print(",");
+                Serial.print(GPS.longitudeDegrees, 6);
+
+                Serial.print("\tx");
+                Serial.print(GPS.speed); Serial.print(",");
+                Serial.print(GPS.angle); Serial.print(",");
+                Serial.print(GPS.altitude); Serial.print(",");
+                Serial.print((int)GPS.satellites);
+                Serial.print('\n');
+            }
+            else {
+                Serial.print('\n');
             }
         }
     }
