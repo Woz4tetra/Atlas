@@ -4,7 +4,7 @@ This class manages all robot ports and pass data received to the corresponding r
 
 import pprint
 import time
-from multiprocessing import Lock, Queue, Value
+from multiprocessing import Lock, Queue, Value, Event
 import threading
 import traceback
 
@@ -121,6 +121,10 @@ class RobotInterface:
 
         self._send_first_packets()  # distribute initialization packets
 
+        self.main_loop_thread = threading.Thread(target=self._main_loop)
+        self.main_loop_exit_event = Event()
+        self.interface_exit_event = Event()
+
     def run(self):
         """
         Call this method to start the robot and to start receiving data
@@ -157,20 +161,17 @@ class RobotInterface:
                 StartSignalledError("Overridden start method threw an exception"),
                 traceback.format_stack()
             )
+        self.main_loop_thread.start()
 
         try:
-            while self._are_ports_active():
+            while self._are_ports_active() and not self.main_loop_exit_event.is_set():
                 if not self._dequeue_packets():  # calls packet_received if the queue is occupied
                     break
 
-                if not self._main_loop():  # calls loop no matter what
-                    break
+                # if not self._main_loop():  # calls loop no matter what
+                #     break
 
                 self._send_commands()  # sends all commands in each robot object's command queue
-
-                if self.joystick is not None:
-                    if self.joystick.update() is False:
-                        break
 
                 self.clock.update()  # maintain a constant loop speed
                 if not self.lag_warning_thrown and self.dt > 0.1 and not self.clock.on_time:
@@ -180,7 +181,7 @@ class RobotInterface:
         except KeyboardInterrupt:
             pass
 
-        self._debug_print("Closing all from run")
+        self._debug_print("Closing all from run. Main loop event is", self.main_loop_exit_event.is_set())
 
         self._close_log()
         self._close_all()
@@ -285,7 +286,7 @@ class RobotInterface:
                 self._print_port_info(port)
                 raise self._handle_error(
                     RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!",
-                                                   self.prev_packet_info, port),
+                                                 self.prev_packet_info, port),
                     traceback.format_stack()
                 )
             elif port.whoiam in self.inactive_ids:
@@ -318,7 +319,7 @@ class RobotInterface:
 
                 raise self._handle_error(
                     RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
-                                                     self.ports[whoiam]),
+                                                   self.ports[whoiam]),
                     traceback.format_stack()
                 )
 
@@ -343,7 +344,7 @@ class RobotInterface:
                     self._close_all()
                     raise self._handle_error(
                         RobotObjectReceiveError(
-                        "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet),
+                            "receive_first signalled to exit. whoiam ID: '%s'" % whoiam, first_packet),
                         traceback.format_stack()
                     )
 
@@ -415,6 +416,7 @@ class RobotInterface:
             )
 
         self._stop_all_ports()
+        self.interface_exit_event.set()
 
     def _are_ports_active(self):
         """
@@ -431,7 +433,8 @@ class RobotInterface:
                 if status == 0:
                     raise self._handle_error(
                         RobotSerialPortNotConfiguredError(
-                            "Port with ID '%s' isn't configured!" % robot_port.whoiam, self.prev_packet_info, robot_port),
+                            "Port with ID '%s' isn't configured!" % robot_port.whoiam, self.prev_packet_info,
+                            robot_port),
                         traceback.format_stack()
                     )
                 elif status == -1:
@@ -509,21 +512,24 @@ class RobotInterface:
         Call the loop method safely
         :return: True or False signalled to exit or not
         """
+
         try:
-            if self.joystick is not None:
-                self.joystick.update()
-            if self.loop() is False:
-                self._debug_print("loop signalled to exit")
-                return False
+            while not self.interface_exit_event.is_set():
+                if self.joystick is not None:
+                    if self.joystick.update() is False:
+                        break
+                if self.loop() is False:
+                    self._debug_print("loop signalled to exit")
+                    break
         except BaseException as error:
-            self._debug_print("Closing all from _main_loop")
-            self._close_all()
+            self._debug_print("_main_loop signalled an error")
+            self.main_loop_exit_event.set()
+
             raise self._handle_error(
                 LoopSignalledError(error),
                 traceback.format_stack()
             )
-
-        return True
+        self.main_loop_exit_event.set()
 
     def _send_commands(self):
         """
@@ -547,8 +553,8 @@ class RobotInterface:
                     self._close_all()
                     raise self._handle_error(
                         RobotSerialPortWritePacketError(
-                        "Failed to send command %s to '%s'" % (command, whoiam), self.prev_packet_info,
-                        self.ports[whoiam]),
+                            "Failed to send command %s to '%s'" % (command, whoiam), self.prev_packet_info,
+                            self.ports[whoiam]),
                         traceback.format_stack()
                     )
 

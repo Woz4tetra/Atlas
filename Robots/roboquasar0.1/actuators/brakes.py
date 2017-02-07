@@ -27,8 +27,8 @@ class Brakes(RobotObject):
         self.set_brake(self.unbrake_pos)
 
     def set_brake(self, position):
-        self.goal_position = position
-        print("sending position:", position)
+        self.goal_position = int(position)
+        print("sending position:", repr(position))
         self.send(position)
 
     def is_engaged(self):

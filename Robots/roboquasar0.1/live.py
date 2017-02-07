@@ -43,10 +43,10 @@ class Runner(RobotInterface):
         if self.did_receive(self.imu):
             if live_plotting:
                 if self.queue_len() < 25:
-                    self.imu_plot_eul.append(self.imu.eul_x, self.imu.eul_y, self.imu.eul_z)
-                    self.imu_plot_mag.append(self.imu.mag_x, self.imu.mag_y, self.imu.mag_z)
-                    self.imu_plot_gyro.append(self.imu.gyro_x, self.imu.mag_y, self.imu.mag_z)
-                    self.imu_plot_accel.append(self.imu.accel_x, self.imu.accel_y, self.imu.accel_z)
+                    self.imu_plot_eul.append(self.imu.euler.x, self.imu.euler.y, self.imu.euler.z)
+                    self.imu_plot_mag.append(self.imu.mag.x, self.imu.mag.y, self.imu.mag.z)
+                    self.imu_plot_gyro.append(self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z)
+                    self.imu_plot_accel.append(self.imu.accel.x, self.imu.accel.y, self.imu.accel.z)
                     if self.plotter.plot() is False:
                         return False
                         # else:
@@ -74,8 +74,6 @@ class Runner(RobotInterface):
                     self.brakes.set_brake(self.brakes.goal_position + 20)
                 elif self.joystick.dpad[1] == -1:
                     self.brakes.set_brake(self.brakes.goal_position - 20)
-
-
 
     def start(self):
         self.change_port_rate(self.gps, self.gps.baud_rate)
