@@ -13,7 +13,7 @@ for port_info in serial.tools.list_ports.comports():
         if not robot_port.configured:
             # robot_port.stop()
             # raise RobotSerialPortNotConfiguredError("Port not configured!", robot_port)
-            robot_port.close_port()
+            robot_port.stop()
             print("-----------------------------------")
             print("address '%s' does not abide atlasbuggy protocol!" % (port_info.device))
             print("-----------------------------------")

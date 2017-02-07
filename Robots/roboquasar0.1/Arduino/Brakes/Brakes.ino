@@ -6,9 +6,9 @@
 #include <Atlasbuggy.h>
 #include <PID_v1.h>
 
-#define POS_ERROR 10
+#define POS_ERROR 2
 #define POT_OFFSET 28.0
-#define MIN_OUTPUT 80
+#define MIN_OUTPUT 200
 
 #define relay1Pin 7
 #define relay2Pin 8
@@ -16,17 +16,21 @@
 #define potReadPin 0
 #define pwmPin 6
 
+#define BRAKE_POS 175
+#define RELEASE_POS 225
+
 double goalPosition;
 double currentPosition;
 double pidOutput;
 
-double kp = 10.0;
-double kd = 3.0;
-double ki = 1.0;
+double kp = 2.0;
+double kd = 1.0;
+double ki = 0.0;
 
 bool extending = false;
 bool retracting = false;
 
+bool commandIssued = false;
 bool innerPause = false;
 bool prevPause = false;
 uint32_t timer = millis();
@@ -55,7 +59,10 @@ void setup() {
 
     linearAc.SetMode(AUTOMATIC);
 
-    buggy.setInitData(String(POS_ERROR));
+    String pos_error = String(POS_ERROR);
+    String brake_pos = String(BRAKE_POS);
+    String release_pos = String(RELEASE_POS);
+    buggy.setInitData(pos_error + "\t" + brake_pos + "\t" + release_pos);
 }
 
 void control() {
@@ -63,28 +70,20 @@ void control() {
     // read the value from the sensor:
     currentPosition = (double)(analogRead(potReadPin)) - POT_OFFSET;
 
-    // press b in serial monitor to extend the actuator
-    // if (sig == 'b') {
-    //     goalPosition = goalPosition1;
-    // }
-    // // press n in serial monitor to retract the actuator
-    // if (sig == 'n') {
-    //     goalPosition = goalPosition2;
-    // }
-
     if (abs(goalPosition - currentPosition) < POS_ERROR) {
         innerPause = true;
     }
     else{
         innerPause = false;
     }
-    // if (!prevPause && innerPause) {
-    //     Serial.print((int)(currentPosition));
-    //     Serial.print('\n');
-    // }
+    if (!prevPause && innerPause) {
+        commandIssued = false;
+        Serial.print((int)(currentPosition));
+        Serial.print('\n');
+    }
     prevPause = innerPause;
 
-    if (!innerPause) {
+    if (commandIssued) {
         linearAc.Compute();
         if (abs(pidOutput) < MIN_OUTPUT) {
             pidOutput = MIN_OUTPUT * (pidOutput > 0) - (pidOutput < 0);
@@ -144,9 +143,27 @@ void loop() {
         //
         // }
         if (status == 0) {  // user command
-            goalPosition = (double)(buggy.getCommand().toInt());
-            // Serial.print("goalPosition: ");
-            // Serial.println(goalPosition);
+            commandIssued = true;
+
+            String command = buggy.getCommand();
+            if (command.substring(0, 1).equals("b")) {
+                goalPosition = BRAKE_POS;
+            }
+            else if (command.substring(0, 1).equals("r")) {
+                goalPosition = RELEASE_POS;
+            }
+            else {
+                goalPosition = (double)(command.toInt());
+                // Serial.print("goalPosition: ");
+                // Serial.println(goalPosition);
+            }
+
+            if (goalPosition < BRAKE_POS) {
+                goalPosition = BRAKE_POS;
+            }
+            // else if (goalPosition > RELEASE_POS) {
+            //    goalPosition = RELEASE_POS;
+            // }
         }
         // else if (status == -1)  // no command
     }

@@ -36,7 +36,7 @@ class Runner(RobotInterface):
             self.brakes,
             joystick=WiiUJoystick(),
             debug_prints=True,
-            # log_data=False
+            log_data=False
         )
 
     def packet_received(self, timestamp, whoiam, packet):
