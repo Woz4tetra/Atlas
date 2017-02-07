@@ -16,7 +16,7 @@ void Atlasbuggy::begin()
     Serial.setTimeout(100);  // 100 ms
     pinMode(LED13, OUTPUT);
 
-    _led13_state = false;
+    setLed(true);
 }
 
 void Atlasbuggy::setInitData(String initData) {

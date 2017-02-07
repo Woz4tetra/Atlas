@@ -1,12 +1,7 @@
 #include <AccelStepper.h>
+#include <Atlasbuggy.h>
 
-#define DEFAULT_RATE 115200
-#define WHOIAM "steering"
-#define LED13 13
 #define DELIMITER_PIN 6
-
-bool led_state = false;
-bool paused = true;
 
 unsigned long prev_time = 0;
 unsigned long curr_time = 0;
@@ -32,29 +27,7 @@ AccelStepper stepper(AccelStepper::FULL4WIRE,
     STEPPER_PIN_4
 );
 
-void writeWhoiam()
-{
-    Serial.print("iam");
-    Serial.print(WHOIAM);
-    Serial.print('\n');
-}
-
-void writeInit()
-{
-    Serial.print("init:");
-    Serial.print(MAX_SPEED);
-    Serial.print('\t');
-    Serial.print(LEFT_LIMIT);
-    Serial.print('\t');
-    Serial.print(RIGHT_LIMIT);
-    Serial.print('\n');
-}
-
-void setLed(bool state)
-{
-    led_state = state;
-    digitalWrite(LED13, led_state);
-}
+Atlasbuggy buggy("steering");
 
 unsigned long dt()
 {
@@ -69,11 +42,9 @@ unsigned long dt()
     return delta_time;
 }
 
-
 void setTime() {
     prev_time = curr_time;
 }
-
 
 void disengageStepper()
 {
@@ -81,22 +52,6 @@ void disengageStepper()
     digitalWrite(STEPPER_PIN_2, LOW);
     digitalWrite(STEPPER_PIN_3, LOW);
     digitalWrite(STEPPER_PIN_4, LOW);
-}
-
-void pause()
-{
-    Serial.print("stopping\n");
-    paused = true;
-    disengageStepper();
-
-    prev_time = millis();
-    curr_time = millis();
-    delta_time = millis();
-}
-
-void unpause() {
-    paused = false;
-    calibrate();
 }
 
 void setPosition(int p) {
@@ -146,42 +101,9 @@ void calibrate()
     Serial.print("done!\n");
 }
 
-void readSerial()
-{
-    while (Serial.available())
-    {
-        String command = Serial.readStringUntil('\n');
-
-        if (command.equals("whoareyou")) {
-            writeWhoiam();
-        }
-        else if (command.equals("init?")) {
-            writeInit();
-        }
-        else if (command.equals("start"))
-        {
-            setLed(HIGH);
-            unpause();
-        }
-        else if (command.equals("stop"))
-        {
-            setLed(LOW);
-            pause();
-        }
-        else if (command.substring(0,1).equals("p"))
-        {
-            setPosition(command.substring(1).toInt());
-        }
-        else if (command.substring(0,1).equals("v"))
-        {
-            setVelocity(command.substring(1).toInt());
-        }
-    }
-}
-
 void setup()
 {
-    Serial.begin(DEFAULT_RATE);
+    buggy.begin();
 
     pinMode(DELIMITER_PIN, INPUT);
 
@@ -189,8 +111,33 @@ void setup()
     stepper.setAcceleration(1000.0);
 }
 
-void loop() {
-    if (!paused)
+void loop()
+{
+    while (buggy.available())
+    {
+        int status = buggy.readSerial();
+        if (status == 2) {  // start event
+            calibrate();
+        }
+        else if (status == 1) {  // stop event
+            disengageStepper();
+            prev_time = millis();
+            curr_time = millis();
+            delta_time = millis();
+        }
+        if (status == 0) {  // user command
+            String command = buggy.getCommand();
+            if (command.substring(0, 1).equals("p")) {
+                setPosition(command.substring(1).toInt());
+            }
+            else if (command.substring(0, 1).equals("v")) {
+                setVelocity(command.substring(1).toInt());
+            }
+        }
+        // else if (status == -1)  // no command
+    }
+
+    if (!buggy.isPaused())
     {
         if (speedCommand != 0) {
             stepper.runSpeed();
@@ -227,6 +174,4 @@ void loop() {
     else {
         delay(100);
     }
-
-    readSerial();
 }
