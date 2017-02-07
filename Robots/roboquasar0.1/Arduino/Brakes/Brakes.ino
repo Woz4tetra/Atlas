@@ -152,6 +152,9 @@ void loop() {
             else if (command.substring(0, 1).equals("r")) {
                 goalPosition = RELEASE_POS;
             }
+            else if (command.equals("-")) {
+                goalPosition = currentPosition;
+            }
             else {
                 goalPosition = (double)(command.toInt());
                 // Serial.print("goalPosition: ");

@@ -18,6 +18,7 @@ class Brakes(RobotObject):
 
     def receive(self, timestamp, packet):
         self.position = int(packet)
+        self.goal_position = self.position
         print("brake position:", self.position)
 
     def brake(self):
