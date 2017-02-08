@@ -74,11 +74,15 @@ class RobotSerialPort(Process):
         # leaves tabs, letters, numbers, spaces, newlines, and carriage returns
         self.buffer_pattern = re.compile("([^\r\n\t\x20-\x7e]|_)+")
 
-        # variable to signal exit
+        # events and locks
         self.exit_event_lock = Lock()
         self.start_event_lock = Lock()
+        # self.stop_event_lock = Lock()
         self.exit_event = Event()
         self.start_event = Event()
+        self.stop_event = Event()
+
+        self.serial_lock = Lock()
 
         # attempt to open the serial port
         try:
@@ -276,24 +280,25 @@ class RobotSerialPort(Process):
                         break
 
                 # close the process if the serial port isn't open
-                if not self.serial_ref.is_open:
-                    self.stop()
-                    raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...", self)
-
-                if self.serial_ref.in_waiting > 0:
-                    # read every possible character available and split them into packets
-                    packets = self.read_packets()
-                    if packets is None:  # if the read failed
+                with self.serial_lock:
+                    if not self.serial_ref.is_open:
                         self.stop()
-                        raise RobotSerialPortReadPacketError("Failed to read packets", self)
+                        raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...", self)
 
-                    # put data found into the queue
-                    with lock:
-                        for packet in packets:
-                            queue.put((self.whoiam, time.time(), packet))
-                            # start_time isn't used. The main process has its own initial time reference
+                    if self.serial_ref.in_waiting > 0:
+                        # read every possible character available and split them into packets
+                        packets = self.read_packets()
+                        if packets is None:  # if the read failed
+                            self.stop()
+                            raise RobotSerialPortReadPacketError("Failed to read packets", self)
 
-                        counter.value += len(packets)
+                        # put data found into the queue
+                        with lock:
+                            for packet in packets:
+                                queue.put((self.whoiam, time.time(), packet))
+                                # start_time isn't used. The main process has its own initial time reference
+
+                            counter.value += len(packets)
 
                 clock.update()  # maintain a constant loop speed
         except BaseException as error:
@@ -304,7 +309,8 @@ class RobotSerialPort(Process):
                 self.debug_print("Error thrown in port loop")
 
         self.debug_print("Current buffer:", repr(self.buffer))
-        self.flush()
+        with self.serial_lock:
+            self.flush()
         self.debug_print("While loop exited. Exit event triggered.")
 
     def read_packets(self):
@@ -433,38 +439,37 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        with self.exit_event_lock:
-            if not self.exit_event.is_set():
-                with self.start_event_lock:
-                    if self.start_event.is_set():
-                        self.debug_print("Exit event is",
-                                         "set. Skipping stop protocol!" if
-                                         self.exit_event.is_set() else
-                                         "not set. Proceeding to send stop")
-                        if not self.exit_event.is_set():
-                            if self.check_protocol("stop", "stopping") is None:
-                                self.debug_print("Failed to send stop flag!!!")
-                            else:
-                                self.debug_print("Sent stop flag")
-                        else:
-                            self.debug_print("exit_event already set!")
-                    else:
-                        self.debug_print("start_event not set!")
+        self.debug_print("Acquiring start lock")
+        with self.start_event_lock:
+            if self.start_event.is_set():
+                self.debug_print("Exit event is",
+                                 "set. Skipping stop protocol!" if
+                                 self.exit_event.is_set() else
+                                 "not set. Proceeding to send stop")
             else:
-                self.debug_print("exit_event already set!")
+                self.debug_print("start_event not set!")
+                return
 
-        with self.exit_event_lock:
-            self.exit_event.set()
-
-        if self.serial_ref.is_open:
-            self.serial_ref.close()
-            self.debug_print("Closing serial")
+        self.debug_print("Acquiring stop lock")
+        if not self.stop_event.is_set():
+            if self.check_protocol("stop", "stopping") is None:
+                self.debug_print("Failed to send stop flag!!!")
+            else:
+                self.debug_print("Sent stop flag")
+            self.stop_event.set()
         else:
-            self.debug_print("Serial port was already closed!")
+            self.debug_print("Stop event already set!")
+
+        self.debug_print("Acquiring serial lock")
+        with self.serial_lock:
+            if self.serial_ref.is_open:
+                self.serial_ref.close()
+                self.debug_print("Closing serial")
+            else:
+                self.debug_print("Serial port was already closed!")
 
     def has_exited(self):
-        with self.exit_event_lock:
-            return self.exit_event
+        return self.stop_event.is_set()
 
     def wait_for_close(self):
         with self.exit_event_lock:

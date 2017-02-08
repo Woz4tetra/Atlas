@@ -30,8 +30,7 @@ class Brakes(RobotObject):
         self.set_brake(self.unbrake_pos)
 
     def set_brake(self, position):
-        if position != "-":
-            self.goal_position = int(position)
+        self.goal_position = position
         print("sending position:", repr(position))
         self.send(position)
 

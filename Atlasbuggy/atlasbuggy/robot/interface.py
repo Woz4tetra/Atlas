@@ -35,10 +35,7 @@ class RobotInterface:
         """
 
         self.debug_to_log = debug_to_log  # TODO: put debug messages into a log file
-        if debug_to_log:
-            self.debug_enabled = True
-        else:
-            self.debug_enabled = debug_prints
+        self.debug_enabled = debug_prints
 
         self.loop_ups = loop_updates_per_second
         self.port_ups = port_updates_per_second
@@ -65,7 +62,7 @@ class RobotInterface:
         self.port_lock = Lock()
 
         self.main_loop_thread = threading.Thread(target=self._main_loop)
-        # self.main_loop_thread.daemon = True
+        self.main_loop_thread.daemon = True
         self.main_loop_exit_event = Event()
         self.interface_exit_event = Event()
 
@@ -382,6 +379,7 @@ class RobotInterface:
             robot_port.start()
 
     def _stop_port(self, robot_port):
+        self._debug_print("closing", robot_port.whoiam)
         robot_port.stop()
         # robot_port.wait_for_close()
 

@@ -69,11 +69,11 @@ class Runner(RobotInterface):
                 self.brakes.brake()
             elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
                 self.brakes.unbrake()
-            elif self.joystick.dpad_updated():
-                if self.joystick.dpad[1] == 1:
-                    self.brakes.set_brake(self.brakes.goal_position + 20)
-                elif self.joystick.dpad[1] == -1:
-                    self.brakes.set_brake(self.brakes.goal_position - 20)
+            # elif self.joystick.dpad_updated():
+            #     if self.joystick.dpad[1] == 1:
+            #         self.brakes.set_brake(self.brakes.goal_position + 20)
+            #     elif self.joystick.dpad[1] == -1:
+            #         self.brakes.set_brake(self.brakes.goal_position - 20)
 
     def start(self):
         self.change_port_rate(self.gps, self.gps.baud_rate)

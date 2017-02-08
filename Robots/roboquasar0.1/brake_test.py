@@ -32,8 +32,7 @@ class BrakeTest(RobotInterface):
                     else:
                         print("skipping")
             except ValueError:
-                self.brakes.set_brake(input_value)
+                pass
+            self.brakes.set_brake(input_value)
 
-            else:
-                print("invalid input:", input_value)
 BrakeTest().run()

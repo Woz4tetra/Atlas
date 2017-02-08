@@ -16,8 +16,8 @@
 #define potReadPin 0
 #define pwmPin 6
 
-#define BRAKE_POS 175
-#define RELEASE_POS 225
+#define BRAKE_POS 105
+#define RELEASE_POS 165
 
 double goalPosition;
 double prevPosition;
@@ -176,7 +176,8 @@ void loop() {
         // else if (status == -1)  // no command
     }
 
-    if (!buggy.isPaused()) {
-        control();
-    }
+//    if (!buggy.isPaused()) {
+//        
+//    }
+    control();
 }
