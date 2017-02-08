@@ -10,7 +10,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot
 
 
 class LidarTurret(RobotObject):
-    def __init__(self, enable_slam=True):
+    def __init__(self, enable_slam=False):
         self.current_tick = 0
         self.ticks_per_rotation = 0
         self.prev_hz_time = 0

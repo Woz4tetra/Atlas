@@ -23,9 +23,12 @@ class Logger:
         elif len(file_name) < 4 or file_name[-4:] != "." + log_file_type:
             file_name += "." + log_file_type
 
+        today_mark = ":today"
+        mark_location = directory.find(today_mark)
         # Parse the input directory using the project module
-        if directory == ":today":  # for creating logs
-            directory = os.path.join(project.interpret_dir(log_directory), todays_log_folder())
+        if mark_location > -1:  # for creating logs
+            local_path = os.path.join(directory[:mark_location], todays_log_folder())
+            directory = os.path.join(project.interpret_dir(log_directory), local_path)
         elif directory is None:
             directory = project.interpret_dir(log_directory)
         else:

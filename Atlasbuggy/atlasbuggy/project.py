@@ -3,20 +3,21 @@ Contains functions that return important project directories
 """
 
 import os
-import random
 import sys
+import re
+import random
 
 # dictionary of important local project directories
 project_dirs = {
-    'logs'       : "logs/",
-    'maps'       : "maps/",
+    'logs'     : "logs/",
+    'maps'     : "maps/",
     # 'pickled'    : "pickled/",
-    'gpx'        : "maps/gpx/",
-    'videos'     : "videos/",
-    'images'     : "images/",
-    'joysticks'  : "joysticks/",
+    'gpx'      : "maps/gpx/",
+    'videos'   : "videos/",
+    'images'   : "images/",
+    'joysticks': "joysticks/",
     # 'simulations': "pickled/simulations/",
-    'project'    : "",
+    'project'  : "",
 }
 
 
@@ -76,13 +77,26 @@ def parse_dir(directory, default, sort_fn=None):
     """
     if directory is None:
         directory = interpret_dir(default)
-    elif directory == ":random":
-        directories = []
-        for local_dir in os.listdir(interpret_dir(default)):
-            directory = os.path.join(interpret_dir(default), local_dir)
-            if os.path.isdir(directory):
-                directories.append(directory)
-        directory = random.choice(directories)
+    elif ":" in directory:
+        marker = directory.find(":")
+        end_marker = directory.find("/", marker)
+        if end_marker == -1:
+            end_marker = len(directory)
+        if directory[marker + 1:end_marker + 1] == "random":
+            directories = []
+            for local_dir in os.listdir(interpret_dir(default)):
+                directory = os.path.join(interpret_dir(default), local_dir)
+                if os.path.isdir(directory):
+                    directories.append(directory)
+            directory = random.choice(directories)
+        else:
+            match = re.match(r"[0-9-]+", directory[marker + 1:end_marker])
+            if match is not None:
+                directory_num = int(match.group(0))
+                outer_dir_path = os.path.join(interpret_dir(default), directory[:marker])
+                numbered_dir = _get_dirs(interpret_dir(outer_dir_path), sort_fn)[directory_num]
+                directory = os.path.join(numbered_dir, directory[end_marker + 1:])
+
         print("Using directory '%s'" % directory)
 
     elif type(directory) == int:

@@ -1,8 +1,6 @@
 from atlasbuggy.robot.interface import RobotInterface
 from lidar.lidarturret import LidarTurret
 
-# from lidar.lidarturret import LidarTurret
-
 live_plotting = True
 if live_plotting:
     from atlasbuggy.plotters.liveplotter import LivePlotter
