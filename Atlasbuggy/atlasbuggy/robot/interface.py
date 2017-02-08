@@ -48,6 +48,14 @@ class RobotInterface:
 
         self.joystick = joystick
 
+        if log_dir is None:
+            # if no directory provided, use the ":today" flag
+            # (follows the project.py directory reference convention)
+            log_dir = ":today"
+        self.logger = Logger(log_name, log_dir)
+        if log_data:
+            self.logger.open()
+
         self.clock = Clock(self.loop_ups)
         self.start_time = 0
 
@@ -55,6 +63,11 @@ class RobotInterface:
         self.packet_queue = Queue()
         self.packet_counter = Value('i', 0)
         self.port_lock = Lock()
+
+        self.main_loop_thread = threading.Thread(target=self._main_loop)
+        # self.main_loop_thread.daemon = True
+        self.main_loop_exit_event = Event()
+        self.interface_exit_event = Event()
 
         # assign robot objects by whoiam ID
         self.objects = {}
@@ -103,14 +116,6 @@ class RobotInterface:
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
 
-        if log_dir is None:
-            # if no directory provided, use the ":today" flag
-            # (follows the project.py directory reference convention)
-            log_dir = ":today"
-        self.logger = Logger(log_name, log_dir)
-        if log_data:
-            self.logger.open()
-
         for whoiam in self.ports.keys():
             self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
 
@@ -120,10 +125,6 @@ class RobotInterface:
                 self._debug_print(whoiam)
 
         self._send_first_packets()  # distribute initialization packets
-
-        self.main_loop_thread = threading.Thread(target=self._main_loop)
-        self.main_loop_exit_event = Event()
-        self.interface_exit_event = Event()
 
     def run(self):
         """
@@ -382,7 +383,7 @@ class RobotInterface:
 
     def _stop_port(self, robot_port):
         robot_port.stop()
-        robot_port.wait_for_close()
+        # robot_port.wait_for_close()
 
     def _stop_all_ports(self):
         """
@@ -400,11 +401,16 @@ class RobotInterface:
         for thread in threads:
             thread.join()
 
+        for port in self.ports.values():
+            self._debug_print("[%s, %s] has %s" % (port.address, port.whoiam,
+                "exited" if port.has_exited() else "not exited!!"))
+
     def _close_all(self):
         """
         Kill all RobotSerialPort processes and close their serial ports
         :return: None
         """
+        self._send_commands()
         try:
             self._debug_print("Calling user's close function")
             self.close()  # call the user's close function
@@ -513,6 +519,7 @@ class RobotInterface:
         :return: True or False signalled to exit or not
         """
 
+        self._debug_print("main loop thread starting")
         try:
             while not self.interface_exit_event.is_set():
                 if self.joystick is not None:
@@ -529,6 +536,7 @@ class RobotInterface:
                 LoopSignalledError(error),
                 traceback.format_stack()
             )
+        self._debug_print("interface_exit_event is False. Main loop thread exiting")
         self.main_loop_exit_event.set()
 
     def _send_commands(self):
@@ -574,5 +582,5 @@ class RobotInterface:
 
     def _debug_print(self, *strings, ignore_flag=False):
         if self.debug_enabled or ignore_flag:
-            string = "".join(strings)
+            string = " ".join([str(x) for x in strings])
             print("[Interface] %s" % string)

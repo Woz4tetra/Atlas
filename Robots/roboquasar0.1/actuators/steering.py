@@ -43,8 +43,7 @@ class Steering(RobotObject):
             return False
 
     def set_speed(self, joystick_value):
-        self.speed = int(joystick_value * self.max_speed)
-        print("v" + str(self.speed))
+        self.speed = int(-joystick_value * self.max_speed)
         self.send("v" + str(self.speed))
 
     def set_position(self, joystick_value):  # joystick_value: -1.0...1.0

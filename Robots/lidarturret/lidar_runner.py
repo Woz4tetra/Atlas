@@ -23,7 +23,7 @@ class LidarRunner(RobotInterface):
         super(LidarRunner, self).__init__(
             self.turret,
             # joystick=WiiUJoystick(),
-            # log_data=False,
+            log_data=False,
             debug_prints=True,
         )
 

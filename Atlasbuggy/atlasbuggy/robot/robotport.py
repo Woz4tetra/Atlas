@@ -75,7 +75,8 @@ class RobotSerialPort(Process):
         self.buffer_pattern = re.compile("([^\r\n\t\x20-\x7e]|_)+")
 
         # variable to signal exit
-        self.event_lock = Lock()
+        self.exit_event_lock = Lock()
+        self.start_event_lock = Lock()
         self.exit_event = Event()
         self.start_event = Event()
 
@@ -218,7 +219,7 @@ class RobotSerialPort(Process):
         :param error: The error message to record
         :return: None
         """
-        with self.event_lock:
+        with self.exit_event_lock:
             self.exit_event.set()
 
         if self.error_message.empty():
@@ -253,8 +254,8 @@ class RobotSerialPort(Process):
         clock = Clock(self.updates_per_second)
         clock.start(self.start_time)
 
-        with self.event_lock:
-            self.start_event.set()
+        # with self.start_event_lock:
+        #     self.start_event.set()
 
         time.sleep(0.01)
 
@@ -265,9 +266,12 @@ class RobotSerialPort(Process):
             else:
                 self.debug_print("Baud rate unchanged")
 
+        with self.start_event_lock:
+            self.start_event.set()
+
         try:
             while True:
-                with self.event_lock:
+                with self.exit_event_lock:
                     if self.exit_event.is_set():
                         break
 
@@ -409,14 +413,14 @@ class RobotSerialPort(Process):
             0: self.configured is False
             1: process hasn't started or everything is fine
         """
-        with self.event_lock:
+        with self.start_event_lock:
             if not self.start_event.is_set():  # process hasn't started
                 return 1
 
         if not self.configured:
             return 0
 
-        with self.event_lock:
+        with self.exit_event_lock:
             if self.exit_event.is_set():
                 return -1
 
@@ -429,22 +433,27 @@ class RobotSerialPort(Process):
         :return: None
         """
 
-        if self.start_event.is_set():
-            self.debug_print("Exit event is",
-                             "set. Skipping stop protocol!" if
-                             self.exit_event.is_set() else
-                             "not set. Proceeding to send stop")
+        with self.exit_event_lock:
             if not self.exit_event.is_set():
-                if self.check_protocol("stop", "stopping") is None:
-                    self.debug_print("Failed to send stop flag!!!")
-                else:
-                    self.debug_print("Sent stop flag")
+                with self.start_event_lock:
+                    if self.start_event.is_set():
+                        self.debug_print("Exit event is",
+                                         "set. Skipping stop protocol!" if
+                                         self.exit_event.is_set() else
+                                         "not set. Proceeding to send stop")
+                        if not self.exit_event.is_set():
+                            if self.check_protocol("stop", "stopping") is None:
+                                self.debug_print("Failed to send stop flag!!!")
+                            else:
+                                self.debug_print("Sent stop flag")
+                        else:
+                            self.debug_print("exit_event already set!")
+                    else:
+                        self.debug_print("start_event not set!")
             else:
                 self.debug_print("exit_event already set!")
-        else:
-            self.debug_print("start_event not set!")
 
-        with self.event_lock:
+        with self.exit_event_lock:
             self.exit_event.set()
 
         if self.serial_ref.is_open:
@@ -453,6 +462,17 @@ class RobotSerialPort(Process):
         else:
             self.debug_print("Serial port was already closed!")
 
+    def has_exited(self):
+        with self.exit_event_lock:
+            return self.exit_event
+
     def wait_for_close(self):
-        with self.event_lock:
-            self.exit_event.wait()
+        with self.exit_event_lock:
+            self.debug_print("Waiting for lock")
+            self.exit_event.wait(timeout=0.01)
+
+        # if start event hasn't been set, exit_event_lock will never be released
+        # and serial won't be closed. This is a work around
+        with self.exit_event_lock:
+            self.debug_print("Waiting for lock again")
+            self.exit_event.wait(timeout=0.01)

@@ -18,7 +18,7 @@ class Runner(RobotInterface):
     def __init__(self):
         self.gps = GPS()
         self.imu = IMU()
-        self.steering = Steering(enabled=False)
+        self.steering = Steering()
         self.brakes = Brakes()
 
         if live_plotting:

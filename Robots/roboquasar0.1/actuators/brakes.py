@@ -6,20 +6,22 @@ class Brakes(RobotObject):
         self.position = 0
         self.goal_position = 0
 
-        self.brake_pos = 240
-        self.unbrake_pos = 150
+        self.brake_pos = None
+        self.unbrake_pos = None
 
         self.pos_error = None
 
         super(Brakes, self).__init__("brakes", enabled)
 
     def receive_first(self, packet):
-        self.pos_error = int(packet)
+        data = packet.split("\t")
+        self.pos_error = int(data[0])
+        self.brake_pos = int(data[1])
+        self.unbrake_pos = int(data[2])
 
     def receive(self, timestamp, packet):
         self.position = int(packet)
         self.goal_position = self.position
-        print("brake position:", self.position)
 
     def brake(self):
         self.set_brake(self.brake_pos)
@@ -28,9 +30,10 @@ class Brakes(RobotObject):
         self.set_brake(self.unbrake_pos)
 
     def set_brake(self, position):
-        self.goal_position = int(position)
+        if position != "-":
+            self.goal_position = int(position)
         print("sending position:", repr(position))
         self.send(position)
 
-    def is_engaged(self):
-        return
+    # def is_engaged(self):
+    #     return

@@ -1,7 +1,7 @@
 #include <AccelStepper.h>
 #include <Atlasbuggy.h>
 
-#define DELIMITER_PIN 6
+#define DELIMITER_PIN 8
 
 unsigned long prev_time = 0;
 unsigned long curr_time = 0;
@@ -86,16 +86,16 @@ void calibrate()
 {
     Serial.print("calibrating\n");
     if (!digitalRead(DELIMITER_PIN)) {
-        stepper.setSpeed(200);
-        stepper.runToNewPosition(-50);
+        stepper.setSpeed(-MAX_SPEED);
+        stepper.runToNewPosition(50);
         stepper.setCurrentPosition(0);
     }
-    approachSwitch(200);
-    stepper.runToNewPosition(-20);
+    approachSwitch(-MAX_SPEED);
+    stepper.runToNewPosition(20);
 
-    approachSwitch(15);
-    stepper.runToNewPosition(-150);
-    stepper.setSpeed(200);
+    approachSwitch(-MAX_SPEED / 4);
+    stepper.runToNewPosition(150);
+    stepper.setSpeed(-MAX_SPEED);
     stepper.setCurrentPosition(0);
 
     Serial.print("done!\n");
@@ -109,6 +109,12 @@ void setup()
 
     stepper.setMaxSpeed(MAX_SPEED);
     stepper.setAcceleration(1000.0);
+
+    String leftLimitStr = String(LEFT_LIMIT);
+    String rightLimitStr = String(RIGHT_LIMIT);
+    String maxSpeedStr = String(MAX_SPEED);
+
+    buggy.setInitData(maxSpeedStr + "\t" + leftLimitStr + "\t" + rightLimitStr);
 }
 
 void loop()
@@ -117,7 +123,7 @@ void loop()
     {
         int status = buggy.readSerial();
         if (status == 2) {  // start event
-            calibrate();
+           calibrate();
         }
         else if (status == 1) {  // stop event
             disengageStepper();

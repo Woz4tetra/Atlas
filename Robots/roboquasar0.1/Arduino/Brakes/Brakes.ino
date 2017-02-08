@@ -20,6 +20,7 @@
 #define RELEASE_POS 225
 
 double goalPosition;
+double prevPosition;
 double currentPosition;
 double pidOutput;
 
@@ -56,6 +57,7 @@ void setup() {
 
     currentPosition = analogRead(potReadPin) - POT_OFFSET;
     goalPosition = currentPosition;
+    prevPosition = currentPosition;
 
     linearAc.SetMode(AUTOMATIC);
 
@@ -78,8 +80,8 @@ void control() {
     }
     if (!prevPause && innerPause) {
         commandIssued = false;
-        Serial.print((int)(currentPosition));
-        Serial.print('\n');
+        // Serial.print((int)(currentPosition));
+        // Serial.print('\n');
     }
     prevPause = innerPause;
 
@@ -114,8 +116,11 @@ void control() {
             // Serial.print('\t');
             // Serial.print((int)(goalPosition));
             // Serial.print('\t');
-            Serial.print((int)(currentPosition));
-            Serial.print('\n');
+            if (prevPosition != currentPosition) {
+                Serial.print((int)(currentPosition));
+                Serial.print('\n');
+                prevPosition = currentPosition;
+            }
         }
     }
 
@@ -173,8 +178,5 @@ void loop() {
 
     if (!buggy.isPaused()) {
         control();
-    }
-    else {
-        delay(100);
     }
 }

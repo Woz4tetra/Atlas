@@ -13,20 +13,27 @@ class BrakeTest(RobotInterface):
         self.steering = Steering(enabled=False)
         self.brakes = Brakes()
 
-        self.input_pattern = re.compile("^[0-9]{3}")
-
-        super(BrakeTest, self).__init__(self.gps, self.imu, self.steering, self.brakes)
+        super(BrakeTest, self).__init__(
+            self.gps, self.imu, self.steering, self.brakes,
+            log_data=False, debug_prints=True
+        )
 
     def loop(self):
         input_value = input("> ")
         if input_value == "-":
             self.brakes.set_brake(input_value)
         else:
-            match = self.input_pattern.match(input_value)
-            brake_value = int(match.group(0))
-            if abs(brake_value - self.brakes.position) > 10:
-                response = input("input value difference is more than 10, are you sure you want to proceed? (y/n)")
-                if response == "y":
-                    self.brakes.set_brake(brake_value)
-                else:
-                    print("skipping")
+            try:
+                brake_value = int(input_value)
+                if abs(brake_value - self.brakes.position) >= 20:
+                    response = input("input value difference is more than 20, are you sure you want to proceed? (y/n)")
+                    if response == "y":
+                        self.brakes.set_brake(brake_value)
+                    else:
+                        print("skipping")
+            except ValueError:
+                self.brakes.set_brake(input_value)
+
+            else:
+                print("invalid input:", input_value)
+BrakeTest().run()
