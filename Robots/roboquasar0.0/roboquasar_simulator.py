@@ -7,7 +7,7 @@ from atlasbuggy.filters.kalman_filter import GrovesKalmanFilter, \
     get_gps_orientation
 from roboquasar_constants import constants
 
-project.set_project_dir("roboquasar")
+project.set_project_dir("roboquasar0.0")
 
 
 class FilterTest(Simulator):
@@ -16,13 +16,13 @@ class FilterTest(Simulator):
                  end_index=-1, **plot_info):
         self.checkpoints = get_map(
             # "buggy_course/buggy course checkpoints.gpx"
-            # "track_field/track field checkpoints.gpx"
-            "cut/cut course checkpoints.gpx"
-        )
+            "track_field/track field checkpoints.gpx"
+            # "cut/cut course checkpoints.gpx"
+         )
         self.course_map = get_map(
             # "buggy_course/buggy course map.gpx"
-            # "track_field/track field course map.gpx"
-            "cut/cut course map 2.gpx"
+            "track_field/track field course map.gpx"
+            # "cut/cut course map 2.gpx"
         )
 
         super(FilterTest, self).__init__(
@@ -199,7 +199,7 @@ class GraphSensor(Simulator):
             self.plot_data["plot_3"][1].append(values["az"])
 
 
-file_name, directory = parse_arguments(-1, "Nov 13 2016")
+file_name, directory = parse_arguments(-1, "Dec 02 2016")
 
 
 def run_kalman():
