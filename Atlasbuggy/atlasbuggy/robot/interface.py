@@ -4,7 +4,7 @@ This class manages all robot ports and pass data received to the corresponding r
 
 import pprint
 import time
-from multiprocessing import Lock, Queue, Value, Event
+from multiprocessing import Lock, Queue, Value
 import threading
 import traceback
 
@@ -412,7 +412,6 @@ class RobotInterface:
             )
 
         self._stop_all_ports()
-        self.interface_exit_event.set()
 
     def _are_ports_active(self):
         """
