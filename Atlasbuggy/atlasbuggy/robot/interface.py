@@ -61,13 +61,6 @@ class RobotInterface:
         self.packet_counter = Value('i', 0)
         self.port_lock = Lock()
 
-        self.main_loop_thread = threading.Thread(target=self._main_loop)
-        self.main_loop_thread.daemon = True
-        self.main_loop_exit_event = Event()
-        self.interface_exit_event = Event()
-
-        self.stop_status = (None, True)
-
         # assign robot objects by whoiam ID
         self.objects = {}
         self.inactive_ids = set()
@@ -161,15 +154,14 @@ class RobotInterface:
                 StartSignalledError("Overridden start method threw an exception"),
                 traceback.format_stack()
             )
-        self.main_loop_thread.start()
 
         try:
-            while self._are_ports_active() and not self.main_loop_exit_event.is_set():
+            while self._are_ports_active():
                 if not self._dequeue_packets():  # calls packet_received if the queue is occupied
                     break
 
-                # if not self._main_loop():  # calls loop no matter what
-                #     break
+                if not self._main_loop():  # calls loop no matter what
+                    break
 
                 self._send_commands()  # sends all commands in each robot object's command queue
 
@@ -181,7 +173,7 @@ class RobotInterface:
         except KeyboardInterrupt:
             pass
 
-        self._debug_print("Closing all from run. Main loop event is", self.main_loop_exit_event.is_set())
+        self._debug_print("Closing all from run")
 
         self._close_log()
         self._close_all()
@@ -380,11 +372,9 @@ class RobotInterface:
         for robot_port in self.ports.values():
             robot_port.start()
 
-    def _stop_port(self, robot_port):
-        self._debug_print("closing", robot_port.whoiam)
-        status = robot_port.stop()
-        self.stop_status = robot_port.whoiam, status
-        # robot_port.wait_for_close()
+    # def _stop_port(self, robot_port):
+    #     self._debug_print("closing", robot_port.whoiam)
+    #     status = robot_port.stop()
 
     def _stop_all_ports(self):
         """
@@ -393,22 +383,17 @@ class RobotInterface:
         """
         self._debug_print("Closing all ports")
 
-        threads = []
         for robot_port in self.ports.values():
-            stop_thread = threading.Thread(target=self._stop_port, args=(robot_port,))
-            threads.append(stop_thread)
-            stop_thread.start()
-
-        for thread in threads:
-            thread.join()
+            self._debug_print("closing", robot_port.whoiam)
+            robot_port.stop()
 
         for port in self.ports.values():
-            self._debug_print("[%s, %s] has %s" % (port.address, port.whoiam,
-                "exited" if port.has_exited() else "not exited!!"))
-
-        if not self.stop_status[1]:
-            raise self._handle_error(RobotSerialPortFailedToStopError(
-                "Port signalled error while stopping", self.ports[self.stop_status[0]]), traceback.format_stack())
+            self._debug_print("%s, '%s' has %s" % (port.address, port.whoiam,
+                                                   "exited" if port.has_exited() else "not exited!!"))
+            if not port.has_exited():
+                raise self._handle_error(RobotSerialPortFailedToStopError(
+                    "Port signalled error while stopping", self.prev_packet_info,
+                    port), traceback.format_stack())
 
     def _close_all(self):
         """
@@ -524,25 +509,21 @@ class RobotInterface:
         :return: True or False signalled to exit or not
         """
 
-        self._debug_print("main loop thread starting")
         try:
-            while not self.interface_exit_event.is_set():
-                if self.joystick is not None:
-                    if self.joystick.update() is False:
-                        break
-                if self.loop() is False:
-                    self._debug_print("loop signalled to exit")
-                    break
+            if self.joystick is not None:
+                if self.joystick.update() is False:
+                    return False
+            if self.loop() is False:
+                self._debug_print("loop signalled to exit")
+                return False
         except BaseException as error:
             self._debug_print("_main_loop signalled an error")
-            self.main_loop_exit_event.set()
-
             raise self._handle_error(
                 LoopSignalledError(error),
                 traceback.format_stack()
             )
-        self._debug_print("interface_exit_event is False. Main loop thread exiting")
-        self.main_loop_exit_event.set()
+
+        return True
 
     def _send_commands(self):
         """

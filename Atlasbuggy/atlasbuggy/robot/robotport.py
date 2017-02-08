@@ -309,9 +309,10 @@ class RobotSerialPort(Process):
                 self.debug_print("Error thrown in port loop")
 
         self.debug_print("Current buffer:", repr(self.buffer))
-        with self.serial_lock:
-            self.flush()
         self.debug_print("While loop exited. Exit event triggered.")
+
+        if not self.send_stop_events():
+            self.handle_error("Stop flag failed to send!", traceback.format_stack())
 
     def read_packets(self):
         """
@@ -470,23 +471,16 @@ class RobotSerialPort(Process):
                                  "not set. Proceeding to send stop")
             else:
                 self.debug_print("start_event not set!")
+                return
 
-        self.debug_print("Acquiring stop lock")
-        if not self.stop_event.is_set():
-            self.stop_event.set()
-        else:
-            self.debug_print("Stop event already set!")
+        self.debug_print("Acquiring exit lock")
+        with self.exit_event_lock:
+            if not self.exit_event.is_set():
+                self.exit_event.set()
+            else:
+                self.debug_print("Exit event already set! Error was likely thrown")
 
     def has_exited(self):
-        return self.stop_event.is_set()
-
-    def wait_for_close(self):
         with self.exit_event_lock:
-            self.debug_print("Waiting for lock")
-            self.exit_event.wait(timeout=0.01)
+            return self.exit_event.is_set()
 
-        # if start event hasn't been set, exit_event_lock will never be released
-        # and serial won't be closed. This is a work around
-        with self.exit_event_lock:
-            self.debug_print("Waiting for lock again")
-            self.exit_event.wait(timeout=0.01)

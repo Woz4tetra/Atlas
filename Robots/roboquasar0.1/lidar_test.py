@@ -3,7 +3,7 @@ from atlasbuggy.robot.simulator import RobotInterfaceSimulator
 from sensors.lidarturret import LidarTurret
 from atlasbuggy.plotters.liveplotter import LivePlotter
 
-simulated = True
+simulated = False
 point_cloud_dir = "point_clouds/"
 
 
@@ -20,7 +20,7 @@ class LidarRunner(RobotInterface):
 
         super(LidarRunner, self).__init__(
             self.turret,
-            # log_data=False,
+            log_data=False,
             debug_prints=True,
             log_dir=point_cloud_dir + ":today"
         )
