@@ -7,7 +7,7 @@ from sensors.imu import IMU
 from actuators.steering import Steering
 from actuators.brakes import Brakes
 
-live_plotting = False
+live_plotting = True
 
 if live_plotting:
     from atlasbuggy.plotters.liveplotter import LivePlotter

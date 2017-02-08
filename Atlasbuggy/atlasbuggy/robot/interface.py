@@ -66,6 +66,8 @@ class RobotInterface:
         self.main_loop_exit_event = Event()
         self.interface_exit_event = Event()
 
+        self.stop_status = (None, True)
+
         # assign robot objects by whoiam ID
         self.objects = {}
         self.inactive_ids = set()
@@ -380,7 +382,8 @@ class RobotInterface:
 
     def _stop_port(self, robot_port):
         self._debug_print("closing", robot_port.whoiam)
-        robot_port.stop()
+        status = robot_port.stop()
+        self.stop_status = robot_port.whoiam, status
         # robot_port.wait_for_close()
 
     def _stop_all_ports(self):
@@ -402,6 +405,10 @@ class RobotInterface:
         for port in self.ports.values():
             self._debug_print("[%s, %s] has %s" % (port.address, port.whoiam,
                 "exited" if port.has_exited() else "not exited!!"))
+
+        if not self.stop_status[1]:
+            raise self._handle_error(RobotSerialPortFailedToStopError(
+                "Port signalled error while stopping", self.ports[self.stop_status[0]]), traceback.format_stack())
 
     def _close_all(self):
         """

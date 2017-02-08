@@ -89,3 +89,8 @@ class RobotSerialPortWritePacketError(RobotPortBaseError):
 
 class RobotSerialPortSignalledExitError(RobotPortBaseError):
     """Port signalled to exit"""
+
+
+class RobotSerialPortFailedToStopError(RobotPortBaseError):
+    """Port didn't stop"""
+
