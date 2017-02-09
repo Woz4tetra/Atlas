@@ -77,6 +77,8 @@ def parse_dir(directory, default, sort_fn=None):
     """
     if directory is None:
         directory = interpret_dir(default)
+    elif type(directory) == int:
+        directory = _get_dirs(interpret_dir(default), sort_fn)[directory]
     elif ":" in directory:
         marker = directory.find(":")
         end_marker = directory.find("/", marker)
@@ -98,9 +100,6 @@ def parse_dir(directory, default, sort_fn=None):
                 directory = os.path.join(numbered_dir, directory[end_marker + 1:])
 
         print("Using directory '%s'" % directory)
-
-    elif type(directory) == int:
-        directory = _get_dirs(interpret_dir(default), sort_fn)[directory]
 
     elif os.path.isdir(os.path.join(interpret_dir(default), directory)):
         directory = os.path.join(interpret_dir(default), directory)

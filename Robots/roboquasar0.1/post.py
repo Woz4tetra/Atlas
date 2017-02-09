@@ -15,8 +15,8 @@ class Simulator(RobotInterfaceSimulator):
         self.steering = Steering()
         self.brakes = Brakes()
 
-        self.imuPlot = RobotPlot("IMU Data")
-        self.gpsPlot = RobotPlot("GPS Data")
+        self.imuPlot = RobotPlot("IMU Data", flat_plot=True)
+        self.gpsPlot = RobotPlot("GPS Data", flat_plot=True)
 
         self.staticPlot = StaticPlotter(2, self.imuPlot, self.gpsPlot)
 
@@ -27,10 +27,12 @@ class Simulator(RobotInterfaceSimulator):
         )
 
     def object_packet(self, timestamp):
-        print(self.packet)
+        # print(self.packet)
         if self.did_receive(self.imu):
-            self.imuPlot.append(self.imu.euler.x, self.imu.euler.y, self.imu.euler.z)
-            self.gpsPlot.append(self.gps.latitude, self.gps.longitude, self.gps.altitude)
+            self.imuPlot.append(timestamp, self.imu.mag.x, self.imu.mag.y)
+        elif self.did_receive(self.gps) and self.gps.fix is True and self.gps.latitude is not None:
+            print(self.gps)
+            self.gpsPlot.append(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
 
     def close(self):
         self.staticPlot.plot()

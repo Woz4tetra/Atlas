@@ -6,6 +6,28 @@ class GPS(RobotObject):
         self.update_rate_hz = None
         self.baud_rate = None
 
+        self.hour = 0
+        self.minute = 0
+        self.seconds = 0
+        self.milliseconds = 0
+
+        self.day = 0
+        self.minute = 0
+        self.year = 0
+        self.fix = False
+        self.fix_quality = 0
+
+        self.latitude = None
+        self.longitude = None
+
+        self.latitude_deg = None
+        self.longitude_deg = None
+
+        self.speed = 0
+        self.bearing = 0
+        self.altitude = 0.0
+        self.satellites = 0
+
         super(GPS, self).__init__("gps", enabled)
 
     def receive_first(self, packet):
@@ -14,7 +36,7 @@ class GPS(RobotObject):
         self.baud_rate = int(data[1])
 
     def receive(self, timestamp, packet):
-        print(packet)
+        # print(packet)
         data = packet.split("\t")
         for segment in data:
             if segment[0] == 't':
@@ -32,7 +54,7 @@ class GPS(RobotObject):
 
             elif segment[0] == 'f':
                 subsegments = segment[1:].split(",")
-                self.fix = bool(subsegments[0])
+                self.fix = bool(int(subsegments[0]))
                 self.fix_quality = int(subsegments[1])
 
             elif segment[0] == 'l':
@@ -51,3 +73,16 @@ class GPS(RobotObject):
                 self.bearing = float(subsegments[1])
                 self.altitude = float(subsegments[2])
                 self.satellites = int(subsegments[3])
+
+    def __str__(self):
+        string = "%s(enabled=%s)\n\t" % (self.__class__.__name__, self.enabled)
+        if self.fix:
+            string += "lla: (%4.6f%s, %4.6f%s, %4.6f)\n\t" % (self.latitude[0], self.latitude[1],
+                                                              self.longitude[0], self.longitude[1], self.altitude)
+            string += "lla degrees: (%2.6f, %2.6f)\n\t" % (self.latitude_deg, self.longitude_deg)
+            string += "speed: %2.6f, bearing: %2.6f\n\t" % (self.speed, self.bearing)
+
+        string += "fix: %s, quality: %i, satellites: %i\n\t" % (self.fix, self.fix_quality, self.satellites)
+        string += "speed: %2.6f, bearing: %2.6f\n\t" % (self.speed, self.bearing)
+        string += "time: %s:%s.%s %s/%s/%s\n" % (self.hour, self.minute, self.seconds, self.day, self.minute, self.year)
+        return string
