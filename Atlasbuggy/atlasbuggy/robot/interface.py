@@ -412,7 +412,6 @@ class RobotInterface:
             )
 
         self._stop_all_ports()
-        self.interface_exit_event.set()
 
     def _are_ports_active(self):
         """

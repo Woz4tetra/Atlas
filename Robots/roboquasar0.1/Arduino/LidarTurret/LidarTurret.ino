@@ -2,6 +2,8 @@
 #include <LIDARLite.h>
 #include <Atlasbuggy.h>
 
+#define USE_I2C
+
 #define MOTOR_PIN 3
 
 #define ENCODER_PIN_1 2
@@ -16,11 +18,19 @@ int numPulses = 0;
 boolean direction;
 long encCounts = 0;
 
-unsigned long pulseWidth;
+#ifdef USE_I2C
+int distance;
+#else
+unsigned long distance;
+#endif
+
 #define TRIGGER 8
 #define MONITOR 9
 
 Atlasbuggy buggy("lidar");
+#ifdef USE_I2C
+LIDARLite myLidarLite;
+#endif
 
 void encoderInit()
 {
@@ -81,8 +91,12 @@ void writeSerial()
         encCounts = 0;
     }
 
-    pulseWidth = pulseIn(MONITOR, HIGH);
-    if (pulseWidth != 0)
+    #ifdef USE_I2C
+    distance = myLidarLite.distance();  // distance in CM
+    #else
+    distance = pulseIn(MONITOR, HIGH);
+    #endif
+    if (distance != 0)
     {
         // ticks, distance (tab seperated)
         Serial.print('l');
@@ -93,7 +107,7 @@ void writeSerial()
         interrupts();
 
         Serial.print('\t');
-        Serial.print(pulseWidth);  // distance in CM
+        Serial.print(distance);  // distance in CM
 
         Serial.print('\n');
     }
@@ -104,12 +118,15 @@ void setup()
 {
     buggy.begin();
 
+    #ifdef USE_I2C
+    myLidarLite.begin(0, true);
+    myLidarLite.configure(0);
+    #else
     pinMode(TRIGGER, OUTPUT); // Set pin TRIGGER as trigger pin
     digitalWrite(MONITOR, LOW); // Set trigger LOW for continuous read
-
     pinMode(MONITOR, INPUT); // Set pin MONITOR as monitor pin
-
     delay(50);
+    #endif
 
     encoderInit();
 

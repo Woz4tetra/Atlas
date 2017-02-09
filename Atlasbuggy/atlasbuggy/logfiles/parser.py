@@ -36,8 +36,7 @@ class Parser:
         """
         # pick a subdirectory of logs
         self.directory = project.parse_dir(
-            directory, log_directory,
-            lambda x: datetime.strptime(x, log_folder_format)
+            directory, log_directory
         )
 
         # Get the selected local directory

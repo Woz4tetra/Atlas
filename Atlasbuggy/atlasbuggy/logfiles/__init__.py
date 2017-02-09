@@ -17,7 +17,7 @@ log_directory = ":logs"
 # pickle_directory = ":pickled"
 # pickled_sim_directory = ":simulations"
 
-log_folder_format = '%b %d %Y'
+log_folder_format = '%d %b %Y'
 log_file_format = '%H;%M;%S, %a %b %d %Y'
 
 packet_types = {

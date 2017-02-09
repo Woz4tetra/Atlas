@@ -3,21 +3,20 @@ Contains functions that return important project directories
 """
 
 import os
-import sys
-import re
 import random
+import sys
 
 # dictionary of important local project directories
 project_dirs = {
-    'logs'     : "logs/",
-    'maps'     : "maps/",
+    'logs'       : "logs/",
+    'maps'       : "maps/",
     # 'pickled'    : "pickled/",
-    'gpx'      : "maps/gpx/",
-    'videos'   : "videos/",
-    'images'   : "images/",
-    'joysticks': "joysticks/",
+    'gpx'        : "maps/gpx/",
+    'videos'     : "videos/",
+    'images'     : "images/",
+    'joysticks'  : "joysticks/",
     # 'simulations': "pickled/simulations/",
-    'project'  : "",
+    'project'    : "",
 }
 
 
@@ -65,7 +64,7 @@ def interpret_dir(directory="."):
     return abs_directory
 
 
-def parse_dir(directory, default, sort_fn=None):
+def parse_dir(directory, default):
     """
     Formats the input directory using get_dir. The 'default' argument is the
     directory to start in. It should be a project directory flag. Useful if
@@ -77,30 +76,17 @@ def parse_dir(directory, default, sort_fn=None):
     """
     if directory is None:
         directory = interpret_dir(default)
-    elif ":" in directory:
-        marker = directory.find(":")
-        end_marker = directory.find("/", marker)
-        if end_marker == -1:
-            end_marker = len(directory)
-        if directory[marker + 1:end_marker + 1] == "random":
-            directories = []
-            for local_dir in os.listdir(interpret_dir(default)):
-                directory = os.path.join(interpret_dir(default), local_dir)
-                if os.path.isdir(directory):
-                    directories.append(directory)
-            directory = random.choice(directories)
-        else:
-            match = re.match(r"[0-9-]+", directory[marker + 1:end_marker])
-            if match is not None:
-                directory_num = int(match.group(0))
-                outer_dir_path = os.path.join(interpret_dir(default), directory[:marker])
-                numbered_dir = _get_dirs(interpret_dir(outer_dir_path), sort_fn)[directory_num]
-                directory = os.path.join(numbered_dir, directory[end_marker + 1:])
-
+    elif directory == ":random":
+        directories = []
+        for local_dir in os.listdir(interpret_dir(default)):
+            directory = os.path.join(interpret_dir(default), local_dir)
+            if os.path.isdir(directory):
+                directories.append(directory)
+        directory = random.choice(directories)
         print("Using directory '%s'" % directory)
 
     elif type(directory) == int:
-        directory = _get_dirs(interpret_dir(default), sort_fn)[directory]
+        directory = _get_dirs(interpret_dir(default))[directory]
 
     elif os.path.isdir(os.path.join(interpret_dir(default), directory)):
         directory = os.path.join(interpret_dir(default), directory)
@@ -108,7 +94,7 @@ def parse_dir(directory, default, sort_fn=None):
     return directory
 
 
-def _get_dirs(directory, sort_fn):
+def _get_dirs(directory):
     local_dir = []
     directories = []
     contents = sorted(os.listdir(directory), key=lambda v: v.lower())
@@ -118,13 +104,9 @@ def _get_dirs(directory, sort_fn):
             local_dir.append(item)
             directories.append(full_dir)
 
-    def internal_sort_fn(
-            x):  # hack to just use the first element in the zipped list
-        return sort_fn(x[0])
-
     # sort full directory list in the order the local directory list is sorted
     directories = [full for (local, full) in
-                   sorted(zip(local_dir, directories), key=internal_sort_fn)]
+                   sorted(zip(local_dir, directories))]
     return directories
 
 

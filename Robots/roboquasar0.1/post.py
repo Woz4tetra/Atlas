@@ -21,7 +21,7 @@ class Simulator(RobotInterfaceSimulator):
         self.staticPlot = StaticPlotter(2, self.imuPlot, self.gpsPlot)
 
         super(Simulator, self).__init__(
-            -1, -1, self.gps, self.imu, self.steering, self.brakes,
+            "", "point_clouds/Feb 08 2016", self.gps, self.imu, self.steering, self.brakes,
             # start_index=1000,
             # end_index=2000,
         )
