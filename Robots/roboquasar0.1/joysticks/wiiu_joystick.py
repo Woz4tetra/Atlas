@@ -1,3 +1,8 @@
+if __name__ == '__main__':
+    import sys
+
+    sys.path.insert("../")
+
 from atlasbuggy.buggyjoystick import BuggyJoystick, get_platform
 
 
@@ -8,7 +13,8 @@ class WiiUJoystick(BuggyJoystick):
             super(WiiUJoystick, self).__init__(
                 ['left x', 'left y', 'right x', 'right y', 'ZL', 'ZR'],
                 [0.3, -0.3, 0.0, 0.3, 0.3, 0.0],
-                ['up', 'down', 'left', 'right', '+', '-', 'left stick', 'right stick', 'L', 'R', 'home', 'A', 'B', 'X', 'Y'],
+                ['up', 'down', 'left', 'right', '+', '-', 'left stick', 'right stick', 'L', 'R', 'home', 'A', 'B', 'X',
+                 'Y'],
             )
         else:
             super(WiiUJoystick, self).__init__(
