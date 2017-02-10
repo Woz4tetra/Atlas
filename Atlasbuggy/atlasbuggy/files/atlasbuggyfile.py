@@ -29,19 +29,24 @@ class AtlasFile:
 
     def get_abs_dir(self, directory):
         abs_default_dir = os.path.abspath(self.default_dir)
+        if not os.path.exists(abs_default_dir):
+            os.makedirs(abs_default_dir)
 
         if directory is None:
             directories = os.listdir(abs_default_dir)
             entries = [os.path.join(abs_default_dir, entry) for entry in directories]
             directories = sorted(filter(os.path.isdir, entries), key=lambda x: os.path.getmtime(x))
-
-            return directories[-1]
+            if len(directories) == 0:
+                # raise NotADirectoryError("No directories found in '%s'" % self.default_dir)
+                return abs_default_dir
+            else:
+                return directories[-1]
         elif directory[0] != "/":
             return os.path.join(abs_default_dir, directory)
         elif directory[0] == "/" and os.path.exists(directory):
             return directory
         else:
-            raise NotADirectoryError("Input directory not found! '%s'", self.input_dir)
+            raise NotADirectoryError("Input directory not found! '%s'" % self.input_dir)
 
     def get_file_name(self, file_name, directory):
         if file_name is None:  # retrieve last file

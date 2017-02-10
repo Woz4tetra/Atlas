@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>buggy course checkpoints</name>
+  <desc></desc>
+  <author><name>WTracks - Online GPX track editor</name></author>
+  <link href="https://wtracks.appspot.com/">
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2016-11-09T07-44-51Z</time>
+<bounds minlat="40.43710831059729" minlon="-79.95240299205363" maxlat="40.44306916382556" maxlon="-79.93701784114421"/></metadata>
+<trk><name>buggy course checkpoints</name><trkseg>
+  <trkpt lat="40.44020266311536" lon="-79.94242429733276"></trkpt>
+  <trkpt lat="40.44017918718796" lon="-79.94263216853142"></trkpt>
+  <trkpt lat="40.43979030215449" lon="-79.94344756007195"></trkpt>
+  <trkpt lat="40.43961372106854" lon="-79.94361385703087"></trkpt>
+  <trkpt lat="40.43870733224044" lon="-79.94600772857666"></trkpt>
+  <trkpt lat="40.43883083864447" lon="-79.94634971022606"></trkpt>
+  <trkpt lat="40.438871667157876" lon="-79.94645833969116"></trkpt>
+  <trkpt lat="40.43925545397198" lon="-79.94674399495125"></trkpt>
+  <trkpt lat="40.439467760630045" lon="-79.94681909680367"></trkpt>
+  <trkpt lat="40.439546354751705" lon="-79.94685530662537"></trkpt>
+  <trkpt lat="40.43965863190894" lon="-79.94690626859665"></trkpt>
+  <trkpt lat="40.440039352146236" lon="-79.94726166129112"></trkpt>
+  <trkpt lat="40.44072729691936" lon="-79.94800195097923"></trkpt>
+  <trkpt lat="40.44118456195384" lon="-79.94769886136055"></trkpt>
+  <trkpt lat="40.44146728900164" lon="-79.94690492749214"></trkpt>
+  <trkpt lat="40.441315208535244" lon="-79.94616597890854"></trkpt>
+  <trkpt lat="40.44127948488586" lon="-79.94600370526314"></trkpt>
+  <trkpt lat="40.44098859160563" lon="-79.94460359215736"></trkpt>
+  <trkpt lat="40.4409600125488" lon="-79.94443997740746"></trkpt>
+  <trkpt lat="40.44056092516413" lon="-79.94256108999252"></trkpt>
+</trkseg></trk></gpx>
