@@ -1,9 +1,20 @@
 import math
 import os
+import sys
 
 import pygame
 
-from atlasbuggy.logfiles import project
+def get_platform():
+    """Use for platform specific operations"""
+    if sys.platform.startswith('darwin'):  # OS X
+        return "mac"
+    elif (sys.platform.startswith('linux') or sys.platform.startswith(
+            'cygwin')):
+        return "linux"
+    elif sys.platform.startswith('win'):  # Windows
+        return "windows"
+    else:
+        return None
 
 try:
     with os.popen('stty size', 'r') as terminal_window:
@@ -28,7 +39,7 @@ class BuggyJoystick:
         :param axes_dead_zones: If the corresponding axis number is less than a value in this list, it is considered zero
         :param button_mapping: A list of button names that correspond to the button number pygame assigns
         """
-        platform = project.get_platform()
+        platform = get_platform()
         if platform != "mac":
             os.environ["SDL_VIDEODRIVER"] = "dummy"
         pygame.init()

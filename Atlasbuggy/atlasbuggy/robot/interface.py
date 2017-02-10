@@ -45,10 +45,6 @@ class RobotInterface:
 
         self.joystick = joystick
 
-        if log_dir is None:
-            # if no directory provided, use the ":today" flag
-            # (follows the project.py directory reference convention)
-            log_dir = ":today"
         self.logger = Logger(log_name, log_dir)
         if log_data:
             self.logger.open()

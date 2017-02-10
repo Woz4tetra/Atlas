@@ -41,7 +41,7 @@ class Simulator(RobotInterfaceSimulator):
 
     def object_packet(self, timestamp):
         if self.did_receive(self.imu):
-            self.imuPlot.append(timestamp, self.imu.mag.z, self.imu.mag.x)
+            self.imuPlot.append(timestamp, self.imu.accel.z, self.imu.accel.x)
         elif self.did_receive(self.gps) and self.gps.fix is True and self.gps.latitude is not None:
             if self.gps.longitude_deg < 0:
                 self.gps.longitude_deg *= -1

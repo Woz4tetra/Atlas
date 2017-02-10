@@ -38,7 +38,7 @@ class Logger(AtlasWriteFile):
     def __init__(self, file_name=None, directory=None):
         if file_name is None:
             file_name = time.strftime(default_log_file_name)
-        elif directory is None:
+        if directory is None:
             directory = time.strftime(default_log_dir_name)
         super(Logger, self).__init__(file_name, directory, True, log_file_type, log_dir)
 

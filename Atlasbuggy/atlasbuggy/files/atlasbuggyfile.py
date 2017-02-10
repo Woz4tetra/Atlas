@@ -19,6 +19,8 @@ class AtlasFile:
         self.default_dir = default_dir
 
         self.directory = self.get_abs_dir(self.input_dir)
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         self.file_name = self.get_file_name(input_name, self.directory)
         self.full_path = os.path.join(self.directory, self.file_name)
 
@@ -31,10 +33,9 @@ class AtlasFile:
         if directory is None:
             directories = os.listdir(abs_default_dir)
             entries = [os.path.join(abs_default_dir, entry) for entry in directories]
-            files = filter(os.path.isdir, entries)
-            directory = sorted(files, key=lambda x: os.path.getmtime(x))
+            directories = sorted(filter(os.path.isdir, entries), key=lambda x: os.path.getmtime(x))
 
-            return directory[-1]
+            return directories[-1]
         elif directory[0] != "/":
             return os.path.join(abs_default_dir, directory)
         elif directory[0] == "/" and os.path.exists(directory):
@@ -87,9 +88,6 @@ class AtlasWriteFile(AtlasFile):
         self.compress = compress
 
     def open(self):
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-
         self.data_file = open(self.full_path, "w+")
         self._is_open = True
 
@@ -122,19 +120,15 @@ class AtlasWriteFile(AtlasFile):
         self.contents = ""
 
     def close(self):
-        pass
-
-    def _close(self):
         """
         If the file hasn't been closed, close and compress it.
         :return: None
         """
 
         if self.is_open():
-            self.close()
             self._dump_all()
             self.data_file.close()
-            self.compress()
+            self._compress()
             self._is_open = False
 
 

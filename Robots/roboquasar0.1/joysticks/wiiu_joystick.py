@@ -1,10 +1,9 @@
-from atlasbuggy.buggyjoystick import BuggyJoystick
-from atlasbuggy.logfiles import project
+from atlasbuggy.buggyjoystick import BuggyJoystick, get_platform
 
 
 class WiiUJoystick(BuggyJoystick):
     def __init__(self):
-        platform = project.get_platform()
+        platform = get_platform()
         if platform == "mac":
             super(WiiUJoystick, self).__init__(
                 ['left x', 'left y', 'right x', 'right y', 'ZL', 'ZR'],
