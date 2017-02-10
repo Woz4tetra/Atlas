@@ -7,9 +7,10 @@ unsigned long prev_time = 0;
 unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
-#define MAX_SPEED 200
+#define MAX_SPEED 175
 #define LEFT_LIMIT -150
 #define RIGHT_LIMIT 150
+#define POSITION_ZERO 150
 
 int position = 0;
 int speedCommand = 0;
@@ -94,7 +95,7 @@ void calibrate()
     stepper.runToNewPosition(20);
 
     approachSwitch(-MAX_SPEED / 4);
-    stepper.runToNewPosition(150);
+    stepper.runToNewPosition(POSITION_ZERO);
     stepper.setSpeed(-MAX_SPEED);
     stepper.setCurrentPosition(0);
 

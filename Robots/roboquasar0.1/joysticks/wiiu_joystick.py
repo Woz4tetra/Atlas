@@ -1,5 +1,6 @@
 from atlasbuggy.buggyjoystick import BuggyJoystick
-from atlasbuggy import project
+from atlasbuggy.logfiles import project
+
 
 class WiiUJoystick(BuggyJoystick):
     def __init__(self):

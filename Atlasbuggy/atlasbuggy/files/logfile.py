@@ -1,17 +1,70 @@
 """
-Contains the Parser class. This class decompresses and parses log files for visualization and post analysis.
+Contains the Logger class. This class writes incoming packets and their corresponding
+whoiam ID and timestamp to a text file. When the program ends, this text file is compressed into a gzip file.
 """
-import sys
-import os
-import gzip
-import struct
-from datetime import datetime
 
-from atlasbuggy.logfiles import *
-from atlasbuggy import project
+import time
+from atlasbuggy.files.atlasbuggyfile import AtlasReadFile, AtlasWriteFile
+
+# logs file data separators (end markers)
+time_whoiam_sep = ":"  # timestamp
+whoiam_packet_sep = ";"  # data name
+
+# all data before this date may not work correctly with the current code
+log_file_type = "gzip"
+log_dir = "logs"
+
+default_log_file_name = "%H;%M.%S"
+default_log_dir_name = "%Y_%b_%d"
+
+packet_types = {
+    "object" : "<",  # from a robot object
+    "user"   : "|",  # user logged
+    "command": ">",  # command sent
+    "error"  : "!",  # printed error message
+
+    "<"      : "object",
+    "|"      : "user",
+    ">"      : "command",
+    "!"      : "error",
+}
+
+no_timestamp = "-"
 
 
-class Parser:
+class Logger(AtlasWriteFile):
+    """A class for recording data from a robot to a logs file"""
+
+    def __init__(self, file_name=None, directory=None):
+        if file_name is None:
+            file_name = time.strftime(default_log_file_name)
+        elif directory is None:
+            directory = time.strftime(default_log_dir_name)
+        super(Logger, self).__init__(file_name, directory, True, log_file_type, log_dir)
+
+        self.line_code = (("%s" * 6) + "\n")
+
+    def record(self, timestamp, whoiam, packet, packet_type):
+        """
+        Record incoming packet.
+
+        :param timestamp: time packet arrived. -1 if it's an initialization packet
+        :param whoiam: whoiam ID of packet (see robotobject.py for details)
+        :param packet: packet received by robot port
+        :param packet_type: packet decorator. Determines how the packet was used
+        :return: None
+        """
+
+        if self.is_open():
+            if timestamp is None:
+                timestamp = no_timestamp
+
+            packet_type = packet_types[packet_type]
+            self.write(self.line_code % (
+                packet_type, timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
+
+
+class Parser(AtlasReadFile):
     """
     A class for parsing logs files and returning their data nicely.
 
@@ -34,26 +87,7 @@ class Parser:
         :param start_index:
         :param end_index:
         """
-        # pick a subdirectory of logs
-        self.directory = project.parse_dir(
-            directory, log_directory
-        )
-
-        # Get the selected local directory
-        self.local_dir = os.path.split(self.directory)[-1]
-
-        # parse the file name. Get the full directory of the file
-        self.file_name = project.get_file_name(
-            file_name, self.directory, log_file_type)
-        self.file_name_no_ext = self.file_name.split(".")[0]
-
-        self.file_path = os.path.join(self.directory, self.file_name)
-
-        print("Using file named '%s'" % self.file_name)
-
-        # decompress the file and put the contents into self.contents
-        with open(self.file_path, "rb") as data_file:
-            self.contents = gzip.decompress(data_file.read()).decode('utf-8').split("\n")
+        super(Parser, self).__init__(file_name, directory, True, log_file_type, log_dir)
 
         # index variables
         self.start_index = start_index
@@ -62,24 +96,6 @@ class Parser:
 
         if self.end_index == -1:
             self.end_index = len(self.contents)
-
-        # try to parse the name as a timestamp. If it succeeds, see if the
-        # file is obsolete. Otherwise, do nothing
-        try:
-            if (datetime.strptime(self.local_dir, '%b %d %Y') <
-                    datetime.strptime(obsolete_data, '%b %d %Y')):
-                print("WARNING: You are using a data set that is obsolete "
-                      "with the current parser. Continue? (y/n)", end="")
-                proceed = None
-                while proceed != "" and proceed != "y" and proceed != "n":
-                    proceed = input(": ").lower()
-                if proceed == "n":
-                    sys.exit(1)
-        except ValueError:
-            pass
-
-    def __len__(self):
-        return len(self.contents)
 
     def __iter__(self):
         """
@@ -105,17 +121,6 @@ class Parser:
                 self.index += 1
                 return self.index - 1, packet_type, timestamp, whoiam, packet
         raise StopIteration
-
-    @staticmethod
-    def hex_to_float(hex_string):
-        """
-        Turn a hexidecimal string to a floating point number according to IEEE 754.
-        This meant for timestamps
-
-        :param hex_string: string containing hex representation
-        :return: floating point equivalent
-        """
-        return struct.unpack('!f', bytes.fromhex(hex_string))[0]
 
     def parse_line(self):
         """

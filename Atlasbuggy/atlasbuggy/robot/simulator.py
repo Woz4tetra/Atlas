@@ -2,11 +2,10 @@
 RobotInterfaceSimulator imitates RobotInterface except its data source is a log file.
 """
 
-from atlasbuggy.logfiles.parser import Parser
 from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.robot.robotcollection import RobotObjectCollection
 from atlasbuggy.robot.errors import RobotObjectInitializationError
-from atlasbuggy import logfiles
+from atlasbuggy.files import logfile
 
 
 class RobotInterfaceSimulator:
@@ -28,7 +27,7 @@ class RobotInterfaceSimulator:
             else:
                 raise RobotObjectInitializationError(
                     "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
-        self.parser = Parser(file_name, directory, start_index, end_index)
+        self.parser = logfile.Parser(file_name, directory, start_index, end_index)
         self.current_index = 0
 
         self.packet = ""
@@ -79,7 +78,7 @@ class RobotInterfaceSimulator:
                 self.ids_received.add(whoiam)
 
             if whoiam in self.objects.keys():
-                if timestamp == logfiles.no_timestamp:
+                if timestamp == logfile.no_timestamp:
                     if isinstance(self.objects[whoiam], RobotObject):
                         self.objects[whoiam].receive_first(packet)
                     elif isinstance(self.objects[whoiam], RobotObjectCollection):

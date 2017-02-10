@@ -1,8 +1,9 @@
-import os
 import math
+import os
+
 import pygame
 
-from atlasbuggy import project
+from atlasbuggy.logfiles import project
 
 try:
     with os.popen('stty size', 'r') as terminal_window:

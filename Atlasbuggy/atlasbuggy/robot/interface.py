@@ -3,20 +3,20 @@ This class manages all robot ports and pass data received to the corresponding r
 """
 
 import pprint
-import time
-from multiprocessing import Lock, Queue, Value, Event
 import threading
+import time
 import traceback
+from multiprocessing import Lock, Queue, Value
 
 import serial
 import serial.tools.list_ports
 
-from atlasbuggy.logfiles.logger import Logger
+from atlasbuggy.files.logfile import Logger
 from atlasbuggy.robot.clock import Clock
 from atlasbuggy.robot.errors import *
-from atlasbuggy.robot.robotport import RobotSerialPort
-from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.robot.robotcollection import RobotObjectCollection
+from atlasbuggy.robot.robotobject import RobotObject
+from atlasbuggy.robot.robotport import RobotSerialPort
 
 
 class RobotInterface:
@@ -52,6 +52,7 @@ class RobotInterface:
         self.logger = Logger(log_name, log_dir)
         if log_data:
             self.logger.open()
+            print("Writing to:", self.logger.full_path)
 
         self.clock = Clock(self.loop_ups)
         self.start_time = 0

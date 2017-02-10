@@ -1,3 +1,4 @@
+import sys
 from atlasbuggy.robot.interface import RobotInterface
 
 from joysticks.wiiu_joystick import WiiUJoystick
@@ -29,6 +30,11 @@ class Runner(RobotInterface):
 
             self.plotter = LivePlotter(2, self.imu_plot_eul, self.imu_plot_gyro, self.imu_plot_mag)
 
+        if len(sys.argv) > 1 and sys.argv[1] == "nolog":
+            log_data = False
+        else:
+            log_data = True
+
         super(Runner, self).__init__(
             self.imu,
             self.gps,
@@ -36,7 +42,7 @@ class Runner(RobotInterface):
             self.brakes,
             joystick=WiiUJoystick(),
             debug_prints=True,
-            log_data=False
+            log_data=log_data
         )
 
     def packet_received(self, timestamp, whoiam, packet):
@@ -52,8 +58,9 @@ class Runner(RobotInterface):
                         # else:
                         #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
         elif self.did_receive(self.gps):
-            # print(timestamp, self.gps.latitude, self.gps.longitude)
-            print(timestamp, self.imu)
+            print(timestamp)
+            print(self.gps)
+            print(self.imu)
             # elif self.did_receive(self.steering):# and self.steering.goal_reached:
             # print(self.steering.current_step)
 

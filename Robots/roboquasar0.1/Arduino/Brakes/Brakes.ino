@@ -16,8 +16,8 @@
 #define potReadPin 0
 #define pwmPin 6
 
-#define BRAKE_POS 105
-#define RELEASE_POS 165
+#define BRAKE_POS 100
+#define RELEASE_POS 145
 
 double goalPosition;
 double prevPosition;
