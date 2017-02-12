@@ -15,10 +15,14 @@ class RobotPortBaseError(Exception):
                 whoiam_info = '%s' % port.whoiam
             else:
                 whoiam_info = str(port.whoiam)
-            port_error_info = "\nError message from port:\n" \
-                              "%s\n\n" \
-                              "Address: '%s', ID: %s" % (
-                                  full_message, port.address, whoiam_info
+
+            port_error_info = ""
+            if len(full_message) > 0:
+                port_error_info += "\nError message from port:\n" \
+                "%s\n"
+
+            port_error_info += "\nAddress: '%s', ID: %s" % (
+                                  port.address, whoiam_info
                               )
             if any(prev_packet_info):  # if any values evaluate to True, print info
                 port_error_info += "\n\nPrevious packet sent (ID: %s, time: %s):\n%s" % (

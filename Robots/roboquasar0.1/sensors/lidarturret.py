@@ -10,7 +10,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class LidarTurret(RobotObject):
-    def __init__(self, point_cloud_size=100):
+    def __init__(self, enabled=True, point_cloud_size=100, angle_range=(0, 360), reverse_range=False):
         # ----- point creation -----
         self._current_tick = 0
         self._ticks_per_rotation = 0
@@ -23,7 +23,20 @@ class LidarTurret(RobotObject):
         self._ticks = DynamicList()
 
         self._rotations = 0
-        self.point_cloud_size = point_cloud_size
+
+        self.raw_point_cloud_size = point_cloud_size
+
+        assert angle_range[0] >= 0 and angle_range[1] >= 0
+        self.angle_range = (math.radians(angle_range[0]), math.radians(angle_range[1]))
+        min_index = int(self.angle_range[0] * point_cloud_size / (2 * math.pi))
+        max_index = int(self.angle_range[1] * point_cloud_size / (2 * math.pi))
+
+        self.index_range = min_index, max_index
+        self.reverse_range = reverse_range
+        if self.reverse_range:
+            self.point_cloud_size = self.raw_point_cloud_size - int(max_index - min_index)
+        else:
+            self.point_cloud_size = int(max_index - min_index)
 
         # ----- point cloud formats -----
 
@@ -72,7 +85,7 @@ class LidarTurret(RobotObject):
         self.paused = False
         self.error_header = "> "
 
-        super(LidarTurret, self).__init__("lidar")
+        super(LidarTurret, self).__init__("lidar", enabled)
 
     def receive(self, timestamp, packet):
         if packet[0] == 'l':
@@ -146,8 +159,8 @@ class LidarTurret(RobotObject):
 
             # create point cloud. Interpolate missing points
             raw_index = 1
-            cloud_increment = 2 * math.pi / self.point_cloud_size
-            for cloud_index in range(1, self.point_cloud_size):
+            cloud_increment = 2 * math.pi / self.raw_point_cloud_size
+            for cloud_index in range(1, self.raw_point_cloud_size):
                 desired_angle = cloud_index * cloud_increment
 
                 # If there are more recorded points than desired, skip some
@@ -160,10 +173,15 @@ class LidarTurret(RobotObject):
                 if prev_angle > current_angle:  # adjust bounds for interpolation
                     prev_angle -= 2 * math.pi
 
-                self._interpolate_distance(
-                    self._raw_distances[raw_index], self._raw_distances[raw_index - 1],
-                    current_angle, prev_angle, desired_angle
-                )
+                if self.reverse_range:
+                    should_interpolate = cloud_index <= self.index_range[0] or self.index_range[1] < cloud_index
+                else:
+                    should_interpolate = self.index_range[0] <= cloud_index < self.index_range[1]
+                if should_interpolate:
+                    self._interpolate_distance(
+                        self._raw_distances[raw_index], self._raw_distances[raw_index - 1],
+                        current_angle, prev_angle, desired_angle
+                    )
 
                 # if the next angle is still within the raw data, interpolate with the same range
                 # (less points than desired case)
@@ -173,7 +191,6 @@ class LidarTurret(RobotObject):
             # interpolate last and first point (making up for skipped first iteration)
             self._interpolate_distance(self._raw_distances[-1], self._raw_distances[0], 2 * math.pi,
                                        self._ticks[-2] / self._ticks_per_rotation * 2 * math.pi, 2 * math.pi)
-
             # ----- update variables and plots -----
             if self.line_plot.enabled:
                 self._point_cloud_x_lines.cap()
@@ -245,6 +262,7 @@ class SLAM:
         print(self.algorithm.getpos())
         x_mm, y_mm, theta_degrees = self.algorithm.getpos()
         self.trajectory.append((x_mm, y_mm))
+        self.algorithm.getmap(self.mapbytes)
 
     def make_image(self):
         self.algorithm.getmap(self.mapbytes)

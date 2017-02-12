@@ -436,7 +436,6 @@ class RobotSerialPort(Process):
         return 1
 
     def send_stop_events(self):
-        self.debug_print("Acquiring stop lock")
         if not self.stop_event.is_set():
             if self.check_protocol("stop", "stopping") is None:
                 self.debug_print("Failed to send stop flag!!!")
@@ -459,6 +458,7 @@ class RobotSerialPort(Process):
                 self.debug_print("Closing serial")
             else:
                 self.debug_print("Serial port was already closed!")
+        self.debug_print("Releasing serial lock")
 
     def stop(self):
         """
@@ -477,6 +477,7 @@ class RobotSerialPort(Process):
             else:
                 self.debug_print("start_event not set! Closing serial")
                 self.close_serial()
+        self.debug_print("Releasing start lock")
 
         self.debug_print("Acquiring exit lock")
         with self.exit_event_lock:

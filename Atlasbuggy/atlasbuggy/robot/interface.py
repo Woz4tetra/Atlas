@@ -87,6 +87,8 @@ class RobotInterface:
         # open all available ports using multithreading
         self.ports = {}
         threads = []
+
+        self.duplicate_id_error = [False, None]
         for port_info in serial.tools.list_ports.comports():
             config_thread = threading.Thread(target=self._configure_port, args=(port_info, self.port_ups))
             threads.append(config_thread)
@@ -94,6 +96,15 @@ class RobotInterface:
 
         for thread in threads:
             thread.join()
+
+        if self.duplicate_id_error[0]:
+            self._close_all()
+            raise self._handle_error(
+                RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port! It's possible "
+                                             "the same code was uploaded for two boards.",
+                                             self.prev_packet_info, self.duplicate_id_error[1]),
+                traceback.format_stack()
+            )
 
         for port_name, port in self.ports.items():
             if not port.configured:
@@ -272,14 +283,10 @@ class RobotInterface:
         if port_info.vid is not None:
             port = RobotSerialPort(port_info, self.debug_enabled,
                                    self.packet_queue, self.port_lock, self.packet_counter, updates_per_second)
+            self._debug_print("whoiam", port.whoiam)
             if port.whoiam in self.ports.keys():
-                self._close_all()
-                self._print_port_info(port)
-                raise self._handle_error(
-                    RobotSerialPortWhoiamIdTaken("whoiam ID already being used by another port!",
-                                                 self.prev_packet_info, port),
-                    traceback.format_stack()
-                )
+                self.duplicate_id_error[0] = True
+                self.duplicate_id_error[1] = port
             elif port.configured and not port.abides_protocols:
                 self._debug_print("Warning! Port '%s' does not abide Atlasbuggy protocol!" % port.address)
                 port.stop()

@@ -5,6 +5,7 @@ from joysticks.wiiu_joystick import WiiUJoystick
 
 from sensors.gps import GPS
 from sensors.imu import IMU
+from sensors.lidarturret import LidarTurret
 from actuators.steering import Steering
 from actuators.brakes import Brakes
 from actuators.underglow import Underglow
@@ -23,6 +24,7 @@ class Runner(RobotInterface):
         self.steering = Steering()
         self.brakes = Brakes()
         self.underglow = Underglow()
+        self.turret = LidarTurret(enabled=False)
 
         if live_plotting:
             self.imu_plot_eul = RobotPlot("imu eul", flat_plot=False, max_length=30)
@@ -43,6 +45,8 @@ class Runner(RobotInterface):
             self.steering,
             self.brakes,
             self.underglow,
+            self.turret,
+
             joystick=WiiUJoystick(),
             debug_prints=True,
             log_data=log_data
@@ -60,7 +64,7 @@ class Runner(RobotInterface):
                         return False
                         # else:
                         #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
-            self.underglow.set_cycle_val(self.imu.euler.x / 45)
+            # self.underglow.set_cycle_val(self.imu.euler.x / 45)
         elif self.did_receive(self.gps):
             print(timestamp)
             print(self.gps)

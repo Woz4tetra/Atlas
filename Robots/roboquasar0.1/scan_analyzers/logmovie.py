@@ -113,7 +113,7 @@ def main():
     robot = Rover() if use_odometry else None
 
     # laser = MinesLaser()
-    laser = Laser(100, 2.4, 360, 0)
+    laser = Laser(len(lidars[0]), 2.4, 240, 0)
 
     imgbytes, imgsize = pgm_load("map.pgm")
     MAP_SIZE_PIXELS = imgsize[0]
