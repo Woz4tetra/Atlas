@@ -94,13 +94,14 @@ class RobotInterface:
         for thread in threads:
             thread.join()
 
-        for port in self.ports.values():
+        for port_name, port in self.ports.items():
             if not port.configured:
                 self._print_port_info(port)
                 raise self._handle_error(
                     RobotSerialPortNotConfiguredError("Port not configured!", self.prev_packet_info, port),
                     traceback.format_stack()
                 )
+
 
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
@@ -278,6 +279,9 @@ class RobotInterface:
                                                  self.prev_packet_info, port),
                     traceback.format_stack()
                 )
+            elif port.configured and not port.abides_protocols:
+                self._debug_print("Warning! Port '%s' does not abide Atlasbuggy protocol!" % port.address)
+                port.stop()
             elif port.whoiam in self.inactive_ids:
                 port.stop()
             else:
@@ -301,16 +305,22 @@ class RobotInterface:
         Validate that all ports are assigned to objects. Throw RobotSerialPortUnassignedError otherwise
         :return: None
         """
+        used_ports = {}
         for whoiam in self.ports.keys():
             if whoiam not in self.objects.keys():
-                self._close_all()
-                self._print_port_info(self.ports[whoiam])
+                self._debug_print("Warning! Port ['%s', %s] is unused!" %
+                    (self.ports[whoiam].address, whoiam), ignore_flag=True)
+            else:
+                used_ports[whoiam] = self.ports[whoiam]
+        self.ports = used_ports
+                # self._close_all()
+                # self._print_port_info(self.ports[whoiam])
+                # raise self._handle_error(
+                #     RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
+                #                                    self.ports[whoiam]),
+                #     traceback.format_stack()
+                # )
 
-                raise self._handle_error(
-                    RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
-                                                   self.ports[whoiam]),
-                    traceback.format_stack()
-                )
 
     def _send_first_packets(self):
         """

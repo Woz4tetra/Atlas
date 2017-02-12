@@ -7,6 +7,7 @@ from sensors.gps import GPS
 from sensors.imu import IMU
 from actuators.steering import Steering
 from actuators.brakes import Brakes
+from actuators.underglow import Underglow
 
 live_plotting = False
 
@@ -21,6 +22,7 @@ class Runner(RobotInterface):
         self.imu = IMU()
         self.steering = Steering()
         self.brakes = Brakes()
+        self.underglow = Underglow()
 
         if live_plotting:
             self.imu_plot_eul = RobotPlot("imu eul", flat_plot=False, max_length=30)
@@ -40,6 +42,7 @@ class Runner(RobotInterface):
             self.gps,
             self.steering,
             self.brakes,
+            self.underglow,
             joystick=WiiUJoystick(),
             debug_prints=True,
             log_data=log_data
@@ -57,6 +60,7 @@ class Runner(RobotInterface):
                         return False
                         # else:
                         #     print(timestamp, self.imu.eul_x, self.imu.accel_x, self.imu.gyro_x, self.imu.mag_x)
+            self.underglow.set_cycle_val(self.imu.euler.x / 45)
         elif self.did_receive(self.gps):
             print(timestamp)
             print(self.gps)

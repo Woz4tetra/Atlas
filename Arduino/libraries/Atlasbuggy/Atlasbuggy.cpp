@@ -1,5 +1,6 @@
 
 #include <Atlasbuggy.h>
+// #define DEBUG
 
 Atlasbuggy::Atlasbuggy(String whoiam)
 {
@@ -15,6 +16,10 @@ void Atlasbuggy::begin()
     Serial.begin(DEFAULT_RATE);
     Serial.setTimeout(100);  // 100 ms
     pinMode(LED13, OUTPUT);
+    #ifdef DEBUG
+    Serial.print("BAUD is ");
+    Serial.println(DEFAULT_RATE);
+    #endif
 
     setLed(true);
 }
@@ -109,6 +114,10 @@ void Atlasbuggy::writeInit()
 
 bool Atlasbuggy::unpause()
 {
+    #ifdef DEBUG
+    Serial.print("_paused is ");
+    Serial.println(_paused);
+    #endif
     if (_paused) {
         setLed(LOW);
         _paused = false;

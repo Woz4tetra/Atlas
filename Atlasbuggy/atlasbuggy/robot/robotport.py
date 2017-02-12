@@ -42,6 +42,7 @@ class RobotSerialPort(Process):
         # status variables
         self.debug_enabled = debug_prints
         self.configured = True
+        self.abides_protocols = True
         self.message_lock = Lock()
         self.error_message = Queue()
         self.port_assigned = False
@@ -61,7 +62,7 @@ class RobotSerialPort(Process):
         self.first_packet_ask = "init?"
         self.first_packet_header = "init:"
 
-        self.protocol_timeout = 5  # seconds
+        self.protocol_timeout = 3  # seconds
 
         # misc. serial protocol
         self.packet_end = "\n"  # what this microcontroller's packets end with
@@ -100,7 +101,6 @@ class RobotSerialPort(Process):
                 self.find_first_packet()
             else:
                 self.debug_print("whoiam ID was None, skipping find_first_packet")
-
         else:
             self.debug_print("Port not configured. Skipping find_whoiam")
 
@@ -134,7 +134,8 @@ class RobotSerialPort(Process):
         if self.whoiam is not None:
             self.debug_print("%s has ID '%s'" % (self.address, self.whoiam))
         else:
-            self.configured = False
+            # self.configured = False
+            self.abides_protocols = False
             self.debug_print("Failed to obtain whoiam ID!", ignore_flag=True)
 
     def find_first_packet(self):
@@ -156,8 +157,9 @@ class RobotSerialPort(Process):
         if self.first_packet is not None:
             self.debug_print("sent initialization data: %s" % repr(self.first_packet))
         else:
+            # self.configured = False
+            self.abides_protocols = False
             self.debug_print("Failed to obtain first packet!", ignore_flag=True)
-            self.configured = False
 
     def check_protocol(self, ask_packet, recv_packet_header):
         """
@@ -193,7 +195,7 @@ class RobotSerialPort(Process):
 
             prev_rounded_time = rounded_time
             rounded_time = int((time.time() - start_time) * 10)
-            if rounded_time > 5 and rounded_time % 10 == 0 and prev_rounded_time != rounded_time:
+            if rounded_time > 5 and rounded_time % 3 == 0 and prev_rounded_time != rounded_time:
                 attempts += 1
                 self.debug_print("Writing '%s' again" % ask_packet)
                 if not self.write_packet(ask_packet):
@@ -446,6 +448,10 @@ class RobotSerialPort(Process):
             self.debug_print("Stop event already set!")
             return True
 
+        self.close_serial()
+        return True
+
+    def close_serial(self):
         self.debug_print("Acquiring serial lock")
         with self.serial_lock:
             if self.serial_ref.is_open:
@@ -453,7 +459,6 @@ class RobotSerialPort(Process):
                 self.debug_print("Closing serial")
             else:
                 self.debug_print("Serial port was already closed!")
-        return True
 
     def stop(self):
         """
@@ -470,8 +475,8 @@ class RobotSerialPort(Process):
                                  self.exit_event.is_set() else
                                  "not set. Proceeding to send stop")
             else:
-                self.debug_print("start_event not set!")
-                return
+                self.debug_print("start_event not set! Closing serial")
+                self.close_serial()
 
         self.debug_print("Acquiring exit lock")
         with self.exit_event_lock:
@@ -479,8 +484,8 @@ class RobotSerialPort(Process):
                 self.exit_event.set()
             else:
                 self.debug_print("Exit event already set! Error was likely thrown")
+        self.debug_print("Releasing exit lock")
 
     def has_exited(self):
         with self.exit_event_lock:
             return self.exit_event.is_set()
-
