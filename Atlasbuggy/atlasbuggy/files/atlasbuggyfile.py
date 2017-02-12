@@ -154,7 +154,7 @@ class AtlasReadFile(AtlasFile):
             self._decompress()
 
     def _decompress(self):
-        self.contents = gzip.decompress(self.raw_contents).decode('utf-8').split("\n")
+        self.contents = gzip.decompress(self.raw_contents).decode('utf-8')
 
     def __len__(self):
         return len(self.contents)

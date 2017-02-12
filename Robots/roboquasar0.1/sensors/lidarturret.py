@@ -1,10 +1,5 @@
 import math
 
-from breezyslam.components import Laser
-from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
-
-from PIL import Image
-
 from atlasbuggy.robot.robotobject import RobotObject
 from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
@@ -27,16 +22,20 @@ class LidarTurret(RobotObject):
         self.raw_point_cloud_size = point_cloud_size
 
         assert angle_range[0] >= 0 and angle_range[1] >= 0
-        self.angle_range = (math.radians(angle_range[0]), math.radians(angle_range[1]))
-        min_index = int(self.angle_range[0] * point_cloud_size / (2 * math.pi))
-        max_index = int(self.angle_range[1] * point_cloud_size / (2 * math.pi))
+        assert angle_range[1] > angle_range[0]
+
+        self.angle_range = angle_range
+        min_index = int(self.angle_range[0] / 360 * point_cloud_size)
+        max_index = int(self.angle_range[1] / 360 * point_cloud_size)
 
         self.index_range = min_index, max_index
         self.reverse_range = reverse_range
         if self.reverse_range:
             self.point_cloud_size = self.raw_point_cloud_size - int(max_index - min_index)
+            self.detection_angle_degrees = 360 - int(self.angle_range[1] - self.angle_range[0])
         else:
             self.point_cloud_size = int(max_index - min_index)
+            self.detection_angle_degrees = int(self.angle_range[1] - self.angle_range[0])
 
         # ----- point cloud formats -----
 
@@ -76,11 +75,9 @@ class LidarTurret(RobotObject):
         self.point_cloud_plot_collection = RobotPlotCollection("point cloud", self.raw_point_cloud_plot,
                                                                self.point_cloud_plot, self.line_plot)
         self.cloud_updated = False
-        self.slam_updated = False
+        self.cloud_is_ready = False
 
         # ----- SLAM -----
-
-        self.slam = SLAM(Laser(self.point_cloud_size, 2.4, 360, 100))
 
         self.paused = False
         self.error_header = "> "
@@ -110,8 +107,7 @@ class LidarTurret(RobotObject):
             self.cloud_updated = True
 
             if self._rotations > 5:
-                self.slam.update(timestamp, self.distances)
-                self.slam_updated = True
+                self.cloud_is_ready = True
 
     def did_cloud_update(self):
         if self.cloud_updated:
@@ -120,9 +116,9 @@ class LidarTurret(RobotObject):
         else:
             return False
 
-    def did_slam_update(self):
-        if self.slam_updated:
-            self.slam_updated = False
+    def is_cloud_ready(self):
+        if self.cloud_is_ready:
+            self.cloud_is_ready = False
             return True
         else:
             return False
@@ -240,45 +236,6 @@ class LidarTurret(RobotObject):
             self.paused = not self.paused
 
         self.send("p%i" % int(self.paused))
-
-
-class SLAM:
-    """
-    takes a breezyslam laser object and a flag to determine the
-    slam algorithm that is used.
-    """
-
-    def __init__(self, laser):
-        self.map_size_pixels = 1600
-        self.map_size_meters = 10
-        self.trajectory = []
-        self.mapbytes = bytearray(self.map_size_pixels * self.map_size_pixels)
-
-        self.laser = laser
-        self.algorithm = RMHC_SLAM(self.laser, self.map_size_pixels, self.map_size_meters)
-
-    def update(self, timestamp, point_cloud):
-        self.algorithm.update(point_cloud, (0, 0, 1 / self.laser.scan_rate_hz))
-        print(self.algorithm.getpos())
-        x_mm, y_mm, theta_degrees = self.algorithm.getpos()
-        self.trajectory.append((x_mm, y_mm))
-        self.algorithm.getmap(self.mapbytes)
-
-    def make_image(self):
-        self.algorithm.getmap(self.mapbytes)
-        for coords in self.trajectory:
-            x_mm, y_mm = coords
-
-            x_pix = self.mm2pix(x_mm)
-            y_pix = self.mm2pix(y_mm)
-
-            self.mapbytes[y_pix * self.map_size_pixels + x_pix] = 0
-
-        image = Image.frombuffer('L', (self.map_size_pixels, self.map_size_pixels), self.mapbytes, 'raw', 'L', 0, 1)
-        image.save("map.png")
-
-    def mm2pix(self, mm):
-        return int(mm / (self.map_size_meters * 1000 / self.map_size_pixels))
 
 
 class DynamicList:

@@ -38,16 +38,17 @@ along with this code.  If not, see <http://www.gnu.org/licenses/>.
 MAP_SIZE_PIXELS = 800
 MAP_SIZE_METERS = 32
 
-from breezyslam.components import Laser
-from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM
-from scan_analyzers.mines import MinesLaser, Rover, load_data
-from scan_analyzers.pltslamshow import SlamShow
-from scan_analyzers.pgm_utils import *
-
 from sys import argv, exit
-from time import time, sleep
 from threading import Thread
+from time import sleep
+
 from PIL import Image
+from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM
+from breezyslam.components import Laser
+from scan_analyzers.pgm_utils import *
+from scan_analyzers.pltslamshow import SlamShow
+
+from tests.scan_analyzers.mines import Rover, load_data
 
 
 def threadfunc(robot, slam, timestamps, lidars, odometries, use_odometry, mapbytes, pose):

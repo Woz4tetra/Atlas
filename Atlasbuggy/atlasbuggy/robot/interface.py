@@ -114,7 +114,6 @@ class RobotInterface:
                     traceback.format_stack()
                 )
 
-
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
 
@@ -317,18 +316,10 @@ class RobotInterface:
         for whoiam in self.ports.keys():
             if whoiam not in self.objects.keys():
                 self._debug_print("Warning! Port ['%s', %s] is unused!" %
-                    (self.ports[whoiam].address, whoiam), ignore_flag=True)
+                                  (self.ports[whoiam].address, whoiam), ignore_flag=True)
             else:
                 used_ports[whoiam] = self.ports[whoiam]
         self.ports = used_ports
-                # self._close_all()
-                # self._print_port_info(self.ports[whoiam])
-                # raise self._handle_error(
-                #     RobotSerialPortUnassignedError("Port not assigned to an object.", self.prev_packet_info,
-                #                                    self.ports[whoiam]),
-                #     traceback.format_stack()
-                # )
-
 
     def _send_first_packets(self):
         """

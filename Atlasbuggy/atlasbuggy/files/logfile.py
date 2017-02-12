@@ -98,10 +98,12 @@ class Parser(AtlasReadFile):
         """
         super(Parser, self).__init__(file_name, directory, True, log_file_type, log_dir)
 
+        self.contents = self.contents.split("\n")
+
         # index variables
         self.start_index = start_index
         self.end_index = end_index
-        self.index = start_index  # current packet number (or line number)
+        self.index = self.start_index  # current packet number (or line number)
 
         if self.end_index == -1:
             self.end_index = len(self.contents)

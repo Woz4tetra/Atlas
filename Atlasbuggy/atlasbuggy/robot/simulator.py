@@ -31,6 +31,8 @@ class RobotInterfaceSimulator:
         self.current_index = 0
 
         self.packet = ""
+        self.packets_received = {}
+
         self.ids_used = set()
         self.ids_received = set()
         self.prev_whoiam = None
@@ -76,6 +78,10 @@ class RobotInterfaceSimulator:
             self.prev_whoiam = whoiam
             if packet_type != "error":
                 self.ids_received.add(whoiam)
+                if whoiam in self.packets_received:
+                    self.packets_received[whoiam] += 1
+                else:
+                    self.packets_received[whoiam] = 0
 
             if whoiam in self.objects.keys():
                 if timestamp == logfile.no_timestamp:
@@ -117,6 +123,17 @@ class RobotInterfaceSimulator:
                     print("\t", id)
 
         self.close()
+
+    def num_received(self, arg):
+        if isinstance(arg, RobotObject):
+            return self.packets_received[arg.whoiam]
+        elif isinstance(arg, RobotObjectCollection):
+            packets = 0
+            for whoiam in arg.whoiam_ids:
+                packets += self.packets_received[whoiam]
+            return packets
+        else:
+            return self.packets_received[arg]
 
     def close(self):
         pass

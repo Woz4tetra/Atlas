@@ -5,7 +5,7 @@
 #include <Atlasbuggy.h>
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS 100
+#define BNO055_SAMPLERATE_DELAY_MS 10
 
 Atlasbuggy buggy("imu");
 
@@ -20,17 +20,17 @@ void updateIMU() {
     // - VECTOR_LINEARACCEL   - m/s^2
     // - VECTOR_GRAVITY       - m/s^2
 
-    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-
-    Serial.print("ex");
-    Serial.print(euler.x(), 4);
-    Serial.print('\t');
-    Serial.print("ey");
-    Serial.print(euler.y(), 4);
-    Serial.print('\t');
-    Serial.print("ez");
-    Serial.print(euler.z(), 4);
-    Serial.print('\t');
+//    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+//
+//    Serial.print("ex");
+//    Serial.print(euler.x(), 4);
+//    Serial.print('\t');
+//    Serial.print("ey");
+//    Serial.print(euler.y(), 4);
+//    Serial.print('\t');
+//    Serial.print("ez");
+//    Serial.print(euler.z(), 4);
+//    Serial.print('\t');
 
     imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
