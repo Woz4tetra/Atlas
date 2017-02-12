@@ -1,74 +1,78 @@
 import math
 
-#from breezyslam.components import Laser
-#from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
+from breezyslam.components import Laser
+from breezyslam.algorithms import Deterministic_SLAM, RMHC_SLAM, CoreSLAM
 
 from PIL import Image
 
 from atlasbuggy.robot.robotobject import RobotObject
-from atlasbuggy.plotters.robotplot import RobotPlot
+from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class LidarTurret(RobotObject):
-    def __init__(self, enable_slam=False):
-        self.current_tick = 0
-        self.ticks_per_rotation = 0
-        self.prev_hz_time = 0
-        self.update_rate_hz = 0.0
+    def __init__(self, point_cloud_size=100):
+        # ----- point creation -----
+        self._current_tick = 0
+        self._ticks_per_rotation = 0
+        self._prev_hz_time = 0
+        self._update_rate_hz = 0.0
 
-        self.dist_timestamp = 0
-        self.distances = DynamicList()
+        self._raw_distances = DynamicList()
+        self._distances = DynamicList()
+        self._angles = DynamicList()
+        self._ticks = DynamicList()
 
-        self.tick_timestamp = 0
-        self.ticks = DynamicList()
+        self._rotations = 0
+        self.point_cloud_size = point_cloud_size
 
-        self.rotations = 0
+        # ----- point cloud formats -----
 
-        self.point_cloud_xs = DynamicList()
-        self.point_cloud_ys = DynamicList()
+        self._raw_point_cloud_xs = DynamicList()
+        self._raw_point_cloud_ys = DynamicList()
+
+        self._point_cloud_xs = DynamicList()
+        self._point_cloud_ys = DynamicList()
+
+        self._point_cloud_x_lines = DynamicList()
+        self._point_cloud_y_lines = DynamicList()
+
+        # ----- plots -----
 
         lidar_range = (-100, 100)
+        self.raw_point_cloud_plot = RobotPlot(
+            "raw point cloud",
+            # plot_enabled=False,
+            x_range=lidar_range, y_range=lidar_range, range_offset=1,
+            marker='.', linestyle=''
+        )
+
         self.point_cloud_plot = RobotPlot(
             "point cloud",
             x_range=lidar_range, y_range=lidar_range, range_offset=1,
             marker='.', linestyle=''
         )
 
-        self.cloud_time_plot = RobotPlot(
-            "point cloud",
-            plot_enabled=True,
+        self.line_plot = RobotPlot(
+            "lines",
+            plot_enabled=False,
             x_range=lidar_range, y_range=lidar_range, range_offset=1,
-            marker='.', linestyle='', markersize=2,
+            marker='', linestyle='-', color='lightblue',
             # skip_count=10
         )
 
-        self.cloud_updated = True
+        self.point_cloud_plot_collection = RobotPlotCollection("point cloud", self.raw_point_cloud_plot,
+                                                               self.point_cloud_plot, self.line_plot)
+        self.cloud_updated = False
+        self.slam_updated = False
 
-        self.enable_slam = enable_slam
-        self.laser = None
-        self.slam = None
-        self.slam_flag = SLAM.STATIONARY
+        # ----- SLAM -----
+
+        self.slam = SLAM(Laser(self.point_cloud_size, 2.4, 360, 100))
 
         self.paused = False
         self.error_header = "> "
 
         super(LidarTurret, self).__init__("lidar")
-
-    def receive_first(self, packet):
-        # <scan_size, scan_rate, detection_angle, distance_no_detection> (float)
-        data = packet.split("\t")
-        # data = list(map(float, data))
-        # assert len(data) == 4
-
-        scan_size = float(data[0])
-        scan_rate_hz = float(data[1])
-        detection_angle_degrees = float(data[2])
-        distance_no_detection_mm = float(data[3])
-
-        if self.enable_slam:
-            self.laser = Laser(scan_size, scan_rate_hz, detection_angle_degrees, distance_no_detection_mm)
-            self.slam = SLAM(self.laser, flag=self.slam_flag)
-        print("initialized with data:", data)
 
     def receive(self, timestamp, packet):
         if packet[0] == 'l':
@@ -77,29 +81,24 @@ class LidarTurret(RobotObject):
             delta_tick = int(data[0])
             distance = int(data[1])  # millimeters
 
-            self.current_tick += delta_tick
+            self._current_tick += delta_tick
 
-            self.distances.append(distance)
-            self.ticks.append(self.current_tick)
+            self._raw_distances.append(distance)
+            self._ticks.append(self._current_tick)
         elif packet[0] == 'r':
-            self.distances.cap()
-            self.ticks.cap()
-            self.ticks_per_rotation = self.current_tick
-
-            self.rotations = int(packet[1:])
-            self.update_rate_hz = 1 / (timestamp - self.prev_hz_time)
-            self.prev_hz_time = timestamp
-
-            print("Rotation #%4.0d @ %5.2fs (%4.2fHz), Ticks: %s, Points: %s" % (
-                self.rotations, timestamp, self.update_rate_hz, self.current_tick, len(self.distances)))
-            self.current_tick = 0
-
+            self.update_properties(timestamp, packet)
             self.make_point_cloud()
-            self.cloud_updated = True
-            self.point_cloud_plot.update(self.point_cloud_xs.get(), self.point_cloud_ys.get())
 
-            if self.rotations > 2 and self.enable_slam:
-                self.update_slam(timestamp)
+            print("Rotation #%4.0d @ %5.2fs (%4.2fHz), Ticks: %s, Points: %s, Interpolated: %s" % (
+                self._rotations, timestamp, self._update_rate_hz, self._current_tick, len(self._raw_distances),
+                len(self._point_cloud_xs)))
+
+            self._current_tick = 0
+            self.cloud_updated = True
+
+            if self._rotations > 5:
+                self.slam.update(timestamp, self.distances)
+                self.slam_updated = True
 
     def did_cloud_update(self):
         if self.cloud_updated:
@@ -108,28 +107,116 @@ class LidarTurret(RobotObject):
         else:
             return False
 
+    def did_slam_update(self):
+        if self.slam_updated:
+            self.slam_updated = False
+            return True
+        else:
+            return False
+
+    def update_properties(self, timestamp, packet):
+        self._raw_distances.cap()
+        self._ticks.cap()
+        self._ticks_per_rotation = self._current_tick
+
+        self._rotations = int(packet[1:])
+        self._update_rate_hz = 1 / (timestamp - self._prev_hz_time)
+        self._prev_hz_time = timestamp
+
     def make_point_cloud(self):
-        if self.rotations > 1:
-            for index in range(len(self.distances)):
-                angle = self.ticks[index] / self.ticks_per_rotation * 2 * math.pi
-                x = self.distances[index] * math.cos(angle)
-                y = self.distances[index] * math.sin(angle)
+        if self._rotations > 2:
 
-                self.point_cloud_xs.append(x)
-                self.point_cloud_ys.append(y)
+            # make angle array
+            raw_increment = 2 * math.pi / self._ticks_per_rotation
+            for raw_index in range(len(self._raw_distances)):
+                angle = self._ticks[raw_index] * raw_increment
+                self._angles.append(angle)
 
-                self.cloud_time_plot.append(x, y)
+                if self.raw_point_cloud_plot.enabled:
+                    x = self._raw_distances[raw_index] * math.cos(angle)
+                    y = self._raw_distances[raw_index] * math.sin(angle)
 
-            self.point_cloud_xs.cap()
-            self.point_cloud_ys.cap()
+                    self._raw_point_cloud_xs.append(x)
+                    self._raw_point_cloud_ys.append(y)
+
+            self._angles.cap()
+            if self.raw_point_cloud_plot.enabled:
+                self._raw_point_cloud_xs.cap()
+                self._raw_point_cloud_ys.cap()
+
+            # create point cloud. Interpolate missing points
+            raw_index = 1
+            cloud_increment = 2 * math.pi / self.point_cloud_size
+            for cloud_index in range(1, self.point_cloud_size):
+                desired_angle = cloud_index * cloud_increment
+
+                # If there are more recorded points than desired, skip some
+                # (more points than desired case)
+                while self._angles[raw_index] < desired_angle:
+                    raw_index += 1
+
+                current_angle = self._angles[raw_index]
+                prev_angle = self._angles[raw_index - 1]
+                if prev_angle > current_angle:  # adjust bounds for interpolation
+                    prev_angle -= 2 * math.pi
+
+                self._interpolate_distance(
+                    self._raw_distances[raw_index], self._raw_distances[raw_index - 1],
+                    current_angle, prev_angle, desired_angle
+                )
+
+                # if the next angle is still within the raw data, interpolate with the same range
+                # (less points than desired case)
+                if (cloud_index + 1) * cloud_increment > self._raw_distances[raw_index]:
+                    raw_index += 1
+
+            # interpolate last and first point (making up for skipped first iteration)
+            self._interpolate_distance(self._raw_distances[-1], self._raw_distances[0], 2 * math.pi,
+                                       self._ticks[-2] / self._ticks_per_rotation * 2 * math.pi, 2 * math.pi)
+
+            # ----- update variables and plots -----
+            if self.line_plot.enabled:
+                self._point_cloud_x_lines.cap()
+                self._point_cloud_y_lines.cap()
+
+            self._point_cloud_xs.cap()
+            self._point_cloud_ys.cap()
+
+            self._distances.cap()
+
+            self.raw_point_cloud_plot.update(self._raw_point_cloud_xs.get(), self._raw_point_cloud_ys.get())
+            self.point_cloud_plot.update(self._point_cloud_xs.get(), self._point_cloud_ys.get())
+            self.line_plot.update(self._point_cloud_x_lines.get(), self._point_cloud_y_lines.get())
+
+    def _interpolate_distance(self, distance, prev_distance, angle, prev_angle, desired_angle):
+        slope = (distance - prev_distance) / (angle - prev_angle)
+        # if slope <= 1.0:
+        interpolation = int(slope * (desired_angle - prev_angle) + prev_distance)
+        # else:
+        #     interpolation = distance
+
+        interp_x = interpolation * math.cos(desired_angle)
+        interp_y = interpolation * math.sin(desired_angle)
+
+        self._point_cloud_xs.append(interp_x)
+        self._point_cloud_ys.append(interp_y)
+
+        self._distances.append(interpolation)
+
+        if self.line_plot.enabled:
+            self._point_cloud_x_lines.append(interp_x)
+            self._point_cloud_y_lines.append(interp_y)
+            self._point_cloud_x_lines.append(0)
+            self._point_cloud_y_lines.append(0)
 
     @property
     def point_cloud(self):
-        return self.point_cloud_xs.get(), self.point_cloud_ys.get()
+        # (puts in (x0, y0), (x1, y1)... format)
+        return zip(self._point_cloud_xs.get(), self._point_cloud_ys.get())
 
-    def update_slam(self, timestamp):
-        if self.enable_slam:
-            self.slam.update(timestamp, self.distances.get(), self.ticks_per_rotation)
+    @property
+    def distances(self):
+        return self._distances.get()
 
     def set_paused(self, paused=None):
         if paused is None:
@@ -143,65 +230,37 @@ class SLAM:
     takes a breezyslam laser object and a flag to determine the
     slam algorithm that is used.
     """
-    STATIONARY = 0
-    MOVING = 1
-    MOVING_ODOMETRY = 2
 
-    def __init__(self, laser, map_pixels=800, map_size=32, flag=None):
-        # def __init__(self, laser, map_pixels=0, map_size=0):
+    def __init__(self, laser):
+        self.map_size_pixels = 1600
+        self.map_size_meters = 10
+        self.trajectory = []
+        self.mapbytes = bytearray(self.map_size_pixels * self.map_size_pixels)
+
         self.laser = laser
+        self.algorithm = RMHC_SLAM(self.laser, self.map_size_pixels, self.map_size_meters)
 
-        self.map_pixels = map_pixels
-        self.map_size = map_size
+    def update(self, timestamp, point_cloud):
+        self.algorithm.update(point_cloud, (0, 0, 1 / self.laser.scan_rate_hz))
+        print(self.algorithm.getpos())
+        x_mm, y_mm, theta_degrees = self.algorithm.getpos()
+        self.trajectory.append((x_mm, y_mm))
 
-        if flag is None:
-            self.flag = SLAM.STATIONARY
-        else:
-            self.flag = flag
+    def make_image(self):
+        self.algorithm.getmap(self.mapbytes)
+        for coords in self.trajectory:
+            x_mm, y_mm = coords
 
-        # For odometry
-        self.velocities = (0, 0, 0)
+            x_pix = self.mm2pix(x_mm)
+            y_pix = self.mm2pix(y_mm)
 
-        self.algorithm = None
-        self.set_algorithm()
+            self.mapbytes[y_pix * self.map_size_pixels + x_pix] = 0
 
-    def set_algorithm(self):
-        if self.flag == SLAM.STATIONARY:
-            self.algorithm = Deterministic_SLAM(self.laser, self.map_pixels, self.map_size)
-            print("using deterministic slam")
-        elif self.flag == SLAM.MOVING:
-            self.algorithm = RMHC_SLAM(self.laser, self.map_pixels, self.map_size)
-            print("using RMHC slam")
-        elif self.flag == SLAM.MOVING_ODOMETRY:
-            self.algorithm = CoreSLAM(self.laser, self.map_pixels, self.map_size)
-            print("using CoreSLAM slam")
+        image = Image.frombuffer('L', (self.map_size_pixels, self.map_size_pixels), self.mapbytes, 'raw', 'L', 0, 1)
+        image.save("map.png")
 
-    def update(self, timestamp, pointcloud, theta):
-        # if self.flag != SLAM.MOVING_ODOMETRY:
-        #     self.algorithm.update(pointcloud)
-        # else:
-        if self.flag == SLAM.MOVING_ODOMETRY:
-            self.update_velocities(pointcloud, theta, timestamp)
-        self.algorithm.update(pointcloud, self.velocities)
-
-    def change_flag(self, flag):
-        if flag != self.flag:
-            self.flag = flag
-            self.set_algorithm()
-
-    def make_image(self, image_name):
-        mapbytes = bytearray(self.map_size * self.map_pixels)
-        self.algorithm.getmap(mapbytes)
-        image = Image.frombuffer('L', (self.map_size, self.map_pixels), mapbytes, 'raw', 'L', 0, 1)
-        image.save('%s.png' % image_name)
-
-    def update_velocities(self, pointcloud, tetha, timestamp):
-        """
-        pretty much
-        estimate dxy dtetha and dt comparing with the previous measurement
-        needs implementation
-        """
-        pass
+    def mm2pix(self, mm):
+        return int(mm / (self.map_size_meters * 1000 / self.map_size_pixels))
 
 
 class DynamicList:
@@ -233,6 +292,9 @@ class DynamicList:
 
     def __getitem__(self, item):
         return self.l[item % self.end_index]
+
+    def __setitem__(self, key, value):
+        self.l[key % self.end_index] = value
 
     def __len__(self):
         return self.end_index

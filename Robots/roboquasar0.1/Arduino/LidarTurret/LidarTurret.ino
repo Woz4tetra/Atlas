@@ -92,7 +92,7 @@ void writeSerial()
     }
 
     #ifdef USE_I2C
-    distance = myLidarLite.distance();  // distance in CM
+    distance = myLidarLite.distance() * 10;  // distance in mm
     #else
     distance = pulseIn(MONITOR, HIGH);
     #endif

@@ -22,7 +22,7 @@ class BasePlotter:
 
         if len(self.robot_plots) == 0:
             self.plotter_enabled = False
-            return
+            return   # TODO: warn the user there are no plots
         else:
             self.plotter_enabled = True
 
@@ -70,10 +70,11 @@ class BasePlotter:
         plt.legend(**self.legend_args)
 
     def draw_dot(self, sub_plot_name, x, y, z=None, **dot_properties):
-        if self.plots_dict[sub_plot_name].flat:
-            self.axes[sub_plot_name].plot(x, y, 'o', **dot_properties)
-        else:
-            self.axes[sub_plot_name].plot([x], [y], [z], 'o', **dot_properties)
+        if sub_plot_name in self.axes.keys():
+            if self.plots_dict[sub_plot_name].flat:
+                self.axes[sub_plot_name].plot(x, y, 'o', **dot_properties)
+            else:
+                self.axes[sub_plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
     def plot(self):
         """

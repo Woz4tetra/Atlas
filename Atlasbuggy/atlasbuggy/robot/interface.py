@@ -40,7 +40,8 @@ class RobotInterface:
         self.loop_ups = loop_updates_per_second
         self.port_ups = port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
-        self.prev_whoiam = ""
+        self.current_whoiam = ""
+        self.current_timestamp = 0
         self.prev_packet_info = [None, None, None]
 
         self.joystick = joystick
@@ -201,12 +202,12 @@ class RobotInterface:
 
     def did_receive(self, arg):
         if isinstance(arg, RobotObject):
-            return arg.whoiam == self.prev_whoiam
+            return arg.whoiam == self.current_whoiam
         elif isinstance(arg, RobotObjectCollection):
             for whoiam in arg.whoiam_ids:
-                return whoiam == self.prev_whoiam
+                return whoiam == self.current_whoiam
         else:
-            return arg == self.prev_whoiam
+            return arg == self.current_whoiam
 
     def change_port_rate(self, arg, new_baud_rate):
         if isinstance(arg, RobotObject):
@@ -472,7 +473,7 @@ class RobotInterface:
 
     def _signal_received(self, dt, whoiam, packet):
         try:
-            self.prev_whoiam = whoiam
+            self.current_whoiam = whoiam
             if self.packet_received(dt, whoiam, packet) is False:
                 self._debug_print(
                     "packet_received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
@@ -493,9 +494,9 @@ class RobotInterface:
         """
         with self.port_lock:
             while not self.packet_queue.empty():
-                whoiam, timestamp, packet = self.packet_queue.get()
+                whoiam, self.current_timestamp, packet = self.packet_queue.get()
                 self.packet_counter.value -= 1
-                dt = timestamp - self.start_time
+                dt = self.current_timestamp - self.start_time
 
                 self.prev_packet_info[0] = whoiam
                 self.prev_packet_info[1] = dt
