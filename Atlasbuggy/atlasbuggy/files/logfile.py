@@ -40,6 +40,15 @@ class Logger(AtlasWriteFile):
             file_name = time.strftime(default_log_file_name)
         if directory is None:
             directory = time.strftime(default_log_dir_name)
+        elif type(directory) == tuple and None in directory:
+            directory = list(directory)
+            none_index = directory.index(None)
+            directory[none_index] = time.strftime(default_log_dir_name)
+
+            for index, sub_dir in enumerate(directory):
+                directory[index] = sub_dir.strip("/")
+            directory = "/".join(directory).strip("/")
+
         super(Logger, self).__init__(file_name, directory, True, log_file_type, log_dir)
 
         self.line_code = (("%s" * 6) + "\n")
