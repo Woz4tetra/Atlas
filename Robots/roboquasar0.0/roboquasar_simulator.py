@@ -1,5 +1,8 @@
 import numpy as np
+import os
+import gzip
 from atlasbuggy import project
+import threading
 
 from atlasbuggy.simulator import Simulator
 from atlasbuggy.microcontroller.logger import get_map, parse_arguments
@@ -18,7 +21,7 @@ class FilterTest(Simulator):
             # "buggy_course/buggy course checkpoints.gpx"
             "track_field/track field checkpoints.gpx"
             # "cut/cut course checkpoints.gpx"
-         )
+        )
         self.course_map = get_map(
             # "buggy_course/buggy course map.gpx"
             "track_field/track field course map.gpx"
@@ -37,7 +40,7 @@ class FilterTest(Simulator):
 
         if self.plot_enabled["recorded_filter_plot"]:
             first_gps = self.parser.get(5, "gps")[-1]
-            second_gps = self.parser.get(50, "gps")[-1]
+            second_gps = self.parser.get(10, "gps")[-1]
             self.lat1, self.long1, self.alt1 = \
                 first_gps["lat"], first_gps["long"], first_gps["altitude"]
             self.lat2, self.long2, self.alt2 = \
@@ -73,6 +76,16 @@ class FilterTest(Simulator):
         self.prev_imu_t = self.start_time
         self.prev_gps_t = self.start_time
 
+        # self.new_dir = os.path.join("new_format", directory)
+        # print(self.new_dir)
+        # if not os.path.isdir(self.new_dir):
+        #     os.mkdir(self.new_dir)
+        #
+        # self.new_name = self.parser.file_name.split(", ")[0] + ".gzip"
+        #
+        # self.new_full_path = os.path.join(self.new_dir, self.new_name)
+        # self.new_data_contents = ""
+
     def fill_data_array(self, plot_option, data_array):
         if plot_option == "checkpoints_plot":
             checkpoints_map = np.array(self.checkpoints)
@@ -90,10 +103,29 @@ class FilterTest(Simulator):
     def step(self, index, timestamp, name, values):
         if name == "imu":
             self.record_imu(timestamp, values)
+            # self.new_data_contents += "<%s:imu;ex0.0\tey0.0\tez%s\t" % (timestamp, values['yaw'])
+            # self.new_data_contents += "mx%s\tmy%s\tmz%s\t" % (values['mx'], values['my'], values['mz'])
+            # self.new_data_contents += "gx%s\tgy%s\tgz%s\t" % (values['gx'], values['gy'], values['gz'])
+            # self.new_data_contents += "ax0.0\tay0.0\taz0.0\t"
+            # self.new_data_contents += "lx%s\tly%s\tlz%s\n" % (values['ax'], values['ay'], values['az'])
         elif name == "gps":
             self.record_gps(timestamp, values)
+
+            min_lat = int(values['lat']) * 100
+            sec_lat = (values['lat'] - int(values['lat'])) * 60
+
+            min_long = int(values['long']) * 100
+            sec_long = (values['long'] - int(values['long'])) * 60
+            # self.new_data_contents += "<%s:gps;t0:0:0:0\td1/1/2017\tf%s,2\tl%s,N,%s,W\tg%s,%s\tx0.00,0.0,%s,0\n" % (
+            #     timestamp, int(values['fix']), min_lat + sec_lat, min_long + sec_long, values['lat'], values['long'],
+            #     values['altitude']
+            # )
         elif name == "kalman":
             self.record_kalman_data(values)
+
+            # self.new_data_contents += "|%s:kalman live;%s\t%s\t%s\t%s\t%s\t%s\n" % (
+            #     timestamp, values["lat"], values["long"], values["alt"], values["roll"], values["pitch"], values["yaw"]
+            # )
 
     def record_kalman_data(self, values):
         if self.plot_enabled["recorded_filter_plot"]:
@@ -111,6 +143,7 @@ class FilterTest(Simulator):
             self.angled_line_segment("imu_plot", self.prev_long, self.prev_lat,
                                      values['yaw'], 1)
         if self.plot_enabled["calculated_filter_plot"]:
+            # print("imu", timestamp)
             self.filter.imu_updated(
                 timestamp - self.prev_imu_t,
                 values["ax"], values["ay"], values["az"],
@@ -133,6 +166,7 @@ class FilterTest(Simulator):
                 self.prev_long = values["long"]
 
                 if self.plot_enabled["calculated_filter_plot"]:
+                    # print("gps", timestamp)
                     self.filter.gps_updated(
                         timestamp - self.prev_gps_t,
                         values["lat"], values["long"], values["altitude"]
@@ -155,6 +189,11 @@ class FilterTest(Simulator):
                                      lat, yaw, 1)
 
     def before_plot(self):
+        # with open(self.new_full_path, 'wb') as data_file_0_1_format:
+        #     print("writing contents to", self.new_full_path)
+        #     compressed = gzip.compress(self.new_data_contents.encode('utf-8'))
+        #     data_file_0_1_format.write(compressed)
+
         if self.enable_3d:
             plot_option_bounds = ""
             for option in ["gps_plot", "recorded_filter_plot",
@@ -199,7 +238,36 @@ class GraphSensor(Simulator):
             self.plot_data["plot_3"][1].append(values["az"])
 
 
-file_name, directory = parse_arguments(-1, "Dec 02 2016")
+file_name, directory = parse_arguments(-1, "Nov 12 2016")
+
+
+def convert_simulation(file_name, directory):
+    print("thread starting:", file_name, directory)
+    try:
+        plotter = FilterTest(
+            file_name, directory,
+            # imu_plot=dict(color='orange', line_segments=True, line_seg_freq=50),
+            gps_plot=dict(color='lightskyblue', label="GPS"),
+            calculated_filter_plot=dict(color='indigo', label="filter"),
+            # calculated_filter_heading_plot=dict(color='lime', line_segments=True,
+            #                                     line_seg_freq=50),
+            recorded_filter_plot=dict(color='forestgreen', label="recorded filter"),
+            # recorded_filter_heading_plot=dict(color='teal',
+            #                                   line_segments=True,
+            #                                   line_seg_freq=50),
+            # checkpoints_plot=dict(color='deepskyblue', label="checkpoints",
+            #                       log_based_plot=False),
+            course_map_plot=dict(color='gold', label="map",
+                                 log_based_plot=False),
+            enable_3d=False,
+            # use_pickled_data=True,
+            start_index=0,
+            # end_index=5000
+        )
+        plotter.run()
+    except BaseException as e:
+        print(e)
+        print("skipping file")
 
 
 def run_kalman():
@@ -219,12 +287,24 @@ def run_kalman():
         course_map_plot=dict(color='gold', label="map",
                              log_based_plot=False),
         enable_3d=False,
-        use_pickled_data=True,
+        # use_pickled_data=True,
         start_index=0,
         # end_index=5000
     )
-
     plotter.run()
+    # convert_simulation(-1, "Dec 04 2016")
+    # for element in os.listdir("logs"):
+    #     if os.path.isdir("logs/" + element):
+    #         directory = project.parse_dir(element, ":logs", lambda x: x)
+    #
+    #         convert_threads = []
+    #         for file_name in os.listdir(directory):
+    #             if file_name.endswith("txt"):
+    #                 convert_thread = threading.Thread(target=convert_simulation, args=(file_name, directory))
+    #                 convert_threads.append(convert_thread)
+    #                 convert_thread.start()
+    #         for convert_thread in convert_threads:
+    #             convert_thread.join()
 
 
 def run_sensor():
