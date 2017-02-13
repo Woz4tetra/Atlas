@@ -14,7 +14,7 @@ whoiam_packet_sep = ";"  # data name
 log_file_type = "gzip"
 log_dir = "logs"
 
-default_log_file_name = "%H;%M.%S"
+default_log_file_name = "%H;%M;%S"
 default_log_dir_name = "%Y_%b_%d"
 
 packet_types = {
