@@ -17,7 +17,7 @@ from actuators.brakes import Brakes
 # import numpy as np
 
 animate = True
-use_filter = False
+use_filter = True
 
 
 class Simulator(RobotInterfaceSimulator):
@@ -80,7 +80,7 @@ class Simulator(RobotInterfaceSimulator):
 
             # rolls day 3
             # ("modified 07;04", old_data + "2016_Nov_13"),
-            ("modified 07;23", old_data + "2016_Nov_13"),  # wonky value for mag.
+            # ("modified 07;23", old_data + "2016_Nov_13"),  # wonky value for mag.
 
             # rolling on the cut
             # ("16;29", old_data + "2016_Dec_09"),
@@ -207,8 +207,8 @@ class Simulator(RobotInterfaceSimulator):
             self.static_plot.plot()
             self.static_plot.show()
         else:
-            print("Finished!")
             if not self.error_signalled:
+                print("Finished!")
                 self.live_plot.freeze_plot()
 
             self.live_plot.close()
