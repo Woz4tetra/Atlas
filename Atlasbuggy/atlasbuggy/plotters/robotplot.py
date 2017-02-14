@@ -93,7 +93,7 @@ class RobotPlot:
         for axis_num in range(len(values)):
             self.data[axis_num] = values[axis_num]
 
-            if self.ranges[axis_num] is not None and len(values[axis_num]) > 0:
+            if len(values[axis_num]) > 0:# and self.ranges[axis_num] is not None
                 # self.ranges[axis_num][0] = min(values[axis_num])
                 # self.ranges[axis_num][1] = max(values[axis_num])
                 #
@@ -231,20 +231,26 @@ class RobotPlotCollection:
                 return False
         return True
 
+    def get_range(self, axis_num):
+        ranges = []
+        for plot in self.plots:
+            if plot.ranges[axis_num] is not None:
+                ranges.append(plot.ranges[axis_num])
+
+        if len(ranges) == 0:
+            return -0.001, 0.001
+        else:
+            return min(ranges, key=lambda range: range[0])[0], \
+                   max(ranges, key=lambda range: range[1])[1]
+
     @property
     def x_range(self):
-        x_min = min(self.plots, key=lambda plot: plot.x_range[0]).x_range[0]
-        x_max = max(self.plots, key=lambda plot: plot.x_range[1]).x_range[1]
-        return x_min, x_max
+        return self.get_range(0)
 
     @property
     def y_range(self):
-        y_min = min(self.plots, key=lambda plot: plot.y_range[0]).y_range[0]
-        y_max = max(self.plots, key=lambda plot: plot.y_range[1]).y_range[1]
-        return y_min, y_max
+        return self.get_range(1)
 
     @property
     def z_range(self):
-        z_min = min(self.plots, key=lambda plot: plot.z_range[0]).z_range[0]
-        z_max = max(self.plots, key=lambda plot: plot.z_range[1]).z_range[1]
-        return z_min, z_max
+        return self.get_range(2)

@@ -48,7 +48,7 @@ class GrovesKalmanFilter:
 
     def get_orientation(self):
         return navpy.dcm2angle(  # CTM_to_Euler
-            self.properties.estimated_attitude)  # yaw, pitch, roll
+            self.properties.estimated_attitude)[::-1]  # roll, pitch, yaw
 
 
 class KalmanProperties:
@@ -265,7 +265,7 @@ class INS:
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
-        self.accel_measurement = np.clip(self.accel_measurement, -0.5, 0.5)
+        self.accel_measurement = np.clip(self.accel_measurement, -0.1, 0.1)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
         self.modify_measurements(accel_measurement, gyro_measurement)
@@ -330,8 +330,7 @@ class Epoch:
 
         return error_covariance_P
 
-    def update(self, dt, gps_position_ecef, gps_velocity_ecef,
-               accel_measurement):
+    def update(self, dt, gps_position_ecef, gps_velocity_ecef, accel_measurement):
         # step 1
         self.determine_transition_matrix(
             dt, accel_measurement,
@@ -368,22 +367,21 @@ class Epoch:
             self.properties.estimated_imu_biases
         )
 
-    def determine_transition_matrix(self, dt, accel_measurement,
-                                    estimated_position, estimated_attitude):
+    def determine_transition_matrix(self, dt, accel_measurement, estimated_position, estimated_attitude):
         # step 1
-        estimated_r = estimated_position
-        est_body_ecef_trans = estimated_attitude
+        est_r = estimated_position
+        est_transform = estimated_attitude
 
         estimated_lat = \
-            navpy.ecef2lla(vector_to_list(estimated_r), latlon_unit='rad')[0]
+            navpy.ecef2lla(vector_to_list(est_r), latlon_unit='rad')[0]
 
         self.state_transition_Phi = np.matrix(np.eye(15))
 
         self.state_transition_Phi[0:3, 0:3] -= self.skew_earth_rotation * dt
-        self.state_transition_Phi[0:3, 12:15] = est_body_ecef_trans * dt
+        self.state_transition_Phi[0:3, 12:15] = est_transform * dt
         self.state_transition_Phi[3:6, 0:3] = \
             -dt * skew_symmetric(
-                est_body_ecef_trans * accel_measurement)
+                est_transform * accel_measurement)
 
         self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt
 
@@ -396,16 +394,15 @@ class Epoch:
 
         self.state_transition_Phi[3:6, 6:9] = \
             (-dt * 2 * gravity_ecef(
-                estimated_r) / (
-                 geocentric_radius * estimated_lat) * estimated_r.T /
-             unit_to_scalar(np.sqrt(estimated_r.T * estimated_r)))
+                est_r) / (
+                 geocentric_radius * estimated_lat) * est_r.T /
+             unit_to_scalar(np.sqrt(est_r.T * est_r)))
 
-        self.state_transition_Phi[3:6, 9:12] = est_body_ecef_trans * dt
+        self.state_transition_Phi[3:6, 9:12] = est_transform * dt
 
         self.state_transition_Phi[6:9, 3:6] = np.matrix(np.eye(3)) * dt
 
-    def determine_noise_covariance(self, dt, gyro_noise_PSD, accel_noise_PSD,
-                                   accel_bias_PSD, gyro_bias_PSD):
+    def determine_noise_covariance(self, dt, gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD):
         # step 2
         # Q_prime_matrix in the matlab code
         self.approx_noise_covariance_Q = np.matrix(np.eye(15)) * dt
@@ -462,9 +459,8 @@ class Epoch:
             ((self.measurement_model_H * self.error_covariance_propagated_P) *
              self.measurement_model_H.T) + self.noise_covariance_R)
 
-    def formulate_measurement_innovations(self, gps_position_ecef,
-                                          gps_velocity_ecef, estimated_position,
-                                          estimated_velocity):
+    def formulate_measurement_innovations(self, gps_position_ecef, gps_velocity_ecef,
+                                          estimated_position, estimated_velocity):
         # step 8
         self.measurement_innovation_delta_Z[0:3] = \
             gps_position_ecef - estimated_position
@@ -488,15 +484,11 @@ class Epoch:
                           estimated_velocity, estimated_imu_biases):
         estimated_attitude_new = (np.matrix(np.eye(3)) - skew_symmetric(
             self.estimated_state_prop_x[0:3])) * estimated_attitude
-        estimated_velocity_new = \
-            estimated_velocity - self.estimated_state_prop_x[3:6]
-        estimated_position_new = \
-            estimated_position - self.estimated_state_prop_x[6:9]
-        estimated_imu_biases_new = \
-            estimated_imu_biases + self.estimated_state_prop_x[9:15]
+        estimated_velocity_new = estimated_velocity - self.estimated_state_prop_x[3:6]
+        estimated_position_new = estimated_position - self.estimated_state_prop_x[6:9]
+        estimated_imu_biases_new = estimated_imu_biases + self.estimated_state_prop_x[9:15]
 
-        return estimated_position_new, estimated_velocity_new, \
-               estimated_attitude_new, estimated_imu_biases_new
+        return estimated_position_new, estimated_velocity_new, estimated_attitude_new, estimated_imu_biases_new
 
 
 def skew_symmetric(m):

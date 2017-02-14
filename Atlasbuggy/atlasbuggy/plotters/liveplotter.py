@@ -15,7 +15,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 class LivePlotter(BasePlotter):
     initialized = False
 
-    def __init__(self, num_columns, *robot_plots, legend_args=None, lag_cap=0.005):
+    def __init__(self, num_columns, *robot_plots, legend_args=None, lag_cap=0.005, plot_skip_count=0):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
         windows don't behave well. This also conserves CPU usage.
@@ -55,6 +55,8 @@ class LivePlotter(BasePlotter):
         self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
         self.time0 = None
         self.lag_cap = lag_cap
+        self.plot_skip_count = plot_skip_count
+        self.skip_counter = 0
         self.closed = False
 
         self.init_legend()
@@ -69,7 +71,7 @@ class LivePlotter(BasePlotter):
         """
         self.time0 = time0
 
-    def should_update(self, packet_timestamp):
+    def should_update(self, packet_timestamp=None):
         """
         Signal whether or not the plot should update using self.lag_cap.
         If the packet_timestamp - current_time is greater than self.lag_cap, return False
@@ -78,9 +80,16 @@ class LivePlotter(BasePlotter):
         :return: True or False whether the plot should update or not
         """
         # likely source of rare bug where the plot lags badly
-        current_time = time.time() - self.time0
+        if self.time0 is not None:
+            current_time = time.time() - self.time0
 
-        return abs(packet_timestamp - current_time) < self.lag_cap
+            lag_status = abs(packet_timestamp - current_time) < self.lag_cap
+        else:
+            lag_status = True
+
+        self.skip_counter += 1
+        skip_status = self.plot_skip_count > 0 and self.skip_counter % self.plot_skip_count == 0
+        return lag_status and skip_status
 
     def plot(self):
         """
@@ -108,6 +117,8 @@ class LivePlotter(BasePlotter):
                 return False
 
             if plot.flat:
+                # print(plot.x_range, end=", ")
+                # print(plot.y_range)
                 self.axes[plot.name].set_xlim(plot.x_range)
                 self.axes[plot.name].set_ylim(plot.y_range)
             else:
@@ -127,6 +138,11 @@ class LivePlotter(BasePlotter):
             return False
 
         return True
+
+    def freeze_plot(self):
+        plt.ioff()
+        plt.gcf()
+        plt.show()
 
     def close(self):
         """

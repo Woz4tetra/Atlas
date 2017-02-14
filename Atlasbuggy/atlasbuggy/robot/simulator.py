@@ -40,6 +40,8 @@ class RobotInterfaceSimulator:
         self.prev_percent = 0
         self.percent = 0
 
+        self.error_signalled = False
+
         self.dt = None
 
     def print_percent(self):
@@ -100,16 +102,20 @@ class RobotInterfaceSimulator:
 
             if packet_type == "object":
                 if self.object_packet(timestamp) is False:
+                    self.error_signalled = True
                     break
             elif packet_type == "user":
                 if self.user_packet(timestamp, packet) is False:
+                    self.error_signalled = True
                     break
             elif packet_type == "command":
                 if self.command_packet(timestamp, packet) is False:
+                    self.error_signalled = True
                     break
 
             elif packet_type == "error":
                 print(packet)
+                self.error_signalled = True
                 break
 
         if self.ids_received != self.ids_used:
