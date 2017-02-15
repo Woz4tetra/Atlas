@@ -1,3 +1,4 @@
+
 import sys
 import math
 
@@ -11,8 +12,7 @@ from algorithms.kalman_constants import constants
 
 from sensors.gps import GPS
 from sensors.imu import IMU
-from actuators.steering import Steering
-from actuators.brakes import Brakes
+from sensors.lidarturret import LidarTurret
 
 # import numpy as np
 
@@ -24,8 +24,7 @@ class Simulator(RobotInterfaceSimulator):
     def __init__(self, set_num=0):
         self.gps = GPS()
         self.imu = IMU()
-        self.steering = Steering()
-        self.brakes = Brakes()
+        self.turret = LidarTurret(angle_range=(210, 330), reverse_range=True)
 
         self.imu_plot = RobotPlot("Magnetometer data (x, z vs. time)", flat_plot=True, skip_count=20,
                                   plot_enabled=False)
@@ -44,9 +43,14 @@ class Simulator(RobotInterfaceSimulator):
         self.filter_comparison = RobotPlotCollection("Comparison", self.kalman_plot, self.gps_plot, self.compass_plot,
                                                      flat_plot=True)
         # self.map_plot = RobotPlot("map data")
+        # self.turret.point_cloud_plot.skip_count = 10
 
         if animate:
-            self.live_plot = LivePlotter(1, self.filter_comparison, plot_skip_count=10)
+            self.live_plot = LivePlotter(
+                2,
+                self.filter_comparison,
+                self.turret.point_cloud_plot,
+                plot_skip_count=10)
         else:
             self.compass_plot.enabled = False
             self.static_plot = StaticPlotter(2, self.imu_plot, self.filter_comparison)
@@ -59,10 +63,10 @@ class Simulator(RobotInterfaceSimulator):
         data_day_3 = "data_days/2017_02_08"
         old_data = "old_data/"
         file_sets = (
-            (None, None),
             ("16;38", data_day_3),
             ("17", data_day_3),
             ("18", data_day_3),
+            (None, None),
 
             # trackfield no gyro values
             # ("15;46", old_data + "2016_Dec_02"),
@@ -106,7 +110,8 @@ class Simulator(RobotInterfaceSimulator):
 
         super(Simulator, self).__init__(
             file_sets[set_num][0], file_sets[set_num][1],
-            self.gps, self.imu, self.steering, self.brakes,
+            self.gps, self.imu,
+            self.turret,
             # start_index=0,
             # end_index=2000,
         )
@@ -201,6 +206,12 @@ class Simulator(RobotInterfaceSimulator):
                     print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
                     if use_filter:
                         print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
+        elif self.did_receive(self.turret):
+            if self.turret.did_cloud_update():
+                # if self.turret.is_cloud_ready():
+
+                if not self.live_plot.plot():
+                    return False
 
     def close(self):
         if not animate:

@@ -29,6 +29,7 @@ class GPS(RobotObject):
         self.satellites = 0
 
         super(GPS, self).__init__("gps", enabled)
+        self.baud = 9600
 
     def receive_first(self, packet):
         data = packet.split("\t")

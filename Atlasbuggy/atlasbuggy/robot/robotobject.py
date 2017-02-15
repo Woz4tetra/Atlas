@@ -21,6 +21,7 @@ class RobotObject:
         """
         self.whoiam = whoiam
         self.enabled = enabled
+        self.baud = None
 
         self.command_packets = Queue(maxsize=255)
 

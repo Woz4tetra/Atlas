@@ -5,7 +5,10 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class LidarTurret(RobotObject):
-    def __init__(self, enabled=True, point_cloud_size=100, angle_range=(0, 360), reverse_range=False):
+    def __init__(self, enabled=True, point_cloud_size=100,
+        angle_range=(210, 330), reverse_range=True,
+        # angle_range=(0, 360), reverse_range=False
+        ):
         # ----- point creation -----
         self._current_tick = 0
         self._ticks_per_rotation = 0

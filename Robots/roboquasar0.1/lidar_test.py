@@ -5,7 +5,7 @@ from atlasbuggy.robot.simulator import RobotInterfaceSimulator
 from sensors.lidarturret import LidarTurret
 from tests.scan_analyzers.pltslamshow import SlamShow
 
-simulated = False
+simulated = True
 record_scan = True
 use_my_plotter = True
 point_cloud_dir = "point_clouds/"
@@ -82,7 +82,7 @@ class LidarPlotter(RobotInterfaceSimulator):
             self.animation = LivePlotter(1, self.turret.point_cloud_plot)
             self.animation.draw_dot("point cloud", 0, 0, color='orange', markersize=5)
 
-        super(LidarPlotter, self).__init__(None, point_cloud_dir + "2017_Feb_11", self.turret)
+        super(LidarPlotter, self).__init__("16;20", "2017_Feb_14", self.turret)
 
     def object_packet(self, timestamp):
         if self.did_receive(self.turret):

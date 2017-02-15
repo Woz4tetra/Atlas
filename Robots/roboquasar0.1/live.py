@@ -23,11 +23,12 @@ class Runner(RobotInterface):
         self.imu = IMU()
         self.steering = Steering()
         self.brakes = Brakes()
-        self.underglow = Underglow()
-        self.turret = LidarTurret()
+        self.underglow = Underglow(enabled=False)
+        self.turret = LidarTurret(enabled=False)
 
         if live_plotting:
             self.plotter = LivePlotter(1, self.turret.point_cloud_plot)
+            self.plotter.draw_dot("point cloud", 0, 0, color='orange', markersize=5)
 
         if len(sys.argv) > 1 and sys.argv[1] == "nolog":
             log_data = False
@@ -83,7 +84,7 @@ class Runner(RobotInterface):
                 #         self.brakes.set_brake(self.brakes.goal_position - 20)
 
     def start(self):
-        self.change_port_rate(self.gps, self.gps.baud_rate)
+        # self.change_port_rate(self.gps, self.gps.baud_rate)
         if live_plotting:
             self.plotter.start_time(self.start_time)
 

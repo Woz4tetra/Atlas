@@ -293,6 +293,9 @@ class RobotInterface:
                 port.stop()
             else:
                 self.ports[port.whoiam] = port
+                object_baud = self.objects[port.whoiam].baud
+                if object_baud is not None and object_baud != port.baud_rate:
+                    port.change_rate(object_baud)
 
     def _check_objects(self):
         """
