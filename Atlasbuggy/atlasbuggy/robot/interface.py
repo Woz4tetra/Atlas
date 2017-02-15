@@ -302,6 +302,7 @@ class RobotInterface:
         Validate that all objects are assigned to ports. Throw RobotObjectNotFoundError otherwise
         :return: None
         """
+        self._debug_print("Discovered ports:", list(self.ports.keys()))
         for whoiam in self.objects.keys():
             if whoiam not in self.ports.keys():
                 self._close_all()

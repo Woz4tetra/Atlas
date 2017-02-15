@@ -62,9 +62,9 @@ else:
         animate = args.animate
 
 print("using simulator" if simulated else "running live!")
-
+print("logging data\n" if args.log and not args.simulate else "", end="")
 print("using filter" if use_filter else "not using filter")
-print("" if only_lidar else "only displaying lidar\n", end="")
+print("only displaying lidar\n" if only_lidar else "", end="")
 print("animating data" if animate else "using static plot")
 print("computing and displaying SLAM\n" if args.computeslam else "", end="")
 
@@ -169,6 +169,9 @@ class RoboQuasar(Interface):
                 # start_index=0,
                 # end_index=2000,
             )
+
+            extension_index = self.parser.full_path.rfind(".")
+            image_path = self.parser.full_path[:extension_index]
         else:
             super(RoboQuasar, self).__init__(
                 self.imu,
@@ -178,17 +181,17 @@ class RoboQuasar(Interface):
                 self.underglow,
                 self.turret,
 
-                joystick=WiiUJoystick(),
+                # joystick=WiiUJoystick(),
                 debug_prints=args.verbose,
                 log_data=args.log
             )
 
-        extension_index = self.parser.full_path.rfind(".")
-        image_path = self.parser.full_path[:extension_index]
+            extension_index = self.logger.full_path.rfind(".")
+            image_path = self.logger.full_path[:extension_index]
+
         self.slam = SLAM(self.turret, image_path + " post map")
         self.slam_plots = SlamPlots(self.slam.map_size_pixels, self.slam.map_size_meters, args.computeslam)
 
-        print("Using:", self.parser.full_path)
 
     def init_filter(self, timestamp):
         self.lat2, self.long2, self.alt2 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
@@ -336,9 +339,10 @@ class RoboQuasar(Interface):
             self.static_plot.plot()
             self.static_plot.show()
         else:
-            if not self.error_signalled:
-                print("Finished!")
-                self.live_plot.freeze_plot()
+            if simulated:
+                if not self.error_signalled:
+                    print("Finished!")
+                    self.live_plot.freeze_plot()
 
             self.live_plot.close()
 
