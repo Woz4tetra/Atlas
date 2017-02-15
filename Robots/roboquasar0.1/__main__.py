@@ -313,6 +313,8 @@ class RoboQuasar(Interface):
         if self.did_receive(self.imu):
             if self.update_ins(timestamp) is False:
                 return False
+
+            self.underglow.send_accel(self.imu.accel.x, self.imu.accel.y)
         elif self.did_receive(self.gps):
             if self.update_epoch(timestamp) is False:
                 return False

@@ -58,13 +58,13 @@ void loop() {
             flashColors(strip.Color(255, 0, 0), strip.Color(255, 255, 255), 4, 100);
             pauseCycle = true;
         }
-        else if (status == 5) {
+        else if (status == 5) {  // Received the letter 's'
             pauseCycle = true;
         }
-        else if (status == 0) {
+        else if (status == 0) {  // User command
             cycle_value = buggy.getCommand().toInt();
         }
-        // Serial.flush();
+        // Serial.flush();  // clear serial buffer
     }
 
     // Serial.println(pauseCycle);
