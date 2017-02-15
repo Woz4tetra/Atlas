@@ -572,7 +572,7 @@ class RobotInterface:
         return error
 
     def _close_log(self):
-        self._debug_print("Logger closing")
+        self._debug_print("Logger closing. Writing file to", self.logger.full_path)
         self.logger.close()
 
     def _debug_print(self, *strings, ignore_flag=False):

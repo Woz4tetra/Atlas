@@ -2,7 +2,7 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class KalmanPlots:
-    def __init__(self, gps_enabled=True, kalman_enabled=True):
+    def __init__(self, gps_enabled=True, kalman_enabled=True, compass_enabled=True):
         self.gps_plot = RobotPlot(
             "GPS data", flat_plot=False, color='red', skip_count=0,
             # marker='.', linestyle='',
@@ -15,7 +15,7 @@ class KalmanPlots:
             plot_enabled=kalman_enabled
         )
 
-        self.compass_plot = RobotPlot("compass", color='orange', plot_enabled=kalman_enabled)
+        self.compass_plot = RobotPlot("compass", color='orange', plot_enabled=compass_enabled)
         self.filter_comparison = RobotPlotCollection("Comparison", self.kalman_plot, self.gps_plot, self.compass_plot,
                                                      flat_plot=True)
 

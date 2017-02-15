@@ -25,13 +25,12 @@ from plotters.slam_plots import SlamPlots
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--simulate", help="run in simulated mode", action="store_true")
-
 parser.add_argument("-n", "--lognum", help="file set to use for plotting", nargs=1)
 parser.add_argument("-v", "--verbose", help="print all actions of the robot",
                     action="store_true")
 parser.add_argument("-l", "--log", help="enable data logging",
                     action="store_true")
-parser.add_argument("-p", "--plot", help="enable live plots",
+parser.add_argument("-a", "--animate", help="enable live plots",
                     action="store_true")
 parser.add_argument("-li", "--onlylidar", help="only display lidar data",
                     action="store_true")
@@ -39,13 +38,15 @@ parser.add_argument("-k", "--kalman", help="run kalman live",
                     action="store_true")
 parser.add_argument("-sl", "--computeslam", help="run SLAM live",
                     action="store_true")
+parser.add_argument("-exl", "--excludelidar", help="exclude lidar data from run",
+                    action="store_true")
 
 args = parser.parse_args()
 
 simulated = args.simulate
-animate = args.plot
+animate = args.animate
 
-if args.computeslam:
+if args.computeslam or not args.excludelidar:
     only_lidar = False
 else:
     only_lidar = args.onlylidar
@@ -65,6 +66,7 @@ print("using simulator" if simulated else "running live!")
 print("logging data\n" if args.log and not args.simulate else "", end="")
 print("using filter" if use_filter else "not using filter")
 print("only displaying lidar\n" if only_lidar else "", end="")
+print("excluding lidar\n" if args.excludelidar else "", end="")
 print("animating data" if animate else "using static plot")
 print("computing and displaying SLAM\n" if args.computeslam else "", end="")
 
@@ -75,7 +77,7 @@ else:
 
 
 class RoboQuasar(Interface):
-    def __init__(self, set_num=0):
+    def __init__(self, set_num=-1):
         self.gps = GPS()
         self.imu = IMU()
         self.turret = LidarTurret()
@@ -84,11 +86,27 @@ class RoboQuasar(Interface):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
+        joystick = None
+
+        if only_lidar:
+            self.gps.enabled = False
+            self.imu.enabled = False
+            self.steering.enabled = False
+            self.brakes.enabled = False
+            self.underglow.enabled = False
+        elif not simulated:
+            joystick = WiiUJoystick()
+
+        if args.excludelidar:
+            self.turret.enabled = False
+
         # self.imu_plot = RobotPlot("Magnetometer data (x, z vs. time)", flat_plot=True, skip_count=20,
         #                           plot_enabled=False)
-        self.kalman_plots = KalmanPlots(not only_lidar, use_filter)
+        self.kalman_plots = KalmanPlots(not only_lidar, use_filter, animate)
 
         if animate:
+            if args.excludelidar:
+                self.turret.point_cloud_plot.enabled = False
             self.live_plot = LivePlotter(
                 2,
                 self.kalman_plots.filter_comparison,
@@ -106,7 +124,7 @@ class RoboQuasar(Interface):
         # self.map_plot.update(m[:, 0], m[:, 1])
 
         file_sets = (
-            (None, None),  # default, lastest
+            (None, None),  # default, latest
 
             # data day 4
             # ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
@@ -181,7 +199,7 @@ class RoboQuasar(Interface):
                 self.underglow,
                 self.turret,
 
-                # joystick=WiiUJoystick(),
+                joystick=joystick,
                 debug_prints=args.verbose,
                 log_data=args.log
             )
@@ -191,7 +209,6 @@ class RoboQuasar(Interface):
 
         self.slam = SLAM(self.turret, image_path + " post map")
         self.slam_plots = SlamPlots(self.slam.map_size_pixels, self.slam.map_size_meters, args.computeslam)
-
 
     def init_filter(self, timestamp):
         self.lat2, self.long2, self.alt2 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
@@ -226,22 +243,45 @@ class RoboQuasar(Interface):
             return False
 
     def update_epoch(self, timestamp):
-        self.filter.gps_updated(timestamp - self.gps_t0,
-                                self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
-        self.kalman_plots.update_kalman(self.filter.get_position())
-        self.gps_t0 = timestamp
+        if self.gps.fix and self.gps.latitude is not None and self.received_fix != self.gps.fix:
+            self.received_fix = True
+            self.num_recv_from_fix = self.num_received(self.gps)
 
-        lat1, long1, alt1 = self.filter.get_position()
-        roll, pitch, yaw = self.filter.get_orientation()
+        if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 2:
+            self.lat1, self.long1, self.alt1 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
 
-        # length = math.sqrt(lat1 ** 2 + long1 ** 2)
-        lat2 = 0.0003 * math.sin(yaw) + lat1
-        long2 = 0.0003 * math.cos(yaw) + long1
+        elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 150:
+            if use_filter:
+                self.init_filter(timestamp)
 
-        self.kalman_plots.update_compass(lat1, lat2, long1, long2)
+        elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix > 150:
+            # if self.num_received(self.gps) % 5 == 0:
+            if self.update_gps_plot():
+                if use_filter:
+                    self.filter.gps_updated(timestamp - self.gps_t0,
+                                            self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
+                    self.kalman_plots.update_kalman(self.filter.get_position())
+                    self.gps_t0 = timestamp
+
+                    lat1, long1, alt1 = self.filter.get_position()
+                    roll, pitch, yaw = self.filter.get_orientation()
+
+                    # length = math.sqrt(lat1 ** 2 + long1 ** 2)
+                    lat2 = 0.0003 * math.sin(yaw) + lat1
+                    long2 = 0.0003 * math.cos(yaw) + long1
+
+                    self.kalman_plots.update_compass(lat1, lat2, long1, long2)
+
+                if animate and self.live_plot.should_update():
+                    if self.live_plot.plot() is False:
+                        return False
+            else:
+                print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
+                if use_filter:
+                    print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
 
     def update_ins(self, timestamp):
-        if self.filter is not None and self.imu_t0 != timestamp:
+        if use_filter and self.filter is not None and self.imu_t0 != timestamp:
             self.filter.imu_updated(timestamp - self.imu_t0,
                                     self.imu.linaccel.x, self.imu.linaccel.y, self.imu.linaccel.z,
                                     self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z)
@@ -249,14 +289,42 @@ class RoboQuasar(Interface):
 
             self.imu_t0 = timestamp
 
+    def update_turret(self, timestamp):
+        if not args.excludelidar and self.turret.did_cloud_update():
+            if self.turret.is_cloud_ready() and self.filter is not None and (
+                            self.num_received(self.gps) - self.num_recv_from_fix > 250):
+                v = self.filter.get_velocity()
+                vx = v[0]
+                vy = v[1]
+
+                ang_v = self.filter.get_angular(timestamp - self.lidar_t0)[2]
+                self.slam.update(timestamp, self.turret.distances, [vx, vy, ang_v])
+                self.lidar_t0 = timestamp
+                if animate:
+                    self.slam_plots.update(self.slam.mapbytes, self.slam.get_pos())
+
+                print(self.slam.get_pos(), (vx, vy, ang_v))
+
+            if animate and not self.live_plot.plot():
+                return False
+
     # ----- live methods -----
     def packet_received(self, timestamp, whoiam, packet):
-        if self.did_receive(self.gps):
+        if self.did_receive(self.imu):
+            if self.update_ins(timestamp) is False:
+                return False
+        elif self.did_receive(self.gps):
+            if self.update_epoch(timestamp) is False:
+                return False
             print(timestamp)
             print(self.gps)
             print(self.imu)
-            # elif self.did_receive(self.steering):# and self.steering.goal_reached:
-            # print(self.steering.current_step)
+        elif self.did_receive(self.turret):
+            if self.update_turret(timestamp) is False:
+                return False
+
+                # elif self.did_receive(self.steering):# and self.steering.goal_reached:
+                # print(self.steering.current_step)
 
     def loop(self):
         if self.joystick is not None:
@@ -284,55 +352,14 @@ class RoboQuasar(Interface):
 
     def object_packet(self, timestamp):
         if self.did_receive(self.imu):
-            # print("imu", timestamp)
-
-            if use_filter:
-                self.update_ins(timestamp)
-
+            if self.update_ins(timestamp) is False:
+                return False
         elif self.did_receive(self.gps):
-            if self.gps.fix and self.gps.latitude is not None and self.received_fix != self.gps.fix:
-                self.received_fix = True
-                self.num_recv_from_fix = self.num_received(self.gps)
-
-            if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 2:
-                self.lat1, self.long1, self.alt1 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
-
-            elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 150:
-                if use_filter:
-                    self.init_filter(timestamp)
-
-            elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix > 150:
-                # if self.num_received(self.gps) % 5 == 0:
-                if self.update_gps_plot():
-                    if use_filter:
-                        if self.update_epoch(timestamp) is False:
-                            return False
-
-                    if animate and self.live_plot.should_update():
-                        if self.live_plot.plot() is False:
-                            return False
-                else:
-                    print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
-                    if use_filter:
-                        print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
+            if self.update_epoch(timestamp) is False:
+                return False
         elif self.did_receive(self.turret):
-            if self.turret.did_cloud_update():
-                if self.turret.is_cloud_ready() and self.filter is not None and (
-                                self.num_received(self.gps) - self.num_recv_from_fix > 250):
-                    v = self.filter.get_velocity()
-                    vx = v[0]
-                    vy = v[1]
-
-                    ang_v = self.filter.get_angular(timestamp - self.lidar_t0)[2]
-                    self.slam.update(timestamp, self.turret.distances, [vx, vy, ang_v])
-                    self.lidar_t0 = timestamp
-
-                    self.slam_plots.update(self.slam.mapbytes, self.slam.get_pos())
-
-                    print(self.slam.get_pos(), (vx, vy, ang_v))
-
-                if not self.live_plot.plot():
-                    return False
+            if self.update_turret(timestamp) is False:
+                return False
 
     def close(self):
         if not animate:
@@ -350,7 +377,7 @@ class RoboQuasar(Interface):
             self.slam.make_image()
 
 
-if args.lognum[0] == "last":
-    RoboQuasar(-1).run()
+if not simulated or args.lognum[0] == "last":
+    RoboQuasar().run()
 else:
     RoboQuasar(int(args.lognum[0])).run()

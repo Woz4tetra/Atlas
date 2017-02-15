@@ -87,16 +87,18 @@ class RobotInterfaceSimulator:
 
             if whoiam in self.objects.keys():
                 if timestamp == logfile.no_timestamp:
-                    if isinstance(self.objects[whoiam], RobotObject):
-                        self.objects[whoiam].receive_first(packet)
-                    elif isinstance(self.objects[whoiam], RobotObjectCollection):
-                        self.objects[whoiam].receive_first(whoiam, packet)
-                    continue
+                    if self.objects[whoiam].enabled:
+                        if isinstance(self.objects[whoiam], RobotObject):
+                            self.objects[whoiam].receive_first(packet)
+                        elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                            self.objects[whoiam].receive_first(whoiam, packet)
+                        continue
                 else:
-                    if isinstance(self.objects[whoiam], RobotObject):
-                        self.objects[whoiam].receive(timestamp, packet)
-                    elif isinstance(self.objects[whoiam], RobotObjectCollection):
-                        self.objects[whoiam].receive(timestamp, whoiam, packet)
+                    if self.objects[whoiam].enabled:
+                        if isinstance(self.objects[whoiam], RobotObject):
+                            self.objects[whoiam].receive(timestamp, packet)
+                        elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                            self.objects[whoiam].receive(timestamp, whoiam, packet)
 
             self.current_index = index
 
