@@ -22,6 +22,8 @@ class GrovesKalmanFilter:
 
     def imu_updated(self, imu_dt, ax, ay, az, gx, gy, gz):
         if imu_dt > 0:
+            self.properties.prev_est_attitude = self.properties.estimated_attitude
+
             self.properties.estimated_position, \
             self.properties.estimated_velocity, \
             self.properties.estimated_attitude = self.ins.update(
@@ -32,6 +34,8 @@ class GrovesKalmanFilter:
         if gps_dt > 0:
             gps_position_ecef, gps_velocity_ecef = \
                 self.properties.get_gps_ecef(gps_dt, lat, long, altitude)
+
+            self.properties.prev_est_attitude = self.properties.estimated_attitude
 
             self.properties.estimated_position, \
             self.properties.estimated_velocity, \
@@ -50,6 +54,12 @@ class GrovesKalmanFilter:
         return navpy.dcm2angle(  # CTM_to_Euler
             self.properties.estimated_attitude)[::-1]  # roll, pitch, yaw
 
+    def get_velocity(self):
+        return np.array(self.properties.estimated_velocity.T)[0]
+
+    def get_angular(self, dt):
+        return (np.array(self.get_orientation()) -
+                np.array(navpy.dcm2angle(self.properties.prev_est_attitude)[::-1])) / dt
 
 class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
@@ -114,6 +124,7 @@ class KalmanProperties:
             self.initial_pitch,
             self.initial_roll,
         ))
+        self.prev_est_attitude = self.estimated_attitude
 
         self.estimated_imu_biases = np.matrix(np.zeros((6, 1)))
 

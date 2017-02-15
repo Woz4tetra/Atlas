@@ -21,6 +21,7 @@ class AtlasFile:
         self.directory = self.get_abs_dir(self.input_dir)
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
+
         self.file_name = self.get_file_name(input_name, self.directory)
         self.full_path = os.path.join(self.directory, self.file_name)
 
@@ -60,7 +61,7 @@ class AtlasFile:
             return files[-1]
 
         for entry in os.listdir(self.directory):
-            if len(file_name) < len(entry) and file_name == entry[:len(file_name)]:
+            if len(file_name) < len(entry) and entry.endswith(self.file_type) and file_name == entry[:len(file_name)]:
                 return entry
 
         if not file_name.endswith(self.file_type):
