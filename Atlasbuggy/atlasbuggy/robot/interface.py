@@ -286,7 +286,7 @@ class RobotInterface:
             if port.whoiam in self.ports.keys():
                 self.duplicate_id_error[0] = True
                 self.duplicate_id_error[1] = port
-            elif port.configured and not port.abides_protocols:
+            elif port.configured and (not port.abides_protocols or port.whoiam is None):
                 self._debug_print("Warning! Port '%s' does not abide Atlasbuggy protocol!" % port.address)
                 port.stop()
             elif port.whoiam in self.inactive_ids:
