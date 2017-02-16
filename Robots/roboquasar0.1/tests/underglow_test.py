@@ -1,7 +1,9 @@
 import time
 import os
+import sys
 
 os.chdir("..")
+sys.path.insert(0, ".")
 
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.robot.simulator import RobotInterfaceSimulator
