@@ -61,4 +61,5 @@ class RobotObject:
         :param packet: A packet (string) to send to the microcontroller without the packet end character
         :return: None
         """
-        self.command_packets.put(packet)
+        if self.enabled:
+            self.command_packets.put(packet)

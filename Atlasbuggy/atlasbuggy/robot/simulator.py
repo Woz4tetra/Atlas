@@ -60,6 +60,9 @@ class RobotInterfaceSimulator:
     def command_packet(self, timestamp, packet):
         pass
 
+    def loop(self):
+        pass
+
     def did_receive(self, arg):
         if isinstance(arg, RobotObject):
             self.ids_used.add(arg.whoiam)
@@ -102,23 +105,29 @@ class RobotInterfaceSimulator:
 
             self.current_index = index
 
-            if packet_type == "object":
-                if self.object_packet(timestamp) is False:
-                    self.error_signalled = True
-                    break
-            elif packet_type == "user":
-                if self.user_packet(timestamp, packet) is False:
-                    self.error_signalled = True
-                    break
-            elif packet_type == "command":
-                if self.command_packet(timestamp, packet) is False:
+            try:
+                if packet_type == "object":
+                    if self.object_packet(timestamp) is False:
+                        self.error_signalled = True
+                        break
+                elif packet_type == "user":
+                    if self.user_packet(timestamp, packet) is False:
+                        self.error_signalled = True
+                        break
+                elif packet_type == "command":
+                    if self.command_packet(timestamp, packet) is False:
+                        self.error_signalled = True
+                        break
+                elif packet_type == "error":
+                    print(packet)
                     self.error_signalled = True
                     break
 
-            elif packet_type == "error":
-                print(packet)
-                self.error_signalled = True
-                break
+                if self.loop() is False:
+                    break
+            except BaseException as error:
+                self.close()
+                raise error
 
         if self.ids_received != self.ids_used:
             if len(self.ids_received - self.ids_used) > 0:

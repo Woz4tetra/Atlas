@@ -62,28 +62,37 @@ void loop() {
             pauseCycle = true;
         }
         else if (status == 0) {
-            cycle_value = buggy.getCommand().toInt();
+            if (buggy.getCommand().charAt(0) == 'l')
+            {
+                int led_num = buggy.getCommand().substring(1, 4).toInt();
+                int r = buggy.getCommand().substring(4, 7).toInt();
+                int g = buggy.getCommand().substring(7, 10).toInt();
+                int b = buggy.getCommand().substring(10, 13).toInt();
+
+                strip.setPixelColor(i, strip.Color(r, g, b));
+            }
+
         }
         // Serial.flush();
     }
 
-    // Serial.println(pauseCycle);
-    if (!buggy.isPaused() && !pauseCycle) {
-        // for(i=0; i< strip.numPixels(); i++) {
-        //
-        // }
-        strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-        i++;
-        if (i >= strip.numPixels())
-        {
-            i = 0;
-            j++;
-            if (j >= 256 * 5) {
-                j = 0;
-            }
-            strip.show();
-            delay(cycle_value);
-        }
+//    // Serial.println(pauseCycle);
+//    if (!buggy.isPaused() && !pauseCycle) {
+//        // for(i=0; i< strip.numPixels(); i++) {
+//        //
+//        // }
+//        strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+//        i++;
+//        if (i >= strip.numPixels())
+//        {
+//            i = 0;
+//            j++;
+//            if (j >= 256 * 5) {
+//                j = 0;
+//            }
+//            strip.show();
+//            delay(cycle_value);
+//        }
 
 
     }

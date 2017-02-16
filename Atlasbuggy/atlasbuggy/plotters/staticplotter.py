@@ -9,13 +9,13 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 
 
 class StaticPlotter(BasePlotter):
-    def __init__(self, num_columns, *robot_plots, legend_args=None):
+    def __init__(self, num_columns, *robot_plots, enable_legend=True, legend_args=None):
         """
         :param num_columns: Configure how the subplots are arranged
         :param robot_plots: RobotPlot or RobotPlotCollection instances. Each one will be a subplot
         :param legend_args: dictionary of arguments to pass to plt.legend
         """
-        super(StaticPlotter, self).__init__(num_columns, legend_args, *robot_plots)
+        super(StaticPlotter, self).__init__(num_columns, legend_args, enable_legend, *robot_plots)
 
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):

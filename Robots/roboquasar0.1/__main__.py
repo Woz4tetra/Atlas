@@ -114,7 +114,7 @@ class RoboQuasar(Interface):
                 plot_skip_count=10)
 
             if self.turret.point_cloud_plot.enabled:
-                self.live_plot.draw_dot("point cloud", 0, 0, color='orange', markersize=5)
+                self.live_plot.draw_dot(self.turret.point_cloud_plot, 0, 0, color='orange', markersize=5)
         else:
             self.static_plot = StaticPlotter(1, self.kalman_plots.filter_comparison)
 

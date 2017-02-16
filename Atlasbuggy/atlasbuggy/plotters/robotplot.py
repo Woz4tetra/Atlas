@@ -33,8 +33,10 @@ class RobotPlot:
         self.max_length = max_length
         self.skip_count = skip_count
         self.skip_counter = 0
+        self.collection_plot = None
 
         self.properties = plot_properties
+        self.changed_properties = {}
 
         if x_range is not None:
             x_range = list(x_range)
@@ -64,6 +66,9 @@ class RobotPlot:
         self.limits = [x_lim, y_lim, z_lim]
 
         self.data = [[] for _ in range(2 if flat_plot else 3)]
+
+    def set_properties(self, **kwargs):
+        self.changed_properties = kwargs
 
     def update(self, xs, ys, zs=None):
         """
@@ -221,6 +226,7 @@ class RobotPlotCollection:
                 plot.flat = self.flat
                 plot.properties["label"] = plot.name
                 self.plots.append(plot)
+                plot.collection_plot = self
 
         if len(self.plots) == 0:
             self.enabled = False

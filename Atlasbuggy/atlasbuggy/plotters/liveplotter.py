@@ -15,7 +15,8 @@ from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
 class LivePlotter(BasePlotter):
     initialized = False
 
-    def __init__(self, num_columns, *robot_plots, legend_args=None, lag_cap=0.005, plot_skip_count=0):
+    def __init__(self, num_columns, *robot_plots, enable_legend=True, legend_args=None, lag_cap=0.005,
+                 plot_skip_count=0):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
         windows don't behave well. This also conserves CPU usage.
@@ -31,7 +32,7 @@ class LivePlotter(BasePlotter):
             raise Exception("Can't have multiple plotter instances!")
         LivePlotter.initialized = True
 
-        super(LivePlotter, self).__init__(num_columns, legend_args, *robot_plots)
+        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, *robot_plots)
 
         # create a plot line for each RobotPlot or RobotPlotCollection.
         for plot in self.robot_plots:
@@ -106,12 +107,20 @@ class LivePlotter(BasePlotter):
                 if not plot.flat:
                     self.lines[plot.name].set_3d_properties(plot.data[2])
 
+                if len(plot.changed_properties) > 0:
+                    self.lines[plot.name].set(**plot.changed_properties)
+                    plot.changed_properties = {}
+
             elif isinstance(plot, RobotPlotCollection):
                 for subplot in plot.plots:
                     self.lines[plot.name][subplot.name].set_xdata(subplot.data[0])
                     self.lines[plot.name][subplot.name].set_ydata(subplot.data[1])
                     if not plot.flat:
                         self.lines[plot.name][subplot.name].set_3d_properties(subplot.data[2])
+
+                    if len(subplot.changed_properties) > 0:
+                        self.lines[plot.name][subplot.name].set(**subplot.changed_properties)
+                        subplot.changed_properties = {}
 
             else:
                 return False
