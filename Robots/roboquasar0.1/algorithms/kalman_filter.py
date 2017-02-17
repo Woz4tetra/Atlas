@@ -61,6 +61,7 @@ class GrovesKalmanFilter:
         return (np.array(self.get_orientation()) -
                 np.array(navpy.dcm2angle(self.properties.prev_est_attitude)[::-1])) / dt
 
+
 class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
                  initial_lat, initial_long, initial_alt,
@@ -276,6 +277,8 @@ class INS:
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
+        self.gyro_measurement *= -1
+
         self.accel_measurement = np.clip(self.accel_measurement, -0.1, 0.1)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
@@ -287,7 +290,7 @@ class INS:
 
         # Nav_equations_ECEF function
 
-        angle_change = -self.gyro_measurement * dt  # assuming constant between dt's
+        angle_change = self.gyro_measurement * dt  # assuming constant between dt's
 
         skew_angle_change = skew_symmetric(angle_change)
 
@@ -390,10 +393,7 @@ class Epoch:
 
         self.state_transition_Phi[0:3, 0:3] -= self.skew_earth_rotation * dt
         self.state_transition_Phi[0:3, 12:15] = est_transform * dt
-        self.state_transition_Phi[3:6, 0:3] = \
-            -dt * skew_symmetric(
-                est_transform * accel_measurement)
-
+        self.state_transition_Phi[3:6, 0:3] = -dt * skew_symmetric(est_transform * accel_measurement)
         self.state_transition_Phi[3:6, 3:6] -= 2 * self.skew_earth_rotation * dt
 
         geocentric_radius = \
@@ -410,7 +410,6 @@ class Epoch:
              unit_to_scalar(np.sqrt(est_r.T * est_r)))
 
         self.state_transition_Phi[3:6, 9:12] = est_transform * dt
-
         self.state_transition_Phi[6:9, 3:6] = np.matrix(np.eye(3)) * dt
 
     def determine_noise_covariance(self, dt, gyro_noise_PSD, accel_noise_PSD, accel_bias_PSD, gyro_bias_PSD):
@@ -487,8 +486,7 @@ class Epoch:
     def update_covariance_matrix(self):
         # step 10
         # P_matrix_new, P_matrix in the matlab code
-        self.error_covariance_P = (np.matrix(
-            np.eye(15)) - self.kalman_gain_K * self.measurement_model_H) * \
+        self.error_covariance_P = (np.matrix(np.eye(15)) - self.kalman_gain_K * self.measurement_model_H) * \
                                   self.error_covariance_propagated_P
 
     def correct_estimates(self, estimated_attitude, estimated_position,
@@ -567,4 +565,4 @@ def get_gps_orientation(lat1, long1, alt1, lat2, long2, alt2, units="deg"):
     pitch = np.arctan2(delta_pos[2] * np.cos(yaw), delta_pos[0])
     roll = np.arctan2(np.cos(yaw), np.sin(yaw) * np.sin(pitch))
 
-    return yaw, pitch, roll
+    return roll, pitch, yaw

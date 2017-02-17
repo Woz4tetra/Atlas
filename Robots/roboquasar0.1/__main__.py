@@ -38,8 +38,8 @@ parser.add_argument("-k", "--kalman", help="run kalman live",
                     action="store_true")
 parser.add_argument("-sl", "--computeslam", help="run SLAM live",
                     action="store_true")
-parser.add_argument("-exl", "--excludelidar", help="exclude lidar data from run",
-                    action="store_true")
+parser.add_argument("-inl", "--includelidar", help="include lidar data in run",
+                    action="store_false")
 parser.add_argument("-who", "--whoareyou", help="run whoareyou utility",
                     action="store_true")
 
@@ -48,7 +48,7 @@ args = parser.parse_args()
 simulated = args.simulate
 animate = args.animate
 
-if args.computeslam or not args.excludelidar:
+if args.computeslam or not args.includelidar:
     only_lidar = False
 else:
     only_lidar = args.onlylidar
@@ -72,7 +72,7 @@ if not args.whoareyou:
     print("logging data\n" if args.log and not args.simulate else "", end="")
     print("using filter" if use_filter else "not using filter")
     print("only displaying lidar\n" if only_lidar else "", end="")
-    print("excluding lidar\n" if args.excludelidar else "", end="")
+    print("excluding lidar\n" if args.includelidar else "", end="")
     print("animating data" if animate else "using static plot")
     print("computing and displaying SLAM\n" if args.computeslam else "", end="")
 
@@ -103,7 +103,7 @@ class RoboQuasar(Interface):
         elif not simulated:
             joystick = WiiUJoystick()
 
-        if args.excludelidar:
+        if args.includelidar:
             self.turret.enabled = False
 
         # self.imu_plot = RobotPlot("Magnetometer data (x, z vs. time)", flat_plot=True, skip_count=20,
@@ -111,7 +111,7 @@ class RoboQuasar(Interface):
         self.kalman_plots = KalmanPlots(not only_lidar, use_filter, animate)
 
         if animate:
-            if args.excludelidar:
+            if args.includelidar:
                 self.turret.point_cloud_plot.enabled = False
             self.live_plot = LivePlotter(
                 2,
@@ -135,8 +135,8 @@ class RoboQuasar(Interface):
             # data day 4
             # ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
             # ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
-            # ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR, filter explodes at the beginning, GPS jumps
-            # ("17;10", "data_days/2017_Feb_14"),  # beginning: all data is fine, filter jumps A LOT; middle: filter explodes, interfered LIDAR
+            # ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
+            # ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
             ("17;33", "data_days/2017_Feb_14"),  # data is fine, normal run
 
             # data day 3
@@ -190,7 +190,7 @@ class RoboQuasar(Interface):
                 file_sets[set_num][0], file_sets[set_num][1],
                 self.gps, self.imu,
                 self.turret,
-                # start_index=0,
+                start_index=10000,
                 # end_index=2000,
             )
 
@@ -218,8 +218,11 @@ class RoboQuasar(Interface):
 
     def init_filter(self, timestamp):
         self.lat2, self.long2, self.alt2 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
-        yaw, pitch, roll = get_gps_orientation(self.lat1, self.long1, self.alt1,
+        roll, pitch, yaw = get_gps_orientation(self.lat1, self.long1, self.alt1,
                                                self.lat2, self.long2, self.alt2)
+
+        yaw = math.atan2(self.lat2 - self.lat1, self.long2 - self.long1)
+        print(math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
 
         self.filter = GrovesKalmanFilter(
             initial_roll=roll,
@@ -238,11 +241,22 @@ class RoboQuasar(Interface):
         self.kalman_plots.update_gps(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
         self.kalman_plots.update_kalman(self.filter.get_position())
 
-    def update_gps_plot(self):
+        # length = math.sqrt(lat1 ** 2 + long1 ** 2)
+        lat2 = 0.0003 * math.sin(yaw) + self.lat1
+        long2 = 0.0003 * math.cos(yaw) + self.long1
+        self.kalman_plots.initial_compass_plot.update([self.lat1, lat2], [self.long1, long2])
+
+    def gps_in_range(self):
         if not 280 < self.gps.altitude < 310:
             self.gps.altitude = 300.0
-        if -80 < self.gps.longitude_deg < -79.8 and 40.4 < self.gps.latitude_deg < 45 and (
+        if -80 < self.gps.longitude_deg < -79.8 and 40.4 < self.gps.latitude_deg < 41 and (
                             280 < self.gps.altitude < 310 or self.gps.altitude == 0.0):
+            return True
+        else:
+            return False
+
+    def update_gps_plot(self):
+        if self.gps_in_range():
             self.kalman_plots.update_gps(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
             return True
         else:
@@ -253,14 +267,15 @@ class RoboQuasar(Interface):
             self.received_fix = True
             self.num_recv_from_fix = self.num_received(self.gps)
 
-        if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 2:
+        if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 245:
             self.lat1, self.long1, self.alt1 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
 
-        elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 150:
+        elif self.filter is None and self.num_recv_from_fix is not None and \
+                self.gps_in_range() and self.num_received(self.gps) - self.num_recv_from_fix >= 250:
             if use_filter:
                 self.init_filter(timestamp)
 
-        elif self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix > 150:
+        elif self.filter is not None and self.num_recv_from_fix is not None:
             # if self.num_received(self.gps) % 5 == 0:
             if self.update_gps_plot():
                 if use_filter:
@@ -272,19 +287,35 @@ class RoboQuasar(Interface):
                     lat1, long1, alt1 = self.filter.get_position()
                     roll, pitch, yaw = self.filter.get_orientation()
 
+                    yaw = -self.imu.euler.x
+                    # declination = 9, 19
+                    #
+                    # self.declination = \
+                    #     (declination[0] + declination[1] / 60) * math.pi / 180
+                    #
+                    # yaw = math.atan2(self.imu.mag.y, self.imu.mag.x)
+                    # yaw += self.declination
+                    # # Correct for reversed heading
+                    # if yaw < 0:
+                    #     yaw += 2 * math.pi
+                    # # Check for wrap and compensate
+                    # elif yaw > 2 * math.pi:
+                    #     yaw -= 2 * math.pi
+
                     # length = math.sqrt(lat1 ** 2 + long1 ** 2)
-                    lat2 = 0.0003 * math.sin(yaw) + lat1
-                    long2 = 0.0003 * math.cos(yaw) + long1
+                    lat2 = 0.0003 * math.sin(math.radians(yaw)) + lat1
+                    long2 = 0.0003 * math.cos(math.radians(yaw)) + long1
 
                     self.kalman_plots.update_compass(lat1, lat2, long1, long2)
+
+                    # print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
+                    # if use_filter:
+                    # print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
+                    # print(math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
 
                 if animate and self.live_plot.should_update():
                     if self.live_plot.plot() is False:
                         return False
-            else:
-                print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
-                if use_filter:
-                    print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
 
     def update_ins(self, timestamp):
         if use_filter and self.filter is not None and self.imu_t0 != timestamp:
@@ -296,7 +327,7 @@ class RoboQuasar(Interface):
             self.imu_t0 = timestamp
 
     def update_turret(self, timestamp):
-        if not args.excludelidar and self.turret.did_cloud_update():
+        if not args.includelidar and self.turret.did_cloud_update():
             if self.turret.is_cloud_ready() and self.filter is not None and (
                             self.num_received(self.gps) - self.num_recv_from_fix > 250):
                 v = self.filter.get_velocity()
@@ -309,7 +340,7 @@ class RoboQuasar(Interface):
                 if animate:
                     self.slam_plots.update(self.slam.mapbytes, self.slam.get_pos())
 
-                print(self.slam.get_pos(), (vx, vy, ang_v))
+                    # print(self.slam.get_pos(), (vx, vy, ang_v))
 
             if animate and not self.live_plot.plot():
                 return False
@@ -319,8 +350,6 @@ class RoboQuasar(Interface):
         if self.did_receive(self.imu):
             if self.update_ins(timestamp) is False:
                 return False
-
-            self.underglow.send_accel(self.imu.accel.x, self.imu.accel.y)
         elif self.did_receive(self.gps):
             if self.update_epoch(timestamp) is False:
                 return False
@@ -335,22 +364,23 @@ class RoboQuasar(Interface):
                 # print(self.steering.current_step)
 
     def loop(self):
-        if self.joystick is not None:
-            if self.steering.calibrated:
-                if self.joystick.axis_updated("left x"):
-                    self.steering.set_speed(self.joystick.get_axis("left x"))
-                elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
-                    self.steering.set_position(0)
+        if not simulated:
+            if self.joystick is not None:
+                if self.steering.calibrated:
+                    if self.joystick.axis_updated("left x"):
+                        self.steering.set_speed(self.joystick.get_axis("left x"))
+                    elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
+                        self.steering.set_position(0)
 
-            if self.joystick.button_updated("B") and self.joystick.get_button("B"):
-                self.brakes.brake()
-            elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
-                self.brakes.unbrake()
-                # elif self.joystick.dpad_updated():
-                #     if self.joystick.dpad[1] == 1:
-                #         self.brakes.set_brake(self.brakes.goal_position + 20)
-                #     elif self.joystick.dpad[1] == -1:
-                #         self.brakes.set_brake(self.brakes.goal_position - 20)
+                if self.joystick.button_updated("B") and self.joystick.get_button("B"):
+                    self.brakes.brake()
+                elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
+                    self.brakes.unbrake()
+                    # elif self.joystick.dpad_updated():
+                    #     if self.joystick.dpad[1] == 1:
+                    #         self.brakes.set_brake(self.brakes.goal_position + 20)
+                    #     elif self.joystick.dpad[1] == -1:
+                    #         self.brakes.set_brake(self.brakes.goal_position - 20)
 
     def start(self):
         if animate:
@@ -413,7 +443,7 @@ if args.whoareyou:
                 message += "address '%s' does not abide atlasbuggy protocol!\n" % (port_info.device)
             else:
                 message += "address '%s' has ID '%s'\n" % (
-                port_info.device, robot_port.whoiam if robot_port.whoiam is not None else '')
+                    port_info.device, robot_port.whoiam if robot_port.whoiam is not None else '')
                 robot_port.stop()
 
 

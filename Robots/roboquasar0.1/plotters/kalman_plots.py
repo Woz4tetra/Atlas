@@ -16,7 +16,9 @@ class KalmanPlots:
         )
 
         self.compass_plot = RobotPlot("compass", color='orange', plot_enabled=compass_enabled)
+        self.initial_compass_plot = RobotPlot("initial compass", color='orange', plot_enabled=compass_enabled)
         self.filter_comparison = RobotPlotCollection("Comparison", self.kalman_plot, self.gps_plot, self.compass_plot,
+                                                     self.initial_compass_plot,
                                                      flat_plot=True)
 
     def update_kalman(self, position_vector):

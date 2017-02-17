@@ -120,8 +120,6 @@ class RobotInterfaceSimulator:
                         break
                 elif packet_type == "error":
                     print(packet)
-                    self.error_signalled = True
-                    break
 
                 if self.loop() is False:
                     break

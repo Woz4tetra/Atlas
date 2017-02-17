@@ -3,22 +3,14 @@ from atlasbuggy.robot.robotobject import RobotObject
 
 class ImuVector:
     def __init__(self, *vector):
-        if len(vector) == 0:
-            self.x = 0.0
-            self.y = 0.0
-            self.z = 0.0
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
 
         if len(vector) >= 1:
             self.x = vector[0]
-        else:
-            self.y = 0.0
-            self.z = 0.0
-
         if len(vector) >= 2:
             self.y = vector[1]
-        else:
-            self.z = 0.0
-
         if len(vector) >= 3:
             self.z = vector[2]
 
@@ -45,7 +37,54 @@ class ImuVector:
             self.__dict__[item] = value
 
     def get_tuple(self):
-        return (self.x, self.y, self.z)
+        return self.x, self.y, self.z
+
+
+class QuatVector:
+    def __init__(self, *vector):
+        self.w = 0.0
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+
+        if len(vector) >= 1:
+            self.w = vector[0]
+        if len(vector) >= 2:
+            self.x = vector[1]
+        if len(vector) >= 3:
+            self.y = vector[2]
+        if len(vector) >= 4:
+            self.z = vector[3]
+
+    def __getitem__(self, item):
+        if type(item) == int:
+            if item == 0:
+                return self.w
+            elif item == 1:
+                return self.x
+            elif item == 2:
+                return self.y
+            elif item == 3:
+                return self.z
+        else:
+            return self.__dict__[item]
+
+    def __setitem__(self, item, value):
+        if type(item) == int:
+            if item == 0:
+                self.w = value
+            elif item == 1:
+                self.x = value
+            elif item == 2:
+                self.y = value
+            elif item == 3:
+                self.z = value
+        else:
+            self.__dict__[item] = value
+
+    def get_tuple(self):
+        return self.w, self.x, self.y, self.z
+
 
 class IMU(RobotObject):
     def __init__(self, enabled=True):
@@ -56,6 +95,12 @@ class IMU(RobotObject):
         self.gyro = ImuVector()
         self.mag = ImuVector()
         self.linaccel = ImuVector()
+        self.quat = QuatVector()
+
+        self.system_status = 0
+        self.accel_status = 0
+        self.gyro_status = 0
+        self.mag_status = 0
 
         super(IMU, self).__init__("imu", enabled)
 
@@ -77,6 +122,17 @@ class IMU(RobotObject):
                     self.mag[segment[1]] = float(segment[2:])
                 elif segment[0] == "l":
                     self.linaccel[segment[1]] = float(segment[2:])
+                elif segment[0] == "w":
+                    self.quat[segment[segment[1]]] = float(segment[2:])
+                elif segment[0] == "s":
+                    if segment[1] == "s":
+                        self.system_status = int(segment[2:])
+                    elif segment[1] == "a":
+                        self.accel_status = int(segment[2:])
+                    elif segment[1] == "g":
+                        self.gyro_status = int(segment[2:])
+                    elif segment[1] == "m":
+                        self.mag_status = int(segment[2:])
                 else:
                     print("Invalid segment type!", segment[0], data)
             else:

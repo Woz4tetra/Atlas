@@ -2,10 +2,17 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <EEPROM.h>
 #include <Atlasbuggy.h>
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS 10
+#define INCLUDE_FILTERED_DATA
+
+#ifdef INCLUDE_FILTERED_DATA
+int sample_rate_delay_ms = 10;
+#else
+int sample_rate_delay_ms = 100;
+#endif
 
 Atlasbuggy buggy("imu");
 
@@ -20,93 +27,86 @@ void updateIMU() {
     // - VECTOR_LINEARACCEL   - m/s^2
     // - VECTOR_GRAVITY       - m/s^2
 
-//    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-//
-//    Serial.print("ex");
-//    Serial.print(euler.x(), 4);
-//    Serial.print('\t');
-//    Serial.print("ey");
-//    Serial.print(euler.y(), 4);
-//    Serial.print('\t');
-//    Serial.print("ez");
-//    Serial.print(euler.z(), 4);
-//    Serial.print('\t');
+    #ifdef INCLUDE_FILTERED_DATA
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+
+    // xyz is yaw pitch roll for some reason... switching roll pitch yaw
+    Serial.print("ex");
+    Serial.print(euler.z(), 4);
+    Serial.print("\tey");
+    Serial.print(euler.y(), 4);
+    Serial.print("\tez");
+    Serial.print(euler.x(), 4);
+    #endif
 
     imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
+    #ifdef INCLUDE_FILTERED_DATA
+    Serial.print("\tmx");
+    #else
     Serial.print("mx");
+    #endif
     Serial.print(magnetometer.x(), 4);
-    Serial.print('\t');
-    Serial.print("my");
+    Serial.print("\tmy");
     Serial.print(magnetometer.y(), 4);
-    Serial.print('\t');
-    Serial.print("mz");
+    Serial.print("\tmz");
     Serial.print(magnetometer.z(), 4);
-    Serial.print('\t');
 
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
-    Serial.print("gx");
+    Serial.print("\tgx");
     Serial.print(gyro.x(), 4);
-    Serial.print('\t');
-    Serial.print("gy");
+    Serial.print("\tgy");
     Serial.print(gyro.y(), 4);
-    Serial.print('\t');
-    Serial.print("gz");
+    Serial.print("\tgz");
     Serial.print(gyro.z(), 4);
-    Serial.print('\t');
 
     imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
-    Serial.print("ax");
+    Serial.print("\tax");
     Serial.print(accel.x(), 4);
-    Serial.print('\t');
-    Serial.print("ay");
+    Serial.print("\tay");
     Serial.print(accel.y(), 4);
-    Serial.print('\t');
-    Serial.print("az");
+    Serial.print("\taz");
     Serial.print(accel.z(), 4);
-    Serial.print('\t');
 
-    imu::Vector<3> accel_wg = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-    Serial.print("lx");
-    Serial.print(accel_wg.x(), 4);
-    Serial.print('\t');
-    Serial.print("ly");
-    Serial.print(accel_wg.y(), 4);
-    Serial.print('\t');
-    Serial.print("lz");
-    Serial.print(accel_wg.z(), 4);
-    Serial.print('\n');
+    imu::Vector<3> linaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+    Serial.print("\tlx");
+    Serial.print(linaccel.x(), 4);
+    Serial.print("\tly");
+    Serial.print(linaccel.y(), 4);
+    Serial.print("\tlz");
+    Serial.print(linaccel.z(), 4);
 
-    /*
+    #ifdef INCLUDE_FILTERED_DATA
     // Quaternion data
     imu::Quaternion quat = bno.getQuat();
-    Serial.print("qW: ");
+    Serial.print("\tqw");
     Serial.print(quat.w(), 4);
-    Serial.print(" qX: ");
-    Serial.print(quat.y(), 4);
-    Serial.print(" qY: ");
+    Serial.print("\tqx");
     Serial.print(quat.x(), 4);
-    Serial.print(" qZ: ");
+    Serial.print("\tqy");
+    Serial.print(quat.y(), 4);
+    Serial.print("\tqz");
     Serial.print(quat.z(), 4);
-    Serial.print("\t\t");
-    /*
+
 
     /* Display calibration status for each sensor. */
-    // uint8_t system, gyro, accel, mag = 0;
-    // bno.getCalibration(&system, &gyro, &accel, &mag);
-    // Serial.print("CALIBRATION: Sys=");
-    // Serial.print(system, DEC);
-    // Serial.print(" Gyro=");
-    // Serial.print(gyro, DEC);
-    // Serial.print(" Accel=");
-    // Serial.print(accel, DEC);
-    // Serial.print(" Mag=");
-    // Serial.print(mag, DEC);
-    // Serial.print('\n');
+    uint8_t system, gyro, accel, mag = 0;
+    bno.getCalibration(&system, &gyro, &accel, &mag);
+    Serial.print("\tss:");
+    Serial.print(system, DEC);
+    Serial.print("\tsg");
+    Serial.print(gyro, DEC);
+    Serial.print("\tsa");
+    Serial.print(accel, DEC);
+    Serial.print("\tsm");
+    Serial.print(mag, DEC);
+    #endif
 
-    delay(BNO055_SAMPLERATE_DELAY_MS);
+    Serial.print('\n');
+
+    delay(sample_rate_delay_ms);
 }
 
 void setup() {
@@ -123,7 +123,7 @@ void setup() {
   delay(1000);
 
   /* Display the current temperature */
-  int8_t temp = bno.getTemp();
+  // int8_t temp = bno.getTemp();
   // Serial.print("Current Temperature: ");
   // Serial.print(temp);
   // Serial.println(" C");
