@@ -1,4 +1,3 @@
-
 from atlasbuggy.robot.object import RobotObject
 
 
@@ -46,14 +45,14 @@ class Steering(RobotObject):
         else:
             return False
 
-    def set_speed(self, joystick_value):
-        self.speed = int(-joystick_value * self.max_speed)
+    def set_speed(self, speed_value):
+        self.speed = int(-speed_value * self.max_speed)
         self.moving = self.speed != 0
         print("speed:", self.speed)
         self.send("v" + str(self.speed))
 
-    def set_position(self, joystick_value):  # joystick_value: -1.0...1.0
-        step = int(joystick_value * self.angle_to_step)
+    def set_position(self, goal_angle):
+        step = int(goal_angle * self.angle_to_step)
         self.send("p" + str(step))
 
     def calibrate(self):

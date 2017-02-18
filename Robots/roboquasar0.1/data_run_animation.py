@@ -14,9 +14,9 @@ from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
 
-from atlasbuggy.files.mapfile import MapFile, MapMaker
+from atlasbuggy.files.mapfile import MapFile
 
-from roboquasar import *
+from data_sets import *
 
 
 class Animator(SimulatedRobot):

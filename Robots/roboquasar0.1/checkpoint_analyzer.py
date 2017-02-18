@@ -15,7 +15,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 
 from atlasbuggy.files.mapfile import MapFile, MapMaker
 
-from roboquasar import *
+from data_sets import *
 
 
 class CheckpointAnalyzer(SimulatedRobot):
