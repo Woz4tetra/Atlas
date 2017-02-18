@@ -46,10 +46,12 @@ class Steering(RobotObject):
             return False
 
     def set_speed(self, speed_value):
-        self.speed = int(-speed_value * self.max_speed)
-        self.moving = self.speed != 0
-        print("speed:", self.speed)
-        self.send("v" + str(self.speed))
+        speed = int(-speed_value * self.max_speed)
+        if abs(speed) > 50 or speed == 0:
+            self.speed = speed
+            self.moving = self.speed != 0
+            print("speed:", self.speed)
+            self.send("v" + str(self.speed))
 
     def set_position(self, goal_angle):
         step = int(goal_angle * self.angle_to_step)

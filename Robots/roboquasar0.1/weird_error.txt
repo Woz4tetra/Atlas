@@ -1,0 +1,66 @@
+atlas@GenericName:~/Documents/Atlas/Robots/roboquasar0.1$ python3 data_collector.py -l
+[/dev/ttyACM1, None] Checking 'whoareyou' protocol
+[/dev/ttyUSB5, None] Port not configured. Skipping find_whoiam
+[Interface] whoiam None
+[/dev/ttyUSB4, None] Port not configured. Skipping find_whoiam
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.5/threading.py", line 914, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.5/threading.py", line 862, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/interface/live.py", line 261, in _configure_port
+    object_baud = self.objects[port.whoiam].baud
+KeyError
+
+[/dev/ttyUSB0, None] Checking 'whoareyou' protocol
+[Interface] whoiam None
+[/dev/ttyACM1, None] > 'iambrakes'
+[/dev/ttyACM1, None] received packet: 'iambrakes'
+[/dev/ttyUSB0, None] > 'iamunderglow'
+[/dev/ttyACM1, brakes] /dev/ttyACM1 has ID 'brakes'
+[/dev/ttyUSB0, None] received packet: 'iamunderglow'
+[/dev/ttyACM1, brakes] Checking 'init?' protocol
+[/dev/ttyUSB0, underglow] /dev/ttyUSB0 has ID 'underglow'
+[/dev/ttyUSB0, underglow] Checking 'init?' protocol
+[/dev/ttyACM1, brakes] > 'init:2\t90\t150'
+[/dev/ttyUSB0, underglow] > 'init:'
+[/dev/ttyACM1, brakes] received packet: 'init:2\t90\t150'
+[/dev/ttyUSB0, underglow] received packet: 'init:'
+[/dev/ttyACM1, brakes] sent initialization data: '2\t90\t150'
+[/dev/ttyUSB0, underglow] sent initialization data: ''
+[Interface] whoiam brakes
+[Interface] whoiam underglow
+[Interface] Calling user's close function
+[Interface] Closing all ports
+[Interface] closing brakes
+[/dev/ttyACM1, brakes] Acquiring start lock
+[/dev/ttyACM1, brakes] start_event not set! Closing serial
+[/dev/ttyACM1, brakes] Acquiring serial lock
+[/dev/ttyACM1, brakes] Closing serial
+[/dev/ttyACM1, brakes] Releasing serial lock
+[/dev/ttyACM1, brakes] Releasing start lock
+[/dev/ttyACM1, brakes] Acquiring exit lock
+[/dev/ttyACM1, brakes] Releasing exit lock
+[Interface] closing None
+[/dev/ttyUSB5, None] Acquiring start lock
+[/dev/ttyUSB5, None] start_event not set! Closing serial
+[/dev/ttyUSB5, None] Acquiring serial lock
+Traceback (most recent call last):
+  File "data_collector.py", line 73, in <module>
+    DataCollector().run()
+  File "data_collector.py", line 34, in __init__
+    log_data=args.nolog, log_dir=("rolls", None), debug_prints=True
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/interface/live.py", line 78, in __init__
+    self._close_ports("error")
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/interface/live.py", line 385, in _close_ports
+    self._stop_all_ports()
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/interface/live.py", line 359, in _stop_all_ports
+    robot_port.stop()
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/robot/port.py", line 479, in stop
+    self.close_serial()
+  File "/home/atlas/Documents/Atlas/Robots/roboquasar0.1/atlasbuggy/robot/port.py", line 456, in close_serial
+    if self.serial_ref.is_open:
+AttributeError: 'RobotSerialPort' object has no attribute 'serial_ref'
+atlas@GenericName:~/Documents/Atlas/Robots/roboquasar0.1$ 
+
