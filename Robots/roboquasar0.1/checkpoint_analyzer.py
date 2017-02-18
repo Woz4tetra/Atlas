@@ -56,7 +56,7 @@ class CheckpointAnalyzer(SimulatedRobot):
             elif self.did_receive(self.gps):
                 self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
 
-    def close(self):
+    def close(self, reason):
         # self.comparison_maker.make_map()
         self.plotter.plot()
         self.plotter.show()

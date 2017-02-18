@@ -39,7 +39,7 @@ class SimulatedRobot(BaseInterface):
 
         if packet_type == "error":
             print(self.current_packet)
-            return True
+            return "exit"
 
         if self.current_whoiam in self.packets_received:
             self.packets_received[self.current_whoiam] += 1
@@ -62,6 +62,8 @@ class SimulatedRobot(BaseInterface):
                         elif isinstance(self.objects[self.current_whoiam], RobotObjectCollection):
                             self.objects[self.current_whoiam].receive(self._dt, self.current_whoiam,
                                                                       self.current_packet)
+                except KeyboardInterrupt:
+                    return "exit"
                 except BaseException as error:
                     self._debug_print("RobotObject's receive signalled an error")
                     self._close("error")
@@ -74,6 +76,8 @@ class SimulatedRobot(BaseInterface):
                     "user's received method signalled to exit. whoiam ID: '%s', packet: %s" % (
                         self.current_whoiam, repr(self.current_packet)))
                 return "exit"
+        except KeyboardInterrupt:
+            return "exit"
         except BaseException as error:
             self._debug_print("Closing all from simulated _update")
             self._close("error")

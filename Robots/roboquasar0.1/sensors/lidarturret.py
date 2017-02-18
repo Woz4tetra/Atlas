@@ -1,7 +1,8 @@
 import math
 
 from atlasbuggy.robot.object import RobotObject
-from atlasbuggy.plotters.plot import RobotPlot, RobotPlotCollection
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class LidarTurret(RobotObject):

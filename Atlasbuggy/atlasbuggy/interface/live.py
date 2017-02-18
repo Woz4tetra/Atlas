@@ -122,7 +122,7 @@ class LiveRobot(BaseInterface):
     def _loop(self):
         try:
             if self.joystick is not None:
-                if self.joystick.updated() is False:
+                if self.joystick.update() is False:
                     return False
             if self.loop() is False:
                 self._debug_print("User's loop method signalled to exit")
@@ -161,7 +161,7 @@ class LiveRobot(BaseInterface):
         self._send_commands()  # sends all commands in each robot object's command queue
 
         self.clock.update()  # maintain a constant loop speed
-        if not self.lag_warning_thrown and self.dt > 0.1 and not self.clock.on_time:
+        if not self.lag_warning_thrown and self.dt() > 0.1 and not self.clock.on_time:
             print("Warning. Main loop is running slow.")
             self.lag_warning_thrown = True
 
@@ -206,7 +206,10 @@ class LiveRobot(BaseInterface):
         Access the clock. This time uses the same reference as all other objects
         :return: time since the program's start in seconds
         """
-        return time.time() - self.start_time
+        if self.start_time == 0:
+            return None
+        else:
+            return time.time() - self.start_time
 
     def record(self, tag, string):
         """
@@ -216,7 +219,7 @@ class LiveRobot(BaseInterface):
         :param string: Similar to a packet. String data to record
         :return: None
         """
-        self.logger.record(self.dt, tag, string, "user")
+        self.logger.record(self.dt(), tag, string, "user")
 
     def queue_len(self):
         return self.packet_counter.value

@@ -30,9 +30,13 @@ class DataCollector(LiveRobot):
 
         super(DataCollector, self).__init__(
             self.gps, self.imu, self.steering, self.brakes, self.underglow,
-            # joystick=WiiUJoystick(),
+            joystick=WiiUJoystick(),
             log_data=args.nolog, log_dir=("rolls", None), debug_prints=True
         )
+        if self.logger.is_open():
+            compass_str = input("iPhone compass reading to record: ")
+            if len(compass_str) > 0:
+                self.record("initial compass", compass_str)
 
     def received(self, timestamp, whoiam, packet, packet_type):
         if self.did_receive(self.gps):

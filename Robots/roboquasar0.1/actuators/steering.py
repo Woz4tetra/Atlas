@@ -13,6 +13,7 @@ class Steering(RobotObject):
         self.right_limit = 0
 
         self._goal_reached = False
+        self.moving = False
         self.calibrated = False
 
         super(Steering, self).__init__("steering", enabled)
@@ -24,15 +25,18 @@ class Steering(RobotObject):
     def receive(self, timestamp, packet):
         if packet == "calibrating":
             print("steering is calibrating")
+            self.moving = True
         elif packet == "done!":
             print("steering calibration complete")
             self.calibrated = True
+            self.moving = False
         else:
             if packet[0] == 'p':
                 self.current_step = int(packet[1:])
+                self.moving = True
             elif packet[0] == 'd':
                 self.current_step = int(packet[1:])
-                self._goal_reached = True
+                self.moving = False
 
     @property
     def goal_reached(self):
@@ -44,6 +48,8 @@ class Steering(RobotObject):
 
     def set_speed(self, joystick_value):
         self.speed = int(-joystick_value * self.max_speed)
+        self.moving = self.speed != 0
+        print("speed:", self.speed)
         self.send("v" + str(self.speed))
 
     def set_position(self, joystick_value):  # joystick_value: -1.0...1.0
@@ -55,5 +61,5 @@ class Steering(RobotObject):
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
-        string += "speed: %2.0d, position: %2.0d, moving: %s\n" % (self.speed, self.current_step, not self._goal_reached)
+        string += "speed: %2.0d, position: %2.0d, moving: %s\n" % (self.speed, self.current_step, self.moving)
         return string
