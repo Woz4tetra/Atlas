@@ -122,8 +122,8 @@ class IMU(RobotObject):
                     self.mag[segment[1]] = float(segment[2:])
                 elif segment[0] == "l":
                     self.linaccel[segment[1]] = float(segment[2:])
-                elif segment[0] == "w":
-                    self.quat[segment[segment[1]]] = float(segment[2:])
+                elif segment[0] == "q":
+                    self.quat[segment[1]] = float(segment[2:])
                 elif segment[0] == "s":
                     if segment[1] == "s":
                         self.system_status = int(segment[2:])
@@ -144,5 +144,8 @@ class IMU(RobotObject):
         string += "accel: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.accel.get_tuple())
         string += "gyro: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.gyro.get_tuple())
         string += "mag: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.gyro.get_tuple())
-        string += "linaccel: (%2.6f, %2.6f, %2.6f)\n" % tuple(self.linaccel.get_tuple())
+        string += "linaccel: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.linaccel.get_tuple())
+        string += "quat: (%2.6f, %2.6f, %2.6f, %2.6f)\n\t" % tuple(self.quat.get_tuple())
+        string += "system: %s, accel: %s, gyro: %s, mag: %s\n" % (
+        self.system_status, self.accel_status, self.gyro_status, self.mag_status)
         return string

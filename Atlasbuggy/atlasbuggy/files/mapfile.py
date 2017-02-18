@@ -1,4 +1,4 @@
-from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
+from atlasbuggy.files.atlasbuggyfile import AtlasReadFile, AtlasReadWrite
 
 
 class MapFile(AtlasReadFile):

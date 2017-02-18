@@ -2,7 +2,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-#include <EEPROM.h>
+//#include <EEPROM.h>
 #include <Atlasbuggy.h>
 
 /* Set the delay between fresh samples */
@@ -39,18 +39,18 @@ void updateIMU() {
     Serial.print(euler.x(), 4);
     #endif
 
-    imu::Vector<3> magnetometer = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+    imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
     #ifdef INCLUDE_FILTERED_DATA
     Serial.print("\tmx");
     #else
     Serial.print("mx");
     #endif
-    Serial.print(magnetometer.x(), 4);
+    Serial.print(mag.x(), 4);
     Serial.print("\tmy");
-    Serial.print(magnetometer.y(), 4);
+    Serial.print(mag.y(), 4);
     Serial.print("\tmz");
-    Serial.print(magnetometer.z(), 4);
+    Serial.print(mag.z(), 4);
 
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
@@ -92,16 +92,16 @@ void updateIMU() {
 
 
     /* Display calibration status for each sensor. */
-    uint8_t system, gyro, accel, mag = 0;
-    bno.getCalibration(&system, &gyro, &accel, &mag);
-    Serial.print("\tss:");
-    Serial.print(system, DEC);
+    uint8_t sys_stat, gyro_stat, accel_stat, mag_stat = 0;
+    bno.getCalibration(&sys_stat, &gyro_stat, &accel_stat, &mag_stat);
+    Serial.print("\tss");
+    Serial.print(sys_stat, DEC);
     Serial.print("\tsg");
-    Serial.print(gyro, DEC);
+    Serial.print(gyro_stat, DEC);
     Serial.print("\tsa");
-    Serial.print(accel, DEC);
+    Serial.print(accel_stat, DEC);
     Serial.print("\tsm");
-    Serial.print(mag, DEC);
+    Serial.print(mag_stat, DEC);
     #endif
 
     Serial.print('\n');

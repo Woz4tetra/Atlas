@@ -130,14 +130,14 @@ class RoboQuasar(Interface):
         # self.map_plot.update(m[:, 0], m[:, 1])
 
         file_sets = (
-            (None, None),  # default, latest
+            ("16;49", "2017_Feb_17"),  # default, latest
 
             # data day 4
             # ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
             # ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
             # ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
             # ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
-            ("17;33", "data_days/2017_Feb_14"),  # data is fine, normal run
+            # ("17;33", "data_days/2017_Feb_14"),  # data is fine, normal run
 
             # data day 3
             # ("16;38", "data_days/2017_Feb_08"),
@@ -175,6 +175,8 @@ class RoboQuasar(Interface):
             # ("18;02", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
             # ("18;09", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
         )
+
+        self.checkpoint_num = 0
 
         self.lat1, self.long1, self.alt1 = 0, 0, 0
         self.lat2, self.long2, self.alt2 = 0, 0, 0
@@ -263,59 +265,60 @@ class RoboQuasar(Interface):
             return False
 
     def update_epoch(self, timestamp):
-        if self.gps.fix and self.gps.latitude is not None and self.received_fix != self.gps.fix:
-            self.received_fix = True
-            self.num_recv_from_fix = self.num_received(self.gps)
+        if use_filter:
+            if self.gps.fix and self.gps.latitude is not None and self.received_fix != self.gps.fix:
+                self.received_fix = True
+                self.num_recv_from_fix = self.num_received(self.gps)
 
-        if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 245:
-            self.lat1, self.long1, self.alt1 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
+            if self.num_recv_from_fix is not None and self.num_received(self.gps) - self.num_recv_from_fix == 245:
+                self.lat1, self.long1, self.alt1 = self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
 
-        elif self.filter is None and self.num_recv_from_fix is not None and \
-                self.gps_in_range() and self.num_received(self.gps) - self.num_recv_from_fix >= 250:
-            if use_filter:
-                self.init_filter(timestamp)
-
-        elif self.filter is not None and self.num_recv_from_fix is not None:
-            # if self.num_received(self.gps) % 5 == 0:
-            if self.update_gps_plot():
+            elif self.filter is None and self.num_recv_from_fix is not None and \
+                    self.gps_in_range() and self.num_received(self.gps) - self.num_recv_from_fix >= 250:
                 if use_filter:
-                    self.filter.gps_updated(timestamp - self.gps_t0,
-                                            self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
-                    self.kalman_plots.update_kalman(self.filter.get_position())
-                    self.gps_t0 = timestamp
+                    self.init_filter(timestamp)
 
-                    lat1, long1, alt1 = self.filter.get_position()
-                    roll, pitch, yaw = self.filter.get_orientation()
+            elif self.filter is not None and self.num_recv_from_fix is not None:
+                # if self.num_received(self.gps) % 5 == 0:
+                if self.update_gps_plot():
+                    if use_filter:
+                        self.filter.gps_updated(timestamp - self.gps_t0,
+                                                self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
+                        self.kalman_plots.update_kalman(self.filter.get_position())
+                        self.gps_t0 = timestamp
 
-                    yaw = -self.imu.euler.x
-                    # declination = 9, 19
-                    #
-                    # self.declination = \
-                    #     (declination[0] + declination[1] / 60) * math.pi / 180
-                    #
-                    # yaw = math.atan2(self.imu.mag.y, self.imu.mag.x)
-                    # yaw += self.declination
-                    # # Correct for reversed heading
-                    # if yaw < 0:
-                    #     yaw += 2 * math.pi
-                    # # Check for wrap and compensate
-                    # elif yaw > 2 * math.pi:
-                    #     yaw -= 2 * math.pi
+                        lat1, long1, alt1 = self.filter.get_position()
+                        roll, pitch, yaw = self.filter.get_orientation()
 
-                    # length = math.sqrt(lat1 ** 2 + long1 ** 2)
-                    lat2 = 0.0003 * math.sin(math.radians(yaw)) + lat1
-                    long2 = 0.0003 * math.cos(math.radians(yaw)) + long1
+                        yaw = -self.imu.euler.x
+                        # declination = 9, 19
+                        #
+                        # self.declination = \
+                        #     (declination[0] + declination[1] / 60) * math.pi / 180
+                        #
+                        # yaw = math.atan2(self.imu.mag.y, self.imu.mag.x)
+                        # yaw += self.declination
+                        # # Correct for reversed heading
+                        # if yaw < 0:
+                        #     yaw += 2 * math.pi
+                        # # Check for wrap and compensate
+                        # elif yaw > 2 * math.pi:
+                        #     yaw -= 2 * math.pi
 
-                    self.kalman_plots.update_compass(lat1, lat2, long1, long2)
+                        # length = math.sqrt(lat1 ** 2 + long1 ** 2)
+                        lat2 = 0.0003 * math.sin(math.radians(yaw)) + lat1
+                        long2 = 0.0003 * math.cos(math.radians(yaw)) + long1
 
-                    # print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
-                    # if use_filter:
-                    # print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
-                    # print(math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
+                        self.kalman_plots.update_compass(lat1, lat2, long1, long2)
 
-                if animate and self.live_plot.should_update():
-                    if self.live_plot.plot() is False:
-                        return False
+                        # print(self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude)
+                        # if use_filter:
+                        # print(self.filter.get_position(), self.filter.properties.estimated_velocity.T.tolist())
+                        # print(math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
+
+                    if animate and self.live_plot.should_update():
+                        if self.live_plot.plot() is False:
+                            return False
 
     def update_ins(self, timestamp):
         if use_filter and self.filter is not None and self.imu_t0 != timestamp:
@@ -359,7 +362,8 @@ class RoboQuasar(Interface):
         elif self.did_receive(self.turret):
             if self.update_turret(timestamp) is False:
                 return False
-
+        else:
+            print(packet)
                 # elif self.did_receive(self.steering):# and self.steering.goal_reached:
                 # print(self.steering.current_step)
 
@@ -376,6 +380,12 @@ class RoboQuasar(Interface):
                     self.brakes.brake()
                 elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
                     self.brakes.unbrake()
+                elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
+                    self.record("checkpoint", "%s\t%s\t%s" % (self.checkpoint_num, self.gps.latitude_deg, self.gps.longitude_deg))
+                    if self.gps.latitude_deg is not None and self.gps.longitude_deg is not None:
+                        print("checkpoint #%s: %3.6f, %3.6f" % (self.checkpoint_num, self.gps.latitude_deg, self.gps.longitude_deg))
+                    self.checkpoint_num += 1
+                    print("checkpoint #%s" % self.checkpoint_num)
                     # elif self.joystick.dpad_updated():
                     #     if self.joystick.dpad[1] == 1:
                     #         self.brakes.set_brake(self.brakes.goal_position + 20)
@@ -398,6 +408,14 @@ class RoboQuasar(Interface):
         elif self.did_receive(self.turret):
             if self.update_turret(timestamp) is False:
                 return False
+
+    # def user_packet(self, timestamp, packet):
+        # if self.did_receive("checkpoint"):
+        #     print(timestamp, packet)
+
+    # def command_packet(self, timestamp, packet):
+    #     if self.did_receive(self.steering):
+    #         print(timestamp, packet)
 
     def close(self):
         if plots_enabled:
