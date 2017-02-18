@@ -1,4 +1,5 @@
-from atlasbuggy.robot.robotobject import RobotObject
+import math
+from atlasbuggy.robot.object import RobotObject
 
 
 class ImuVector:
@@ -113,7 +114,7 @@ class IMU(RobotObject):
         for segment in data:
             if len(segment) > 0:
                 if segment[0] == "e":
-                    self.euler[segment[1]] = float(segment[2:])
+                    self.euler[segment[1]] = math.radians(float(segment[2:]))
                 elif segment[0] == "a":
                     self.accel[segment[1]] = float(segment[2:])
                 elif segment[0] == "g":
@@ -139,7 +140,8 @@ class IMU(RobotObject):
                 print("Empty segment!", data)
 
     def __str__(self):
-        string = "%s(enabled=%s)\n\t" % (self.__class__.__name__, self.enabled)
+        string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
+
         string += "euler: (%4.6f, %4.6f, %4.6f)\n\t" % tuple(self.euler.get_tuple())
         string += "accel: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.accel.get_tuple())
         string += "gyro: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.gyro.get_tuple())
@@ -147,5 +149,5 @@ class IMU(RobotObject):
         string += "linaccel: (%2.6f, %2.6f, %2.6f)\n\t" % tuple(self.linaccel.get_tuple())
         string += "quat: (%2.6f, %2.6f, %2.6f, %2.6f)\n\t" % tuple(self.quat.get_tuple())
         string += "system: %s, accel: %s, gyro: %s, mag: %s\n" % (
-        self.system_status, self.accel_status, self.gyro_status, self.mag_status)
+            self.system_status, self.accel_status, self.gyro_status, self.mag_status)
         return string

@@ -1,27 +1,24 @@
-import math
 import argparse
+import math
 
-from algorithms.kalman_constants import constants
-from algorithms.kalman_filter import GrovesKalmanFilter, get_gps_orientation
-from algorithms.lidar_slam import SLAM
-
+from actuators.brakes import Brakes
+from actuators.steering import Steering
+from algorithms.kalman.kalman_constants import constants
+from algorithms.kalman.kalman_filter import GrovesKalmanFilter, get_gps_orientation
+from algorithms.slam.lidar_slam import SLAM
+from atlasbuggy.interface.live import LiveRobot
+from atlasbuggy.interface.simulated import SimulatedRobot
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.staticplotter import StaticPlotter
-from atlasbuggy.robot.simulator import RobotInterfaceSimulator
-from atlasbuggy.robot.interface import RobotInterface
-
 from joysticks.wiiu_joystick import WiiUJoystick
-
 from sensors.gps import GPS
 from sensors.imu import IMU
 from sensors.lidarturret import LidarTurret
 
-from actuators.steering import Steering
-from actuators.brakes import Brakes
 from actuators.underglow import Underglow
 
 from plotters.kalman_plots import KalmanPlots
-from plotters.slam_plots import SlamPlots
+from algorithms.slam.slam_plots import SlamPlots
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--simulate", help="run in simulated mode", action="store_true")
@@ -77,9 +74,9 @@ if not args.whoareyou:
     print("computing and displaying SLAM\n" if args.computeslam else "", end="")
 
 if simulated:
-    Interface = RobotInterfaceSimulator
+    Interface = SimulatedRobot
 else:
-    Interface = RobotInterface
+    Interface = LiveRobot
 
 
 class RoboQuasar(Interface):
@@ -246,7 +243,7 @@ class RoboQuasar(Interface):
         # length = math.sqrt(lat1 ** 2 + long1 ** 2)
         lat2 = 0.0003 * math.sin(yaw) + self.lat1
         long2 = 0.0003 * math.cos(yaw) + self.long1
-        self.kalman_plots.initial_compass_plot.update([self.lat1, lat2], [self.long1, long2])
+        self.kalman_plots.initial_compass_plot.updated([self.lat1, lat2], [self.long1, long2])
 
     def gps_in_range(self):
         if not 280 < self.gps.altitude < 310:
@@ -438,7 +435,7 @@ if args.whoareyou:
     from threading import Thread
     import serial.tools.list_ports
 
-    from atlasbuggy.robot.robotport import RobotSerialPort
+    from atlasbuggy.robot.port import RobotSerialPort
 
     if len(serial.tools.list_ports.comports()) == 0:
         print("No ports found!")

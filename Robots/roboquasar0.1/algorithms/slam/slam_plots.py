@@ -1,4 +1,4 @@
-from plotters.pltslamshow import SlamShow
+from algorithms.slam.pltslamshow import SlamShow
 
 
 class SlamPlots:

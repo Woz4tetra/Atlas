@@ -1,5 +1,5 @@
 
-from atlasbuggy.robot.robotobject import RobotObject
+from atlasbuggy.robot.object import RobotObject
 
 
 class Steering(RobotObject):
@@ -49,3 +49,11 @@ class Steering(RobotObject):
     def set_position(self, joystick_value):  # joystick_value: -1.0...1.0
         step = int(joystick_value * self.angle_to_step)
         self.send("p" + str(step))
+
+    def calibrate(self):
+        self.send("c")
+
+    def __str__(self):
+        string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
+        string += "speed: %2.0d, position: %2.0d, moving: %s\n" % (self.speed, self.current_step, not self._goal_reached)
+        return string

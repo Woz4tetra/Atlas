@@ -58,7 +58,7 @@ class Logger(AtlasWriteFile):
         Record incoming packet.
 
         :param timestamp: time packet arrived. -1 if it's an initialization packet
-        :param whoiam: whoiam ID of packet (see robotobject.py for details)
+        :param whoiam: whoiam ID of packet (see object.py for details)
         :param packet: packet received by robot port
         :param packet_type: packet decorator. Determines how the packet was used
         :return: None
@@ -119,7 +119,7 @@ class Parser(AtlasReadFile):
         """
         return self
 
-    def __next__(self):
+    def next(self):
         """
         While self.content_index hasn't reached the end of the file, parse the current line
         and return the contents. If the line wasn't parsed correctly, StopIteration is raised.
@@ -131,7 +131,7 @@ class Parser(AtlasReadFile):
                 packet_type, timestamp, whoiam, packet = line
                 self.index += 1
                 return self.index - 1, packet_type, timestamp, whoiam, packet
-        raise StopIteration
+        return None
 
     def parse_line(self):
         """

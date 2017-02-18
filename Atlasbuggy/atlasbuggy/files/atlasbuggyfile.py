@@ -43,6 +43,7 @@ class AtlasFile:
             else:
                 return directories[-1]
         elif directory[0] != "/":
+
             return os.path.join(abs_default_dir, directory)
         elif directory[0] == "/" and os.path.exists(directory):
             return directory
@@ -110,12 +111,13 @@ class AtlasWriteFile(AtlasFile):
         Compress the written text file into a gzip.
         :return: None
         """
-        with open(self.full_path, "rb") as file:
-            self.raw_contents = file.read()
+        if self.compress:
+            with open(self.full_path, "rb") as file:
+                self.raw_contents = file.read()
 
-        compressed_data = gzip.compress(self.raw_contents)
-        with open(self.full_path, "wb") as file:
-            file.write(compressed_data)
+            compressed_data = gzip.compress(self.raw_contents)
+            with open(self.full_path, "wb") as file:
+                file.write(compressed_data)
 
     def _dump_all(self):
         """

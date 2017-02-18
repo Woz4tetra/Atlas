@@ -1,4 +1,3 @@
-import time
 import os
 import sys
 
@@ -6,7 +5,7 @@ os.chdir("..")
 sys.path.insert(0, ".")
 
 from atlasbuggy.plotters.liveplotter import LivePlotter
-from atlasbuggy.robot.simulator import RobotInterfaceSimulator
+from atlasbuggy.interface.simulated import SimulatedRobot
 
 from sensors.gps import GPS
 from sensors.imu import IMU
@@ -19,7 +18,7 @@ from actuators.underglow import Underglow
 simulated = True
 
 
-class UnderglowSimulator(RobotInterfaceSimulator):
+class UnderglowSimulator(SimulatedRobot):
     def __init__(self, file_set_num):
         self.gps = GPS()
         self.imu = IMU()
@@ -32,7 +31,7 @@ class UnderglowSimulator(RobotInterfaceSimulator):
         self.plotter = LivePlotter(1, self.underglow.strip_plot, enable_legend=False)
 
         for index, led in enumerate(self.underglow.led_plots):
-            led.update([index], [0])
+            led.updated([index], [0])
 
         self.counter = 0
 

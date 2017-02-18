@@ -8,9 +8,9 @@ unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
 #define MAX_SPEED 175
-#define LEFT_LIMIT -150
-#define RIGHT_LIMIT 150
-#define POSITION_ZERO 138
+#define LEFT_LIMIT -200
+#define RIGHT_LIMIT 200
+#define POSITION_ZERO 162
 
 int position = 0;
 int speedCommand = 0;
@@ -69,7 +69,12 @@ void setPosition(int p) {
 
 void setVelocity(int v)
 {
-    stepper.setSpeed(v);
+    if (v == 0) {
+        stepper.stop();
+    }
+    else {
+        stepper.setSpeed(v);
+    }
     speedCommand = v;
 }
 
@@ -79,6 +84,14 @@ void approachSwitch(int speed)
     stepper.setSpeed(speed);
     while (digitalRead(DELIMITER_PIN)) {
         stepper.runSpeed();
+
+        while (buggy.available())
+        {
+            int status = buggy.readSerial();
+            if (status == 1) {  // stop event
+                return;
+            }
+        }
     }
     stepper.setCurrentPosition(0);
 }
@@ -140,6 +153,9 @@ void loop()
             else if (command.substring(0, 1).equals("v")) {
                 setVelocity(command.substring(1).toInt());
             }
+            else if (command.equals("c")) {
+                calibrate();
+            }
         }
         // else if (status == -1)  // no command
     }
@@ -149,14 +165,14 @@ void loop()
         if (speedCommand != 0) {
             stepper.runSpeed();
 
-            if (stepper.currentPosition() > RIGHT_LIMIT) {
-                setPosition(RIGHT_LIMIT);
-                speedCommand = 0;
-            }
-            else if (stepper.currentPosition() < LEFT_LIMIT) {
-                setPosition(LEFT_LIMIT);
-                speedCommand = 0;
-            }
+            // if (stepper.currentPosition() > RIGHT_LIMIT) {
+            //     setPosition(RIGHT_LIMIT);
+            //     speedCommand = 0;
+            // }
+            // else if (stepper.currentPosition() < LEFT_LIMIT) {
+            //     setPosition(LEFT_LIMIT);
+            //     speedCommand = 0;
+            // }
         }
         else if (stepper.distanceToGo() != 0) {
             stepper.run();

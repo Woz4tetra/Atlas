@@ -5,7 +5,8 @@ according to properties defined in RobotPlot.
 
 from matplotlib import pyplot as plt
 from atlasbuggy.plotters.baseplotter import BasePlotter
-from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class StaticPlotter(BasePlotter):

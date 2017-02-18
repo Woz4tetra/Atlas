@@ -1,5 +1,6 @@
-from atlasbuggy.robot.robotobject import RobotObject
-from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
+from atlasbuggy.robot.object import RobotObject
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 

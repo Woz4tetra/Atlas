@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>02/17/2017 Test Run1</name>
+  <desc></desc>
+  <author><name>WTracks - Online GPX track editor</name></author>
+  <link href="http://wtracks.appspot.com/">
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2017-02-17T12-02-30Z</time>
+<bounds minlat="40.44160333682812" minlon="-79.94533061621235" maxlat="40.44226983172026" maxlon="-79.94327738521145"/></metadata>
+<trk><name>02/17/2017 Test Run1</name><trkseg>
+  <trkpt lat="40.442952556116985" lon="-79.94242912530694"><ele>0</ele><time>P0S</time></trkpt>
+  <trkpt lat="40.44289437900571" lon="-79.94270539280484"><ele>0</ele><time>P21S</time></trkpt>
+  <trkpt lat="40.442718826727344" lon="-79.94305273887221"><ele>0</ele><time>P51S</time></trkpt>
+  <trkpt lat="40.442582058917495" lon="-79.94334375855033"><ele>0</ele><time>P1M16S</time></trkpt>
+  <trkpt lat="40.442349348903264" lon="-79.94369781014035"><ele>0</ele><time>P1M50S</time></trkpt>
+  <trkpt lat="40.44214521667968" lon="-79.94389227029393"><ele>0</ele><time>P2M14S</time></trkpt>
+  <trkpt lat="40.44207274958018" lon="-79.94423156973431"><ele>0</ele><time>P2M40S</time></trkpt>
+  <trkpt lat="40.44205641895543" lon="-79.94451320168082"><ele>0</ele><time>P3M0S</time></trkpt>
+  <trkpt lat="40.44215542324486" lon="-79.94494906080945"><ele>0</ele><time>P3M33S</time></trkpt>
+  <trkpt lat="40.44187167842424" lon="-79.94505769027455"><ele>0</ele><time>P4M1S</time></trkpt>
+  <trkpt lat="40.44178390100695" lon="-79.94460707899634"><ele>0</ele><time>P4M35S</time></trkpt>
+  <trkpt lat="40.441655296676956" lon="-79.94403040405814"><ele>0</ele><time>P5M19S</time></trkpt>
+  <trkpt lat="40.44193291847721" lon="-79.94392311569754"><ele>0</ele><time>P5M46S</time></trkpt>
+  <trkpt lat="40.44210643148123" lon="-79.9438600837857"><ele>0</ele><time>P6M4S</time></trkpt>
+  <trkpt lat="40.442269737428795" lon="-79.94378766414235"><ele>0</ele><time>P6M20S</time></trkpt>
+  <trkpt lat="40.44220951840681" lon="-79.94346177574698"><ele>0</ele><time>P6M44S</time></trkpt>
+  <trkpt lat="40.44214317535401" lon="-79.94311442967961"><ele>0</ele><time>P7M10S</time></trkpt>
+  <trkpt lat="40.44219829112555" lon="-79.94292131063054"><ele>0</ele><time>P7M25S</time></trkpt>
+  <trkpt lat="40.44243916689895" lon="-79.94291192289893"><ele>0</ele><time>P7M48S</time></trkpt>
+  <trkpt lat="40.442667793998396" lon="-79.94283950325553"><ele>0</ele><time>P8M11S</time></trkpt>
+  <trkpt lat="40.44287906923222" lon="-79.94268661734168"><ele>0</ele><time>P8M34S</time></trkpt>
+  <trkpt lat="40.44296480391875" lon="-79.94244655963485"><ele>0</ele><time>P8M53S</time></trkpt>
+</trkseg></trk></gpx>

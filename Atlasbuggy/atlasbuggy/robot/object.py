@@ -63,3 +63,6 @@ class RobotObject:
         """
         if self.enabled:
             self.command_packets.put(packet)
+
+    def __str__(self):
+        return "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)

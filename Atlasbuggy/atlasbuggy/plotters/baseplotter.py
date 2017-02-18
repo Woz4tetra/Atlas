@@ -3,7 +3,8 @@ The base class shared by liveplotter and staticplotter. Contains properties shar
 """
 
 from matplotlib import pyplot as plt
-from atlasbuggy.plotters.robotplot import RobotPlot, RobotPlotCollection
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class BasePlotter:

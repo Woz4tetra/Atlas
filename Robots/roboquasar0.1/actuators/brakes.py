@@ -1,4 +1,4 @@
-from atlasbuggy.robot.robotobject import RobotObject
+from atlasbuggy.robot.object import RobotObject
 
 
 class Brakes(RobotObject):
@@ -31,8 +31,9 @@ class Brakes(RobotObject):
 
     def set_brake(self, position):
         self.goal_position = position
-        print("sending position:", repr(position))
         self.send(position)
 
-    # def is_engaged(self):
-    #     return
+    def __str__(self):
+        string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
+        string += "goal: %2.0d, position: %2.0d\n" % (self.goal_position, self.position)
+        return string
