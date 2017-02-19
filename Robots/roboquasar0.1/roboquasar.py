@@ -1,5 +1,62 @@
+import math
+
+from sensors.gps import GPS
+from sensors.imu import IMU
+
+from actuators.brakes import Brakes
+from actuators.steering import Steering
+from actuators.underglow import Underglow
+
+from atlasbuggy.files.mapfile import MapFile
+
+
+class RoboQuasar:
+    def __init__(self, live, checkpoint_map):
+        self.gps = GPS()
+        self.imu = IMU()
+
+        self.steering = Steering()
+        self.brakes = Brakes()
+        self.underglow = Underglow()
+
+        self.checkpoint_num = 0
+        self.checkpoints = MapFile(checkpoint_map)
+
+        self.compass_angle = None
+        self.start_angle = None
+        self.compass_str = ""
+        if live:
+            while len(self.compass_str) == 0:
+                self.compass_str = input("iPhone compass reading to record (degrees): ")
+                try:
+                    float(self.compass_str)
+                except ValueError:
+                    print("Input not a number...")
+            self.init_compass(self.compass_str)
+
+    def get_sensors(self):
+        return self.gps, self.imu, self.steering, self.brakes, self.underglow
+
+    def init_compass(self, packet):
+        self.compass_angle = math.radians(float(packet)) - math.pi / 2
+
+    def offset_angle(self):
+        if self.start_angle is None:
+            self.start_angle = self.imu.euler.z
+        return self.imu.euler.z - self.start_angle + self.compass_angle
+
+    def compass_coords(self, angle):
+        lat2 = 0.0003 * math.sin(angle) + self.gps.latitude_deg
+        long2 = 0.0003 * math.cos(angle) + self.gps.longitude_deg
+        return lat2, long2
+
 file_sets = {
     # started using checkpoints
+    "data day 6"    : (
+        ("16;47", "data_days/2017_Feb_18"),
+        ("16;58", "data_days/2017_Feb_18"),
+        ("18;15", "data_days/2017_Feb_18"),
+    ),
     "data day 5"    : (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
@@ -53,3 +110,4 @@ file_sets = {
         ("18;02", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
         ("18;09", "old_data/2016_Dec_09/bad_data")),  # gps spazzed out
 }
+

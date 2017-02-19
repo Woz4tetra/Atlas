@@ -47,7 +47,7 @@ class Steering(RobotObject):
 
     def set_speed(self, speed_value):
         speed = int(-speed_value * self.max_speed)
-        if abs(speed) > 50 or speed == 0:
+        if abs(speed) > self.max_speed / 2 or speed == 0:
             self.speed = speed
             self.moving = self.speed != 0
             print("speed:", self.speed)

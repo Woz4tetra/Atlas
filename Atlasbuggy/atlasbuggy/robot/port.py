@@ -453,11 +453,14 @@ class RobotSerialPort(Process):
     def close_serial(self):
         self.debug_print("Acquiring serial lock")
         with self.serial_lock:
-            if self.serial_ref.is_open:
-                self.serial_ref.close()
-                self.debug_print("Closing serial")
+            if self.configured:
+                if self.serial_ref.is_open:
+                    self.serial_ref.close()
+                    self.debug_print("Closing serial")
+                else:
+                    self.debug_print("Serial port was already closed!")
             else:
-                self.debug_print("Serial port was already closed!")
+                self.debug_print("Port wasn't configured!!")
         self.debug_print("Releasing serial lock")
 
     def stop(self):

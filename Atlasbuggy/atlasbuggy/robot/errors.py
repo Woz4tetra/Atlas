@@ -19,11 +19,11 @@ class RobotPortBaseError(Exception):
             port_error_info = ""
             if len(full_message) > 0:
                 port_error_info += "\nError message from port:\n" \
-                "%s\n"
+                                   "%s\n" % full_message
 
             port_error_info += "\nAddress: '%s', ID: %s" % (
-                                  port.address, whoiam_info
-                              )
+                port.address, whoiam_info
+            )
             if any(prev_packet_info):  # if any values evaluate to True, print info
                 port_error_info += "\n\nPrevious packet sent (ID: %s, time: %s):\n%s" % (
                     prev_packet_info[0], prev_packet_info[1], repr(prev_packet_info[2]))
@@ -97,4 +97,3 @@ class RobotSerialPortSignalledExitError(RobotPortBaseError):
 
 class RobotSerialPortFailedToStopError(RobotPortBaseError):
     """Port didn't stop"""
-

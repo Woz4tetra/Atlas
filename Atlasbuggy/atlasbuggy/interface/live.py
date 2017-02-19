@@ -224,15 +224,6 @@ class LiveRobot(BaseInterface):
     def queue_len(self):
         return self.packet_counter.value
 
-    def change_port_rate(self, arg, new_baud_rate):
-        if isinstance(arg, RobotObject):
-            self.ports[arg.whoiam].change_rate(new_baud_rate)
-        elif isinstance(arg, RobotObjectCollection):
-            for whoiam in arg.whoiam_ids:
-                self.ports[whoiam].change_rate(new_baud_rate)
-        elif isinstance(arg, str):
-            self.ports[arg].change_rate(new_baud_rate)
-
     # ----- configuration methods -----
 
     def _configure_port(self, port_info, updates_per_second):
@@ -254,6 +245,8 @@ class LiveRobot(BaseInterface):
             elif port.configured and (not port.abides_protocols or port.whoiam is None):
                 self._debug_print("Warning! Port '%s' does not abide Atlasbuggy protocol!" % port.address)
                 port.stop()
+            elif not port.configured:
+                self._debug_print("Port not configured! '%s'" % port.address)
             elif port.whoiam in self.inactive_ids:
                 port.stop()
             else:
@@ -435,7 +428,7 @@ class LiveRobot(BaseInterface):
                 break
             while not command_packets.empty():
                 command = self.objects[whoiam].command_packets.get()
-                self.logger.record(self.dt, whoiam, command, "command")
+                self.logger.record(self.dt(), whoiam, command, "command")
 
                 if not self.ports[whoiam].write_packet(command):
                     self._debug_print("Closing all from _send_commands")
@@ -452,7 +445,7 @@ class LiveRobot(BaseInterface):
             error_message = "".join(traceback[:-1])
             error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
             error_message += "\n".join(error.args[1:])
-            self.logger.record(self.dt, error.__class__.__name__, error_message, "error")
+            self.logger.record(self.dt(), error.__class__.__name__, error_message, "error")
 
         self._close_log()
         return error

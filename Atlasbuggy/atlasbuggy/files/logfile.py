@@ -67,6 +67,8 @@ class Logger(AtlasWriteFile):
         if self.is_open():
             if timestamp is None:
                 timestamp = no_timestamp
+            else:
+                assert type(timestamp) == float
 
             packet_type = packet_types[packet_type]
             self.write(self.line_code % (
@@ -104,6 +106,7 @@ class Parser(AtlasReadFile):
         self.start_index = start_index
         self.end_index = end_index
         self.index = self.start_index  # current packet number (or line number)
+        self.timestamp = 0
 
         if self.end_index == -1:
             self.end_index = len(self.contents)
@@ -156,14 +159,19 @@ class Parser(AtlasReadFile):
             # the timestamp is the beginning of the line to time_index
             timestamp = line[1:time_index]
             if timestamp != no_timestamp:
-                timestamp = float(timestamp)
+                try:
+                    self.timestamp = float(timestamp)
+                except:
+                    print("Invalid timestamp:", timestamp)
+            else:
+                self.timestamp = timestamp
 
             # the name is from the end of the timestamp to name_index
             whoiam = line[time_index + len(time_whoiam_sep): whoiam_index]
 
             # the values are from the end of the name to the end of the line
             if packet_type == "error":
-                packet = "\n\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (timestamp, whoiam)
+                packet = "\n\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (self.timestamp, whoiam)
                 packet += "Traceback (most recent call last):\n"
                 packet += line[whoiam_index + len(whoiam_packet_sep):] + "\n"
                 for other_lines in self.contents[self.index + 1:]:
@@ -172,6 +180,6 @@ class Parser(AtlasReadFile):
             else:
                 packet = line[whoiam_index + len(whoiam_packet_sep):]
 
-            return packet_type, timestamp, whoiam, packet
+            return packet_type, self.timestamp, whoiam, packet
         else:
             return None

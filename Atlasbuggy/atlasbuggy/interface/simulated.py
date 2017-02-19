@@ -53,7 +53,7 @@ class SimulatedRobot(BaseInterface):
                         self.objects[self.current_whoiam].receive_first(self.current_packet)
                     elif isinstance(self.objects[self.current_whoiam], RobotObjectCollection):
                         self.objects[self.current_whoiam].receive_first(self.current_whoiam, self.current_packet)
-                    return
+
             else:
                 try:
                     if self.objects[self.current_whoiam].enabled:

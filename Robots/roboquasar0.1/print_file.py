@@ -11,10 +11,7 @@ from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
 
-
-from atlasbuggy.files.mapfile import MapFile, MapMaker
-
-from data_sets import *
+from roboquasar import file_sets
 
 
 class FilePrinter(SimulatedRobot):
