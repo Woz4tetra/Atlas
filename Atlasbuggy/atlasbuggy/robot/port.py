@@ -472,12 +472,7 @@ class RobotSerialPort(Process):
 
         self.debug_print("Acquiring start lock")
         with self.start_event_lock:
-            if self.start_event.is_set():
-                self.debug_print("Exit event is",
-                                 "set. Skipping stop protocol!" if
-                                 self.exit_event.is_set() else
-                                 "not set. Proceeding to send stop")
-            else:
+            if not self.start_event.is_set():
                 self.debug_print("start_event not set! Closing serial")
                 self.close_serial()
         self.debug_print("Releasing start lock")

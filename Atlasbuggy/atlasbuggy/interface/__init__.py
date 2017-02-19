@@ -61,7 +61,7 @@ class BaseInterface:
                     return
 
                 status = self._loop()
-                if self._loop() is False:
+                if self._loop() is not None:
                     self._close(status)
                     return
 

@@ -1,6 +1,7 @@
-import math
 import os
 import sys
+import time
+import math
 
 import pygame
 
@@ -75,6 +76,8 @@ class BuggyJoystick:
         self.prev_buttons = [False] * len(button_mapping)
         self.prev_dpad = (0, 0)
 
+        self.t0 = time.time()
+
         super(BuggyJoystick, self).__init__()
 
     @staticmethod
@@ -105,10 +108,11 @@ class BuggyJoystick:
         """
         # Go through every event pygame sees
         for event in pygame.event.get():
+            self.t0 = time.time()
             # if event.type != pygame.NOEVENT:
-            #     print(event)
+                # print(event)
             if event.type == pygame.QUIT:
-                return False
+                return "exit"
 
             # if an axis event occurred
             if event.type == pygame.JOYAXISMOTION:
@@ -153,8 +157,9 @@ class BuggyJoystick:
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
-        return True
-
+        if (time.time() - self.t0) > 1:  # if no events received for more than timeout, signal stop
+            return "error"
+            
     def get_button(self, name):
         """
         Get the value of a button using the name as reference

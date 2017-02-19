@@ -9,10 +9,13 @@ class BozoController:
         self.current_angle = 0.0
 
     def initialize(self, lat, long):
-        self.current_index = self.get_goal(lat, long)
+        self.current_index = self.get_goal(lat, long, 0, len(self.map))
+
+    def is_initialized(self):
+        return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_index = self.get_goal(lat, long)
+        goal_index = self.get_goal(lat, long, self.current_index, self.current_index + 10)
         goal_lat, goal_long = self.map[goal_index]
 
         goal_angle = math.atan2(goal_long - long, goal_lat - lat)
@@ -23,10 +26,13 @@ class BozoController:
         self.current_angle = angle_error
         return self.current_angle
 
-    def get_goal(self, lat0, long0):
+    def get_goal(self, lat0, long0, start_index, end_index):
         smallest_dist = None
         goal_index = 0
-        for index in range(self.current_index, self.current_index + 10):  # only search a few indices ahead
+
+        start = min(start_index % len(self.map), end_index % len(self.map))
+        end = min(end_index % len(self.map), end_index % len(self.map))
+        for index in range(start, end):  # only search a few indices ahead
             lat1, long1 = self.map[index]
             dist = ((lat1 - lat0) * (lat1 - lat0) +
                     (long1 - long0) * (long1 - long0)) ** 0.5
@@ -52,13 +58,13 @@ class BozoController:
         0...2 * pi to a range of -pi...pi
         """
 
-        while angle > 2 * math.pi:
+        while angle >= 2 * math.pi:
             angle -= 2 * math.pi
 
         while angle < 0:
             angle += 2 * math.pi
 
         if math.pi < angle < 2 * math.pi:
-            return angle - 2 * math.pi
+            return -angle + 2 * math.pi
         else:
-            return angle
+            return -angle

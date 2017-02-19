@@ -120,21 +120,29 @@ class LiveRobot(BaseInterface):
             )
 
     def _loop(self):
+        if self.joystick is not None:
+            status = self.joystick.update()
+            if status is not None:
+                self._debug_print("Joystick signalled to exit")
+                if status == "error":
+                    self._close_ports("error")
+                    raise self._handle_error(
+                        LoopSignalledError("Joystick timed out!"),
+                        traceback.format_stack()
+                    )
+                return status
+
         try:
-            if self.joystick is not None:
-                if self.joystick.update() is False:
-                    return False
-            if self.loop() is False:
+            status = self.loop()
+            if status is not None:
                 self._debug_print("User's loop method signalled to exit")
-                return False
+                return status
         except BaseException as error:
             self._debug_print("_loop signalled an error")
             raise self._handle_error(
                 LoopSignalledError(error),
                 traceback.format_stack()
             )
-
-        return True
 
     def _update(self):
         """
@@ -166,7 +174,7 @@ class LiveRobot(BaseInterface):
             self.lag_warning_thrown = True
 
     def _close(self, reason=""):
-        self._debug_print("Closing all from run")
+        self._debug_print("Closing all")
 
         self._close_log()
         self._close_ports(reason)
@@ -364,10 +372,9 @@ class LiveRobot(BaseInterface):
         Kill all RobotSerialPort processes and close their serial ports
         :return: None
         """
-        self._send_commands()
         try:
             self._debug_print("Calling user's close function")
-            self.close(reason)  # call the user's close function
+            self.close(reason)
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
             raise self._handle_error(
@@ -375,6 +382,8 @@ class LiveRobot(BaseInterface):
                 traceback.format_stack()
             )
 
+        self._send_commands()
+        self._debug_print("sent last commands")
         self._stop_all_ports()
 
     # ----- event handling -----

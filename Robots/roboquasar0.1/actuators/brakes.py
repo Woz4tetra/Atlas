@@ -11,6 +11,8 @@ class Brakes(RobotObject):
 
         self.pos_error = None
 
+        self.engaged = False
+
         super(Brakes, self).__init__("brakes", enabled)
 
     def receive_first(self, packet):
@@ -25,9 +27,11 @@ class Brakes(RobotObject):
 
     def brake(self):
         self.set_brake(self.brake_pos)
+        self.engaged = True
 
     def unbrake(self):
         self.set_brake(self.unbrake_pos)
+        self.engaged = False
 
     def set_brake(self, position):
         self.goal_position = position

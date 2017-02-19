@@ -64,6 +64,9 @@ void setPosition(int p) {
         p = LEFT_LIMIT;
     }
     stepper.moveTo(p);
+    Serial.print('g');
+    Serial.print(p);
+    Serial.print('\n');
     speedCommand = 0;
 }
 
@@ -174,7 +177,8 @@ void loop()
             //     speedCommand = 0;
             // }
         }
-        else if (stepper.distanceToGo() != 0) {
+        // else if (stepper.distanceToGo() != 0) {
+        else {
             stepper.run();
         }
 
@@ -190,7 +194,7 @@ void loop()
             Serial.print('d');
             Serial.print(stepper.currentPosition());
             Serial.print('\n');
-            setVelocity(0);
+            // setVelocity(0);
         }
         prevIsRunning = stepper.isRunning();
     }
