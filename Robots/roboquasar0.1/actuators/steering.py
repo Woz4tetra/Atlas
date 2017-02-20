@@ -7,9 +7,10 @@ class Steering(RobotObject):
     def __init__(self, enabled=True):
         self.current_step = 0
         self.goal_step = 0
-
         self.speed = 0.0
-        self.angle_to_step = 100 / math.atan2(0.6875, 5.5625)
+
+        # num steps / (wheel diameter / stepper diameter * arctan(x offset right / y offset right))
+        self.angle_to_step = 159 / (35.6 / 2.1 * math.atan2(0.6875, 5.5625))
         self.max_speed = 0.0
         self.left_limit = 0
         self.right_limit = 0
@@ -62,9 +63,9 @@ class Steering(RobotObject):
             self.send("v" + str(self.speed))
 
     def set_position(self, goal_angle):
-        if time.time() - self.last_update_t < 0.5:
-            return
-        self.last_update_t = time.time()
+        # if time.time() - self.last_update_t < 0.5:
+        #     return
+        # self.last_update_t = time.time()
         step = int(goal_angle * self.angle_to_step)
         self.send("p" + str(step))
 
@@ -73,5 +74,6 @@ class Steering(RobotObject):
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
-        string += "speed: %2.0d, position: %2.0d, goal: %2.0d, moving: %s\n" % (self.speed, self.current_step, self.goal_step, self.moving)
+        string += "speed: %2.0d, position: %2.0d, goal: %2.0d, moving: %s\n" % (
+        self.speed, self.current_step, self.goal_step, self.moving)
         return string

@@ -25,6 +25,7 @@ class Animator(SimulatedRobot):
 
         self.plotter = LivePlotter(1, self.accuracy_check_plot)
 
+
         file_name, directory = file_sets["data day 6"][1]
         super(Animator, self).__init__(
             file_name, directory,

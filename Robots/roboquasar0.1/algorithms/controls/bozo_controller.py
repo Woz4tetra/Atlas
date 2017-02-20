@@ -34,8 +34,8 @@ class BozoController:
         end = min(end_index % len(self.map), end_index % len(self.map))
         for index in range(start, end):  # only search a few indices ahead
             lat1, long1 = self.map[index]
-            dist = ((lat1 - lat0) * (lat1 - lat0) +
-                    (long1 - long0) * (long1 - long0)) ** 0.5
+            dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) +
+                    (long1 - long0) * (long1 - long0))
             if smallest_dist is None or dist < smallest_dist:
                 smallest_dist = dist
                 goal_index = index

@@ -56,24 +56,27 @@ void disengageStepper()
 }
 
 void setPosition(int p) {
-    stepper.setSpeed(MAX_SPEED);
-    if (p > RIGHT_LIMIT) {
-        p = RIGHT_LIMIT;
+    if (stepper.distanceToGo() == 0)
+    {
+        if (p > RIGHT_LIMIT) {
+            p = RIGHT_LIMIT;
+        }
+        else if (p < LEFT_LIMIT) {
+            p = LEFT_LIMIT;
+        }
+        stepper.moveTo(p);
+        Serial.print('g');
+        Serial.print(p);
+        Serial.print('\n');
+        speedCommand = 0;
     }
-    else if (p < LEFT_LIMIT) {
-        p = LEFT_LIMIT;
-    }
-    stepper.moveTo(p);
-    Serial.print('g');
-    Serial.print(p);
-    Serial.print('\n');
-    speedCommand = 0;
 }
 
 void setVelocity(int v)
 {
     if (v == 0) {
         stepper.stop();
+        stepper.setSpeed(MAX_SPEED);
     }
     else {
         stepper.setSpeed(v);
@@ -112,7 +115,7 @@ void calibrate()
 
     approachSwitch(-MAX_SPEED / 4);
     stepper.runToNewPosition(POSITION_ZERO);
-    stepper.setSpeed(-MAX_SPEED);
+    stepper.setSpeed(MAX_SPEED);
     stepper.setCurrentPosition(0);
 
     Serial.print("done!\n");
