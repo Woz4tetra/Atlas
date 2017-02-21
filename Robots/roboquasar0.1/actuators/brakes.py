@@ -26,16 +26,12 @@ class Brakes(RobotObject):
         self.position = int(packet[1:])
 
     def brake(self):
-        self.set_brake(self.brake_pos)
+        self.send('b')
         self.engaged = True
 
     def unbrake(self):
-        self.set_brake(self.unbrake_pos)
+        self.send('r')
         self.engaged = False
-
-    def set_brake(self, position):
-        self.goal_position = position
-        self.send(position)
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
