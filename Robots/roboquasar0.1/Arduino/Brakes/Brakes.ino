@@ -4,39 +4,23 @@
 // press n in serial monitor to retract the actuator
 // depending on which direction you mount the actuator, exchange the value of the two variables
 #include <Atlasbuggy.h>
-#include <PID_v1.h>
 
-#define POS_ERROR 2
-#define POT_OFFSET 28.0
-#define MIN_OUTPUT 200
-
-#define relay1Pin 7
-#define relay2Pin 8
-#define potHighPin 12
-#define potReadPin 0
-#define pwmPin 6
+#define forwardPin 6
+#define backwardPin 5
+#define potHighPin 7
+#define potReadPin A0
 
 #define BRAKE_POS 90
-#define RELEASE_POS 150
+#define RELEASE_POS 120
 
-double goalPosition;
-double prevPosition;
-double currentPosition;
-double pidOutput;
+#define MAX_SPEED 255
 
-double kp = 2.0;
-double kd = 1.0;
-double ki = 0.0;
+bool braking = false;
+bool moving = false;
+int goal = RELEASE_POS;
 
-bool extending = false;
-bool retracting = false;
-
-bool commandIssued = false;
-bool innerPause = false;
-bool prevPause = false;
 uint32_t timer = millis();
-
-PID linearAc(&currentPosition, &pidOutput, &goalPosition, kp, kd, ki, DIRECT);
+int prevPosition = 0;
 
 Atlasbuggy buggy("brakes");
 
@@ -45,139 +29,117 @@ void setup() {
 
     pinMode(potReadPin, INPUT);
 
-    pinMode(relay1Pin, OUTPUT);
-    pinMode(relay2Pin, OUTPUT);
+    pinMode(forwardPin, OUTPUT);
+    pinMode(backwardPin, OUTPUT);
     pinMode(potHighPin, OUTPUT);
-    pinMode(pwmPin, OUTPUT);
 
-    digitalWrite(relay1Pin, LOW);
-    digitalWrite(relay2Pin, LOW);
+    stopMotor();
 
     digitalWrite(potHighPin, HIGH);
 
-    currentPosition = analogRead(potReadPin) - POT_OFFSET;
-    goalPosition = currentPosition;
-    prevPosition = currentPosition;
+    prevPosition = currentPosition();
 
-    linearAc.SetMode(AUTOMATIC);
-
-    String pos_error = String(POS_ERROR);
     String brake_pos = String(BRAKE_POS);
     String release_pos = String(RELEASE_POS);
-    buggy.setInitData(pos_error + "\t" + brake_pos + "\t" + release_pos);
+    buggy.setInitData(brake_pos + "\t" + release_pos);
 }
 
-void control() {
+int currentPosition() {
+    return analogRead(potReadPin);
+}
 
-    // read the value from the sensor:
-    currentPosition = (double)(analogRead(potReadPin)) - POT_OFFSET;
+void motorForward() {
+    analogWrite(backwardPin, 0);
+    analogWrite(forwardPin, MAX_SPEED);
+}
 
-    if (abs(goalPosition - currentPosition) < POS_ERROR) {
-        innerPause = true;
-    }
-    else{
-        innerPause = false;
-    }
-    if (!prevPause && innerPause) {
-        commandIssued = false;
-        // Serial.print((int)(currentPosition));
-        // Serial.print('\n');
-    }
-    prevPause = innerPause;
+void motorBackward() {
+    analogWrite(forwardPin, 0);
+    analogWrite(backwardPin, MAX_SPEED);
+}
 
-    if (commandIssued) {
-        linearAc.Compute();
-        if (abs(pidOutput) < MIN_OUTPUT) {
-            pidOutput = MIN_OUTPUT * (pidOutput > 0) - (pidOutput < 0);
-        }
+void motorForward(int speed) {
+    analogWrite(backwardPin, 0);
+    analogWrite(forwardPin, abs(speed));
+}
 
-        if (goalPosition < currentPosition) {
-            retracting = true;
-            extending = false;
-            digitalWrite(relay1Pin, LOW);
-            digitalWrite(relay2Pin, HIGH);
-            analogWrite(pwmPin, 255 - pidOutput);
-            // Serial.println(255 - pidOutput);
-        }
-        else if (goalPosition > currentPosition) {
-            retracting = false;
-            extending = true;
-            digitalWrite(relay1Pin, HIGH);
-            digitalWrite(relay2Pin, LOW);
-            analogWrite(pwmPin, pidOutput);
-            // Serial.println(pidOutput);
-        }
+void motorBackward(int speed) {
+    analogWrite(forwardPin, 0);
+    analogWrite(backwardPin, abs(speed));
+}
 
-        if (timer > millis())  timer = millis();
-
-        if (millis() - timer > 100) {
-            timer = millis(); // reset the timer
-            // Serial.print(pidOutput);
-            // Serial.print('\t');
-            // Serial.print((int)(goalPosition));
-            // Serial.print('\t');
-            if (prevPosition != currentPosition) {
-                Serial.print((int)(currentPosition));
-                Serial.print('\n');
-                prevPosition = currentPosition;
-            }
-        }
-    }
-
-    if (extending && goalPosition - currentPosition < POS_ERROR) {
-        //we have reached our goal, shut the relay off
-        digitalWrite(relay1Pin, LOW);
-        extending = false;
-    }
-
-    if (retracting && currentPosition - goalPosition < POS_ERROR) {
-        //we have reached our goal, shut the relay off
-        digitalWrite(relay2Pin, LOW);
-        retracting = false;
-    }
+void stopMotor() {
+    analogWrite(forwardPin, 0);
+    analogWrite(backwardPin, 0);
 }
 
 void loop() {
     while (buggy.available()) {
         int status = buggy.readSerial();
         if (status == 2) {  // start event
-            Serial.print((int)(currentPosition));
+            Serial.print('s');
+            Serial.print(currentPosition());
             Serial.print('\n');
-        }
-        // else if (status == 1) {  // stop event
-        //
-        // }
-        if (status == 0) {  // user command
-            commandIssued = true;
 
-            String command = buggy.getCommand();
-            if (command.substring(0, 1).equals("b")) {
-                goalPosition = BRAKE_POS;
+            timer = millis();
+            prevPosition = currentPosition();
+            stopMotor();
+            moving = false;
+        }
+        if (status == 0) {  // user command
+            if (buggy.getCommand().equals("b")) {
+                goal = BRAKE_POS;
+                braking = true;
+                moving = true;
             }
-            else if (command.substring(0, 1).equals("r")) {
-                goalPosition = RELEASE_POS;
-            }
-            else if (command.equals("-")) {
-                goalPosition = currentPosition;
+            else if (buggy.getCommand().equals("r")) {
+                goal = RELEASE_POS;
+                braking = false;
+                moving = true;
             }
             else {
-                goalPosition = (double)(command.toInt());
-                // Serial.print("goalPosition: ");
-                // Serial.println(goalPosition);
+                stopMotor();
+                moving = false;
             }
-
-            if (goalPosition < BRAKE_POS) {
-                goalPosition = BRAKE_POS;
-            }
-            // else if (goalPosition > RELEASE_POS) {
-            //    goalPosition = RELEASE_POS;
-            // }
         }
         // else if (status == -1)  // no command
     }
+    int current = currentPosition();
+    if (abs(current - prevPosition) > 20) {
+        moving = true;
+        current = currentPosition();
+    }
+    if (moving && ((braking && current < BRAKE_POS) || (!braking && current > RELEASE_POS))) {
+        stopMotor();
+        moving = false;
+        Serial.print('s');
+        Serial.print(current);
+        Serial.print('\n');
+    }
 
-//    if (!buggy.isPaused()) {
-//        
-//    }
-    control();
+   if (!buggy.isPaused())
+   {
+       if (moving) {
+           if (goal < currentPosition()) {
+               motorBackward();
+           }
+           else {
+               motorForward();
+           }
+       }
+
+
+       if (timer > millis())  timer = millis();
+
+        if (millis() - timer > 100) {
+            timer = millis(); // reset the timer
+
+            if (abs(current - prevPosition) > 2) {
+                Serial.print('m');
+                Serial.print(current);
+                Serial.print('\n');
+                prevPosition = current;
+            }
+        }
+   }
 }
