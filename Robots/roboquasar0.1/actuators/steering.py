@@ -9,8 +9,7 @@ class Steering(RobotObject):
         self.goal_step = 0
         self.speed = 0.0
 
-        # num steps / (wheel diameter (inches) / stepper diameter (inches) * arc all the way right (inches) / radius of the wheel (inches)))
-        # steps / radian (of the wheel)
+        # steps / (arc length / radius)
         self.angle_to_step = 136 / (1.5 / 5)
         self.max_speed = 0.0
         self.left_limit = 0

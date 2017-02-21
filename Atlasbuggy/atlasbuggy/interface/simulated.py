@@ -27,6 +27,9 @@ class SimulatedRobot(BaseInterface):
         self._dt = 0
         self.current_index = 0
 
+    def _start(self):
+        self.start()
+
     def _should_run(self):
         return self.parser.index < self.parser.end_index - 1
 
@@ -87,12 +90,10 @@ class SimulatedRobot(BaseInterface):
         try:
             if self.loop() is False:
                 self._debug_print("loop signalled to exit")
-                return False
+                return "error"
         except BaseException as error:
             self._debug_print("_main_loop signalled an error")
             raise LoopSignalledError(error)
-
-        return True
 
     def _close(self, reason=""):
         if not self.close_called:
