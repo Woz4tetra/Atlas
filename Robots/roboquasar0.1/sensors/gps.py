@@ -2,7 +2,7 @@ from atlasbuggy.robot.object import RobotObject
 
 
 class GPS(RobotObject):
-    def __init__(self, enabled=True):
+    def __init__(self, enabled=True, enable_limits=True):
         self.update_rate_hz = None
         self.baud_rate = None
 
@@ -34,6 +34,8 @@ class GPS(RobotObject):
         self.max_lon = -79.8
         self.min_alt = 280
         self.max_alt = 310
+
+        self.enable_limits = enable_limits
 
         super(GPS, self).__init__("gps", enabled)
         self.baud = 9600
@@ -83,6 +85,9 @@ class GPS(RobotObject):
                 self.satellites = int(subsegments[3])
 
     def is_position_valid(self):
+        if not self.enable_limits:
+            return True
+
         if not self.fix or self.latitude_deg is None or self.longitude_deg is None or self.altitude is None:
             return False
 

@@ -5,7 +5,7 @@ from joysticks.wiiu_joystick import WiiUJoystick
 from algorithms.controls.bozo_controller import BozoController
 from roboquasar import RoboQuasar
 
-roboquasar = RoboQuasar(True, "buggy course map")
+roboquasar = RoboQuasar(True, "buggy course map", "buggy course map inside border", "buggy course map outside border")
 
 
 class DataCollector(LiveRobot):

@@ -31,6 +31,9 @@ class MapFile(AtlasReadFile):
     def __getitem__(self, item):
         return self.map[item]
 
+    def __len__(self):
+        return len(self.map)
+
 
 class MapMaker(AtlasWriteFile):
     def __init__(self, map_name, map_dir=None):

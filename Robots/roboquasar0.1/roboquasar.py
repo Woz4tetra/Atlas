@@ -11,7 +11,7 @@ from atlasbuggy.files.mapfile import MapFile
 
 
 class RoboQuasar:
-    def __init__(self, live, checkpoint_map):
+    def __init__(self, live, checkpoint_map_name, inner_map_name, outer_map_name):
         self.gps = GPS()
         self.imu = IMU()
 
@@ -20,7 +20,9 @@ class RoboQuasar:
         self.underglow = Underglow()
 
         self.checkpoint_num = 0
-        self.checkpoints = MapFile(checkpoint_map)
+        self.checkpoints = MapFile(checkpoint_map_name)
+        self.inner_map = MapFile(inner_map_name)
+        self.outer_map = MapFile(outer_map_name)
 
         self.compass_angle = None
         self.start_angle = None
