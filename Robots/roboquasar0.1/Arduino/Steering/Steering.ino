@@ -1,13 +1,13 @@
 #include <AccelStepper.h>
 #include <Atlasbuggy.h>
 
-#define DELIMITER_PIN 8
+#define DELIMITER_PIN 6
 
 unsigned long prev_time = 0;
 unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
-#define MAX_SPEED 150
+#define MAX_SPEED 175
 #define LEFT_LIMIT -200
 #define RIGHT_LIMIT 200
 #define POSITION_ZERO 135

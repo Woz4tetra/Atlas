@@ -11,7 +11,7 @@ parser.add_argument("-l", "--nolog", help="disable logging", action="store_false
 args = parser.parse_args()
 
 
-roboquasar = RoboQuasar(True, "buggy course map")
+roboquasar = RoboQuasar(True, "buggy course map", "buggy course map inside border", "buggy course map outside border")
 
 
 class DataCollector(LiveRobot):
