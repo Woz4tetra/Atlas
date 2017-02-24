@@ -11,7 +11,8 @@ from atlasbuggy.files.mapfile import MapFile
 
 
 class RoboQuasar:
-    def __init__(self, live, checkpoint_map_name, inner_map_name, outer_map_name):
+    def __init__(self, live, checkpoint_map_name=None, inner_map_name=None, outer_map_name=None):
+
         self.gps = GPS()
         self.imu = IMU()
 
@@ -20,6 +21,13 @@ class RoboQuasar:
         self.underglow = Underglow()
 
         self.checkpoint_num = 0
+        if checkpoint_map_name is None:
+            checkpoint_map_name = "buggy course map"
+        if inner_map_name is None:
+            inner_map_name = "buggy course map inside border"
+        if outer_map_name is None:
+            outer_map_name = "buggy course map outside border"
+
         self.checkpoints = MapFile(checkpoint_map_name)
         self.inner_map = MapFile(inner_map_name)
         self.outer_map = MapFile(outer_map_name)
@@ -51,6 +59,7 @@ class RoboQuasar:
         lat2 = 0.0003 * math.sin(angle) + self.gps.latitude_deg
         long2 = 0.0003 * math.cos(angle) + self.gps.longitude_deg
         return lat2, long2
+
 
 file_sets = {
     # started using checkpoints
@@ -112,4 +121,3 @@ file_sets = {
         ("18;02", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
         ("18;09", "old_data/2016_Dec_09/bad_data")),  # gps spazzed out
 }
-

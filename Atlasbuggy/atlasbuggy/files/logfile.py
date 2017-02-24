@@ -17,19 +17,28 @@ log_dir = "logs"
 default_log_file_name = "%H;%M;%S"
 default_log_dir_name = "%Y_%b_%d"
 
-packet_types = {
-    "object" : "<",  # from a robot object
-    "user"   : "|",  # user logged
-    "command": ">",  # command sent
-    "error"  : "!",  # printed error message
+no_timestamp = "-"
 
-    "<"      : "object",
-    "|"      : "user",
-    ">"      : "command",
-    "!"      : "error",
+packet_types = {
+    "object"         : "<",  # from a robot object
+    "user"           : "|",  # user logged
+    "command"        : ">",  # command sent
+
+    "error"          : "!",  # printed error message
+    "error continued": "[",  # error message continued on next line
+    "error end"      : "]",  # error message ends
+
+    "debug"          : "?",  # printed debug message
+    "debug continued": "(",  # debug message continued on next line
+    "debug end"      : ")",  # debug message ends
 }
 
-no_timestamp = "-"
+
+def make_reversible(d):
+    d.update({v: k for k, v in d.items()})
+
+
+make_reversible(packet_types)
 
 
 class Logger(AtlasWriteFile):
@@ -70,9 +79,13 @@ class Logger(AtlasWriteFile):
             else:
                 assert type(timestamp) == float
 
-            packet_type = packet_types[packet_type]
+            if packet_type == "error":
+                packet = packet.replace("\n", "\n" + packet_types["error continued"]) + packet_types["error end"] + "\n"
+            elif packet_type == "debug":
+                packet = packet.replace("\n", "\n" + packet_types["debug continued"]) + packet_types["debug end"] + "\n"
+
             self.write(self.line_code % (
-                packet_type, timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
+                packet_types[packet_type], timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
 
 
 class Parser(AtlasReadFile):
@@ -144,42 +157,84 @@ class Parser(AtlasReadFile):
         """
         line = self.contents[self.index]
 
+        if len(line) == 0:
+            print("Empty line (line #%s)" % self.index)
+            return None
+        if line[0] not in packet_types.keys():
+            print("Invalid packet type: '%s' in line #%s: %s" % (line[0], self.index, line))
+            return None
+        packet_type = packet_types[line[0]]
+
+        whoiam = ""
+        packet = ""
+
+        # the values are from the end of the name to the end of the line
+        if len(packet_type) >= len("error") and packet_type[:len("error")] == "error":
+            if len(packet_type) == len("error"):
+                self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+
+                packet = "\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (
+                    self.timestamp, whoiam)
+                packet += "Traceback (most recent call last):\n"
+                packet += line[whoiam_index + len(time_whoiam_sep):]
+
+            elif packet_type[len("error") + 1:] == "continued":
+                packet = line[1:]
+
+            elif packet_type[len("error") + 1:] == "end":
+                packet = "----- End error message -----\n"
+
+            packet_type = "error"
+
+        elif len(packet_type) >= len("debug") and packet_type[:len("debug")] == "debug":
+            if len(packet_type) == len("debug"):
+                self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+                packet = "[debug at %0.4fs from %s]: " % (self.timestamp, whoiam)
+
+            elif packet_type[len("debug") + 1:] == "continued":
+                packet = "\n" + line[1:]
+
+            elif packet_type[len("debug") + 1:] == "end":
+                packet = "[end debug from %s]: " % line[1:]
+
+            packet_type = "debug"
+
+        else:
+            self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+            if self.timestamp == -1:
+                print("Invalid timestamp in line #%s: %s" % (self.index, line))
+                return None
+            if len(whoiam) == 0:
+                print("Invalid whoiam in line #%s: %s" % (self.index, line))
+                return None
+            else:
+                packet = line[whoiam_index + len(time_whoiam_sep):]
+
+        return packet_type, self.timestamp, whoiam, packet
+
+    def find_packet_header(self, line):
         # search for the timestamp from the current index to the end of the line
         time_index = line.find(time_whoiam_sep)
 
         # search for the name from the current index to the end of the line
         whoiam_index = line.find(whoiam_packet_sep)
 
-        # if the line was parsed correctly
-        if time_index != -1 and whoiam_index != -1:
-            if line[0] not in packet_types.keys():
-                return None
-            packet_type = packet_types[line[0]]
-
-            # the timestamp is the beginning of the line to time_index
+        if time_index != -1:
             timestamp = line[1:time_index]
             if timestamp != no_timestamp:
                 try:
-                    self.timestamp = float(timestamp)
-                except:
+                    timestamp = float(timestamp)
+                except ValueError:
                     print("Invalid timestamp:", timestamp)
             else:
-                self.timestamp = timestamp
+                timestamp = no_timestamp
+        else:
+            timestamp = -1
 
+        if whoiam_index != -1:
             # the name is from the end of the timestamp to name_index
             whoiam = line[time_index + len(time_whoiam_sep): whoiam_index]
-
-            # the values are from the end of the name to the end of the line
-            if packet_type == "error":
-                packet = "\n\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (self.timestamp, whoiam)
-                packet += "Traceback (most recent call last):\n"
-                packet += line[whoiam_index + len(whoiam_packet_sep):] + "\n"
-                for other_lines in self.contents[self.index + 1:]:
-                    packet += other_lines + "\n"
-                packet += "----- End error message -----\n"
-            else:
-                packet = line[whoiam_index + len(whoiam_packet_sep):]
-
-            return packet_type, self.timestamp, whoiam, packet
         else:
-            return None
+            whoiam = ""
+
+        return timestamp, time_index, whoiam, whoiam_index

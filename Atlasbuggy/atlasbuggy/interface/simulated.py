@@ -40,9 +40,9 @@ class SimulatedRobot(BaseInterface):
         self.current_index, packet_type, self._dt, self.current_whoiam, self.current_packet = line
         self.ids_received.add(self.current_whoiam)
 
-        if packet_type == "error":
+        if packet_type == "error" or packet_type == "debug":
             print(self.current_packet)
-            return "exit"
+            return
 
         if self.current_whoiam in self.packets_received:
             self.packets_received[self.current_whoiam] += 1

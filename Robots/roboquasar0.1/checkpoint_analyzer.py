@@ -10,12 +10,12 @@ from roboquasar import RoboQuasar, file_sets
 
 from atlasbuggy.files.mapfile import MapMaker
 
-roboquasar = RoboQuasar(False, "buggy course map")
+roboquasar = RoboQuasar(False)
 
 
 class CheckpointAnalyzer(SimulatedRobot):
     def __init__(self):
-        self.make_map = True
+        self.make_map = False
 
         self.gps_plot = RobotPlot("gps")
         self.checkpoint_plot = RobotPlot("checkpoint", marker='.', linestyle='', markersize=8)
@@ -28,10 +28,10 @@ class CheckpointAnalyzer(SimulatedRobot):
 
         self.plotter = StaticPlotter(1, self.accuracy_check_plot)
 
-        file_name, directory = file_sets["data day 6"][1]
+        file_name, directory = file_sets["data day 6"][0]
         super(CheckpointAnalyzer, self).__init__(
             file_name, directory,
-            *roboquasar.get_sensors()
+            *roboquasar.get_sensors(),
         )
 
         if self.make_map:

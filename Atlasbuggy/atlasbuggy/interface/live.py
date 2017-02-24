@@ -21,9 +21,10 @@ from atlasbuggy.interface import BaseInterface
 
 
 class LiveRobot(BaseInterface):
-    def __init__(self, *robot_objects, joystick=None,
-                 log_data=True, log_name=None, log_dir=None,
-                 debug_prints=False, debug_to_log=False, loop_updates_per_second=120, port_updates_per_second=1000):
+    loop_updates_per_second = 120
+    port_updates_per_second = 1000
+
+    def __init__(self, *robot_objects, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False):
         """
         :param robot_objects: subclasses of RobotObject
         :param joystick: A subclass instance of BuggyJoystick
@@ -37,10 +38,8 @@ class LiveRobot(BaseInterface):
 
         super(LiveRobot, self).__init__(robot_objects, debug_prints)
 
-        self.debug_to_log = debug_to_log  # TODO: put debug messages into a log file
-
-        self.loop_ups = loop_updates_per_second
-        self.port_ups = port_updates_per_second
+        self.loop_ups = LiveRobot.loop_updates_per_second
+        self.port_ups = LiveRobot.port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
         self.current_whoiam = ""
         self.current_timestamp = 0
@@ -159,7 +158,9 @@ class LiveRobot(BaseInterface):
                 if status is not None:
                     return status
 
-                self.logger.record(dt, self.current_whoiam, self.current_packet, "object")
+                if self.logger.is_open():
+                    self.logger.record(dt, self.current_whoiam, self.current_packet, "object")
+                    self._record_debug_prints(dt, self.ports[self.current_whoiam])
 
                 status = self._received(dt, self.current_whoiam, self.current_packet)
                 if status is not None:
@@ -360,9 +361,10 @@ class LiveRobot(BaseInterface):
             robot_port.stop()
 
         for port in self.ports.values():
+            has_exited = port.has_exited()
             self._debug_print("%s, '%s' has %s" % (port.address, port.whoiam,
-                                                   "exited" if port.has_exited() else "not exited!!"))
-            if not port.has_exited():
+                                                   "exited" if has_exited else "not exited!!"))
+            if not has_exited:
                 raise self._handle_error(RobotSerialPortFailedToStopError(
                     "Port signalled error while stopping", self.prev_packet_info,
                     port), traceback.format_stack())
@@ -449,8 +451,16 @@ class LiveRobot(BaseInterface):
                         traceback.format_stack()
                     )
 
+    def _record_debug_prints(self, dt, port):
+        with port.print_out_lock:
+            while not port.debug_print_outs.empty():
+                self.logger.record(dt, port.whoiam, port.debug_print_outs.get(), "debug")
+
     def _handle_error(self, error, traceback):
         if self.logger.is_open:
+            for port in self.ports:
+                self._record_debug_prints(self.dt(), port)
+
             error_message = "".join(traceback[:-1])
             error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
             error_message += "\n".join(error.args[1:])
@@ -463,3 +473,9 @@ class LiveRobot(BaseInterface):
         if self.logger.is_open():
             self._debug_print("Logger closing. Writing file to", self.logger.full_path)
             self.logger.close()
+
+    def _debug_print(self, *strings, ignore_flag=False):
+        if self.debug_enabled or ignore_flag:
+            string = "[Interface] %s" % (" ".join([str(x) for x in strings]))
+            print(string)
+            self.logger.record(self.dt(), "Interface", string, "debug")

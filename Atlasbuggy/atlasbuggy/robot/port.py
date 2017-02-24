@@ -43,9 +43,13 @@ class RobotSerialPort(Process):
         self.debug_enabled = debug_prints
         self.configured = True
         self.abides_protocols = True
+        self.port_assigned = False
+
         self.message_lock = Lock()
         self.error_message = Queue()
-        self.port_assigned = False
+
+        self.print_out_lock = Lock()
+        self.debug_print_outs = Queue()
 
         # time variables
         self.start_time = 0.0
@@ -78,7 +82,7 @@ class RobotSerialPort(Process):
         # events and locks
         self.exit_event_lock = Lock()
         self.start_event_lock = Lock()
-        # self.stop_event_lock = Lock()
+
         self.exit_event = Event()
         self.start_event = Event()
         self.stop_event = Event()
@@ -111,6 +115,7 @@ class RobotSerialPort(Process):
     def send_start(self):
         """
         Send the start flag
+        For external use
         :return: None
         """
         self.debug_print("sending start")
@@ -126,6 +131,8 @@ class RobotSerialPort(Process):
             received: "iamlidar\n"
 
         When the packet is found, parse_whoiam_packet is called and whoiam is assigned
+
+        For initialization
         :return: whoiam packet and first_packet
         """
 
@@ -150,6 +157,8 @@ class RobotSerialPort(Process):
                 'something interesting\t01\t23' would be the first packet
 
         When the packet is found, parse_whoiam_packet is called and whoiam is assigned
+
+        For initialization
         :return: whoiam packet and first_packet
         """
         self.first_packet = self.check_protocol(self.first_packet_ask, self.first_packet_header)
@@ -165,6 +174,8 @@ class RobotSerialPort(Process):
         """
         A call and response method. After an "ask packet" is sent, the process waits for
         a packet with the expected header for 2 seconds
+
+        For initialization
 
         :param ask_packet: packet to send
         :param recv_packet_header: what the received packet should start with
@@ -222,6 +233,9 @@ class RobotSerialPort(Process):
         """
         When errors occur in a RobotSerialPort, the process doesn't crash. The error is recorded,
         self.update is stopped, and the main process is notified so all other ports can close safely
+
+        For initialization and process use
+
         :param error: The error message to record
         :return: None
         """
@@ -321,6 +335,8 @@ class RobotSerialPort(Process):
         Read all available data on serial and split them into packets as
         indicated by packet_end.
 
+        For initialization and process use
+
         :return: None indicates the serial read failed and that the communicator thread should be stopped.
             returns the received packets otherwise
         """
@@ -363,6 +379,8 @@ class RobotSerialPort(Process):
         """
         Safely write a packet over serial. Automatically appends packet_end to the input.
 
+        For initialization and process use
+
         :param packet: an arbitrary string without packet_end in it
         :return: True or False if the write was successful
         """
@@ -387,6 +405,7 @@ class RobotSerialPort(Process):
     def print_packets(self, packets):
         """
         If debug_prints is True, print repr of all incoming packets
+
         :param packets: a list of received packets
         :return: None
         """
@@ -402,12 +421,26 @@ class RobotSerialPort(Process):
     # ----- external and status methods -----
 
     def debug_print(self, *strings, ignore_flag=False):
+        """
+        For initialization and process use
+
+        :param strings:
+        :param ignore_flag:
+        :return:
+        """
         if self.debug_enabled or ignore_flag:
-            string = " ".join(map(str, strings))
-            print("[%s, %s] %s" % (self.address, self.whoiam, string))
+            string = "[%s, %s] %s" % (self.address, self.whoiam, " ".join(map(str, strings)))
+            with self.print_out_lock:
+                self.debug_print_outs.put(string)
+            print(string)
 
     def change_rate(self, new_baud_rate):
-        # time.sleep(0.05)
+        """
+        For external use
+
+        :param new_baud_rate:
+        :return:
+        """
         self.debug_print("Setting baud to", new_baud_rate)
         with self.baud_rate.get_lock():
             self.baud_rate.value = new_baud_rate
@@ -416,6 +449,8 @@ class RobotSerialPort(Process):
     def is_running(self):
         """
         Check if the port's thread is running correctly
+
+        For external use
 
         :return:
             -1: event event thrown
@@ -436,6 +471,12 @@ class RobotSerialPort(Process):
         return 1
 
     def send_stop_events(self):
+        """
+
+        For process use
+
+        :return:
+        """
         if not self.stop_event.is_set():
             if self.check_protocol("stop", "stopping") is None:
                 self.debug_print("Failed to send stop flag!!!")
@@ -445,12 +486,16 @@ class RobotSerialPort(Process):
             self.stop_event.set()
         else:
             self.debug_print("Stop event already set!")
-            return True
 
-        self.close_serial()
         return True
 
     def close_serial(self):
+        """
+
+        For external use
+
+        :return:
+        """
         self.debug_print("Acquiring serial lock")
         with self.serial_lock:
             if self.configured:
@@ -466,16 +511,10 @@ class RobotSerialPort(Process):
     def stop(self):
         """
         Send stop packet, close the serial port.
-        Don't wait for feedback from the microcontroller
+
+        For external use
         :return: None
         """
-
-        self.debug_print("Acquiring start lock")
-        with self.start_event_lock:
-            if not self.start_event.is_set():
-                self.debug_print("start_event not set! Closing serial")
-                self.close_serial()
-        self.debug_print("Releasing start lock")
 
         self.debug_print("Acquiring exit lock")
         with self.exit_event_lock:
@@ -485,6 +524,19 @@ class RobotSerialPort(Process):
                 self.debug_print("Exit event already set! Error was likely thrown")
         self.debug_print("Releasing exit lock")
 
+        self.debug_print("Acquiring start lock")
+        with self.start_event_lock:
+            if not self.start_event.is_set():
+                self.debug_print("start_event not set! Closing serial")
+                self.close_serial()
+        self.debug_print("Releasing start lock")
+
     def has_exited(self):
+        """
+
+        For external use
+
+        :return:
+        """
         with self.exit_event_lock:
             return self.exit_event.is_set()
