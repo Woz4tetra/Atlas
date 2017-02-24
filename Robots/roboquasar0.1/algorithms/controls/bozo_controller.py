@@ -23,10 +23,10 @@ class BozoController:
         return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_index = self.get_goal(lat, long, self.current_index, self.current_index + 10)
+        goal_index = self.get_goal(lat, long, 0, -1)#self.current_index, self.current_index + 8)
         goal_lat, goal_long = self.map[goal_index]
 
-        goal_angle = math.atan2(goal_long - long, goal_lat - lat)
+        goal_angle = math.atan2(goal_long - long, goal_lat - lat) - math.pi / 2
         if goal_angle < 0:
             goal_angle += 2 * math.pi
         angle_error = self.shift_angle(goal_angle - yaw)
@@ -40,17 +40,25 @@ class BozoController:
 
         start = min(start_index % len(self.map), end_index % len(self.map))
         end = min(end_index % len(self.map), end_index % len(self.map))
+        # print(start, end)
         for index in range(start, end):  # only search a few indices ahead
             lat1, long1 = self.map[index]
-            dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) +
-                             (long1 - long0) * (long1 - long0))
+            dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) + (long1 - long0) * (long1 - long0))
             if smallest_dist is None or dist < smallest_dist:
                 smallest_dist = dist
                 goal_index = index
 
+                # if smallest_dist is not None:
+                #     print("%0.4f" % smallest_dist, end=", ")
+        # if smallest_dist is not None:
+        #     print("%0.4f" % smallest_dist, start, end)
+
+
+        # print(goal_index, end=", ")
+        goal_index = (goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
+        # print(goal_index)
         self.current_index = goal_index % len(self.map)  # the closest index on the map
 
-        goal_index = (goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
         # print("%i, %0.6f, %0.6f" % (goal_index, x0, y0))
         # print("%0.6f, %0.6f" % (self.map[goal_index][0], self.map[goal_index][1]))
 

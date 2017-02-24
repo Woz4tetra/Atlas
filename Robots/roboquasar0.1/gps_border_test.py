@@ -1,6 +1,6 @@
-import os
+# import os
 
-os.chdir("..")
+# os.chdir("..")
 
 from atlasbuggy.interface.simulated import SimulatedRobot
 
@@ -24,10 +24,12 @@ class Animator(SimulatedRobot):
         self.inner_map_plot = RobotPlot("inner map")
         self.outer_map_plot = RobotPlot("outer map")
         self.compass_plot = RobotPlot("compass")
+        self.goal_plot = RobotPlot("checkpoint goal")
+        self.recorded_goal_plot = RobotPlot("recorded checkpoint goal")
 
         self.accuracy_check_plot = RobotPlotCollection("Animation", self.gps_plot, self.checkpoint_plot,
                                                        self.map_plot, self.inner_map_plot, self.outer_map_plot,
-                                                       self.compass_plot)
+                                                       self.compass_plot, self.goal_plot)
 
         self.plotter = LivePlotter(1, self.accuracy_check_plot)
 
@@ -35,9 +37,9 @@ class Animator(SimulatedRobot):
         self.inner_map_plot.update(roboquasar.inner_map.lats, roboquasar.inner_map.longs)
         self.outer_map_plot.update(roboquasar.outer_map.lats, roboquasar.outer_map.longs)
 
-        self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map)
+        self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map, offset=5)
 
-        file_name, directory = file_sets["data day 4"][1]
+        file_name, directory = file_sets["data day 7"][-1]
         super(Animator, self).__init__(
             file_name, directory,
             *roboquasar.get_sensors()
@@ -48,6 +50,9 @@ class Animator(SimulatedRobot):
             roboquasar.init_compass(packet)
             print("compass value:", packet)
         if roboquasar.gps.is_position_valid():
+            if not self.controller.is_initialized():
+                self.controller.initialize(roboquasar.gps.latitude_deg, roboquasar.gps.longitude_deg)
+
             if self.did_receive("checkpoint"):
                 self.checkpoint_plot.append(roboquasar.gps.latitude_deg, roboquasar.gps.longitude_deg)
                 if self.plotter.plot() is False:
@@ -79,6 +84,13 @@ class Animator(SimulatedRobot):
                         self.compass_plot.set_properties(color='red')
                     else:
                         self.compass_plot.set_properties(color='purple')
+            elif self.did_receive("steering angle"):
+                goal_index = int(packet.split("\t")[-1])
+                self.controller.update(roboquasar.gps.latitude_deg, roboquasar.gps.longitude_deg, roboquasar.offset_angle())
+                self.goal_plot.update([roboquasar.gps.latitude_deg, self.controller.map[self.controller.current_index][0]],
+                                      [roboquasar.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
+                self.recorded_goal_plot.update([roboquasar.gps.latitude_deg, self.controller.map[goal_index][0]],
+                                      [roboquasar.gps.longitude_deg, self.controller.map[goal_index][1]])
 
     def close(self, reason):
         if reason == "done":

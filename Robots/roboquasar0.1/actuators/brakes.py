@@ -33,6 +33,12 @@ class Brakes(RobotObject):
         self.send('r')
         self.engaged = False
 
+    def toggle(self):
+        if self.engaged:
+            self.unbrake()
+        else:
+            self.brake()
+
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)
         string += "goal: %2.0d, position: %2.0d\n" % (self.goal_position, self.position)

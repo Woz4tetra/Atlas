@@ -62,6 +62,12 @@ class RoboQuasar:
 
 
 file_sets = {
+    "data day 7": (
+        ("17;09", "data day 7/2017_Feb_24"),
+        ("17;33", "data day 7/2017_Feb_24"),
+        ("FIRST SUCCESSFUL RUN", "data day 7/2017_Feb_24")
+    ),
+
     # started using checkpoints
     "data day 6"    : (
         ("16;47", "data_days/2017_Feb_18"),
