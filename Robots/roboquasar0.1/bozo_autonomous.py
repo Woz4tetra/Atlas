@@ -5,7 +5,8 @@ from joysticks.wiiu_joystick import WiiUJoystick
 from algorithms.controls.bozo_controller import BozoController
 from roboquasar import RoboQuasar
 
-roboquasar = RoboQuasar(True, "buggy course map")
+roboquasar = RoboQuasar(True, "Autonomous test map 1", "Autonomous test map 1 inside border",
+                        "Autonomous test map 1 outside border", "cut")
 
 
 class DataCollector(LiveRobot):
@@ -19,7 +20,7 @@ class DataCollector(LiveRobot):
               "L: Record checkpoint\n"
               "left stick: steering while in manual mode\n"
               "A: calibrate steering"
-        )
+              )
         super(DataCollector, self).__init__(
             *roboquasar.get_sensors(),
             joystick=WiiUJoystick(),

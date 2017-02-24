@@ -12,7 +12,8 @@ from algorithms.controls.bozo_controller import BozoController
 
 from roboquasar import RoboQuasar, file_sets
 
-roboquasar = RoboQuasar(False, "buggy course map", "buggy course map inside border", "buggy course map outside border")
+roboquasar = RoboQuasar(False, "Autonomous test map 1", "Autonomous test map 1 inside border",
+                        "Autonomous test map 1 outside border", "cut")
 
 
 class Animator(SimulatedRobot):
@@ -36,7 +37,7 @@ class Animator(SimulatedRobot):
 
         self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map)
 
-        file_name, directory = file_sets["data day 6"][1]
+        file_name, directory = file_sets["data day 4"][1]
         super(Animator, self).__init__(
             file_name, directory,
             *roboquasar.get_sensors()
