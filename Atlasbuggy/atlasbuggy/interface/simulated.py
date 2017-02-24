@@ -36,27 +36,28 @@ class SimulatedRobot(BaseInterface):
     def _update(self):
         line = self.parser.next()
         if line is None:
-            return False
+            return
         self.current_index, packet_type, self._dt, self.current_whoiam, self.current_packet = line
-        self.ids_received.add(self.current_whoiam)
 
         if packet_type == "error" or packet_type == "debug":
             print(self.current_packet)
             return
+        else:
+            self.ids_received.add(self.current_whoiam)
 
         if self.current_whoiam in self.packets_received:
             self.packets_received[self.current_whoiam] += 1
         else:
             self.packets_received[self.current_whoiam] = 0
 
-        if self.current_whoiam in self.objects.keys():
+        if self.current_whoiam in self.objects.keys() and packet_type == "object":
             if self._dt == logfile.no_timestamp:
                 if self.objects[self.current_whoiam].enabled:
                     if isinstance(self.objects[self.current_whoiam], RobotObject):
                         self.objects[self.current_whoiam].receive_first(self.current_packet)
                     elif isinstance(self.objects[self.current_whoiam], RobotObjectCollection):
                         self.objects[self.current_whoiam].receive_first(self.current_whoiam, self.current_packet)
-
+                    return
             else:
                 try:
                     if self.objects[self.current_whoiam].enabled:

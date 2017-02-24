@@ -458,7 +458,7 @@ class LiveRobot(BaseInterface):
 
     def _handle_error(self, error, traceback):
         if self.logger.is_open:
-            for port in self.ports:
+            for port in self.ports.values():
                 self._record_debug_prints(self.dt(), port)
 
             error_message = "".join(traceback[:-1])

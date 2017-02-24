@@ -79,10 +79,11 @@ class Logger(AtlasWriteFile):
             else:
                 assert type(timestamp) == float
 
-            if packet_type == "error":
-                packet = packet.replace("\n", "\n" + packet_types["error continued"]) + packet_types["error end"] + "\n"
-            elif packet_type == "debug":
-                packet = packet.replace("\n", "\n" + packet_types["debug continued"]) + packet_types["debug end"] + "\n"
+            if packet_type == "error" or packet_type == "debug":
+                if "\n" in packet:
+                    packet = packet.replace("\n", "\n" + packet_types[packet_type + " continued"])
+                    packet += "\n" + packet_types[packet_type + " end"]
+                    print(repr(packet))
 
             self.write(self.line_code % (
                 packet_types[packet_type], timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
@@ -143,9 +144,9 @@ class Parser(AtlasReadFile):
         """
         if self.index < self.end_index:
             line = self.parse_line()
+            self.index += 1
             if line is not None:
                 packet_type, timestamp, whoiam, packet = line
-                self.index += 1
                 return self.index - 1, packet_type, timestamp, whoiam, packet
         return None
 
@@ -156,7 +157,6 @@ class Parser(AtlasReadFile):
         :return: timestamp, whoiam, packet; None if the line was parsed incorrectly
         """
         line = self.contents[self.index]
-
         if len(line) == 0:
             print("Empty line (line #%s)" % self.index)
             return None
@@ -189,7 +189,11 @@ class Parser(AtlasReadFile):
         elif len(packet_type) >= len("debug") and packet_type[:len("debug")] == "debug":
             if len(packet_type) == len("debug"):
                 self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-                packet = "[debug at %0.4fs from %s]: " % (self.timestamp, whoiam)
+                # if self.timestamp == no_timestamp:
+                #     packet = "[debug at initialization from %s]: " % whoiam
+                # else:
+                #     packet = "[debug at %0.4fs from %s]: " % (self.timestamp, whoiam)
+                packet += line[whoiam_index + len(time_whoiam_sep):]
 
             elif packet_type[len("debug") + 1:] == "continued":
                 packet = "\n" + line[1:]

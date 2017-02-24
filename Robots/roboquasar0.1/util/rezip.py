@@ -3,6 +3,7 @@ import os
 import gzip
 from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
 
+os.chdir("..")
 
 def rezip_file():
     file_name = None

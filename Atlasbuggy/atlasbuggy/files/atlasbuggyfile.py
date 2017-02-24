@@ -43,7 +43,6 @@ class AtlasFile:
             else:
                 return directories[-1]
         elif directory[0] != "/":
-
             return os.path.join(abs_default_dir, directory)
         elif directory[0] == "/" and os.path.exists(directory):
             return directory

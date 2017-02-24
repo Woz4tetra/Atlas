@@ -1,7 +1,11 @@
 # Compare checkpoint data to checkpoint maps
 import time
+import sys
+import os
 
 from atlasbuggy.interface.simulated import SimulatedRobot
+
+sys.path.append("..")
 
 from sensors.gps import GPS
 from sensors.imu import IMU
@@ -11,8 +15,7 @@ from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
 
-from roboquasar import file_sets
-
+os.chdir("..")
 
 class FilePrinter(SimulatedRobot):
     def __init__(self):
@@ -24,9 +27,8 @@ class FilePrinter(SimulatedRobot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        file_name, directory = file_sets["data day 5"][-1]
         super(FilePrinter, self).__init__(
-            file_name, directory,
+            None, "rolls/2017_Feb_24",
             self.gps, self.imu, self.lidar, self.steering, self.brakes, self.underglow
         )
 
