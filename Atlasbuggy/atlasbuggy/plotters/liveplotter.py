@@ -54,15 +54,17 @@ class LivePlotter(BasePlotter):
                             self.axes[plot.name].plot([], [], [], **subplot.properties)[0]
 
         # define a clean close event
-        self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
+        if self.plotter_enabled:
+            self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
         self.time0 = None
         self.lag_cap = lag_cap
         self.plot_skip_count = plot_skip_count
         self.skip_counter = 0
         self.closed = False
 
-        self.init_legend()
-        plt.show(block=False)
+        if self.plotter_enabled:
+            self.init_legend()
+            plt.show(block=False)
 
     def start_time(self, time0):
         """
@@ -82,6 +84,9 @@ class LivePlotter(BasePlotter):
         :return: True or False whether the plot should update or not
         """
         # likely source of rare bug where the plot lags badly
+        # if self.plotter_enabled:
+        #     return False
+
         if self.time0 is not None:
             current_time = time.time() - self.time0
 
@@ -98,8 +103,11 @@ class LivePlotter(BasePlotter):
         Update plot using data supplied to the robot plot objects
         :return: True or False if the plotting operation was successful
         """
-        if self.closed or not self.plotter_enabled:
+        if self.closed:
             return False
+
+        if not self.plotter_enabled:
+            return True
 
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):
@@ -150,9 +158,10 @@ class LivePlotter(BasePlotter):
         return True
 
     def freeze_plot(self):
-        plt.ioff()
-        plt.gcf()
-        plt.show()
+        if self.plotter_enabled:
+            plt.ioff()
+            plt.gcf()
+            plt.show()
 
     def close(self):
         """

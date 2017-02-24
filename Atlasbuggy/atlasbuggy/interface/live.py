@@ -260,9 +260,6 @@ class LiveRobot(BaseInterface):
                 port.stop()
             else:
                 self.ports[port.whoiam] = port
-                object_baud = self.objects[port.whoiam].baud
-                if object_baud is not None and object_baud != port.baud_rate:
-                    port.change_rate(object_baud)
 
     def _check_objects(self):
         """
@@ -290,6 +287,9 @@ class LiveRobot(BaseInterface):
                                   (self.ports[whoiam].address, whoiam), ignore_flag=True)
             else:
                 used_ports[whoiam] = self.ports[whoiam]
+                object_baud = self.objects[whoiam].baud
+                if object_baud is not None and object_baud != self.ports[whoiam].baud_rate:
+                    self.ports[whoiam].change_rate(object_baud)
         self.ports = used_ports
 
     def _send_first_packets(self):

@@ -24,16 +24,8 @@ class BasePlotter:
 
         if len(self.robot_plots) == 0:
             self.plotter_enabled = False
-            return  # TODO: warn the user there are no plots
         else:
             self.plotter_enabled = True
-
-        num_plots = len(self.robot_plots)
-        if num_plots < num_columns:
-            num_columns = num_plots
-
-        num_rows = num_plots // num_columns
-        num_rows += num_plots % num_columns
 
         self.legend_args = legend_args
         self.enable_legend = enable_legend
@@ -42,20 +34,28 @@ class BasePlotter:
         self.lines = {}
         self.plots_dict = {}
 
-        self.fig = plt.figure(BasePlotter.fig_num)
-        BasePlotter.fig_num += 1
+        if self.plotter_enabled:
+            self.fig = plt.figure(BasePlotter.fig_num)
+            BasePlotter.fig_num += 1
 
-        plot_num = 1
-        for plot in self.robot_plots:
-            self.plots_dict[plot.name] = plot
-            if plot.flat:
-                self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
-            else:
-                self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num, projection='3d')
+            num_plots = len(self.robot_plots)
+            if num_plots < num_columns:
+                num_columns = num_plots
 
-            self.axes[plot.name].set_title(plot.name)
+            num_rows = num_plots // num_columns
+            num_rows += num_plots % num_columns
 
-            plot_num += 1
+            plot_num = 1
+            for plot in self.robot_plots:
+                self.plots_dict[plot.name] = plot
+                if plot.flat:
+                    self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num)
+                else:
+                    self.axes[plot.name] = self.fig.add_subplot(num_rows, num_columns, plot_num, projection='3d')
+
+                self.axes[plot.name].set_title(plot.name)
+
+                plot_num += 1
 
     def init_legend(self):
         """
@@ -82,26 +82,28 @@ class BasePlotter:
             return None
 
     def draw_dot(self, arg, x, y, z=None, **dot_properties):
-        plot_name = self.get_name(arg)
-        if plot_name is None:
-            return
+        if self.plotter_enabled:
+            plot_name = self.get_name(arg)
+            if plot_name is None:
+                return
 
-        if plot_name in self.axes.keys():
-            if self.plots_dict[plot_name].flat:
-                self.axes[plot_name].plot(x, y, 'o', **dot_properties)
-            else:
-                self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
+            if plot_name in self.axes.keys():
+                if self.plots_dict[plot_name].flat:
+                    self.axes[plot_name].plot(x, y, 'o', **dot_properties)
+                else:
+                    self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
     def set_line_props(self, arg, **kwargs):
-        plot_name = self.get_name(arg)
-        if plot_name is None:
-            return
+        if self.plotter_enabled:
+            plot_name = self.get_name(arg)
+            if plot_name is None:
+                return
 
-        if isinstance(arg, RobotPlot) and arg.collection_plot is not None:
-            collection_name = arg.collection_plot.name
-            self.lines[collection_name][plot_name].set(**kwargs)
-        else:
-            self.lines[plot_name].set(**kwargs)
+            if isinstance(arg, RobotPlot) and arg.collection_plot is not None:
+                collection_name = arg.collection_plot.name
+                self.lines[collection_name][plot_name].set(**kwargs)
+            else:
+                self.lines[plot_name].set(**kwargs)
 
     def plot(self):
         """
