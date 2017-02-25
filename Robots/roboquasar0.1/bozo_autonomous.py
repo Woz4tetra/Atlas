@@ -16,7 +16,7 @@ roboquasar = RoboQuasar(True, "Autonomous test map 1", "Autonomous test map 1 in
 class DataCollector(LiveRobot):
     def __init__(self):
         self.manual_mode = True
-        self.enable_plotting = True
+        self.enable_plotting = False
 
         print("X: Switch between manual and autonomous\n"
               "R: Deadman switch. Hold this until something goes wrong\n"
@@ -44,7 +44,7 @@ class DataCollector(LiveRobot):
             self.inner_map_plot.update(roboquasar.inner_map.lats, roboquasar.inner_map.longs)
             self.outer_map_plot.update(roboquasar.outer_map.lats, roboquasar.outer_map.longs)
 
-            self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map, offset=5)
+        self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map, offset=5)
 
         super(DataCollector, self).__init__(
             *roboquasar.get_sensors(),
