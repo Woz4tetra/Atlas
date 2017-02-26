@@ -172,7 +172,8 @@ class Parser(AtlasReadFile):
         if len(packet_type) >= len("error") and packet_type[:len("error")] == "error":
             if len(packet_type) == len("error"):
                 self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-
+                if self.timestamp == no_timestamp:
+                    self.timestamp = 0.0
                 packet = "\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (
                     self.timestamp, whoiam)
                 packet += "Traceback (most recent call last):\n"

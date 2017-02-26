@@ -50,6 +50,7 @@ class AtlasFile:
             raise NotADirectoryError("Input directory not found! '%s'" % self.input_dir)
 
     def get_file_name(self, file_name, directory):
+        name_with_ext = file_name + "." + self.file_type
         if file_name is None:  # retrieve last file
             entries = os.listdir(self.directory)
             entries = [os.path.join(self.directory, entry) for entry in entries]
@@ -61,11 +62,13 @@ class AtlasFile:
             return files[-1]
 
         for entry in os.listdir(self.directory):
-            if len(file_name) < len(entry) and entry.endswith(self.file_type) and file_name == entry[:len(file_name)]:
+            if name_with_ext == entry:
                 return entry
+            if len(file_name) < len(entry) and entry.endswith(self.file_type) and file_name == entry[:len(file_name)]:
+                file_name = entry
 
-        if not file_name.endswith(self.file_type):
-            return file_name + "." + self.file_type
+        if not file_name.endswith("." + self.file_type):
+            file_name += "." + self.file_type
 
         return file_name
 

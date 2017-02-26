@@ -8,8 +8,8 @@
     <text>WTracks</text>
     <type>text/html</type>
   </link>
-  <time>2017-02-19T18-01-41Z</time>
-<bounds minlat="40.43875055686057" minlon="-79.94718979201292" maxlat="40.44173097673715" maxlon="-79.93949721655821"/></metadata>
+  <time>2017-02-25T06-54-15Z</time>
+<bounds minlat="40.43334588641291" minlon="-79.96617446742033" maxlat="40.44526773149225" maxlon="-79.93540416560148"/></metadata>
 <trk><name>buggy course map outside border</name><trkseg>
   <trkpt lat="40.441724032868876" lon="-79.94148686528206"></trkpt>
   <trkpt lat="40.44163949238976" lon="-79.94152843952179"></trkpt>
@@ -101,4 +101,12 @@
   <trkpt lat="40.44060481468554" lon="-79.9425919353962"></trkpt>
   <trkpt lat="40.44055990447726" lon="-79.94240552186966"></trkpt>
   <trkpt lat="40.44054561485923" lon="-79.94226068258286"></trkpt>
+  <trkpt lat="40.44063535207312" lon="-79.94213193655014"></trkpt>
+  <trkpt lat="40.44081434182067" lon="-79.94204342365265"></trkpt>
+  <trkpt lat="40.44098467033142" lon="-79.9419629573822"></trkpt>
+  <trkpt lat="40.44118964135699" lon="-79.9418717622757"></trkpt>
+  <trkpt lat="40.44133398677458" lon="-79.94180202484131"></trkpt>
+  <trkpt lat="40.44150720086659" lon="-79.94171619415283"></trkpt>
+  <trkpt lat="40.44164577181884" lon="-79.9416571855545"></trkpt>
+  <trkpt lat="40.44174681295814" lon="-79.94161158800125"></trkpt>
 </trkseg></trk></gpx>

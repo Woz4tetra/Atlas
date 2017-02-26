@@ -1,4 +1,6 @@
 # This file is meant to collect data from manual control. Terminal interface only
+import argparse
+
 from atlasbuggy.interface.live import LiveRobot
 
 from joysticks.wiiu_joystick import WiiUJoystick
@@ -9,8 +11,17 @@ from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
 
-roboquasar = RoboQuasar(True, "Autonomous test map 1", "Autonomous test map 1 inside border",
-                        "Autonomous test map 1 outside border", "cut")
+parser = argparse.ArgumentParser()
+parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
+args = parser.parse_args()
+
+roboquasar = RoboQuasar(
+    False,
+    # "Autonomous test map 2",
+    # "Autonomous test map 2 inside border",
+    # "Autonomous test map 2 outside border",
+    # "cut"
+)
 
 
 class DataCollector(LiveRobot):
@@ -49,7 +60,7 @@ class DataCollector(LiveRobot):
         super(DataCollector, self).__init__(
             *roboquasar.get_sensors(),
             joystick=WiiUJoystick(),
-            log_data=True, log_dir=("data day 7", None), debug_prints=True
+            log_data=args.nolog, log_dir=("data_days", None), debug_prints=True
         )
         self.record("initial compass", roboquasar.compass_str)
 
@@ -123,8 +134,6 @@ class DataCollector(LiveRobot):
                     self.goal_plot.update(
                         [roboquasar.gps.latitude_deg, self.controller.map[self.controller.current_index][0]],
                         [roboquasar.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
-        # else:
-            # print("Skipping GPS value!!")
 
     def loop(self):
         if self.joystick is not None:
@@ -154,6 +163,5 @@ class DataCollector(LiveRobot):
         if reason != "done":
             roboquasar.brakes.brake()
             print("!!EMERGENCY BRAKE!!")
-
 
 DataCollector().run()

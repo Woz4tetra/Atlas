@@ -27,6 +27,8 @@ class RoboQuasar:
             inner_map_name = "buggy course map inside border"
         if outer_map_name is None:
             outer_map_name = "buggy course map outside border"
+        if map_dir is None:
+            map_dir = "buggy"
 
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
@@ -51,8 +53,10 @@ class RoboQuasar:
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
 
     def offset_angle(self):
+        # self.imu.euler.z *= 180 / math.pi
         if self.start_angle is None:
             self.start_angle = self.imu.euler.z
+
         return self.imu.euler.z - self.start_angle + self.compass_angle
 
     def compass_coords(self, angle):
@@ -63,9 +67,16 @@ class RoboQuasar:
 
 file_sets = {
     "data day 7": (
-        ("17;09", "data day 7/2017_Feb_24"),
-        ("17;33", "data day 7/2017_Feb_24"),
-        ("FIRST SUCCESSFUL RUN", "data day 7/2017_Feb_24")
+        ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
+        ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
+        ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
+        ("16;14", "data_days/2017_Feb_24"),  # 3, Moving to the cut part 1
+        ("16;21", "data_days/2017_Feb_24"),  # 4, Moving to the cut part 2
+        ("16;49", "data_days/2017_Feb_24"),  # 5, GPS not found error 2
+        ("17;09", "data_days/2017_Feb_24"),  # 6, Faulty checkpoint lock ons
+        ("17;33", "data_days/2017_Feb_24"),  # 7, Manual roll around course
+        ("20;06", "data_days/2017_Feb_24"),  # 8, Walking home
+        ("FIRST SUCCESSFUL RUN", "data_days/2017_Feb_24"),
     ),
 
     # started using checkpoints
