@@ -2,6 +2,7 @@ import math
 
 from sensors.gps import GPS
 from sensors.imu import IMU
+from sensors.lidarturret import LidarTurret
 
 from actuators.brakes import Brakes
 from actuators.steering import Steering
@@ -15,6 +16,7 @@ class RoboQuasar:
 
         self.gps = GPS()
         self.imu = IMU()
+        self.turret = LidarTurret()
 
         self.steering = Steering()
         self.brakes = Brakes()
@@ -47,7 +49,7 @@ class RoboQuasar:
             self.init_compass(self.compass_str)
 
     def get_sensors(self):
-        return self.gps, self.imu, self.steering, self.brakes, self.underglow
+        return self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow
 
     def init_compass(self, packet):
         self.compass_angle = math.radians(float(packet)) - math.pi / 2

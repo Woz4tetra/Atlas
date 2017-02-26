@@ -45,11 +45,13 @@ class DataCollector(LiveRobot):
             self.compass_plot = RobotPlot("compass")
             self.goal_plot = RobotPlot("checkpoint goal")
 
-            self.accuracy_check_plot = RobotPlotCollection("Animation", self.gps_plot, self.checkpoint_plot,
-                                                           self.map_plot, self.inner_map_plot, self.outer_map_plot,
-                                                           self.compass_plot, self.goal_plot)
+            self.accuracy_check_plot = RobotPlotCollection(
+                "Animation", self.gps_plot, self.checkpoint_plot,
+               self.map_plot, self.inner_map_plot, self.outer_map_plot,
+               self.compass_plot, self.goal_plot
+           )
 
-            self.plotter = LivePlotter(1, self.accuracy_check_plot)
+            self.plotter = LivePlotter(2, self.accuracy_check_plot, roboquasar.turret.point_cloud_plot)
 
             self.map_plot.update(roboquasar.checkpoints.lats, roboquasar.checkpoints.longs)
             self.inner_map_plot.update(roboquasar.inner_map.lats, roboquasar.inner_map.longs)
@@ -112,6 +114,11 @@ class DataCollector(LiveRobot):
         elif self.did_receive(roboquasar.brakes):
             print("%2.5f" % timestamp)
             print(roboquasar.brakes)
+
+        elif self.did_receive(roboquasar.turret):
+            if roboquasar.turret.did_cloud_update() and self.enable_plotting:
+                if self.plotter.plot() is False:
+                    return False
 
     def update_steering(self):
         if roboquasar.gps.is_position_valid():
