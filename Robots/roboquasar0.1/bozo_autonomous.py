@@ -16,11 +16,11 @@ parser.add_argument("-l", "--nolog", help="disable logging", action="store_false
 args = parser.parse_args()
 
 roboquasar = RoboQuasar(
-    False,
-    # "Autonomous test map 2",
-    # "Autonomous test map 2 inside border",
-    # "Autonomous test map 2 outside border",
-    # "cut"
+    True,
+    "Autonomous test map 2",
+    "Autonomous test map 2 inside border",
+    "Autonomous test map 2 outside border",
+    "cut"
 )
 
 
