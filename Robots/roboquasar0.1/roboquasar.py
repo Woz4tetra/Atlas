@@ -16,7 +16,7 @@ class RoboQuasar:
 
         self.gps = GPS()
         self.imu = IMU()
-        self.turret = LidarTurret()
+        self.turret = LidarTurret(enabled=False)
 
         self.steering = Steering()
         self.brakes = Brakes()
