@@ -2,6 +2,8 @@
 RobotInterfaceSimulator imitates RobotInterface except its data source is a log file.
 """
 
+import time
+
 from atlasbuggy.robot.object import RobotObject
 from atlasbuggy.robot.collection import RobotObjectCollection
 from atlasbuggy.interface import BaseInterface
@@ -26,6 +28,7 @@ class SimulatedRobot(BaseInterface):
 
         self._dt = 0
         self.current_index = 0
+        self.is_paused = False
 
     def _start(self):
         self.start()
@@ -33,7 +36,19 @@ class SimulatedRobot(BaseInterface):
     def _should_run(self):
         return self.parser.index < self.parser.end_index - 1
 
+    def pause(self):
+        self.is_paused = True
+
+    def unpause(self):
+        self.is_paused = False
+
+    def toggle_pause(self):
+        self.is_paused = not self.is_paused
+
     def _update(self):
+        if self.is_paused:
+            return
+
         line = self.parser.next()
         if line is None:
             return
@@ -50,35 +65,51 @@ class SimulatedRobot(BaseInterface):
         else:
             self.packets_received[self.current_whoiam] = 0
 
-        if self.current_whoiam in self.objects.keys() and packet_type == "object":
-            if self._dt == logfile.no_timestamp:
-                if self.objects[self.current_whoiam].enabled:
-                    if isinstance(self.objects[self.current_whoiam], RobotObject):
-                        self.objects[self.current_whoiam].receive_first(self.current_packet)
-                    elif isinstance(self.objects[self.current_whoiam], RobotObjectCollection):
-                        self.objects[self.current_whoiam].receive_first(self.current_whoiam, self.current_packet)
+        status = self._deliver_packet(self.dt(), self.current_whoiam, self.current_packet, packet_type)
+        if status is not None:
+            return status
+        status = self._received(self.dt(), self.current_whoiam, self.current_packet, packet_type)
+        if status is not None:
+            return status
+
+    def _deliver_packet(self, timestamp, whoiam, packet, packet_type):
+        if whoiam in self.objects.keys() and packet_type == "object":
+            if timestamp == logfile.no_timestamp:
+                if self.objects[whoiam].enabled:
+                    if isinstance(self.objects[whoiam], RobotObject):
+                        if self.objects[whoiam].receive_first(packet) is not None:
+                            return "exit"
+                    elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                        if self.objects[whoiam].receive_first(whoiam, packet) is not None:
+                            return "exit"
                     return
             else:
                 try:
-                    if self.objects[self.current_whoiam].enabled:
-                        if isinstance(self.objects[self.current_whoiam], RobotObject):
-                            self.objects[self.current_whoiam].receive(self._dt, self.current_packet)
-                        elif isinstance(self.objects[self.current_whoiam], RobotObjectCollection):
-                            self.objects[self.current_whoiam].receive(self._dt, self.current_whoiam,
-                                                                      self.current_packet)
+                    if self.objects[whoiam].enabled:
+                        if isinstance(self.objects[whoiam], RobotObject):
+                            if self.objects[whoiam].receive(timestamp, packet) is not None:
+                                return "exit"
+                        elif isinstance(self.objects[whoiam], RobotObjectCollection):
+                            if self.objects[whoiam].receive(timestamp, whoiam, packet) is not None:
+                                return "exit"
                 except KeyboardInterrupt:
                     return "exit"
                 except BaseException as error:
                     self._debug_print("RobotObject's receive signalled an error")
                     self._close("error")
-                    raise RobotObjectReceiveError(self.current_whoiam, self.current_packet)
+                    raise RobotObjectReceiveError(whoiam, packet)
 
+            if whoiam in self._linked_functions:
+                status = self._linked_functions[whoiam](timestamp, packet, packet_type)
+                if status is not None:
+                    return "exit"
+
+    def _received(self, timestamp, whoiam, packet, packet_type):
         try:
-            status = self.received(self._dt, self.current_whoiam, self.current_packet, packet_type)
+            status = self.received(timestamp, whoiam, packet, packet_type)
             if status is not None:
                 self._debug_print(
-                    "user's received method signalled to exit. whoiam ID: '%s', packet: %s" % (
-                        self.current_whoiam, repr(self.current_packet)))
+                    "user's received method signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
                 return "exit"
         except KeyboardInterrupt:
             return "exit"

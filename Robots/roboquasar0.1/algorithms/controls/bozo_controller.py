@@ -23,7 +23,7 @@ class BozoController:
         return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_index = self.get_goal(lat, long, 0, -1)#self.current_index, self.current_index + 8)
+        goal_index = self.get_goal(lat, long, 0, -1)
         goal_lat, goal_long = self.map[goal_index]
 
         goal_angle = math.atan2(goal_long - long, goal_lat - lat) - math.pi / 2

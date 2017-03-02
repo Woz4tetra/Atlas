@@ -10,7 +10,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class BasePlotter:
     fig_num = 0
 
-    def __init__(self, num_columns, legend_args, enable_legend, *robot_plots):
+    def __init__(self, num_columns, legend_args, enable_legend, matplotlib_events, *robot_plots):
         """
         A plotter is one matplotlib figure. Having multiple robot plots creates subplots
         :param num_columns: Configure how the subplots are arranged
@@ -33,9 +33,13 @@ class BasePlotter:
         self.axes = {}
         self.lines = {}
         self.plots_dict = {}
+        self.extra_elements = {}
 
         if self.plotter_enabled:
             self.fig = plt.figure(BasePlotter.fig_num)
+            if matplotlib_events is not None:
+                for event_name in matplotlib_events:
+                    self.fig.canvas.mpl_connect(event_name, matplotlib_events[event_name])
             BasePlotter.fig_num += 1
 
             num_plots = len(self.robot_plots)
@@ -81,6 +85,14 @@ class BasePlotter:
         else:
             return None
 
+    def get_axis(self, arg):
+        if self.plotter_enabled:
+            plot_name = self.get_name(arg)
+
+            if plot_name in self.axes.keys():
+                return self.axes[plot_name]
+        return None
+
     def draw_dot(self, arg, x, y, z=None, **dot_properties):
         if self.plotter_enabled:
             plot_name = self.get_name(arg)
@@ -92,6 +104,20 @@ class BasePlotter:
                     self.axes[plot_name].plot(x, y, 'o', **dot_properties)
                 else:
                     self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
+
+    def draw_text(self, arg, text, x, y, z=None, text_name=None, **text_properties):
+        if self.plotter_enabled:
+            plot_name = self.get_name(arg)
+            if plot_name is None:
+                return
+
+            if plot_name in self.axes.keys():
+                if text_name is not None and text_name in self.extra_elements:
+                    self.extra_elements[text_name].remove()
+                if self.plots_dict[plot_name].flat:
+                    self.extra_elements[text_name] = self.axes[plot_name].text(x, y, text, **text_properties)
+                else:
+                    self.extra_elements[text_name] = self.axes[plot_name].text([x], [y], [z], text, **text_properties)
 
     def set_line_props(self, arg, **kwargs):
         if self.plotter_enabled:
