@@ -105,14 +105,14 @@ class LivePlotter(BasePlotter):
         :return: True or False if the plotting operation was successful
         """
         if self.closed:
-            return False
+            return "exit"
 
         if self.is_paused:
             plt.pause(0.05)
-            return True
+            return
 
         if not self.plotter_enabled:
-            return True
+            return
 
         for plot in self.robot_plots:
             if isinstance(plot, RobotPlot):
@@ -137,7 +137,7 @@ class LivePlotter(BasePlotter):
                         subplot.changed_properties = {}
 
             else:
-                return False
+                return "exit"
 
             if plot.flat:
                 # print(plot.x_range, end=", ")
@@ -158,9 +158,7 @@ class LivePlotter(BasePlotter):
             print("plot closing:", error)
 
             self.close()
-            return False
-
-        return True
+            return "error"
 
     def pause(self):
         self.is_paused = True

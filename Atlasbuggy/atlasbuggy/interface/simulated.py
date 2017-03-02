@@ -120,9 +120,10 @@ class SimulatedRobot(BaseInterface):
 
     def _loop(self):
         try:
-            if self.loop() is False:
+            status = self.loop()
+            if status is not None:
                 self._debug_print("loop signalled to exit")
-                return "error"
+                return status
         except BaseException as error:
             self._debug_print("_main_loop signalled an error")
             raise LoopSignalledError(error)

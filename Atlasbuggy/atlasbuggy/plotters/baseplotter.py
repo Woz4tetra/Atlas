@@ -74,6 +74,8 @@ class BasePlotter:
                 self.legend_args["fontsize"] = 'x-small'
             if "shadow" not in self.legend_args:
                 self.legend_args["shadow"] = 'True'
+            if "log" not in self.legend_args:
+                self.legend_args["loc"] = 0
 
             plt.legend(**self.legend_args)
 

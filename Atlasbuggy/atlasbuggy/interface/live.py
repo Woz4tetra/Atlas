@@ -224,7 +224,7 @@ class LiveRobot(BaseInterface):
         """
         Record data not created by a robot object.
 
-        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any sensors
+        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any robot_objects
         :param string: Similar to a packet. String data to record
         :return: None
         """

@@ -11,7 +11,7 @@ from algorithms.controls.bozo_controller import BozoController
 
 from roboquasar import RoboQuasar, file_sets
 
-using_old_data = True
+using_old_data = False
 
 if using_old_data:
     roboquasar = RoboQuasar(False)
@@ -52,9 +52,10 @@ class Animator(SimulatedRobot):
         self.angle_plots = RobotPlotCollection("Angle plots", self.imu_angle_plot, self.bearing_angle_plot,
                                                self.filtered_angle_plot, plot_enabled=False)
 
-        self.plotter = LivePlotter(2, self.accuracy_check_plot, self.angle_plots, matplotlib_events={
-            "key_press_event": self.key_press
-        })
+        self.plotter = LivePlotter(
+            2, self.accuracy_check_plot, self.angle_plots,
+            matplotlib_events=dict(key_press_event=self.key_press),
+        )
 
         self.map_plot.update(roboquasar.checkpoints.lats, roboquasar.checkpoints.longs)
         self.inner_map_plot.update(roboquasar.inner_map.lats, roboquasar.inner_map.longs)
@@ -62,8 +63,8 @@ class Animator(SimulatedRobot):
 
         self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map, offset=5)
 
-        file_name, directory = file_sets["rolls day 3"][0]
-        # file_name, directory = file_sets["data day 8"][3]
+        # file_name, directory = file_sets["rolls day 3"][0]
+        file_name, directory = file_sets["data day 8"][4]
         super(Animator, self).__init__(
             file_name, directory,
             *roboquasar.get_sensors()
@@ -86,8 +87,9 @@ class Animator(SimulatedRobot):
 
             self.gps_plot.append(roboquasar.gps.latitude_deg, roboquasar.gps.longitude_deg)
 
-            if self.plotter.plot() is False:
-                return False
+            status = self.plotter.plot()
+            if status is not None:
+                return status
 
             if self.controller.is_point_inside(roboquasar.gps.latitude_deg, roboquasar.gps.longitude_deg):
                 self.outer_map_plot.set_properties(color="blue")
@@ -158,8 +160,9 @@ class Animator(SimulatedRobot):
 
     def loop(self):
         if self.is_paused:
-            if self.plotter.plot() is False:
-                return False
+            status = self.plotter.plot()
+            if status is not None:
+                return status
 
     def close(self, reason):
         if reason == "done":
