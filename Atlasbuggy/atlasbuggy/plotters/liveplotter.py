@@ -17,7 +17,7 @@ class LivePlotter(BasePlotter):
     initialized = False
 
     def __init__(self, num_columns, *robot_plots, enable_legend=True, legend_args=None, lag_cap=0.005,
-                 plot_skip_count=0):
+                 plot_skip_count=0, matplotlib_events=None):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
         windows don't behave well. This also conserves CPU usage.
@@ -33,7 +33,7 @@ class LivePlotter(BasePlotter):
             raise Exception("Can't have multiple plotter instances!")
         LivePlotter.initialized = True
 
-        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, *robot_plots)
+        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, matplotlib_events, *robot_plots)
 
         # create a plot line for each RobotPlot or RobotPlotCollection.
         for plot in self.robot_plots:
@@ -61,6 +61,7 @@ class LivePlotter(BasePlotter):
         self.plot_skip_count = plot_skip_count
         self.skip_counter = 0
         self.closed = False
+        self.is_paused = False
 
         if self.plotter_enabled:
             self.init_legend()
@@ -105,6 +106,10 @@ class LivePlotter(BasePlotter):
         """
         if self.closed:
             return False
+
+        if self.is_paused:
+            plt.pause(0.05)
+            return True
 
         if not self.plotter_enabled:
             return True
@@ -156,6 +161,15 @@ class LivePlotter(BasePlotter):
             return False
 
         return True
+
+    def pause(self):
+        self.is_paused = True
+
+    def unpause(self):
+        self.is_paused = False
+
+    def toggle_pause(self):
+        self.is_paused = not self.is_paused
 
     def freeze_plot(self):
         if self.plotter_enabled:

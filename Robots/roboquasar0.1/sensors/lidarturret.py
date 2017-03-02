@@ -7,9 +7,9 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 
 class LidarTurret(RobotObject):
     def __init__(self, enabled=True, point_cloud_size=100,
-        angle_range=(210, 330), reverse_range=True,
-        # angle_range=(0, 360), reverse_range=False
-        ):
+                 angle_range=(210, 330), reverse_range=True,
+                 # angle_range=(0, 360), reverse_range=False
+                 ):
         # ----- point creation -----
         self._current_tick = 0
         self._ticks_per_rotation = 0
@@ -81,6 +81,8 @@ class LidarTurret(RobotObject):
         self.cloud_updated = False
         self.cloud_is_ready = False
 
+        self.print_str = ""
+
         # ----- SLAM -----
 
         self.paused = False
@@ -103,9 +105,9 @@ class LidarTurret(RobotObject):
             self.update_properties(timestamp, packet)
             self.make_point_cloud()
 
-            print("Rotation #%4.0d @ %5.2fs (%4.2fHz), Ticks: %s, Points: %s, Interpolated: %s" % (
+            self.print_str = "Rotation #%4.0d @ %5.2fs (%4.2fHz), Ticks: %s, Points: %s, Interpolated: %s" % (
                 self._rotations, timestamp, self._update_rate_hz, self._current_tick, len(self._raw_distances),
-                len(self._point_cloud_xs)))
+                len(self._point_cloud_xs))
 
             self._current_tick = 0
             self.cloud_updated = True
@@ -240,6 +242,9 @@ class LidarTurret(RobotObject):
             self.paused = not self.paused
 
         self.send("p%i" % int(self.paused))
+
+    def __str__(self):
+        return self.print_str
 
 
 class DynamicList:
