@@ -99,7 +99,10 @@ class RoboQuasar:
 
 
 file_sets = {
-    "data day 8"    : (
+    "moving to high bay": (
+        ("14;08;26", "data_days/2017_Mar_02"),
+    ),
+    "data day 8"        : (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -107,7 +110,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7"    : (
+    "data day 7"        : (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -121,12 +124,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6"    : (
+    "data day 6"        : (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5"    : (
+    "data day 5"        : (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -134,45 +137,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4"    : (
+    "data day 4"        : (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3"    : (
+    "data day 3"        : (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield"    : (
+    "trackfield"        : (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1"   : (
+    "rolls day 1"       : (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2"   : (
+    "rolls day 2"       : (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3"   : (
+    "rolls day 3"       : (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test": (
+    "first cut test"    : (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data"      : (
+    "bad data"          : (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out

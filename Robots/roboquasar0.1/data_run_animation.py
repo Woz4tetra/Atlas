@@ -64,7 +64,7 @@ class Animator(SimulatedRobot):
         self.controller = BozoController(roboquasar.checkpoints, roboquasar.inner_map, roboquasar.outer_map, offset=5)
 
         # file_name, directory = file_sets["rolls day 3"][0]
-        file_name, directory = file_sets["data day 8"][4]
+        file_name, directory = file_sets["moving to high bay"][0]
         super(Animator, self).__init__(
             file_name, directory,
             *roboquasar.get_sensors()
