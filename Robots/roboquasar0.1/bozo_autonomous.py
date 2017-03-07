@@ -47,9 +47,9 @@ class DataCollector(LiveRobot):
 
             self.accuracy_check_plot = RobotPlotCollection(
                 "Animation", self.gps_plot, self.checkpoint_plot,
-               self.map_plot, self.inner_map_plot, self.outer_map_plot,
-               self.compass_plot, self.goal_plot
-           )
+                self.map_plot, self.inner_map_plot, self.outer_map_plot,
+                self.compass_plot, self.goal_plot
+            )
 
             self.plotter = LivePlotter(2, self.accuracy_check_plot, roboquasar.turret.point_cloud_plot)
 
@@ -65,9 +65,6 @@ class DataCollector(LiveRobot):
             log_data=args.nolog, log_dir=("data_days", None), debug_prints=True
         )
         self.record("initial compass", roboquasar.compass_str)
-
-    def start(self):
-        roboquasar.brakes.unbrake()
 
     def received(self, timestamp, whoiam, packet, packet_type):
         if self.did_receive(roboquasar.gps):
@@ -97,7 +94,7 @@ class DataCollector(LiveRobot):
 
             if roboquasar.gps.is_position_valid() and self.enable_plotting:
                 angle = roboquasar.offset_angle()
-                lat2, long2 = roboquasar.compass_coords(-angle)
+                lat2, long2 = roboquasar.compass_coords(angle)
                 self.compass_plot.update([roboquasar.gps.latitude_deg, lat2],
                                          [roboquasar.gps.longitude_deg, long2])
                 if roboquasar.imu.system_status > 1:
@@ -132,7 +129,8 @@ class DataCollector(LiveRobot):
                 if not self.manual_mode:
                     goal_lat, goal_long = self.controller.map[self.controller.current_index]
                     roboquasar.steering.set_position(steering_angle)
-                    print("goal offset:", goal_lat - roboquasar.gps.latitude_deg, goal_long - roboquasar.gps.longitude_deg)
+                    print("goal offset:", goal_lat - roboquasar.gps.latitude_deg,
+                          goal_long - roboquasar.gps.longitude_deg)
 
                 self.record("steering angle",
                             "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
@@ -170,5 +168,6 @@ class DataCollector(LiveRobot):
         if reason != "done":
             roboquasar.brakes.brake()
             print("!!EMERGENCY BRAKE!!")
+
 
 DataCollector().run()

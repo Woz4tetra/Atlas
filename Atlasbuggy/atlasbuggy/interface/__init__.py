@@ -39,6 +39,8 @@ class BaseInterface:
 
         self.close_called = False
 
+        self._linked_functions = {}
+
     def start(self):
         pass
 
@@ -73,6 +75,10 @@ class BaseInterface:
 
     def dt(self):
         pass
+
+    def link(self, arg, callback_fn):
+        whoiam = self._get_whoiam(arg)
+        self._linked_functions[whoiam] = callback_fn
 
     def did_receive(self, arg):
         if isinstance(arg, RobotObject):
@@ -110,3 +116,11 @@ class BaseInterface:
         if self.debug_enabled or ignore_flag:
             string = " ".join([str(x) for x in strings])
             print("[Interface] %s" % string)
+
+    def _get_whoiam(self, arg):
+        if isinstance(arg, RobotObject):
+            return arg.whoiam
+        elif isinstance(arg, RobotObjectCollection):
+            return arg.whoiam_ids
+        else:
+            return arg

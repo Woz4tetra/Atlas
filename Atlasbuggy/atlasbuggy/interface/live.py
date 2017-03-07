@@ -224,7 +224,7 @@ class LiveRobot(BaseInterface):
         """
         Record data not created by a robot object.
 
-        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any sensors
+        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any robot_objects
         :param string: Similar to a packet. String data to record
         :return: None
         """
@@ -402,6 +402,7 @@ class LiveRobot(BaseInterface):
                     self._debug_print("receive for collection signalled to exit. whoiam ID: '%s', packet: %s" % (
                         whoiam, repr(packet)))
                     return "exit"
+
         except BaseException as error:
             self._debug_print("Closing all from _deliver_packet")
             self._close_ports("error")
@@ -416,6 +417,10 @@ class LiveRobot(BaseInterface):
                 self._debug_print(
                     "received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
                 return "exit"
+
+            if self.current_whoiam in self._linked_functions:
+                self._linked_functions[self.current_whoiam](self.dt(), self.current_packet, "object")
+
         except BaseException as error:
             self._debug_print("Closing all from _received")
             self._close_ports("error")
