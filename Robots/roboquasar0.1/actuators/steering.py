@@ -20,6 +20,7 @@ class Steering(RobotObject):
         self.calibrated = False
 
         self.sent_step = 0
+        self.sent_angle = 0.0
 
         self.last_update_t = time.time()
 
@@ -64,11 +65,18 @@ class Steering(RobotObject):
             print("speed:", self.speed)
             self.send("v" + str(self.speed))
 
+    def change_position(self, delta_step):
+        self.send_step(self.current_step + delta_step)
+
     def set_position(self, goal_angle):
         # if time.time() - self.last_update_t < 0.5:
         #     return
         # self.last_update_t = time.time()
-        self.sent_step = int(goal_angle * self.angle_to_step)
+        self.sent_angle = goal_angle
+        self.send_step(goal_angle * self.angle_to_step)
+
+    def send_step(self, step):
+        self.sent_step = int(step)
         if self.sent_step < self.left_limit:
             self.sent_step = self.left_limit
         elif self.sent_step > self.right_limit:

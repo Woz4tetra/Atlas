@@ -7,7 +7,7 @@ unsigned long prev_time = 0;
 unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
-#define MAX_SPEED 200
+#define MAX_SPEED 250
 #define LEFT_LIMIT -125
 #define RIGHT_LIMIT 150
 #define POSITION_ZERO 135
@@ -16,8 +16,8 @@ int position = 0;
 int speedCommand = 0;
 bool prevIsRunning = false;
 
-#define STEPPER_PIN_1 2
-#define STEPPER_PIN_2 3
+#define STEPPER_PIN_1 3
+#define STEPPER_PIN_2 2
 #define STEPPER_PIN_3 4
 #define STEPPER_PIN_4 5
 
@@ -88,9 +88,15 @@ bool approachSwitch(int speed)
 {
     stepper.setCurrentPosition(0);
     stepper.setSpeed(speed);
-    while (digitalRead(DELIMITER_PIN)) {
-        stepper.runSpeed();
-
+    int goalPosition = -1000;
+    while (digitalRead(DELIMITER_PIN))
+    {
+        stepper.run();
+        if (stepper.distanceToGo() == 0)
+        {
+            goalPosition -= 1000;
+            stepper.moveTo(goalPosition);
+        }
         while (buggy.available())
         {
             int status = buggy.readSerial();
@@ -98,8 +104,9 @@ bool approachSwitch(int speed)
                 return false;
             }
         }
-        delay(1);
     }
+    stepper.stop();
+    delay(10);
     stepper.setCurrentPosition(0);
 
     return true;
@@ -119,7 +126,7 @@ void calibrate()
         disengageStepper();
         return;
     }
-    stepper.runToNewPosition(20);
+    stepper.runToNewPosition(40);
 
     status = approachSwitch(-MAX_SPEED / 4);
     if (!status)
@@ -141,7 +148,7 @@ void setup()
     pinMode(DELIMITER_PIN, INPUT);
 
     stepper.setMaxSpeed(MAX_SPEED);
-    stepper.setAcceleration(1000.0);
+    stepper.setAcceleration(2500.0);
 
     String leftLimitStr = String(LEFT_LIMIT);
     String rightLimitStr = String(RIGHT_LIMIT);

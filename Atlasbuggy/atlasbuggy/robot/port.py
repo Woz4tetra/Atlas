@@ -484,6 +484,13 @@ class RobotSerialPort(Process):
             else:
                 self.debug_print("Sent stop flag")
             self.stop_event.set()
+
+            self.debug_print("Acquiring start lock")
+            with self.start_event_lock:
+                if not self.start_event.is_set():
+                    self.debug_print("start_event not set! Closing serial")
+                    self.close_serial()
+            self.debug_print("Releasing start lock")
         else:
             self.debug_print("Stop event already set!")
 
@@ -523,13 +530,6 @@ class RobotSerialPort(Process):
             else:
                 self.debug_print("Exit event already set! Error was likely thrown")
         self.debug_print("Releasing exit lock")
-
-        self.debug_print("Acquiring start lock")
-        with self.start_event_lock:
-            if not self.start_event.is_set():
-                self.debug_print("start_event not set! Closing serial")
-                self.close_serial()
-        self.debug_print("Releasing start lock")
 
     def has_exited(self):
         """

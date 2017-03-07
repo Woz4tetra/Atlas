@@ -48,7 +48,7 @@ class RoboQuasar(Robot):
                     print("Input not a number...")
             self.init_compass(self.compass_str)
 
-        self.manual_mode = False
+        self.manual_mode = True
 
         self.lat_data = []
         self.long_data = []
@@ -199,21 +199,32 @@ class RoboQuasar(Robot):
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
-                if self.joystick.axis_updated("left x"):
-                    self.steering.set_speed(self.joystick.get_axis("left x"))
+                if self.joystick.axis_updated("left x") or self.joystick.axis_updated("left y"):
+                    mag = math.sqrt(self.joystick.get_axis("left y") ** 2 + self.joystick.get_axis("left x") ** 2)
+                    if mag > 0.5:
+                        angle = math.atan2(self.joystick.get_axis("left y"), self.joystick.get_axis("left x"))
+                        angle -= math.pi / 2
+                        if angle < -math.pi:
+                            angle += 2 * math.pi
+                        self.steering.set_position(angle / 4)
                 elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
                     self.steering.calibrate()
+                elif self.joystick.dpad_updated():
+                    if self.joystick.dpad[0] != 0:
+                        self.steering.change_position(-self.joystick.dpad[0] * 10)
 
             if self.joystick.button_updated("X") and self.joystick.get_button("X"):
                 self.manual_mode = not self.manual_mode
                 print("Manual control enabled" if self.manual_mode else "Autonomous mode enabled")
 
-            if self.joystick.button_updated("L"):
+            elif self.joystick.button_updated("L"):
                 if self.joystick.get_button("L"):
                     self.brakes.unbrake()
                 else:
                     self.brakes.brake()
                     print("\n\n!!SWITCH RELEASED, BRAKING!!\n\n")
+            elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
+                self.brakes.toggle()
 
     def init_compass(self, packet):
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
