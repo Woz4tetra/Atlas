@@ -19,6 +19,8 @@ class Steering(RobotObject):
         self.moving = False
         self.calibrated = False
 
+        self.sent_step = 0
+
         self.last_update_t = time.time()
 
         super(Steering, self).__init__("steering", enabled)
@@ -66,8 +68,12 @@ class Steering(RobotObject):
         # if time.time() - self.last_update_t < 0.5:
         #     return
         # self.last_update_t = time.time()
-        step = int(goal_angle * self.angle_to_step)
-        self.send("p" + str(step))
+        self.sent_step = int(goal_angle * self.angle_to_step)
+        if self.sent_step < self.left_limit:
+            self.sent_step = self.left_limit
+        elif self.sent_step > self.right_limit:
+            self.sent_step = self.right_limit
+        self.send("p" + str(self.sent_step))
 
     def calibrate(self):
         self.send("c")

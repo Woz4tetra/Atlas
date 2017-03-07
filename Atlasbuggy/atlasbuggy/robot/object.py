@@ -23,6 +23,7 @@ class RobotObject:
         self.enabled = enabled
         self.baud = None
 
+        self.is_live = True
         self.command_packets = Queue(maxsize=255)
 
     def receive_first(self, packet):
@@ -61,7 +62,7 @@ class RobotObject:
         :param packet: A packet (string) to send to the microcontroller without the packet end character
         :return: None
         """
-        if self.enabled:
+        if self.enabled and self.is_live:
             self.command_packets.put(packet)
 
     def __str__(self):

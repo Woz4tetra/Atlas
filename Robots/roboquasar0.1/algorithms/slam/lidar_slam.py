@@ -10,7 +10,7 @@ class SLAM:
     slam algorithms that is used.
     """
 
-    def __init__(self, lidar_turret, image_name="map", image_format="pgm"):
+    def __init__(self, lidar_turret):
         self.map_size_pixels = 1600
         self.map_size_meters = 50
         self.trajectory = []
@@ -18,9 +18,6 @@ class SLAM:
 
         self.laser = Laser(lidar_turret.point_cloud_size, 2.4, lidar_turret.detection_angle_degrees, 0)
         self.algorithm = RMHC_SLAM(self.laser, self.map_size_pixels, self.map_size_meters)
-
-        self.image_name = image_name
-        self.image_format = image_format
 
     def update(self, timestamp, point_cloud, velocity):
         self.algorithm.update(point_cloud, velocity)
@@ -30,7 +27,7 @@ class SLAM:
 
         self.algorithm.getmap(self.mapbytes)
 
-    def make_image(self):
+    def make_image(self, image_name, image_format="pgm"):
         self.algorithm.getmap(self.mapbytes)
         for coords in self.trajectory:
             x_mm, y_mm = coords
@@ -40,12 +37,12 @@ class SLAM:
 
             self.mapbytes[y_pix * self.map_size_pixels + x_pix] = 0
 
-        if self.image_format == "pgm":
-            pgm_save(self.image_name + "." + self.image_format, self.mapbytes,
+        if image_format == "pgm":
+            pgm_save(image_name + "." + image_format, self.mapbytes,
                      (self.map_size_pixels, self.map_size_pixels))
         else:
             image = Image.frombuffer('L', (self.map_size_pixels, self.map_size_pixels), self.mapbytes, 'raw', 'L', 0, 1)
-            image.save(self.image_name + "." + self.image_format)
+            image.save(image_name + "." + image_format)
 
     def get_pos(self):
         return self.algorithm.getpos()

@@ -1,6 +1,7 @@
 import math
 
-from atlasbuggy.interface.simulated import SimulatedRobot
+from atlasbuggy.interface import simulate
+from atlasbuggy.robot import Robot
 
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.plot import RobotPlot
@@ -23,15 +24,8 @@ file_sets = {
 }
 
 
-# change parameters at the bottom of the file
-def run_animation(set_name, set_num):
-    file_name, directory = file_sets[set_name][set_num]
-
-    Animator(file_name, directory).run()
-
-
-class Animator(SimulatedRobot):
-    def __init__(self, file_name, directory):
+class AnimationExample(Robot):
+    def __init__(self):
         self.gps_plot = RobotPlot("gps", color="red")
         self.compass_plot = RobotPlot("compass", color="purple")
         self.sticky_compass_plot = RobotPlot("sticky compass", color="gray")
@@ -56,8 +50,7 @@ class Animator(SimulatedRobot):
         self.imu.whoiam = "imu"
 
         # file_name, directory = file_sets["rolls day 3"][0]
-        super(Animator, self).__init__(
-            file_name, directory,
+        super(AnimationExample, self).__init__(
             self.imu, self.gps
         )
 
@@ -132,4 +125,6 @@ class Animator(SimulatedRobot):
         print(self.dt())
 
 
-run_animation("data day 7", -1)
+animator_bot = AnimationExample()
+file_name, directory = file_sets["data day 7"][-1]
+simulate(file_name, directory, animator_bot)

@@ -3,7 +3,7 @@ import time
 import sys
 import os
 
-from atlasbuggy.interface.simulated import SimulatedRobot
+from atlasbuggy.interface.simulated import RobotSimulator
 
 sys.path.append("..")
 
@@ -17,7 +17,7 @@ from actuators.underglow import Underglow
 
 os.chdir("..")
 
-class FilePrinter(SimulatedRobot):
+class FilePrinter(RobotSimulator):
     def __init__(self):
         self.gps = GPS()
         self.imu = IMU()

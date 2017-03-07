@@ -17,16 +17,16 @@ from atlasbuggy.robot.errors import *
 from atlasbuggy.robot.collection import RobotObjectCollection
 from atlasbuggy.robot.object import RobotObject
 from atlasbuggy.robot.port import RobotSerialPort
-from atlasbuggy.interface import BaseInterface
+from atlasbuggy.interface.base import BaseInterface
 
 
-class LiveRobot(BaseInterface):
+class RobotRunner(BaseInterface):
     loop_updates_per_second = 120
     port_updates_per_second = 1000
 
-    def __init__(self, *robot_objects, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False):
+    def __init__(self, robot, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False):
         """
-        :param robot_objects: subclasses of RobotObject
+        :param robot: subclass of Robot
         :param joystick: A subclass instance of BuggyJoystick
         :param log_data: A boolean indicating whether or not the received data should be written to a logs file
         :param log_name: The name of the logs file. If None, it will be today's date and time
@@ -36,21 +36,22 @@ class LiveRobot(BaseInterface):
         :param updates_per_second: How quickly each port process should run.
         """
 
-        super(LiveRobot, self).__init__(robot_objects, debug_prints)
+        super(RobotRunner, self).__init__(robot, debug_prints, "Interface")
 
-        self.loop_ups = LiveRobot.loop_updates_per_second
-        self.port_ups = LiveRobot.port_updates_per_second
+        self.loop_ups = RobotRunner.loop_updates_per_second
+        self.port_ups = RobotRunner.port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
-        self.current_whoiam = ""
-        self.current_timestamp = 0
         self.prev_packet_info = [None, None, None]
 
         self.joystick = joystick
+        self.robot.joystick = joystick
 
         self.logger = Logger(log_name, log_dir)
         if log_data:
             self.logger.open()
             print("Writing to:", self.logger.full_path)
+
+        self.robot.logger = self.logger
 
         self.clock = Clock(self.loop_ups)
         self.start_time = 0
@@ -96,9 +97,9 @@ class LiveRobot(BaseInterface):
         for whoiam in self.ports.keys():
             self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
 
-        if len(self.inactive_ids) > 0 and self.debug_enabled:
+        if len(self.robot.inactive_ids) > 0 and self.debug_enabled:
             self._debug_print("Ignored IDs:")
-            for whoiam in self.inactive_ids:
+            for whoiam in self.robot.inactive_ids:
                 self._debug_print(whoiam)
 
         self._send_first_packets()  # distribute initialization packets
@@ -109,7 +110,7 @@ class LiveRobot(BaseInterface):
 
         self._open_ports()
         try:
-            self.start()  # call user's start method (empty by default)
+            self.robot.start()  # call user's start method (empty by default)
         except BaseException as error:
             self._debug_print("Closing all from user's start")
             self._close_ports("error")
@@ -132,7 +133,7 @@ class LiveRobot(BaseInterface):
                 return status
 
         try:
-            status = self.loop()
+            status = self.robot.loop()
             if status is not None:
                 self._debug_print("User's loop method signalled to exit")
                 return status
@@ -150,19 +151,24 @@ class LiveRobot(BaseInterface):
         """
         with self.port_lock:
             while not self.packet_queue.empty():
-                self.current_whoiam, self.current_timestamp, self.current_packet = self.packet_queue.get()
+                self.robot.current_whoiam, timestamp, self.robot.current_packet = self.packet_queue.get()
                 self.packet_counter.value -= 1
-                dt = self.current_timestamp - self.start_time
+                self.robot.current_timestamp = timestamp - self.start_time
 
-                status = self._deliver_packet(dt, self.current_whoiam, self.current_packet)
+                self.robot.queue_len = self.packet_counter.value
+
+                status = self._deliver_packet(self.robot.current_timestamp, self.robot.current_whoiam,
+                                              self.robot.current_packet)
                 if status is not None:
                     return status
 
                 if self.logger.is_open():
-                    self.logger.record(dt, self.current_whoiam, self.current_packet, "object")
-                    self._record_debug_prints(dt, self.ports[self.current_whoiam])
+                    self.logger.record(self.robot.current_timestamp, self.robot.current_whoiam,
+                                       self.robot.current_packet, "object")
+                    self._record_debug_prints(self.robot.current_timestamp, self.ports[self.robot.current_whoiam])
 
-                status = self._received(dt, self.current_whoiam, self.current_packet)
+                status = self._received(self.robot.current_timestamp, self.robot.current_whoiam,
+                                        self.robot.current_packet)
                 if status is not None:
                     return status
 
@@ -170,7 +176,8 @@ class LiveRobot(BaseInterface):
         self._send_commands()  # sends all commands in each robot object's command queue
 
         self.clock.update()  # maintain a constant loop speed
-        if not self.lag_warning_thrown and self.dt() > 0.1 and not self.clock.on_time:
+        if not self.lag_warning_thrown and self.robot.current_timestamp is not None and \
+                self.robot.current_timestamp > 0.1 and not self.clock.on_time:
             print("Warning. Main loop is running slow.")
             self.lag_warning_thrown = True
 
@@ -208,31 +215,6 @@ class LiveRobot(BaseInterface):
                     )
         return True
 
-    # ----- utility methods -----
-
-    def dt(self):
-        """
-        Access the clock. This time uses the same reference as all other objects
-        :return: time since the program's start in seconds
-        """
-        if self.start_time == 0:
-            return None
-        else:
-            return time.time() - self.start_time
-
-    def record(self, tag, string):
-        """
-        Record data not created by a robot object.
-
-        :param tag: Unique tag similar to whoiam ID. Make sure these don't overlap with any robot_objects
-        :param string: Similar to a packet. String data to record
-        :return: None
-        """
-        self.logger.record(self.dt(), tag, string, "user")
-
-    def queue_len(self):
-        return self.packet_counter.value
-
     # ----- configuration methods -----
 
     def _configure_port(self, port_info, updates_per_second):
@@ -256,7 +238,7 @@ class LiveRobot(BaseInterface):
                 port.stop()
             elif not port.configured:
                 self._debug_print("Port not configured! '%s'" % port.address)
-            elif port.whoiam in self.inactive_ids:
+            elif port.whoiam in self.robot.inactive_ids:
                 port.stop()
             else:
                 self.ports[port.whoiam] = port
@@ -267,7 +249,7 @@ class LiveRobot(BaseInterface):
         :return: None
         """
         self._debug_print("Discovered ports:", list(self.ports.keys()))
-        for whoiam in self.objects.keys():
+        for whoiam in self.robot.objects.keys():
             if whoiam not in self.ports.keys():
                 self._close_ports("error")
                 raise self._handle_error(
@@ -282,12 +264,12 @@ class LiveRobot(BaseInterface):
         """
         used_ports = {}
         for whoiam in self.ports.keys():
-            if whoiam not in self.objects.keys():
+            if whoiam not in self.robot.objects.keys():
                 self._debug_print("Warning! Port ['%s', %s] is unused!" %
                                   (self.ports[whoiam].address, whoiam), ignore_flag=True)
             else:
                 used_ports[whoiam] = self.ports[whoiam]
-                object_baud = self.objects[whoiam].baud
+                object_baud = self.robot.objects[whoiam].baud
                 if object_baud is not None and object_baud != self.ports[whoiam].baud_rate:
                     self.ports[whoiam].change_rate(object_baud)
         self.ports = used_ports
@@ -298,14 +280,14 @@ class LiveRobot(BaseInterface):
         :return: None
         """
         status = True
-        for whoiam in self.objects.keys():
+        for whoiam in self.robot.objects.keys():
             first_packet = self.ports[whoiam].first_packet
             if len(first_packet) > 0:
-                if isinstance(self.objects[whoiam], RobotObject):
-                    if self.objects[whoiam].receive_first(first_packet) is not None:
+                if isinstance(self.robot.objects[whoiam], RobotObject):
+                    if self.robot.objects[whoiam].receive_first(first_packet) is not None:
                         status = False
-                elif isinstance(self.objects[whoiam], RobotObjectCollection):
-                    if self.objects[whoiam].receive_first(whoiam, first_packet) is not None:
+                elif isinstance(self.robot.objects[whoiam], RobotObjectCollection):
+                    if self.robot.objects[whoiam].receive_first(whoiam, first_packet) is not None:
                         status = False
 
                 if not status:
@@ -376,7 +358,7 @@ class LiveRobot(BaseInterface):
         """
         try:
             self._debug_print("Calling user's close function")
-            self.close(reason)
+            self.robot.close(reason)
         except BaseException as error:  # in case close contains an error
             self._stop_all_ports()
             raise self._handle_error(
@@ -392,13 +374,13 @@ class LiveRobot(BaseInterface):
 
     def _deliver_packet(self, dt, whoiam, packet):
         try:
-            if isinstance(self.objects[whoiam], RobotObject):
-                if self.objects[whoiam].receive(dt, packet) is not None:
+            if isinstance(self.robot.objects[whoiam], RobotObject):
+                if self.robot.objects[whoiam].receive(dt, packet) is not None:
                     self._debug_print(
                         "receive for object signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
                     return "exit"
-            elif isinstance(self.objects[whoiam], RobotObjectCollection):
-                if self.objects[whoiam].receive(dt, whoiam, packet) is not None:
+            elif isinstance(self.robot.objects[whoiam], RobotObjectCollection):
+                if self.robot.objects[whoiam].receive(dt, whoiam, packet) is not None:
                     self._debug_print("receive for collection signalled to exit. whoiam ID: '%s', packet: %s" % (
                         whoiam, repr(packet)))
                     return "exit"
@@ -413,13 +395,14 @@ class LiveRobot(BaseInterface):
 
     def _received(self, dt, whoiam, packet):
         try:
-            if self.received(dt, whoiam, packet, "object") is False:
+            if self.robot.received(dt, whoiam, packet, "object") is False:
                 self._debug_print(
                     "received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
                 return "exit"
 
-            if self.current_whoiam in self._linked_functions:
-                self._linked_functions[self.current_whoiam](self.dt(), self.current_packet, "object")
+            if self.robot.current_whoiam in self.robot.linked_functions:
+                return self.robot.linked_functions[self.robot.current_whoiam](
+                    self.robot.current_timestamp, self.robot.current_packet, "object")
 
         except BaseException as error:
             self._debug_print("Closing all from _received")
@@ -434,8 +417,8 @@ class LiveRobot(BaseInterface):
         Check every robot object. Send all commands if there are any
         :return:
         """
-        for whoiam in self.objects.keys():
-            robot_object = self.objects[whoiam]
+        for whoiam in self.robot.objects.keys():
+            robot_object = self.robot.objects[whoiam]
             if isinstance(robot_object, RobotObject):
                 command_packets = robot_object.command_packets
             elif isinstance(robot_object, RobotObjectCollection):
@@ -443,8 +426,8 @@ class LiveRobot(BaseInterface):
             else:
                 break
             while not command_packets.empty():
-                command = self.objects[whoiam].command_packets.get()
-                self.logger.record(self.dt(), whoiam, command, "command")
+                command = self.robot.objects[whoiam].command_packets.get()
+                self.logger.record(self.robot.current_timestamp, whoiam, command, "command")
 
                 if not self.ports[whoiam].write_packet(command):
                     self._debug_print("Closing all from _send_commands")
@@ -464,12 +447,12 @@ class LiveRobot(BaseInterface):
     def _handle_error(self, error, traceback):
         if self.logger.is_open:
             for port in self.ports.values():
-                self._record_debug_prints(self.dt(), port)
+                self._record_debug_prints(self.robot.current_timestamp, port)
 
             error_message = "".join(traceback[:-1])
             error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
             error_message += "\n".join(error.args[1:])
-            self.logger.record(self.dt(), error.__class__.__name__, error_message, "error")
+            self.logger.record(self.robot.current_timestamp, error.__class__.__name__, error_message, "error")
 
         self._close_log()
         return error
@@ -483,4 +466,4 @@ class LiveRobot(BaseInterface):
         if self.debug_enabled or ignore_flag:
             string = "[Interface] %s" % (" ".join([str(x) for x in strings]))
             print(string)
-            self.logger.record(self.dt(), "Interface", string, "debug")
+            self.logger.record(self.robot.current_timestamp, "Interface", string, "debug")

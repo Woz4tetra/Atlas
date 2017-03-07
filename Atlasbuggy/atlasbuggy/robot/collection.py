@@ -6,6 +6,8 @@ class RobotObjectCollection:
         self.whoiam_ids = whoiam_ids
         self.enabled = enabled
 
+        self.is_live = True
+
         self.command_packets = {}
         for whoiam in self.whoiam_ids:
             self.command_packets[whoiam] = Queue(maxsize=255)
@@ -17,5 +19,5 @@ class RobotObjectCollection:
         pass
 
     def send(self, whoiam, packet):
-        if whoiam in self.whoiam_ids:
+        if self.is_live and whoiam in self.whoiam_ids:
             self.command_packets[whoiam].put(packet)

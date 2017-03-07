@@ -7,9 +7,9 @@ unsigned long prev_time = 0;
 unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
-#define MAX_SPEED 175
-#define LEFT_LIMIT -200
-#define RIGHT_LIMIT 200
+#define MAX_SPEED 200
+#define LEFT_LIMIT -125
+#define RIGHT_LIMIT 150
 #define POSITION_ZERO 135
 
 int position = 0;
@@ -84,7 +84,7 @@ void setVelocity(int v)
     speedCommand = v;
 }
 
-void approachSwitch(int speed)
+bool approachSwitch(int speed)
 {
     stepper.setCurrentPosition(0);
     stepper.setSpeed(speed);
@@ -95,11 +95,14 @@ void approachSwitch(int speed)
         {
             int status = buggy.readSerial();
             if (status == 1) {  // stop event
-                return;
+                return false;
             }
         }
+        delay(1);
     }
     stepper.setCurrentPosition(0);
+
+    return true;
 }
 
 void calibrate()
@@ -110,10 +113,20 @@ void calibrate()
         stepper.runToNewPosition(50);
         stepper.setCurrentPosition(0);
     }
-    approachSwitch(-MAX_SPEED);
+    bool status = approachSwitch(-MAX_SPEED);
+    if (!status)
+    {
+        disengageStepper();
+        return;
+    }
     stepper.runToNewPosition(20);
 
-    approachSwitch(-MAX_SPEED / 4);
+    status = approachSwitch(-MAX_SPEED / 4);
+    if (!status)
+    {
+        disengageStepper();
+        return;
+    }
     stepper.runToNewPosition(POSITION_ZERO);
     stepper.setSpeed(MAX_SPEED);
     stepper.setCurrentPosition(0);

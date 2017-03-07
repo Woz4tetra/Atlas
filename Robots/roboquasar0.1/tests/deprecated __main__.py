@@ -6,8 +6,8 @@ from actuators.steering import Steering
 from algorithms.kalman.kalman_constants import constants
 from algorithms.kalman.kalman_filter import GrovesKalmanFilter, get_gps_orientation
 from algorithms.slam.lidar_slam import SLAM
-from atlasbuggy.interface.live import LiveRobot
-from atlasbuggy.interface.simulated import SimulatedRobot
+from atlasbuggy.interface.live import RobotRunner
+from atlasbuggy.interface.simulated import RobotSimulator
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.staticplotter import StaticPlotter
 from joysticks.wiiu_joystick import WiiUJoystick
@@ -74,9 +74,9 @@ if not args.whoareyou:
     print("computing and displaying SLAM\n" if args.computeslam else "", end="")
 
 if simulated:
-    Interface = SimulatedRobot
+    Interface = RobotSimulator
 else:
-    Interface = LiveRobot
+    Interface = RobotRunner
 
 
 class RoboQuasar(Interface):

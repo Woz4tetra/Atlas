@@ -2,7 +2,7 @@ import os
 
 os.chdir("..")
 
-from atlasbuggy.interface.live import LiveRobot
+from atlasbuggy.interface.live import RobotRunner
 from atlasbuggy.plotters.liveplotter import LivePlotter
 
 from sensors.lidarturret import LidarTurret
@@ -10,7 +10,7 @@ from algorithms.slam.lidar_slam import SLAM
 from algorithms.slam.slam_plots import SlamPlots
 
 
-class LidarTest(LiveRobot):
+class LidarTest(RobotRunner):
     def __init__(self):
         self.turret = LidarTurret()
 

@@ -8,11 +8,19 @@ from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
 
+from algorithms.controls.bozo_controller import BozoController
+
 from atlasbuggy.files.mapfile import MapFile
+from atlasbuggy.robot import Robot
+from atlasbuggy.plotters.liveplotter import LivePlotter
+from atlasbuggy.plotters.staticplotter import StaticPlotter
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
-class RoboQuasar:
-    def __init__(self, live, checkpoint_map_name=None, inner_map_name=None, outer_map_name=None, map_dir=None):
+class RoboQuasar(Robot):
+    def __init__(self, live, enable_plotting, animate,
+                 checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
 
         self.gps = GPS()
         self.imu = IMU()
@@ -22,15 +30,7 @@ class RoboQuasar:
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        self.checkpoint_num = 0
-        if checkpoint_map_name is None:
-            checkpoint_map_name = "buggy course map"
-        if inner_map_name is None:
-            inner_map_name = "buggy course map inside border"
-        if outer_map_name is None:
-            outer_map_name = "buggy course map outside border"
-        if map_dir is None:
-            map_dir = "buggy"
+        super(RoboQuasar, self).__init__(self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow)
 
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
@@ -48,13 +48,172 @@ class RoboQuasar:
                     print("Input not a number...")
             self.init_compass(self.compass_str)
 
+        self.manual_mode = False
+
         self.lat_data = []
         self.long_data = []
         self.bearing = None
         self.imu_angle = None
 
-    def get_sensors(self):
-        return self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow
+        self.gps_plot = RobotPlot("gps", color="red")
+        self.checkpoint_plot = RobotPlot("checkpoint", color="green", marker='.', linestyle='', markersize=8)
+        self.map_plot = RobotPlot("map", color="purple")
+        self.inner_map_plot = RobotPlot("inner map")
+        self.outer_map_plot = RobotPlot("outer map")
+        self.compass_plot = RobotPlot("compass", color="purple")
+        self.sticky_compass_plot = RobotPlot("sticky compass", color="gray")
+        self.steering_plot = RobotPlot("steering angle", color="gray", plot_enabled=False)
+        self.goal_plot = RobotPlot("checkpoint goal", color="cyan")
+        self.recorded_goal_plot = RobotPlot("recorded checkpoint goal", "blue")
+
+        self.imu_angle_plot = RobotPlot("imu angle")
+        self.bearing_angle_plot = RobotPlot("bearing angle")
+        self.filtered_angle_plot = RobotPlot("filtered angle")
+
+        self.sticky_compass_counter = 0
+        self.sticky_compass_skip = 100
+
+        self.accuracy_check_plot = RobotPlotCollection("Animation", self.sticky_compass_plot, self.gps_plot,
+                                                       self.checkpoint_plot,
+                                                       self.map_plot, self.inner_map_plot, self.outer_map_plot,
+                                                       self.steering_plot, self.compass_plot, self.goal_plot)
+        self.angle_plots = RobotPlotCollection("Angle plots", self.imu_angle_plot, self.bearing_angle_plot,
+                                               self.filtered_angle_plot, plot_enabled=False)
+
+        if animate:
+            self.plotter = LivePlotter(
+                2, self.accuracy_check_plot, self.angle_plots,
+                matplotlib_events=dict(key_press_event=self.key_press),
+                enabled=enable_plotting
+            )
+        else:
+            self.plotter = StaticPlotter(
+                2, self.accuracy_check_plot, self.angle_plots,
+                matplotlib_events=dict(key_press_event=self.key_press),
+                enabled=enable_plotting
+            )
+
+        self.map_plot.update(self.checkpoints.lats, self.checkpoints.longs)
+        self.inner_map_plot.update(self.inner_map.lats, self.inner_map.longs)
+        self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
+
+        self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
+
+        self.link(self.gps, self.receive_gps)
+        self.link(self.imu, self.receive_imu)
+
+    def receive_gps(self, timestamp, packet, packet_type):
+        if not self.plotter.enabled:
+            print("%0.2f" % timestamp, self.gps)
+            print("%0.2f" % timestamp, self.imu)
+        if self.gps.is_position_valid():
+            # self.update_bearing()
+
+            if not self.controller.is_initialized():
+                self.controller.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
+                print(self.gps.latitude_deg, self.gps.longitude_deg)
+
+            if self.plotter.enabled:
+                self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+
+                if isinstance(self.plotter, LivePlotter):
+                    status = self.plotter.plot()
+                    if status is not None:
+                        return status
+
+                    if self.controller.is_point_inside(self.gps.latitude_deg, self.gps.longitude_deg):
+                        self.outer_map_plot.set_properties(color="blue")
+                    else:
+                        self.outer_map_plot.set_properties(color="red")
+
+                    if self.controller.is_point_outside(self.gps.latitude_deg, self.gps.longitude_deg):
+                        self.inner_map_plot.set_properties(color="blue")
+                    else:
+                        self.inner_map_plot.set_properties(color="red")
+
+    def receive_imu(self, timestamp, packet, packet_type):
+        if self.gps.is_position_valid() and self.compass_angle is not None:
+            angle = self.offset_angle()
+
+            steering_angle = self.controller.update(
+                self.gps.latitude_deg, self.gps.longitude_deg, angle
+            )
+            self.record("steering angle",
+                        "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
+
+            if not self.manual_mode:
+                self.steering.set_position(steering_angle)
+
+            if self.plotter.enabled:
+                if isinstance(self.plotter, LivePlotter):
+                    lat2, long2 = self.compass_coords(angle)
+                    self.compass_plot.update([self.gps.latitude_deg, lat2],
+                                             [self.gps.longitude_deg, long2])
+                    self.plotter.draw_text(
+                        self.accuracy_check_plot,
+                        # "%0.4f, %s" % (math.degrees(steering_angle), self.steering.sent_step),
+                        "%s, %s" % (self.steering.goal_step, self.steering.sent_step),
+                        # "%0.4f" % angle,
+                        self.gps.latitude_deg, self.gps.longitude_deg,
+                        text_name="angle text"
+                    )
+
+                self.imu_angle_plot.append(timestamp, self.imu_angle)
+                # self.bearing_angle_plot.append(timestamp, self.bearing)
+                self.filtered_angle_plot.append(timestamp, angle)
+
+                if self.sticky_compass_skip > 0 and self.sticky_compass_counter % self.sticky_compass_skip == 0:
+                    lat2, long2 = self.compass_coords(angle, length=0.0001)
+                    self.sticky_compass_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+                    self.sticky_compass_plot.append(lat2, long2)
+                    self.sticky_compass_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+                self.sticky_compass_counter += 1
+
+                if isinstance(self.plotter, LivePlotter):
+                    lat2, long2 = self.compass_coords(steering_angle + angle)
+                    self.steering_plot.update([self.gps.latitude_deg, lat2],
+                                              [self.gps.longitude_deg, long2])
+
+                    self.goal_plot.update(
+                        [self.gps.latitude_deg, self.controller.map[self.controller.current_index][0]],
+                        [self.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
+
+    def received(self, timestamp, whoiam, packet, packet_type):
+        if self.did_receive("initial compass"):
+            self.init_compass(packet)
+            print("compass value:", packet)
+        elif self.did_receive("checkpoint"):
+            if self.gps.is_position_valid():
+                self.checkpoint_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+        elif self.did_receive("steering angle"):
+            if isinstance(self.plotter, LivePlotter):
+                goal_index = int(packet.split("\t")[-1])
+                self.recorded_goal_plot.update([self.gps.latitude_deg, self.controller.map[goal_index][0]],
+                                               [self.gps.longitude_deg, self.controller.map[goal_index][1]])
+
+    def loop(self):
+        if self.is_paused and isinstance(self.plotter, LivePlotter):
+            status = self.plotter.plot()
+            if status is not None:
+                return status
+
+        if self.joystick is not None:
+            if self.steering.calibrated and self.manual_mode:
+                if self.joystick.axis_updated("left x"):
+                    self.steering.set_speed(self.joystick.get_axis("left x"))
+                elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
+                    self.steering.calibrate()
+
+            if self.joystick.button_updated("X") and self.joystick.get_button("X"):
+                self.manual_mode = not self.manual_mode
+                print("Manual control enabled" if self.manual_mode else "Autonomous mode enabled")
+
+            if self.joystick.button_updated("L"):
+                if self.joystick.get_button("L"):
+                    self.brakes.unbrake()
+                else:
+                    self.brakes.brake()
+                    print("\n\n!!SWITCH RELEASED, BRAKING!!\n\n")
 
     def init_compass(self, packet):
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
@@ -74,8 +233,9 @@ class RoboQuasar:
                 self.bearing += 2 * math.pi
 
             return 0.5 * self.imu_angle + 0.5 * self.bearing
-            # return imu_angle
+            # return self.imu_angle
             # return self.bearing
+        # return self.imu_angle
 
     def update_bearing(self):
         if len(self.long_data) == 0 or self.gps.longitude_deg != self.long_data[-1]:
@@ -97,8 +257,53 @@ class RoboQuasar:
         long2 = length * math.cos(angle) + self.gps.longitude_deg
         return lat2, long2
 
+    def key_press(self, event):
+        if event.key == " ":
+            self.toggle_pause()
+            if isinstance(self.plotter, LivePlotter):
+                self.plotter.toggle_pause()
+
+    def close(self, reason):
+        if reason == "done":
+            if isinstance(self.plotter, LivePlotter):
+                self.plotter.freeze_plot()
+        else:
+            self.brakes.brake()
+            print("!!EMERGENCY BRAKE!!")
+
+        self.plotter.close()
+        print("Ran for %0.4fs" % self.dt())
+
+
+map_sets = {
+    "cut"  : (
+        "Autonomous test map 2",
+        "Autonomous test map 2 inside border",
+        "Autonomous test map 2 outside border",
+        "cut"
+    ),
+    "buggy": (
+        "buggy course map",
+        "buggy course map inside border",
+        "buggy course map outside border",
+        "buggy",
+    )
+}
 
 file_sets = {
+    "data day 9"        : (
+        ("15;13", "data_days/2017_Mar_05"),  # 0
+        ("15;19", "data_days/2017_Mar_05"),  # 1
+        ("15;25", "data_days/2017_Mar_05"),  # 2
+        ("15;27", "data_days/2017_Mar_05"),  # 3, running into the lamppost
+        ("15;37", "data_days/2017_Mar_05"),  # 4, !! Weird errors !! not sure what's going on
+        ("15;46", "data_days/2017_Mar_05"),  # 5
+        ("16;00", "data_days/2017_Mar_05"),  # 6, Sketchy run
+        ("16;05", "data_days/2017_Mar_05"),  # 7
+        ("16;06", "data_days/2017_Mar_05"),  # 8, Weird error again, pointing 180º the wrong way
+        ("16;11", "data_days/2017_Mar_05"),  # 9, Steering severely limited
+        ("16;29", "data_days/2017_Mar_05"),  # 10, Walking home. UC offered interesting interference
+    ),
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),

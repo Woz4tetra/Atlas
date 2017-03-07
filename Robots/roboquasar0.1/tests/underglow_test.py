@@ -5,7 +5,7 @@ os.chdir("..")
 sys.path.insert(0, ".")
 
 from atlasbuggy.plotters.liveplotter import LivePlotter
-from atlasbuggy.interface.simulated import SimulatedRobot
+from atlasbuggy.interface.simulated import RobotSimulator
 
 from sensors.gps import GPS
 from sensors.imu import IMU
@@ -18,7 +18,7 @@ from actuators.underglow import Underglow
 simulated = True
 
 
-class UnderglowSimulator(SimulatedRobot):
+class UnderglowSimulator(RobotSimulator):
     def __init__(self, file_set_num):
         self.gps = GPS()
         self.imu = IMU()

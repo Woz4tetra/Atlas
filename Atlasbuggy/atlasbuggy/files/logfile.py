@@ -120,7 +120,6 @@ class Parser(AtlasReadFile):
         self.start_index = start_index
         self.end_index = end_index
         self.index = self.start_index  # current packet number (or line number)
-        self.timestamp = 0
 
         if self.end_index == -1:
             self.end_index = len(self.contents)
@@ -168,14 +167,16 @@ class Parser(AtlasReadFile):
         whoiam = ""
         packet = ""
 
+        timestamp = no_timestamp
+
         # the values are from the end of the name to the end of the line
         if len(packet_type) >= len("error") and packet_type[:len("error")] == "error":
             if len(packet_type) == len("error"):
-                self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-                if self.timestamp == no_timestamp:
-                    self.timestamp = 0.0
+                timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+                if timestamp == no_timestamp:
+                    timestamp = 0.0
                 packet = "\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (
-                    self.timestamp, whoiam)
+                    timestamp, whoiam)
                 packet += "Traceback (most recent call last):\n"
                 packet += line[whoiam_index + len(time_whoiam_sep):]
 
@@ -189,11 +190,11 @@ class Parser(AtlasReadFile):
 
         elif len(packet_type) >= len("debug") and packet_type[:len("debug")] == "debug":
             if len(packet_type) == len("debug"):
-                self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-                # if self.timestamp == no_timestamp:
+                timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+                # if timestamp == no_timestamp:
                 #     packet = "[debug at initialization from %s]: " % whoiam
                 # else:
-                #     packet = "[debug at %0.4fs from %s]: " % (self.timestamp, whoiam)
+                #     packet = "[debug at %0.4fs from %s]: " % (timestamp, whoiam)
                 packet += line[whoiam_index + len(time_whoiam_sep):]
 
             elif packet_type[len("debug") + 1:] == "continued":
@@ -205,8 +206,8 @@ class Parser(AtlasReadFile):
             packet_type = "debug"
 
         else:
-            self.timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-            if self.timestamp == -1:
+            timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
+            if timestamp == "invalid":
                 print("Invalid timestamp in line #%s: %s" % (self.index, line))
                 return None
             if len(whoiam) == 0:
@@ -215,7 +216,10 @@ class Parser(AtlasReadFile):
             else:
                 packet = line[whoiam_index + len(time_whoiam_sep):]
 
-        return packet_type, self.timestamp, whoiam, packet
+        if timestamp == no_timestamp:
+            timestamp = None
+
+        return packet_type, timestamp, whoiam, packet
 
     def find_packet_header(self, line):
         # search for the timestamp from the current index to the end of the line
@@ -224,6 +228,8 @@ class Parser(AtlasReadFile):
         # search for the name from the current index to the end of the line
         whoiam_index = line.find(whoiam_packet_sep)
 
+        timestamp = no_timestamp
+
         if time_index != -1:
             timestamp = line[1:time_index]
             if timestamp != no_timestamp:
@@ -231,10 +237,7 @@ class Parser(AtlasReadFile):
                     timestamp = float(timestamp)
                 except ValueError:
                     print("Invalid timestamp:", timestamp)
-            else:
-                timestamp = no_timestamp
-        else:
-            timestamp = -1
+                    timestamp = "invalid"
 
         if whoiam_index != -1:
             # the name is from the end of the timestamp to name_index

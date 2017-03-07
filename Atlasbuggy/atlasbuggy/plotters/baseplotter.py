@@ -2,7 +2,6 @@
 The base class shared by liveplotter and staticplotter. Contains properties shared by the two types.
 """
 
-from matplotlib import pyplot as plt
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
 
@@ -10,7 +9,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class BasePlotter:
     fig_num = 0
 
-    def __init__(self, num_columns, legend_args, enable_legend, matplotlib_events, *robot_plots):
+    def __init__(self, num_columns, legend_args, enable_legend, matplotlib_events, plotter_enabled, *robot_plots):
         """
         A plotter is one matplotlib figure. Having multiple robot plots creates subplots
         :param num_columns: Configure how the subplots are arranged
@@ -22,21 +21,27 @@ class BasePlotter:
             if plot.enabled:
                 self.robot_plots.append(plot)
 
-        if len(self.robot_plots) == 0:
-            self.plotter_enabled = False
-        else:
-            self.plotter_enabled = True
+        self.enabled = plotter_enabled
+        if self.enabled:
+            if len(self.robot_plots) == 0:
+                self.enabled = False
+            else:
+                self.enabled = True
 
         self.legend_args = legend_args
         self.enable_legend = enable_legend
+
+        self.plt = None
 
         self.axes = {}
         self.lines = {}
         self.plots_dict = {}
         self.extra_elements = {}
 
-        if self.plotter_enabled:
-            self.fig = plt.figure(BasePlotter.fig_num)
+        if self.enabled:
+            self.open_matplotlib()
+
+            self.fig = self.plt.figure(BasePlotter.fig_num)
             if matplotlib_events is not None:
                 for event_name in matplotlib_events:
                     self.fig.canvas.mpl_connect(event_name, matplotlib_events[event_name])
@@ -60,13 +65,20 @@ class BasePlotter:
                 self.axes[plot.name].set_title(plot.name)
 
                 plot_num += 1
+        else:  # disable all plots if plotter is disabled
+            for plot in self.robot_plots:
+                plot.enabled = False
+
+    def open_matplotlib(self):
+        from matplotlib import pyplot
+        self.plt = pyplot
 
     def init_legend(self):
         """
         Create a legend. Static and live plots need them created at different times
         :return:
         """
-        if self.enable_legend:
+        if self.enable_legend and self.enabled:
             if self.legend_args is None:
                 self.legend_args = {}
 
@@ -77,7 +89,7 @@ class BasePlotter:
             if "log" not in self.legend_args:
                 self.legend_args["loc"] = 0
 
-            plt.legend(**self.legend_args)
+            self.plt.legend(**self.legend_args)
 
     def get_name(self, arg):
         if type(arg) == str:
@@ -88,7 +100,7 @@ class BasePlotter:
             return None
 
     def get_axis(self, arg):
-        if self.plotter_enabled:
+        if self.enabled:
             plot_name = self.get_name(arg)
 
             if plot_name in self.axes.keys():
@@ -96,7 +108,7 @@ class BasePlotter:
         return None
 
     def draw_dot(self, arg, x, y, z=None, **dot_properties):
-        if self.plotter_enabled:
+        if self.enabled:
             plot_name = self.get_name(arg)
             if plot_name is None:
                 return
@@ -108,7 +120,7 @@ class BasePlotter:
                     self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
     def draw_text(self, arg, text, x, y, z=None, text_name=None, **text_properties):
-        if self.plotter_enabled:
+        if self.enabled:
             plot_name = self.get_name(arg)
             if plot_name is None:
                 return
@@ -122,7 +134,7 @@ class BasePlotter:
                     self.extra_elements[text_name] = self.axes[plot_name].text([x], [y], [z], text, **text_properties)
 
     def set_line_props(self, arg, **kwargs):
-        if self.plotter_enabled:
+        if self.enabled:
             plot_name = self.get_name(arg)
             if plot_name is None:
                 return

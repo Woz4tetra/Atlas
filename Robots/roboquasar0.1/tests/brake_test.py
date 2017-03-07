@@ -1,11 +1,11 @@
 from actuators.brakes import Brakes
 from actuators.steering import Steering
-from atlasbuggy.interface.live import LiveRobot
+from atlasbuggy.interface.live import RobotRunner
 from sensors.gps import GPS
 from sensors.imu import IMU
 
 
-class BrakeTest(LiveRobot):
+class BrakeTest(RobotRunner):
     def __init__(self):
         self.gps = GPS(enabled=False)
         self.imu = IMU(enabled=False)

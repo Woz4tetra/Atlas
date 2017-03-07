@@ -1,9 +1,9 @@
-from atlasbuggy.interface.live import LiveRobot
-from atlasbuggy.interface.simulated import SimulatedRobot
+from atlasbuggy.interface.live import RobotRunner
+from atlasbuggy.interface.simulated import RobotSimulator
 from sensors.imu import IMU
 
 
-class IMUrunner(LiveRobot):
+class IMUrunner(RobotRunner):
     def __init__(self):
         self.imu = IMU()
         super(IMUrunner, self).__init__(self.imu, log_data=True, debug_prints=True)
@@ -15,7 +15,7 @@ class IMUrunner(LiveRobot):
         pass
 
 
-class IMUsimatulor(SimulatedRobot):
+class IMUsimatulor(RobotSimulator):
     def __init__(self):
         self.imu = IMU()
         super(IMUsimatulor, self).__init__(-1, -1, self.imu)

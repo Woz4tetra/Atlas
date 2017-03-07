@@ -3,44 +3,50 @@ Contains the static plotter class. This class plots data retrieved from a log fi
 according to properties defined in RobotPlot.
 """
 
-from matplotlib import pyplot as plt
 from atlasbuggy.plotters.baseplotter import BasePlotter
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class StaticPlotter(BasePlotter):
-    def __init__(self, num_columns, *robot_plots, enable_legend=True, legend_args=None):
+    def __init__(self, num_columns, *robot_plots, enabled=True, enable_legend=True, legend_args=None,
+                 matplotlib_events=None):
         """
         :param num_columns: Configure how the subplots are arranged
         :param robot_plots: RobotPlot or RobotPlotCollection instances. Each one will be a subplot
         :param legend_args: dictionary of arguments to pass to plt.legend
         """
-        super(StaticPlotter, self).__init__(num_columns, legend_args, enable_legend, *robot_plots)
+        super(StaticPlotter, self).__init__(
+            num_columns, legend_args, enable_legend, matplotlib_events, enabled, *robot_plots
+        )
 
-        for plot in self.robot_plots:
-            if isinstance(plot, RobotPlot):
-                if plot.flat:
-                    self.lines[plot.name] = None
-                else:
-                    self.lines[plot.name] = None
-            elif isinstance(plot, RobotPlotCollection):
-                self.lines[plot.name] = {}
+        if self.enabled:
+            for plot in self.robot_plots:
+                if isinstance(plot, RobotPlot):
+                    if plot.flat:
+                        self.lines[plot.name] = None
+                    else:
+                        self.lines[plot.name] = None
+                elif isinstance(plot, RobotPlotCollection):
+                    self.lines[plot.name] = {}
 
-                if plot.flat:
-                    for subplot in plot.plots:
-                        self.lines[plot.name][subplot.name] = None
-                else:
-                    for subplot in plot.plots:
-                        self.lines[plot.name][subplot.name] = None
+                    if plot.flat:
+                        for subplot in plot.plots:
+                            self.lines[plot.name][subplot.name] = None
+                    else:
+                        for subplot in plot.plots:
+                            self.lines[plot.name][subplot.name] = None
 
     def plot(self):
+        pass
+
+    def close(self, block=True):
         """
         To be called in a simulator's close function after all data has been compiled.
         Call show once after all plots are done
         :return: None
         """
-        if not self.plotter_enabled:
+        if not self.enabled:
             return
 
         for plot in self.robot_plots:
@@ -72,5 +78,4 @@ class StaticPlotter(BasePlotter):
 
         self.init_legend()
 
-    def show(self):
-        plt.show()
+        self.plt.show(block=block)

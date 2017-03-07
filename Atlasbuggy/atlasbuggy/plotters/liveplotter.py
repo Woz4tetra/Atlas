@@ -6,8 +6,6 @@ according to properties defined in RobotPlot.
 import time
 import traceback
 
-from matplotlib import pyplot as plt
-
 from atlasbuggy.plotters.baseplotter import BasePlotter
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
@@ -16,7 +14,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class LivePlotter(BasePlotter):
     initialized = False
 
-    def __init__(self, num_columns, *robot_plots, enable_legend=True, legend_args=None, lag_cap=0.005,
+    def __init__(self, num_columns, *robot_plots, enabled=True, enable_legend=True, legend_args=None, lag_cap=0.005,
                  plot_skip_count=0, matplotlib_events=None):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
@@ -33,29 +31,9 @@ class LivePlotter(BasePlotter):
             raise Exception("Can't have multiple plotter instances!")
         LivePlotter.initialized = True
 
-        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, matplotlib_events, *robot_plots)
+        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, matplotlib_events, enabled,
+                                          *robot_plots)
 
-        # create a plot line for each RobotPlot or RobotPlotCollection.
-        for plot in self.robot_plots:
-            if isinstance(plot, RobotPlot):
-                if plot.flat:  # if the plot is 2D
-                    self.lines[plot.name] = self.axes[plot.name].plot([], [], **plot.properties)[0]
-                else:
-                    self.lines[plot.name] = self.axes[plot.name].plot([], [], [], **plot.properties)[0]
-            elif isinstance(plot, RobotPlotCollection):  # similar to RobotPlot initialization except there are subplots
-                self.lines[plot.name] = {}
-
-                if plot.flat:
-                    for subplot in plot.plots:
-                        self.lines[plot.name][subplot.name] = self.axes[plot.name].plot([], [], **subplot.properties)[0]
-                else:
-                    for subplot in plot.plots:
-                        self.lines[plot.name][subplot.name] = \
-                            self.axes[plot.name].plot([], [], [], **subplot.properties)[0]
-
-        # define a clean close event
-        if self.plotter_enabled:
-            self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
         self.time0 = None
         self.lag_cap = lag_cap
         self.plot_skip_count = plot_skip_count
@@ -63,9 +41,31 @@ class LivePlotter(BasePlotter):
         self.closed = False
         self.is_paused = False
 
-        if self.plotter_enabled:
+        if self.enabled:
+            # create a plot line for each RobotPlot or RobotPlotCollection.
+            for plot in self.robot_plots:
+                if isinstance(plot, RobotPlot):
+                    if plot.flat:  # if the plot is 2D
+                        self.lines[plot.name] = self.axes[plot.name].plot([], [], **plot.properties)[0]
+                    else:
+                        self.lines[plot.name] = self.axes[plot.name].plot([], [], [], **plot.properties)[0]
+                elif isinstance(plot,
+                                RobotPlotCollection):  # similar to RobotPlot initialization except there are subplots
+                    self.lines[plot.name] = {}
+
+                    if plot.flat:
+                        for subplot in plot.plots:
+                            self.lines[plot.name][subplot.name] = \
+                                self.axes[plot.name].plot([], [], **subplot.properties)[0]
+                    else:
+                        for subplot in plot.plots:
+                            self.lines[plot.name][subplot.name] = \
+                                self.axes[plot.name].plot([], [], [], **subplot.properties)[0]
+
+            # define a clean close event
+            self.fig.canvas.mpl_connect('close_event', lambda event: self.close())
             self.init_legend()
-            plt.show(block=False)
+            self.plt.show(block=False)
 
     def start_time(self, time0):
         """
@@ -108,10 +108,10 @@ class LivePlotter(BasePlotter):
             return "exit"
 
         if self.is_paused:
-            plt.pause(0.05)
+            self.plt.pause(0.05)
             return
 
-        if not self.plotter_enabled:
+        if not self.enabled:
             return
 
         for plot in self.robot_plots:
@@ -151,7 +151,7 @@ class LivePlotter(BasePlotter):
 
         try:
             self.fig.canvas.draw()
-            plt.pause(0.005)  # can't be less than ~0.005
+            self.plt.pause(0.005)  # can't be less than ~0.005
 
         except BaseException as error:
             traceback.print_exc()
@@ -170,18 +170,18 @@ class LivePlotter(BasePlotter):
         self.is_paused = not self.is_paused
 
     def freeze_plot(self):
-        if self.plotter_enabled:
-            plt.ioff()
-            plt.gcf()
-            plt.show()
+        if self.enabled:
+            self.plt.ioff()
+            self.plt.gcf()
+            self.plt.show()
 
     def close(self):
         """
         Close the plot safely
         :return: None
         """
-        if self.plotter_enabled and not self.closed:
+        if self.enabled and not self.closed:
             self.closed = True
-            plt.ioff()
-            plt.gcf()
-            plt.close('all')
+            self.plt.ioff()
+            self.plt.gcf()
+            self.plt.close('all')
