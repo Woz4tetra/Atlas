@@ -21,6 +21,12 @@
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_NUM, PIN, NEO_GRB + NEO_KHZ800);
 Atlasbuggy buggy("underglow");
 
+#define SIGNAL_DELAY 1
+#define SIGNAL_INCREMENT 3
+#define SIGNAL_CYCLES 4
+
+int signal_r, signal_g, signal_b = 0;
+
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
 // and maximize distance between Arduino and first pixel.  Avoid connecting
@@ -38,7 +44,9 @@ void setup() {
     strip.show();
 
     // flashColors(strip.Color(0, 255, 0), strip.Color(255, 255, 255), 4, 100);
-    fadeColors(255, 255, 255, 0, 255, 0, 5, 1, 3);
+    fadeColors(0, 0, 0, 255, 255, 255, 1, SIGNAL_DELAY, SIGNAL_INCREMENT);
+    fadeColors(255, 255, 255, 0, 255, 0, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
+    fadeColors(255, 255, 255, 0, 0, 0, 1, SIGNAL_DELAY, SIGNAL_INCREMENT);
 
      buggy.setInitData(String(LED_NUM));
 }
@@ -49,10 +57,12 @@ void loop() {
         int status = buggy.readSerial();
 
         if (status == 2) {  // start event
-            fadeColors(255, 255, 255, 0, 0, 255, 5, 1, 3);
+            fadeColors(255, 255, 255, 1, SIGNAL_DELAY, SIGNAL_INCREMENT);
+            fadeColors(255, 255, 255, 0, 0, 255, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
         }
         else if (status == 1) {  // stop event
-            fadeColors(255, 255, 255, 255, 0, 0, 5, 1, 3);
+            fadeColors(255, 255, 255, 255, 0, 0, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
+            fadeColors(255, 255, 255, 0, 0, 0, 1, SIGNAL_DELAY, SIGNAL_INCREMENT);
             // colorWipe(strip.Color(255, 255, 255), 20);
         }
         else if (status == 5) {  // Received the letter 's'
@@ -80,8 +90,9 @@ void loop() {
             else if (command.charAt(0) == 'd') {
                 strip.show();
             }
-            else if (command.charAt(0) == 'f') {
-                fadeColors(random(0, 255), random(0, 255), random(0, 255), random(0, 255), random(0, 255), random(0, 255), 4, 1, 3);
+            else if (command.charAt(0) == 'f' && command.length() == 2) {
+                int cycle_num = command.substring(1, 2).toInt();
+                fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, 1, 1);
             }
             else if (command.length() > 4 && command.substring(0, 4).equals("wipe")) {
                 int r = command.substring(4, 7).toInt();
@@ -94,8 +105,22 @@ void loop() {
     }
 }
 
+void fadeColors(int r, int g, int b, uint16_t cycles, uint8_t wait, int increment) {
+    fadeColors(signal_r, signal_g, signal_b, r, g, b, cycles, wait, increment);
+}
+
 void fadeColors(int r1, int g1, int b1, int r2, int g2, int b2, uint16_t cycles, uint8_t wait, int increment)
 {
+    if (cycles % 2 == 0) {
+        signal_r = r1;
+        signal_g = g1;
+        signal_b = b1;
+    }
+    else {
+        signal_r = r2;
+        signal_g = g2;
+        signal_b = b2;
+    }
     int red_diff = abs(r2 - r1);
     int green_diff = abs(g2 - g1);
     int blue_diff = abs(b2 - b1);
@@ -121,6 +146,25 @@ void fadeColors(int r1, int g1, int b1, int r2, int g2, int b2, uint16_t cycles,
     int end = 0;
 
     bool condition = true;
+
+    switch (max_channel) {
+        case 'r':
+            if (r2 < r1) {
+                increment *= -1;
+            }
+            break;
+        case 'g':
+            if (g2 < g1) {
+                increment *= -1;
+            }
+            break;
+        case 'b':
+            if (b2 < b1) {
+                increment *= -1;
+            }
+            break;
+    }
+
 
     for (uint16_t cycle = 0; cycle < cycles; cycle++)
     {

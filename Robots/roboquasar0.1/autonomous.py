@@ -106,7 +106,8 @@ class AutonomousCommandline(cmd.Cmd):
             return
         robot.init_compass(line)
 
-    def do_wipe(self, line):
+    def do_lights.
+    (self, line):
         robot.underglow.send('f')
 
 def run_robot():
