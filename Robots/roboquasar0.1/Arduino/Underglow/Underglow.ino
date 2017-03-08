@@ -23,7 +23,7 @@ Atlasbuggy buggy("underglow");
 
 #define SIGNAL_DELAY 1
 #define SIGNAL_INCREMENT 3
-#define SIGNAL_CYCLES 4
+#define SIGNAL_CYCLES 2
 
 int signal_r, signal_g, signal_b = 0;
 
@@ -61,7 +61,8 @@ void loop() {
             fadeColors(255, 255, 255, 0, 0, 255, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
         }
         else if (status == 1) {  // stop event
-            fadeColors(255, 255, 255, 255, 0, 0, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
+            fadeColors(255, 0, 0, SIGNAL_CYCLES * 2, SIGNAL_DELAY, SIGNAL_INCREMENT);
+            // fadeColors(255, 255, 255, 255, 0, 0, SIGNAL_CYCLES, SIGNAL_DELAY, SIGNAL_INCREMENT);
             fadeColors(255, 255, 255, 0, 0, 0, 1, SIGNAL_DELAY, SIGNAL_INCREMENT);
             // colorWipe(strip.Color(255, 255, 255), 20);
         }

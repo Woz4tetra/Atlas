@@ -106,9 +106,9 @@ class AutonomousCommandline(cmd.Cmd):
             return
         robot.init_compass(line)
 
-    def do_lights.
-    (self, line):
-        robot.underglow.send('f')
+    def do_lights(self, line):
+        if len(line) > 0:
+            robot.underglow.send('f%s' % line)
 
 def run_robot():
     run(robot, WiiUJoystick(), log_data=args.nolog, log_dir=("data_days", None), debug_prints=args.debug)
