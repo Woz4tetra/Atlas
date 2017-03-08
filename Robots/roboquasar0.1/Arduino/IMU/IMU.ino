@@ -16,7 +16,20 @@ int sample_rate_delay_ms = 100;
 
 Atlasbuggy buggy("imu");
 
+// default (same as OPERATION_MODE_NDOF)
 Adafruit_BNO055 bno = Adafruit_BNO055();
+
+// Accelerometer & gyroscope only for getting relative orientation, subject to gyro drift
+// Adafruit_BNO055 bno = Adafruit_BNO055(0x08); // OPERATION_MODE_IMUPLUS
+
+// Accelerometer & magnetometer only for getting relative orientation
+// Adafruit_BNO055 bno = Adafruit_BNO055(0x0a);  // OPERATION_MODE_M4G
+
+// Gets heading only from compass
+// Adafruit_BNO055 bno = Adafruit_BNO055(0x09); // OPERATION_MODE_COMPASS
+
+// OPERATION_MODE_NDOF without fast magnetometer calibration
+// Adafruit_BNO055 bno = Adafruit_BNO055(OPERATION_MODE_NDOF_FMC_OFF);
 
 void updateIMU() {
     // Possible vector values can be:
@@ -131,10 +144,6 @@ void setup() {
 
   bno.setExtCrystalUse(true);
 
-  pinMode(LED13, OUTPUT);
-
-  // Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
-
 }
 
 void loop() {
@@ -146,6 +155,9 @@ void loop() {
         //
         // }
         // else if (status == 1) {  // stop event
+        //
+        // }
+        // else if (status == 0) {  // user command
         //
         // }
     }

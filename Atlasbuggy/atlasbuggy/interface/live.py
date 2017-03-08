@@ -178,7 +178,7 @@ class RobotRunner(BaseInterface):
         self.clock.update()  # maintain a constant loop speed
         if not self.lag_warning_thrown and self.robot.current_timestamp is not None and \
                 self.robot.current_timestamp > 0.1 and not self.clock.on_time:
-            print("Warning. Main loop is running slow.")
+            self._debug_print("Warning. Main loop is running slow. Clock is behind by %ss" % abs(self.clock.offset))
             self.lag_warning_thrown = True
 
     def _close(self, reason=""):

@@ -15,15 +15,15 @@
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(30, PIN, NEO_GRB + NEO_KHZ800);
-Atlasbuggy buggy("underglow");
 
-int cycle_value = 1;
-bool pauseCycle = false;
+#define LED_NUM 30
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_NUM, PIN, NEO_GRB + NEO_KHZ800);
+Atlasbuggy buggy("underglow");
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
-// and minimize distance between Arduino and first pixel.  Avoid connecting
+// and maximize distance between Arduino and first pixel.  Avoid connecting
 // on a live circuit...if you must, connect GND first.
 
 void setup() {
@@ -37,83 +37,226 @@ void setup() {
     strip.begin();
     strip.show();
 
-    flashColors(strip.Color(0, 255, 0), strip.Color(255, 255, 255), 4, 100);
+    // flashColors(strip.Color(0, 255, 0), strip.Color(255, 255, 255), 4, 100);
+    fadeColors(255, 255, 255, 0, 255, 0, 5, 1, 3);
 
-    // strip.show(); // Initialize all pixels to 'off'
-
-    //  buggy.setInitData();
+     buggy.setInitData(String(LED_NUM));
 }
 
 uint16_t i, j;
 void loop() {
     while (buggy.available()) {
         int status = buggy.readSerial();
-        // Serial.println(status);
 
         if (status == 2) {  // start event
-            pauseCycle = false;
-            flashColors(strip.Color(0, 0, 255), strip.Color(255, 255, 255), 4, 100);
+            fadeColors(255, 255, 255, 0, 0, 255, 5, 1, 3);
         }
         else if (status == 1) {  // stop event
-            flashColors(strip.Color(255, 0, 0), strip.Color(255, 255, 255), 4, 100);
-            pauseCycle = true;
+            fadeColors(255, 255, 255, 255, 0, 0, 5, 1, 3);
+            // colorWipe(strip.Color(255, 255, 255), 20);
         }
         else if (status == 5) {  // Received the letter 's'
-            pauseCycle = true;
+
         }
         else if (status == 0) {
-            if (buggy.getCommand().charAt(0) == 'l')
+            String command = buggy.getCommand();
+            if (command.charAt(0) == 'l')
             {
-                int led_num = buggy.getCommand().substring(1, 4).toInt();
-                int r = buggy.getCommand().substring(4, 7).toInt();
-                int g = buggy.getCommand().substring(7, 10).toInt();
-                int b = buggy.getCommand().substring(10, 13).toInt();
-
-                strip.setPixelColor(i, strip.Color(r, g, b));
+                int led_num = command.substring(1, 4).toInt();
+                int r = command.substring(4, 7).toInt();
+                int g = command.substring(7, 10).toInt();
+                int b = command.substring(10, 13).toInt();
+                if (command.length() > 13)
+                {
+                    int stop_num = command.substring(13, 16).toInt();
+                    for (int index = led_num; index < stop_num; index++) {
+                        strip.setPixelColor(index, strip.Color(r, g, b));
+                    }
+                }
+                else {
+                    strip.setPixelColor(led_num, strip.Color(r, g, b));
+                }
+            }
+            else if (command.charAt(0) == 'd') {
+                strip.show();
+            }
+            else if (command.charAt(0) == 'f') {
+                fadeColors(random(0, 255), random(0, 255), random(0, 255), random(0, 255), random(0, 255), random(0, 255), 4, 1, 3);
+            }
+            else if (command.length() > 4 && command.substring(0, 4).equals("wipe")) {
+                int r = command.substring(4, 7).toInt();
+                int g = command.substring(7, 10).toInt();
+                int b = command.substring(10, 13).toInt();
+                int wait = command.substring(13, 16).toInt();
+                colorWipe(strip.Color(r, g, b), wait);
             }
         }
-        // Serial.flush();  // clear serial buffer
     }
+}
 
-//    // Serial.println(pauseCycle);
-//    if (!buggy.isPaused() && !pauseCycle) {
-//        // for(i=0; i< strip.numPixels(); i++) {
-//        //
-//        // }
-//        strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-//        i++;
-//        if (i >= strip.numPixels())
-//        {
-//            i = 0;
-//            j++;
-//            if (j >= 256 * 5) {
-//                j = 0;
-//            }
-//            strip.show();
-//            delay(cycle_value);
-//        }
+void fadeColors(int r1, int g1, int b1, int r2, int g2, int b2, uint16_t cycles, uint8_t wait, int increment)
+{
+    int red_diff = abs(r2 - r1);
+    int green_diff = abs(g2 - g1);
+    int blue_diff = abs(b2 - b1);
 
+    char max_channel = 'r';
+    int max_diff = red_diff;
+
+    if (green_diff > max_diff) {
+        max_diff = green_diff;
+        max_channel = 'g';
+    }
+    if (blue_diff > max_diff) {
+        max_diff = blue_diff;
+        max_channel = 'b';
+    }
+    // Serial.println(max_channel);
+
+    float red_slope = 0.0;
+    float green_slope = 0.0;
+    float blue_slope = 0.0;
+
+    int start = 0;
+    int end = 0;
+
+    bool condition = true;
+
+    for (uint16_t cycle = 0; cycle < cycles; cycle++)
+    {
+        // Serial.println(cycle);
+        switch (max_channel) {
+            case 'r':
+                condition = r1 < r2;
+                if (increment < 0) {
+                    condition = !condition;
+                }
+                if (condition) {
+                    start = r1;
+                    end = r2;
+                }
+                else {
+                    start = r2;
+                    end = r1;
+                }
+                green_slope = (float)(g2 - g1) / (r2 - r1);
+                blue_slope = (float)(b2 - b1) / (r2 - r1);
+
+                // Serial.print(start); Serial.print('\t');
+                // Serial.print(end); Serial.print('\t');
+                // Serial.print(increment); Serial.print('\t');
+                // Serial.print(green_slope); Serial.print('\t');
+                // Serial.print(blue_slope); Serial.print('\t');
+                // Serial.print(r2 - r1); Serial.print('\n');
+
+                if (start < end) {
+                    for (int value = start; value <= end; value += increment) {
+                        setColor(strip.Color(
+                                value,
+                                green_slope * (value - r1) + g1,
+                                blue_slope * (value - r1) + b1
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+                else {
+                    for (int value = start; value >= end; value += increment) {
+                        setColor(strip.Color(
+                                value,
+                                green_slope * (value - r1) + g1,
+                                blue_slope * (value - r1) + b1
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+                break;
+
+            case 'g':
+                condition = g1 < g2;
+                if (increment < 0) {
+                    condition = !condition;
+                }
+                if (condition) {
+                    start = g1;
+                    end = g2;
+                }
+                else {
+                    start = g2;
+                    end = g1;
+                }
+
+
+                red_slope = (float)(r2 - r1) / (g2 - g1);
+                blue_slope = (float)(b2 - b1) / (g2 - g1);
+                if (start < end) {
+                    for (int value = start; value <= end; value += increment) {
+                        setColor(strip.Color(
+                                red_slope * (value - g1) + r1,
+                                value,
+                                blue_slope * (value - g1) + b1
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+                else {
+                    for (int value = start; value >= end; value += increment) {
+                        setColor(strip.Color(
+                                red_slope * (value - g1) + r1,
+                                value,
+                                blue_slope * (value - g1) + b1
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+                break;
+            case 'b':
+                condition = b1 < b2;
+                if (increment < 0) {
+                    condition = !condition;
+                }
+                if (condition) {
+                    start = b1;
+                    end = b2;
+                }
+                else {
+                    start = b2;
+                    end = b1;
+                }
+                red_slope = (float)(r2 - r1) / (b2 - b1);
+                green_slope = (float)(g2 - g1) / (b2 - b1);
+
+                if (start < end) {
+                    for (int value = start; value <= end; value += increment) {
+                        setColor(strip.Color(
+                                red_slope * (value - b1) + r1,
+                                green_slope * (value - b1) + g1,
+                                value
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+                else {
+                    for (int value = start; value >= end; value += increment) {
+                        setColor(strip.Color(
+                                red_slope * (value - b1) + r1,
+                                green_slope * (value - b1) + g1,
+                                value
+                            )
+                        );
+                        delay(wait);
+                    }
+                }
+
+                break;
+        }
+        increment *= -1;
 
     }
-    // Some example procedures showing how to display to the pixels:
-    // colorWipe(strip.Color(255, 0, 0), 50); // Red
-    // colorWipe(strip.Color(255, 255, 0), 50);  // Yellow
-    // colorWipe(strip.Color(0, 255, 0), 50); // Green
-    // colorWipe(strip.Color(0, 255, 255), 50);  // Cyan
-    // rainbowCycle(20);
-    //
-    // colorWipe(strip.Color(255, 83, 13), 50);
-    // colorWipe(strip.Color(0, 0, 255), 50); // Blue
-    // colorWipe(strip.Color(255, 0, 255), 50);  // Magenta
-    // colorWipe(strip.Color(255, 255, 255, 255), 50); // White
-    // rainbow(20);
-
-    // Send a theater pixel chase in...
-    //  theaterChase(strip.Color(127, 127, 127), 50); // White
-    //  theaterChase(strip.Color(127, 0, 0), 50); // Red
-    //  theaterChase(strip.Color(0, 0, 127), 50); // Blue
-
-    //  theaterChaseRainbow(50);
 }
 
 void flashColors(uint32_t c1, uint32_t c2, uint16_t cycles, uint8_t wait)
@@ -132,7 +275,6 @@ void setColor(uint32_t c)
         strip.setPixelColor(i, c);
     }
     strip.show();
-    delay(1);
 }
 
 // Fill the dots one after the other with a color

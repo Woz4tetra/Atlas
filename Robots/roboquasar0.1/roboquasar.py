@@ -19,8 +19,9 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class RoboQuasar(Robot):
-    def __init__(self, live, enable_plotting, animate,
-                 checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
+    def __init__(self, enable_plotting,
+                 checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
+                 initial_compass=None, animate=True):
 
         self.gps = GPS()
         self.imu = IMU()
@@ -38,15 +39,9 @@ class RoboQuasar(Robot):
 
         self.compass_angle = None
         self.start_angle = None
-        self.compass_str = ""
-        if live:
-            while len(self.compass_str) == 0:
-                self.compass_str = input("iPhone compass reading to record (degrees): ")
-                try:
-                    float(self.compass_str)
-                except ValueError:
-                    print("Input not a number...")
-            self.init_compass(self.compass_str)
+
+        if initial_compass is not None:
+            self.init_compass(initial_compass)
 
         self.manual_mode = True
 
@@ -103,15 +98,15 @@ class RoboQuasar(Robot):
         self.link(self.imu, self.receive_imu)
 
     def receive_gps(self, timestamp, packet, packet_type):
-        if not self.plotter.enabled:
-            print("%0.2f" % timestamp, self.gps)
-            print("%0.2f" % timestamp, self.imu)
+        # if not self.plotter.enabled:
+            # print("%0.2f" % timestamp, self.gps)
+            # print("%0.2f" % timestamp, self.imu)
         if self.gps.is_position_valid():
             # self.update_bearing()
 
             if not self.controller.is_initialized():
                 self.controller.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
-                print(self.gps.latitude_deg, self.gps.longitude_deg)
+                # print(self.gps.latitude_deg, self.gps.longitude_deg)
 
             if self.plotter.enabled:
                 self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -222,12 +217,12 @@ class RoboQuasar(Robot):
                     self.brakes.unbrake()
                 else:
                     self.brakes.brake()
-                    print("\n\n!!SWITCH RELEASED, BRAKING!!\n\n")
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
 
     def init_compass(self, packet):
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
+        print("initial offset: %0.4f rad" % self.compass_angle)
 
     def offset_angle(self):
         if self.start_angle is None:

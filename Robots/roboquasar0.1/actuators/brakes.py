@@ -27,10 +27,12 @@ class Brakes(RobotObject):
 
     def brake(self):
         self.send('b')
+        self.goal_position = self.brake_pos
         self.engaged = True
 
     def unbrake(self):
         self.send('r')
+        self.goal_position = self.unbrake_pos
         self.engaged = False
 
     def toggle(self):

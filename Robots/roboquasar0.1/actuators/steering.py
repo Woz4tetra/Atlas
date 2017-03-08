@@ -32,10 +32,10 @@ class Steering(RobotObject):
 
     def receive(self, timestamp, packet):
         if packet == "calibrating":
-            print("steering is calibrating")
+            # print("steering is calibrating")
             self.moving = True
         elif packet == "done!":
-            print("steering calibration complete")
+            # print("steering calibration complete")
             self.calibrated = True
             self.moving = False
             self.last_update_t = time.time()

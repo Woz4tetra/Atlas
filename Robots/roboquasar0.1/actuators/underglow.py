@@ -5,18 +5,31 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class Underglow(RobotObject):
-    def __init__(self, enabled=True):
-        self.num_leds = 30
-        self.leds = [(255, 255, 255) for _ in range(self.num_leds)]
-
-        self.led_plots = [
-            RobotPlot("LED #%s" % x, marker='.', markersize=10, x_range=(-1, self.num_leds), color='black') for x in
-            range(self.num_leds)]
-        self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots)
+    def __init__(self, enabled=True, enable_plotting=False):
+        self.enable_plotting = enable_plotting
+        self.num_leds = None
+        self.leds = None
+        self.led_plots = None
+        self.strip_plot = None
 
         super(Underglow, self).__init__("underglow", enabled)
 
-    def set_led(self, led_num, r, g, b):
+    def receive_first(self, packet):
+        self.num_leds = int(packet)
+        self.leds = [(255, 255, 255) for _ in range(self.num_leds)]
+
+        self.led_plots = [
+            RobotPlot("LED #%s" % x, plot_enabled=self.enable_plotting, marker='.', markersize=10, x_range=(-1, self.num_leds), color='black') for x in
+            range(self.num_leds)]
+        self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, plot_enabled=self.enable_plotting)
+
+    def constrain_input(self, rgb):
+        if len(rgb) == 1:
+            rgb = rgb[0]
+        r = int(abs(rgb[0]))
+        g = int(abs(rgb[1]))
+        b = int(abs(rgb[2]))
+
         if r > 255:
             r = 255
         if g > 255:
@@ -24,15 +37,45 @@ class Underglow(RobotObject):
         if b > 255:
             b = 255
 
-        r = int(abs(r))
-        g = int(abs(g))
-        b = int(abs(b))
+        return r, g, b
+
+    def set_leds(self, start, end, *rgb):
+        r, g, b = self.constrain_input(rgb)
+        start = int(abs(start))
+        end = int(abs(end))
+
+        assert end <= self.num_leds and 0 <= start and start < end
+
+        self.send("l%3.0d%3.0d%3.0d%3.0d%3.0d" % (start, r, g, b, end))
+        # print("l%3.0d%3.0d%3.0d%3.0d%3.0d" % (start, r, g, b, end))
+        # print("#%2.0d\tr: %3.0d\tg: %3.0d\tb: %3.0d" % (led_num, r, g, b))
+
+        if self.strip_plot.enabled:
+            for led_num in range(start, end):
+                self.led_plots[led_num].set_properties(color=(r / 255, g / 255, b / 255))
+                self.leds[led_num] = (r, g, b)
+
+    def set_led(self, led_num, *rgb):
+        r, g, b = self.constrain_input(rgb)
         led_num = int(abs(led_num))
 
         self.send("l%3.0d%3.0d%3.0d%3.0d" % (led_num, r, g, b))
-        print("l%3.0d%3.0d%3.0d%3.0d" % (led_num, r, g, b))
-        print("#%2.0d\tr: %3.0d\tg: %3.0d\tb: %3.0d" % (led_num, r, g, b))
+        # print("l%3.0d%3.0d%3.0d%3.0d" % (led_num, r, g, b))
+        # print("#%2.0d\tr: %3.0d\tg: %3.0d\tb: %3.0d" % (led_num, r, g, b))
 
-        if self.strip_plot is not None and self.strip_plot.enabled:
+        if self.strip_plot.enabled:
             self.led_plots[led_num].set_properties(color=(r / 255, g / 255, b / 255))
             self.leds[led_num] = (r, g, b)
+
+    def color_wipe(self, delay, *rgb):
+        r, g, b = self.constrain_input(rgb)
+        self.send("wipe%3.0d%3.0d%3.0d%3.0d" % (r, g, b, delay))
+
+    def set_all(self, *rgb):
+        self.set_leds(0, self.num_leds, *rgb)
+
+    def show(self):
+        self.send("d")
+
+    def __len__(self):
+        return self.num_leds

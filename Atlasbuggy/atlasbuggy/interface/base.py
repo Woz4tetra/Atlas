@@ -1,15 +1,17 @@
+
 class BaseInterface:
     def __init__(self, robot, debug_enabled, debug_name):
         self.robot = robot
 
         self.debug_enabled = debug_enabled
-
         self.debug_name = debug_name
+
+        self.exit_thrown = False
 
     def run(self):
         self._start()
         try:
-            while self._should_run():
+            while self._should_run() and not self.exit_thrown:
                 status = self._update()
                 if status is not None:
                     self._close(status)
@@ -45,6 +47,9 @@ class BaseInterface:
 
     def _should_run(self):
         pass
+
+    def exit(self):
+        self.exit_thrown = True
 
     def _debug_print(self, *strings, ignore_flag=False):
         if self.debug_enabled or ignore_flag:

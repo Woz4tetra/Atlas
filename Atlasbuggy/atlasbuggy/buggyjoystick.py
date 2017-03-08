@@ -77,6 +77,7 @@ class BuggyJoystick:
         self.prev_dpad = (0, 0)
 
         self.t0 = time.time()
+        self.active = False
 
         super(BuggyJoystick, self).__init__()
 
@@ -116,6 +117,7 @@ class BuggyJoystick:
 
             # if an axis event occurred
             if event.type == pygame.JOYAXISMOTION:
+                self.active = True
                 # set value to the axis if it is outside the deadzone
                 # else set it to zero
                 if event.axis < len(self.axes):
@@ -136,11 +138,13 @@ class BuggyJoystick:
             # if the dpad updated, set the current value and call the
             # dpad callback
             elif event.type == pygame.JOYHATMOTION:
+                self.active = True
                 self.dpad = event.value
 
             # if a button was pressed, set it to True and call the button
             # down callback
             elif event.type == pygame.JOYBUTTONDOWN:
+                self.active = True
                 if event.button < len(self.buttons):
                     self.buttons[event.button] = True
                 else:
@@ -151,15 +155,16 @@ class BuggyJoystick:
             # if a button was released, set it to False and call the button
             # up callback
             elif event.type == pygame.JOYBUTTONUP:
+                self.active = True
                 if event.button < len(self.buttons):
                     self.buttons[event.button] = False
                 else:
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
-        if (time.time() - self.t0) > 1:  # if no events received for more than timeout, signal stop
+        if self.active and (time.time() - self.t0) > 1:  # if no events received for more than timeout, signal stop
             return "error"
-            
+
     def get_button(self, name):
         """
         Get the value of a button using the name as reference
