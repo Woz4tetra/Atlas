@@ -1,6 +1,6 @@
 """
 The RobotObject class acts a container for data received from and sent to the corresponding robot port.
-Data is directed using a RobotInterface class. Every robot object has a unique whoiam ID which is
+Data is directed using a RobotRunner class. Every robot object has a unique whoiam ID which is
 also defined on the microcontroller.
 """
 
@@ -18,11 +18,11 @@ class RobotObject:
         Define object variables here
 
         :param whoiam: a unique string ID containing ascii characters
+        :param enabled: disable or enable object
         """
         self.whoiam = whoiam
         self.enabled = enabled
-        self.baud = None
-
+        self.baud = None  # set this externally AFTER super().__init__ is called if a different baud rate is desired
         self.is_live = True
         self.command_packets = Queue(maxsize=255)
 
@@ -31,10 +31,10 @@ class RobotObject:
         Override this method when subclassing RobotObject if you're expecting initial data
 
         Initialize any data defined in __init__ here.
-        If the whoiam packet contains data, it's passed here. Otherwise, this method isn't called
+        If the initialization packet is not an empty string, it's passed here. Otherwise, this method isn't called
 
         :param packet: The first packet received by the robot object's port
-        :return: False if program need to exit for some reason, None or True otherwise
+        :return: a string if the program needs to exit ("done" or "error"), None if everything is ok
         """
         raise NotImplementedError("Please override this method when subclassing RobotObject")
 
@@ -43,13 +43,11 @@ class RobotObject:
         Override this method when subclassing RobotObject
 
         Parse incoming packets received by the corresponding port.
-        This method is called on the RobotSerialPort's thread.
         I would recommend ONLY parsing packets here and not doing anything else.
-        Use did_update for any event based function calls in the main thread.
 
         :param timestamp: The time the packet arrived
         :param packet: A packet (string) received from the robot object's port
-        :return: False if program need to exit for some reason, None or True otherwise
+        :return: a string if the program needs to exit ("done" or "error"), None if everything is ok
         """
         raise NotImplementedError("Please override this method when subclassing RobotObject")
 
@@ -60,7 +58,6 @@ class RobotObject:
         Queue a new packet for sending. The packet end (\n) will automatically be appended
 
         :param packet: A packet (string) to send to the microcontroller without the packet end character
-        :return: None
         """
         if self.enabled and self.is_live:
             self.command_packets.put(packet)

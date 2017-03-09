@@ -70,7 +70,7 @@ class LidarTurret(RobotObject):
 
         self.line_plot = RobotPlot(
             "lines",
-            plot_enabled=False,
+            enabled=False,
             x_range=lidar_range, y_range=lidar_range, range_offset=1,
             marker='', linestyle='-', color='lightblue',
             # skip_count=10

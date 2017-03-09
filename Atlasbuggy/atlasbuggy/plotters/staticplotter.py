@@ -9,7 +9,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
 class StaticPlotter(BasePlotter):
-    def __init__(self, num_columns, *robot_plots, enabled=True, enable_legend=True, legend_args=None,
+    def __init__(self, num_columns, *robot_plots, enabled=True, draw_legend=True, legend_args=None,
                  matplotlib_events=None):
         """
         :param num_columns: Configure how the subplots are arranged
@@ -17,7 +17,7 @@ class StaticPlotter(BasePlotter):
         :param legend_args: dictionary of arguments to pass to plt.legend
         """
         super(StaticPlotter, self).__init__(
-            num_columns, legend_args, enable_legend, matplotlib_events, enabled, *robot_plots
+            num_columns, legend_args, draw_legend, matplotlib_events, enabled, *robot_plots
         )
 
         if self.enabled:

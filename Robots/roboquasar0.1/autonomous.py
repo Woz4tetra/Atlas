@@ -19,6 +19,7 @@ args = parser.parse_args()
 robot = RoboQuasar(False, *map_sets["cut"])
 robot.init_compass(args.compass)
 
+
 class AutonomousCommandline(cmd.Cmd):
     def do_imu(self, line):
         """
@@ -110,8 +111,10 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+
 def run_robot():
     run(robot, WiiUJoystick(), log_data=args.nolog, log_dir=("data_days", None), debug_prints=args.debug)
+
 
 t = Thread(target=run_robot)
 t.daemon = True

@@ -9,27 +9,34 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class BasePlotter:
     fig_num = 0
 
-    def __init__(self, num_columns, legend_args, enable_legend, matplotlib_events, plotter_enabled, *robot_plots):
+    def __init__(self, num_columns, legend_args, draw_legend, matplotlib_events, enabled, *robot_plots):
         """
         A plotter is one matplotlib figure. Having multiple robot plots creates subplots
         :param num_columns: Configure how the subplots are arranged
         :param legend_args: dictionary of arguments to pass to plt.legend
+        :param draw_legend: puts a legend on the plot
+        :param matplotlib_events: dictionary of matplotlib callback events
+            key: event name (string), value: function reference
+        :param enabled: enable or disable plot
         :param robot_plots: RobotPlot or RobotPlotCollection instances. Each one will be a subplot
         """
         self.robot_plots = []
         for plot in robot_plots:
-            if plot.enabled:
+            if plot.enabled:  # only append plot if it is enabled
                 self.robot_plots.append(plot)
 
-        self.enabled = plotter_enabled
-        if self.enabled:
+        self.enabled = enabled
+        if self.enabled:  # if plotter is enabled check if all the plots are enabled
             if len(self.robot_plots) == 0:
                 self.enabled = False
             else:
                 self.enabled = True
 
         self.legend_args = legend_args
-        self.enable_legend = enable_legend
+        if self.legend_args is None:
+            self.legend_args = {}
+
+        self.enable_legend = draw_legend
 
         self.plt = None
 
@@ -39,21 +46,24 @@ class BasePlotter:
         self.extra_elements = {}
 
         if self.enabled:
-            self.open_matplotlib()
+            self.open_matplotlib()  # launch the python app only if the plotter is used
 
             self.fig = self.plt.figure(BasePlotter.fig_num)
+            BasePlotter.fig_num += 1
+
+            # link matplotlib events
             if matplotlib_events is not None:
                 for event_name in matplotlib_events:
                     self.fig.canvas.mpl_connect(event_name, matplotlib_events[event_name])
-            BasePlotter.fig_num += 1
 
+            # based on number of columns and plot number, get the number of rows
             num_plots = len(self.robot_plots)
             if num_plots < num_columns:
                 num_columns = num_plots
-
             num_rows = num_plots // num_columns
             num_rows += num_plots % num_columns
 
+            # create subplots for each robot plot
             plot_num = 1
             for plot in self.robot_plots:
                 self.plots_dict[plot.name] = plot
@@ -76,22 +86,24 @@ class BasePlotter:
     def init_legend(self):
         """
         Create a legend. Static and live plots need them created at different times
-        :return:
         """
         if self.enable_legend and self.enabled:
-            if self.legend_args is None:
-                self.legend_args = {}
-
-            if "fontsize" not in self.legend_args:
+            # set defaults
+            if "fontsize" not in self.legend_args:  # small font
                 self.legend_args["fontsize"] = 'x-small'
-            if "shadow" not in self.legend_args:
+            if "shadow" not in self.legend_args:  # shadow
                 self.legend_args["shadow"] = 'True'
-            if "log" not in self.legend_args:
+            if "loc" not in self.legend_args:  # dynamic legend placement
                 self.legend_args["loc"] = 0
 
             self.plt.legend(**self.legend_args)
 
-    def get_name(self, arg):
+    def _get_name(self, arg):
+        """
+        Interpret argument into the name of a plot (for internal use)
+        :param arg: string or robot plot
+        :return: name of the plot
+        """
         if type(arg) == str:
             return arg
         elif isinstance(arg, RobotPlot) or isinstance(arg, RobotPlotCollection):
@@ -100,16 +112,29 @@ class BasePlotter:
             return None
 
     def get_axis(self, arg):
+        """
+        Get the matplotlib axis based on the arg
+        :param arg: string or robot plot
+        :return: matplotlib axis instance
+        """
         if self.enabled:
-            plot_name = self.get_name(arg)
+            plot_name = self._get_name(arg)
 
             if plot_name in self.axes.keys():
                 return self.axes[plot_name]
         return None
 
     def draw_dot(self, arg, x, y, z=None, **dot_properties):
+        """
+        Draw a dot on the input plot (plot name or plot instance)
+        :param arg: string or robot plot
+        :param x: float
+        :param y: float
+        :param z: float
+        :param dot_properties: matplotlib properties (color, markersize, etc)
+        """
         if self.enabled:
-            plot_name = self.get_name(arg)
+            plot_name = self._get_name(arg)
             if plot_name is None:
                 return
 
@@ -120,8 +145,21 @@ class BasePlotter:
                     self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
     def draw_text(self, arg, text, x, y, z=None, text_name=None, **text_properties):
+        """
+        Draw text on the input plot (plot name or plot instance)
+        Text elements get put in extra_elements for reference later. If you want to override the
+        previously drawn text, give the textbox a unique name.
+
+        :param arg: string or robot plot
+        :param text: string
+        :param x: float
+        :param y: float
+        :param z: float
+        :param text_name: a unique name
+        :param text_properties: color, font, etc.
+        """
         if self.enabled:
-            plot_name = self.get_name(arg)
+            plot_name = self._get_name(arg)
             if plot_name is None:
                 return
 
@@ -134,8 +172,14 @@ class BasePlotter:
                     self.extra_elements[text_name] = self.axes[plot_name].text([x], [y], [z], text, **text_properties)
 
     def set_line_props(self, arg, **kwargs):
+        """
+        Change the properties of a plot (color, markersize, etc.)
+
+        :param arg: string or robot plot
+        :param kwargs: properties to change
+        """
         if self.enabled:
-            plot_name = self.get_name(arg)
+            plot_name = self._get_name(arg)
             if plot_name is None:
                 return
 
@@ -148,6 +192,6 @@ class BasePlotter:
     def plot(self):
         """
         Header method. Implemented in static and live plotter
-        :return: True or False depending on if the program should exit or not
+        :return: None, "error", "exit", or "done" depending on if the program should exit or not
         """
-        return True
+        pass

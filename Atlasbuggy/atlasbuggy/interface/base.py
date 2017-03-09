@@ -1,6 +1,14 @@
+# a common subclass for RobotRunner and RobotSimulator. Contains common methods and properties
+
 
 class BaseInterface:
     def __init__(self, robot, debug_enabled, debug_name):
+        """
+        :param robot: a subclass instance of the atlasbuggy.robot.Robot class
+        :param debug_enabled: print debug messages
+        :param debug_name: name to put in the debug messages when the message comes from the interface
+            as opposed to a robot port
+        """
         self.robot = robot
 
         self.debug_enabled = debug_enabled
@@ -9,20 +17,28 @@ class BaseInterface:
         self.exit_thrown = False
 
     def run(self):
+        """
+        run skeleton for the interface. Calls the interface's wrapper methods:
+            _start, _should_run, _update, _loop, _close
+        """
+
+        # initialization
         self._start()
         try:
+            # should the interface continue?
             while self._should_run() and not self.exit_thrown:
+                # get incoming packets and update appropriate methods
                 status = self._update()
                 if status is not None:
                     self._close(status)
                     return
 
+                # call this method no matter what (think of Arduino's loop)
                 status = self._loop()
-                if self._loop() is not None:
+                if status is not None:
                     self._close(status)
                     return
 
-                self._extra_events()
         except KeyboardInterrupt:
             pass
 
@@ -39,9 +55,6 @@ class BaseInterface:
     def _update(self):
         pass
 
-    def _extra_events(self):
-        pass
-
     def _close(self, reason):
         pass
 
@@ -49,9 +62,19 @@ class BaseInterface:
         pass
 
     def exit(self):
+        """
+        Exit the interface (use if interface is on a separate thread)
+        """
         self.exit_thrown = True
 
-    def _debug_print(self, *strings, ignore_flag=False):
+    def _debug_print(self, *values, ignore_flag=False):
+        """
+        print if debug_enabled is True (can be overridden by ignore_flag)
+
+        :param values: multiple values can be passed so long as they can be converted to strings.
+            The values are joined by " " by default
+        :param ignore_flag: override debug_enabled
+        """
         if self.debug_enabled or ignore_flag:
-            string = " ".join([str(x) for x in strings])
+            string = " ".join([str(x) for x in values])
             print("[%s] %s" % (self.debug_name, string))

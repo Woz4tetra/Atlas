@@ -15,15 +15,16 @@ class BozoController:
         self.border_skip_check = border_skip_check
         self.current_index = None
         self.current_angle = 0.0
+        self.current_pos = self.map[0]
 
     def initialize(self, lat, long):
-        self.current_index = self.get_goal(lat, long, 0, len(self.map))
+        self.current_index = self.get_goal(lat, long)
 
     def is_initialized(self):
         return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_index = self.get_goal(lat, long, 0, -1)
+        goal_index = self.get_goal(lat, long)
         goal_lat, goal_long = self.map[goal_index]
 
         goal_angle = math.atan2(goal_long - long, goal_lat - lat) - math.pi / 2
@@ -34,34 +35,32 @@ class BozoController:
         self.current_angle = angle_error
         return self.current_angle
 
-    def get_goal(self, lat0, long0, start_index, end_index):
+    def get_goal(self, lat0, long0):
+        if not self.point_inside_outer_map(lat0, long0):
+            nearest_index = self.closest_point(lat0, long0, self.outer_map)
+            lat0, long0 = self.outer_map[nearest_index]
+        if not self.point_outside_inner_map(lat0, long0):
+            nearest_index = self.closest_point(lat0, long0, self.inner_map)
+            lat0, long0 = self.inner_map[nearest_index]
+
+        self.current_pos = lat0, long0
+
+        goal_index = self.closest_point(lat0, long0, self.map)
+        goal_index = (goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
+        self.current_index = goal_index % len(self.map)  # the closest index on the map
+
+        return goal_index
+
+    def closest_point(self, lat0, long0, gps_map):
         smallest_dist = None
         goal_index = 0
 
-        start = min(start_index % len(self.map), end_index % len(self.map))
-        end = min(end_index % len(self.map), end_index % len(self.map))
-        # print(start, end)
-        for index in range(start, end):  # only search a few indices ahead
-            lat1, long1 = self.map[index]
+        for index in range(0, len(gps_map)):
+            lat1, long1 = gps_map[index]
             dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) + (long1 - long0) * (long1 - long0))
             if smallest_dist is None or dist < smallest_dist:
                 smallest_dist = dist
                 goal_index = index
-
-                # if smallest_dist is not None:
-                #     print("%0.4f" % smallest_dist, end=", ")
-        # if smallest_dist is not None:
-        #     print("%0.4f" % smallest_dist, start, end)
-
-
-        # print(goal_index, end=", ")
-        goal_index = (goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
-        # print(goal_index)
-        self.current_index = goal_index % len(self.map)  # the closest index on the map
-
-        # print("%i, %0.6f, %0.6f" % (goal_index, x0, y0))
-        # print("%0.6f, %0.6f" % (self.map[goal_index][0], self.map[goal_index][1]))
-
         return goal_index
 
     @staticmethod
@@ -98,13 +97,13 @@ class BozoController:
             )
         return sum_value % 2 == 1
 
-    def is_point_inside(self, lat, long):
+    def point_inside_outer_map(self, lat, long):
         if self.outer_map is not None:
             return BozoController.point_within_border([lat, long], self.outer_map)
         else:
             return True
 
-    def is_point_outside(self, lat, long):
+    def point_outside_inner_map(self, lat, long):
         if self.inner_map is not None:
             return not BozoController.point_within_border([lat, long], self.inner_map)
         else:
@@ -139,5 +138,6 @@ if __name__ == '__main__':
 
         print(BozoController.point_within_border([0, 0], triangle_inner_map))
         print(BozoController.point_within_border([0, 0], triangle_outer_map))
+
 
     ray_test()

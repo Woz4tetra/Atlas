@@ -36,6 +36,8 @@ class RoboQuasar(Robot):
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
         self.outer_map = MapFile(outer_map_name, map_dir)
+        self.position_state = ""
+        self.prev_pos_state = self.position_state
 
         self.compass_angle = None
         self.start_angle = None
@@ -50,16 +52,22 @@ class RoboQuasar(Robot):
         self.bearing = None
         self.imu_angle = None
 
+        self.fast_rotation_threshold = 0.2
+        self.bearing_avg_len = 4
+        self.imu_angle_weight = 0.65
+
         self.gps_plot = RobotPlot("gps", color="red")
         self.checkpoint_plot = RobotPlot("checkpoint", color="green", marker='.', linestyle='', markersize=8)
         self.map_plot = RobotPlot("map", color="purple")
         self.inner_map_plot = RobotPlot("inner map")
         self.outer_map_plot = RobotPlot("outer map")
         self.compass_plot = RobotPlot("compass", color="purple")
+        self.compass_plot_imu_only = RobotPlot("compass imu only", color="magenta")
         self.sticky_compass_plot = RobotPlot("sticky compass", color="gray")
-        self.steering_plot = RobotPlot("steering angle", color="gray", plot_enabled=False)
+        self.steering_plot = RobotPlot("steering angle", color="gray", enabled=False)
         self.goal_plot = RobotPlot("checkpoint goal", color="cyan")
         self.recorded_goal_plot = RobotPlot("recorded checkpoint goal", "blue")
+        self.current_pos_dot = RobotPlot("current pos dot", "blue", marker='.', markersize=8)
 
         self.imu_angle_plot = RobotPlot("imu angle")
         self.bearing_angle_plot = RobotPlot("bearing angle")
@@ -68,12 +76,16 @@ class RoboQuasar(Robot):
         self.sticky_compass_counter = 0
         self.sticky_compass_skip = 100
 
-        self.accuracy_check_plot = RobotPlotCollection("Animation", self.sticky_compass_plot, self.gps_plot,
-                                                       self.checkpoint_plot,
-                                                       self.map_plot, self.inner_map_plot, self.outer_map_plot,
-                                                       self.steering_plot, self.compass_plot, self.goal_plot)
+        self.accuracy_check_plot = RobotPlotCollection(
+            "Animation", self.sticky_compass_plot, self.gps_plot,
+            self.checkpoint_plot,
+            self.map_plot, self.inner_map_plot, self.outer_map_plot,
+            self.steering_plot, self.compass_plot_imu_only,
+            self.compass_plot, self.goal_plot,
+            self.current_pos_dot
+        )
         self.angle_plots = RobotPlotCollection("Angle plots", self.imu_angle_plot, self.bearing_angle_plot,
-                                               self.filtered_angle_plot, plot_enabled=False)
+                                               self.filtered_angle_plot, enabled=False)
 
         if animate:
             self.plotter = LivePlotter(
@@ -97,16 +109,13 @@ class RoboQuasar(Robot):
         self.link(self.gps, self.receive_gps)
         self.link(self.imu, self.receive_imu)
 
-    def receive_gps(self, timestamp, packet, packet_type):
-        # if not self.plotter.enabled:
-            # print("%0.2f" % timestamp, self.gps)
-            # print("%0.2f" % timestamp, self.imu)
-        if self.gps.is_position_valid():
-            # self.update_bearing()
+        self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
 
+    def receive_gps(self, timestamp, packet, packet_type):
+        if self.gps.is_position_valid():
+            self.update_bearing()
             if not self.controller.is_initialized():
                 self.controller.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
-                # print(self.gps.latitude_deg, self.gps.longitude_deg)
 
             if self.plotter.enabled:
                 self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -116,23 +125,32 @@ class RoboQuasar(Robot):
                     if status is not None:
                         return status
 
-                    if self.controller.is_point_inside(self.gps.latitude_deg, self.gps.longitude_deg):
-                        self.outer_map_plot.set_properties(color="blue")
-                    else:
-                        self.outer_map_plot.set_properties(color="red")
+            outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
+            inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
 
-                    if self.controller.is_point_outside(self.gps.latitude_deg, self.gps.longitude_deg):
-                        self.inner_map_plot.set_properties(color="blue")
-                    else:
-                        self.inner_map_plot.set_properties(color="red")
+            self.prev_pos_state = self.position_state
+            if outer_state and inner_state:
+                self.position_state = "in bounds"
+                self.outer_map_plot.set_properties(color="blue")
+                self.inner_map_plot.set_properties(color="blue")
+            elif not outer_state:
+                self.position_state = "out of bounds! (outer)"
+                self.outer_map_plot.set_properties(color="red")
+            elif not inner_state:
+                self.position_state = "out of bounds! (inner)"
+                self.inner_map_plot.set_properties(color="red")
+
+            if self.position_state != self.prev_pos_state:
+                print("%0.4f: %s" % (self.dt(), self.position_state))
 
     def receive_imu(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid() and self.compass_angle is not None:
-            angle = self.offset_angle()
+            angle, angle_imu_only = self.offset_angle()
 
             steering_angle = self.controller.update(
                 self.gps.latitude_deg, self.gps.longitude_deg, angle
             )
+            self.current_pos_dot.update([self.controller.current_pos[0]], [self.controller.current_pos[1]])
             self.record("steering angle",
                         "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
 
@@ -142,12 +160,16 @@ class RoboQuasar(Robot):
             if self.plotter.enabled:
                 if isinstance(self.plotter, LivePlotter):
                     lat2, long2 = self.compass_coords(angle)
+                    lat3, long3 = self.compass_coords(angle_imu_only)
+
                     self.compass_plot.update([self.gps.latitude_deg, lat2],
                                              [self.gps.longitude_deg, long2])
+                    self.compass_plot_imu_only.update([self.gps.latitude_deg, lat3],
+                                                      [self.gps.longitude_deg, long3])
                     self.plotter.draw_text(
                         self.accuracy_check_plot,
                         # "%0.4f, %s" % (math.degrees(steering_angle), self.steering.sent_step),
-                        "%s, %s" % (self.steering.goal_step, self.steering.sent_step),
+                        "%s" % self.imu.gyro.z,
                         # "%0.4f" % angle,
                         self.gps.latitude_deg, self.gps.longitude_deg,
                         text_name="angle text"
@@ -177,11 +199,21 @@ class RoboQuasar(Robot):
         if self.did_receive("initial compass"):
             self.init_compass(packet)
             print("compass value:", packet)
+        elif self.did_receive("maps"):
+            checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+
+            self.checkpoints = MapFile(checkpoint_map_name, map_dir)
+            self.inner_map = MapFile(inner_map_name, map_dir)
+            self.outer_map = MapFile(outer_map_name, map_dir)
+
+            self.map_plot.update(self.checkpoints.lats, self.checkpoints.longs)
+            self.inner_map_plot.update(self.inner_map.lats, self.inner_map.longs)
+            self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
         elif self.did_receive("checkpoint"):
             if self.gps.is_position_valid():
                 self.checkpoint_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
         elif self.did_receive("steering angle"):
-            if isinstance(self.plotter, LivePlotter):
+            if isinstance(self.plotter, LivePlotter) and self.gps.is_position_valid():
                 goal_index = int(packet.split("\t")[-1])
                 self.recorded_goal_plot.update([self.gps.latitude_deg, self.controller.map[goal_index][0]],
                                                [self.gps.longitude_deg, self.controller.map[goal_index][1]])
@@ -230,18 +262,18 @@ class RoboQuasar(Robot):
 
         self.imu_angle = (-self.imu.euler.z + self.start_angle - self.compass_angle) % (2 * math.pi)
 
-        if self.bearing is None:
-            return self.imu_angle
+        if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
+            return self.imu_angle, self.imu_angle
         else:
             if self.bearing - self.imu_angle > math.pi:
                 self.imu_angle += 2 * math.pi
             if self.imu_angle - self.bearing > math.pi:
                 self.bearing += 2 * math.pi
 
-            return 0.5 * self.imu_angle + 0.5 * self.bearing
+            return self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing, self.imu_angle
             # return self.imu_angle
             # return self.bearing
-        # return self.imu_angle
+            # return self.imu_angle
 
     def update_bearing(self):
         if len(self.long_data) == 0 or self.gps.longitude_deg != self.long_data[-1]:
@@ -253,9 +285,9 @@ class RoboQuasar(Robot):
                                    self.gps.latitude_deg - self.lat_data[0]) + math.pi
         self.bearing = (self.bearing - math.pi / 2) % (2 * math.pi)
 
-        if len(self.long_data) > 6:
+        if len(self.long_data) > self.bearing_avg_len:
             self.long_data.pop(0)
-        if len(self.lat_data) > 6:
+        if len(self.lat_data) > self.bearing_avg_len:
             self.lat_data.pop(0)
 
     def compass_coords(self, angle, length=0.0003):
@@ -282,7 +314,13 @@ class RoboQuasar(Robot):
 
 
 map_sets = {
-    "cut"  : (
+    "cut 3": (
+        "Autonomous Map 3",
+        "Autonomous Map 3 Inner",
+        "Autonomous Map 3 Outer",
+        "cut"
+    ),
+    "cut 2": (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",

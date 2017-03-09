@@ -27,7 +27,7 @@ class App:
  
         # Enumerate joysticks
         for i in range(0, pygame.joystick.get_count()):
-            self.joystick_names.append(pygame.joystick.Joystick(i).get_name())
+            self.joystick_names.append(pygame.joystick.Joystick(i)._get_name())
  
         print(self.joystick_names)
  

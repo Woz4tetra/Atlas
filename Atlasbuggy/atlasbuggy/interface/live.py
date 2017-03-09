@@ -21,56 +21,60 @@ from atlasbuggy.interface.base import BaseInterface
 
 
 class RobotRunner(BaseInterface):
-    loop_updates_per_second = 120
-    port_updates_per_second = 1000
+    loop_updates_per_second = 120  # How quickly the main thread should run
+    port_updates_per_second = 1000  # How quickly each port process should run
 
     def __init__(self, robot, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False):
         """
-        :param robot: subclass of Robot
-        :param joystick: A subclass instance of BuggyJoystick
-        :param log_data: A boolean indicating whether or not the received data should be written to a logs file
-        :param log_name: The name of the logs file. If None, it will be today's date and time
-        :param log_dir: The directory of the logs file. If None, it will be today's date.
-            See project.py for details
-        :param debug_prints: Enable verbose prints
-        :param updates_per_second: How quickly each port process should run.
+        :param robot: a subclass instance of the atlasbuggy.robot.Robot class
+        :param joystick: a subclass instance of the atlasbuggy.buggyjoystick.BuggyJoystick class
+        :param log_data: enable data logging (debug prints logged even if they are not enabled)
+        :param log_name: log file name (today's date is substituted if None (YYYY_MM_DD))
+        :param log_dir: log directory (today's date is substituted if None (YYYY_MM_DD))
+            Tuple feature: ("some_data", None) -> produces "some_data/YYYY_MM_DD"
+        :param debug_prints: print debug messages
         """
 
         super(RobotRunner, self).__init__(robot, debug_prints, "Interface")
 
+        # clock properties
         self.loop_ups = RobotRunner.loop_updates_per_second
         self.port_ups = RobotRunner.port_updates_per_second
         self.lag_warning_thrown = False  # prevents the terminal from being spammed
+        self.clock = Clock(self.loop_ups)
+        self.start_time = 0
+
+        # keep the last packet info for crash info
         self.prev_packet_info = [None, None, None]
 
+        # pass around reference to joystick
         self.joystick = joystick
         self.robot.joystick = joystick
 
+        # initialize logger
         self.logger = Logger(log_name, log_dir)
+        self.robot.logger = self.logger
         if log_data:
             self.logger.open()
             print("Writing to:", self.logger.full_path)
 
-        self.robot.logger = self.logger
-
-        self.clock = Clock(self.loop_ups)
-        self.start_time = 0
-
-        # a pipe from all port processes to the main loop
+        # create a pipe from all port processes to the main loop
         self.packet_queue = Queue()
         self.packet_counter = Value('i', 0)
         self.port_lock = Lock()
 
-        # open all available ports using multithreading
+        # open all available ports
         self.ports = {}
         threads = []
 
-        self.duplicate_id_error = [False, None]
+        # call _configure_port for each available serial port
+        self.duplicate_id_error = [False, None]  # [did error occur, whoiam ID]
         for port_info in serial.tools.list_ports.comports():
             config_thread = threading.Thread(target=self._configure_port, args=(port_info, self.port_ups))
             threads.append(config_thread)
             config_thread.start()
 
+        # wait for threads to finish
         for thread in threads:
             thread.join()
 
@@ -83,6 +87,7 @@ class RobotRunner(BaseInterface):
                 traceback.format_stack()
             )
 
+        # throw an error if a port isn't configured correctly
         for port_name, port in self.ports.items():
             if not port.configured:
                 self._print_port_info(port)
@@ -91,12 +96,15 @@ class RobotRunner(BaseInterface):
                     traceback.format_stack()
                 )
 
+        self._debug_print("Discovered ports:", list(self.ports.keys()))
+
         self._check_objects()  # check that all objects are assigned a port
         self._check_ports()  # check that all ports are assigned an object
 
         for whoiam in self.ports.keys():
             self._debug_print("[%s] has ID '%s'" % (self.ports[whoiam].address, whoiam))
 
+        # notify user of disabled robot objects
         if len(self.robot.inactive_ids) > 0 and self.debug_enabled:
             self._debug_print("Ignored IDs:")
             for whoiam in self.robot.inactive_ids:
@@ -105,6 +113,9 @@ class RobotRunner(BaseInterface):
         self._send_first_packets()  # distribute initialization packets
 
     def _start(self):
+        """
+        Start all robot ports
+        """
         self.start_time = time.time()
         self.clock.start(self.start_time)
 
@@ -120,6 +131,9 @@ class RobotRunner(BaseInterface):
             )
 
     def _loop(self):
+        """
+        Loop event. Update joystick (if not None) and call user's loop method
+        """
         if self.joystick is not None:
             status = self.joystick.update()
             if status is not None:
@@ -144,44 +158,50 @@ class RobotRunner(BaseInterface):
                 traceback.format_stack()
             )
 
+        self._send_commands()  # sends all commands in each robot object's command queue
+
+        self.clock.update()  # maintain a constant loop speed
+        if not self.lag_warning_thrown and self.robot.current_timestamp is not None and \
+                        self.robot.current_timestamp > 0.1 and not self.clock.on_time:
+            self._debug_print("Warning. Main loop is running slow. Clock is behind by %ss" % abs(self.clock.offset))
+            self.lag_warning_thrown = True
+
     def _update(self):
         """
         dequeue all packets from packet_queue. Pass them to the corresponding robot objects
-        :return: what packet_received returns (True or False signalled to exit or not)
+        :return: what packet_received returns (None or string signalled to exit or not)
         """
+
+        # gain access to port shared properties
         with self.port_lock:
             while not self.packet_queue.empty():
+
+                # dequeue packet info
                 self.robot.current_whoiam, timestamp, self.robot.current_packet = self.packet_queue.get()
                 self.packet_counter.value -= 1
                 self.robot.current_timestamp = timestamp - self.start_time
 
                 self.robot.queue_len = self.packet_counter.value
 
+                # deliver packet to correct robot object
                 status = self._deliver_packet(self.robot.current_timestamp, self.robot.current_whoiam,
                                               self.robot.current_packet)
                 if status is not None:
                     return status
 
+                # record packet and debug prints from the port
                 if self.logger.is_open():
                     self.logger.record(self.robot.current_timestamp, self.robot.current_whoiam,
                                        self.robot.current_packet, "object")
                     self._record_debug_prints(self.robot.current_timestamp, self.ports[self.robot.current_whoiam])
 
+                # call robot's receive method
                 status = self._received(self.robot.current_timestamp, self.robot.current_whoiam,
                                         self.robot.current_packet)
                 if status is not None:
                     return status
 
-    def _extra_events(self):
-        self._send_commands()  # sends all commands in each robot object's command queue
-
-        self.clock.update()  # maintain a constant loop speed
-        if not self.lag_warning_thrown and self.robot.current_timestamp is not None and \
-                self.robot.current_timestamp > 0.1 and not self.clock.on_time:
-            self._debug_print("Warning. Main loop is running slow. Clock is behind by %ss" % abs(self.clock.offset))
-            self.lag_warning_thrown = True
-
-    def _close(self, reason=""):
+    def _close(self, reason):
         self._debug_print("Closing all")
 
         self._close_log()
@@ -189,8 +209,7 @@ class RobotRunner(BaseInterface):
 
     def _should_run(self):
         """
-        Using each robot port's is_running method, check if the processes are running properly
-        An error will be thrown if not.
+        Check if the processes are running properly. An error will be thrown if not.
 
         :return: True if the ports are ok
         """
@@ -224,31 +243,39 @@ class RobotRunner(BaseInterface):
 
         :param port_info: an instance of serial.tools.list_ports_common.ListPortInfo
         :param updates_per_second: how often the port should update
-        :return: None
         """
         if port_info.vid is not None:
+            # instantiate RobotSerialPort
             port = RobotSerialPort(port_info, self.debug_enabled,
                                    self.packet_queue, self.port_lock, self.packet_counter, updates_per_second)
             self._debug_print("whoiam", port.whoiam)
+
+            # check for duplicate IDs
             if port.whoiam in self.ports.keys():
                 self.duplicate_id_error[0] = True
                 self.duplicate_id_error[1] = port
+
+            # check if port abides protocol. Warn the user and stop the port if not (ignore it essentially)
             elif port.configured and (not port.abides_protocols or port.whoiam is None):
                 self._debug_print("Warning! Port '%s' does not abide Atlasbuggy protocol!" % port.address)
                 port.stop()
+
+            # check if port is configured correctly. If not don't add it to list of ports (ignore it)
             elif not port.configured:
                 self._debug_print("Port not configured! '%s'" % port.address)
+
+            # disable ports if the corresponding object if disabled
             elif port.whoiam in self.robot.inactive_ids:
                 port.stop()
+
+            # add the port if configured and abides protocol
             else:
                 self.ports[port.whoiam] = port
 
     def _check_objects(self):
         """
-        Validate that all objects are assigned to ports. Throw RobotObjectNotFoundError otherwise
-        :return: None
+        Validate that all enabled objects are assigned to ports. Throw RobotObjectNotFoundError otherwise
         """
-        self._debug_print("Discovered ports:", list(self.ports.keys()))
         for whoiam in self.robot.objects.keys():
             if whoiam not in self.ports.keys():
                 self._close_ports("error")
@@ -259,8 +286,8 @@ class RobotRunner(BaseInterface):
 
     def _check_ports(self):
         """
-        Validate that all ports are assigned to objects. Throw RobotSerialPortUnassignedError otherwise
-        :return: None
+        Validate that all ports are assigned to enabled objects. Warn the user otherwise
+            (this allows for ports not listed in objects to be plugged in but not used)
         """
         used_ports = {}
         for whoiam in self.ports.keys():
@@ -268,7 +295,10 @@ class RobotRunner(BaseInterface):
                 self._debug_print("Warning! Port ['%s', %s] is unused!" %
                                   (self.ports[whoiam].address, whoiam), ignore_flag=True)
             else:
+                # only append port if its used. Ignore it otherwise
                 used_ports[whoiam] = self.ports[whoiam]
+
+                # if a robot object signals it wants a different baud rate, change to that rate
                 object_baud = self.robot.objects[whoiam].baud
                 if object_baud is not None and object_baud != self.ports[whoiam].baud_rate:
                     self.ports[whoiam].change_rate(object_baud)
@@ -277,12 +307,12 @@ class RobotRunner(BaseInterface):
     def _send_first_packets(self):
         """
         Send each port's first packet to the corresponding object if it isn't an empty string
-        :return: None
         """
         status = True
         for whoiam in self.robot.objects.keys():
             first_packet = self.ports[whoiam].first_packet
             if len(first_packet) > 0:
+                # different cases for objects and object collections, pass to receive_first
                 if isinstance(self.robot.objects[whoiam], RobotObject):
                     if self.robot.objects[whoiam].receive_first(first_packet) is not None:
                         status = False
@@ -299,6 +329,7 @@ class RobotRunner(BaseInterface):
                         traceback.format_stack()
                     )
 
+                # record first packets
                 self.logger.record(None, whoiam, first_packet, "object")
 
     # ----- port management -----
@@ -307,7 +338,6 @@ class RobotRunner(BaseInterface):
         """
         Print the crashed port's info
         :param port:
-        :return: None
         """
         if self.debug_enabled:
             self._debug_print(pprint.pformat(port.port_info.__dict__) + "\n")
@@ -316,9 +346,7 @@ class RobotRunner(BaseInterface):
     def _open_ports(self):
         """
         Start all port processes. Send start flag
-        :return: None
         """
-        # send start first
         for robot_port in self.ports.values():
             if not robot_port.send_start():
                 self._close_ports("error")
@@ -327,21 +355,22 @@ class RobotRunner(BaseInterface):
                     traceback.format_stack()
                 )
 
-        # then start receiving packets
+        # start port processes
         for robot_port in self.ports.values():
             robot_port.start()
 
     def _stop_all_ports(self):
         """
         Close all robot port processes
-        :return: None
         """
         self._debug_print("Closing all ports")
 
+        # stop port processes
         for robot_port in self.ports.values():
             self._debug_print("closing", robot_port.whoiam)
             robot_port.stop()
 
+        # check if the port exited properly
         for port in self.ports.values():
             has_exited = port.has_exited()
             self._debug_print("%s, '%s' has %s" % (port.address, port.whoiam,
@@ -353,8 +382,7 @@ class RobotRunner(BaseInterface):
 
     def _close_ports(self, reason):
         """
-        Kill all RobotSerialPort processes and close their serial ports
-        :return: None
+        Close all RobotSerialPort processes and close their serial ports
         """
         try:
             self._debug_print("Calling user's close function")
@@ -367,12 +395,19 @@ class RobotRunner(BaseInterface):
             )
 
         self._send_commands()
-        self._debug_print("sent last commands")
+        self._debug_print("Sent last commands")
         self._stop_all_ports()
 
     # ----- event handling -----
 
     def _deliver_packet(self, dt, whoiam, packet):
+        """
+        Distribute packet to robot objects's receive method. If the method throws an error, catch it and close all ports
+
+        :param dt: current time relative to program start
+        :param whoiam: destination object's whoiam ID
+        :param packet: packet string
+        """
         try:
             if isinstance(self.robot.objects[whoiam], RobotObject):
                 if self.robot.objects[whoiam].receive(dt, packet) is not None:
@@ -394,6 +429,15 @@ class RobotRunner(BaseInterface):
             )
 
     def _received(self, dt, whoiam, packet):
+        """
+        Distribute packet to robot's receive method. If the method throws an error, catch it and close all ports
+
+        Call any linked callback functions
+
+        :param dt: current time relative to program start
+        :param whoiam: destination object's whoiam ID
+        :param packet: packet string
+        """
         try:
             if self.robot.received(dt, whoiam, packet, "object") is False:
                 self._debug_print(
@@ -415,9 +459,10 @@ class RobotRunner(BaseInterface):
     def _send_commands(self):
         """
         Check every robot object. Send all commands if there are any
-        :return:
         """
         for whoiam in self.robot.objects.keys():
+
+            # extract command_packets queue
             robot_object = self.robot.objects[whoiam]
             if isinstance(robot_object, RobotObject):
                 command_packets = robot_object.command_packets
@@ -425,10 +470,15 @@ class RobotRunner(BaseInterface):
                 command_packets = robot_object.command_packets[whoiam]
             else:
                 break
+
+            # loop through all commands and send them
             while not command_packets.empty():
                 command = self.robot.objects[whoiam].command_packets.get()
+
+                # log sent command
                 self.logger.record(self.robot.current_timestamp, whoiam, command, "command")
 
+                # if write packet fails, throw an error
                 if not self.ports[whoiam].write_packet(command):
                     self._debug_print("Closing all from _send_commands")
                     self._close_ports("error")
@@ -440,11 +490,22 @@ class RobotRunner(BaseInterface):
                     )
 
     def _record_debug_prints(self, dt, port):
+        """
+        Take all of the port's queued debug messages and record them
+        :param dt: current timestamp
+        :param port: RobotSerialPort
+        """
         with port.print_out_lock:
             while not port.debug_print_outs.empty():
                 self.logger.record(dt, port.whoiam, port.debug_print_outs.get(), "debug")
 
     def _handle_error(self, error, traceback):
+        """
+        Format the thrown error for logging. Return it after
+        :param error: Error being thrown
+        :param traceback: stack trace of error
+        :return: Error being thrown
+        """
         if self.logger.is_open:
             for port in self.ports.values():
                 self._record_debug_prints(self.robot.current_timestamp, port)
@@ -462,8 +523,9 @@ class RobotRunner(BaseInterface):
             self._debug_print("Logger closing. Writing file to", self.logger.full_path)
             self.logger.close()
 
-    def _debug_print(self, *strings, ignore_flag=False):
+    def _debug_print(self, *values, ignore_flag=False):
+        string = "[%s] %s" % (self.debug_name, " ".join([str(x) for x in values]))
+        self.logger.record(self.robot.current_timestamp, "Interface", string, "debug")
+
         if self.debug_enabled or ignore_flag:
-            string = "[Interface] %s" % (" ".join([str(x) for x in strings]))
             print(string)
-            self.logger.record(self.robot.current_timestamp, "Interface", string, "debug")

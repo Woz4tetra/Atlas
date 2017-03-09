@@ -19,9 +19,9 @@ class Underglow(RobotObject):
         self.leds = [(255, 255, 255) for _ in range(self.num_leds)]
 
         self.led_plots = [
-            RobotPlot("LED #%s" % x, plot_enabled=self.enable_plotting, marker='.', markersize=10, x_range=(-1, self.num_leds), color='black') for x in
+            RobotPlot("LED #%s" % x, enabled=self.enable_plotting, marker='.', markersize=10, x_range=(-1, self.num_leds), color='black') for x in
             range(self.num_leds)]
-        self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, plot_enabled=self.enable_plotting)
+        self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, enabled=self.enable_plotting)
 
     def constrain_input(self, rgb):
         if len(rgb) == 1:

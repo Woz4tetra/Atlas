@@ -28,7 +28,7 @@ class UnderglowSimulator(RobotSimulator):
         self.brakes = Brakes()
         self.underglow = Underglow(enabled=False)  # so that packets don't get queued for no reason
 
-        self.plotter = LivePlotter(1, self.underglow.strip_plot, enable_legend=False)
+        self.plotter = LivePlotter(1, self.underglow.strip_plot, draw_legend=False)
 
         for index, led in enumerate(self.underglow.led_plots):
             led.updated([index], [0])

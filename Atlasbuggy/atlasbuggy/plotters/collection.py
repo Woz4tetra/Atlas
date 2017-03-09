@@ -1,22 +1,22 @@
 
 
 class RobotPlotCollection:
-    def __init__(self, collection_name, *robot_plots, plot_enabled=True, flat_plot=True):
+    def __init__(self, collection_name, *robot_plots, enabled=True, flat=True):
         """
         If you want to plot multiple lines on one subplot, pass your robot plot objects to a collection.
         Each robot plot will be treated as one line on the subplot.
 
         :param collection_name: plot title and internal reference name. Make sure its unique
         :param robot_plots: RobotPlot instances
-        :param plot_enabled: Turn collections on and off easily with this flag. If False, all subplots will be disabled
-        :param flat_plot: 2D if True, 3D if False. All subplots will be assigned this value
+        :param enabled: Turn collections on and off easily with this flag. If False, all subplots will be disabled
+        :param flat: 2D if True, 3D if False. All subplots will be assigned this value
         """
         self.name = collection_name
         self.plots = []
 
         # unify key properties between all subplots
-        self.flat = flat_plot
-        self.enabled = plot_enabled
+        self.flat = flat
+        self.enabled = enabled
         for plot in robot_plots:
             if plot.enabled:
                 plot.flat = self.flat

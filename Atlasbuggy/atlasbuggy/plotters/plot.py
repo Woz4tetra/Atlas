@@ -8,14 +8,14 @@ import mpl_toolkits.mplot3d.axes3d  # loads 3D modules
 
 
 class RobotPlot:
-    def __init__(self, plot_name, plot_enabled=True, flat_plot=True,
+    def __init__(self, plot_name, enabled=True, flat=True,
                  x_range=None, y_range=None, z_range=None, range_offset=0,
                  x_lim=None, y_lim=None, z_lim=None, skip_count=0,
                  max_length=None, **plot_properties):
         """
         :param plot_name: plot title and internal reference name. Make sure its unique
-        :param plot_enabled: Turn plots on and off easily with this flag
-        :param flat_plot: 2D if True, 3D if False
+        :param enabled: Turn plots on and off easily with this flag
+        :param flat: 2D if True, 3D if False
         :param x_range: x axis range. If None, the axis will be unconstrained
         :param y_range: y axis range. If None, the axis will be unconstrained
         :param z_range: z axis range. If None, the axis will be unconstrained
@@ -28,8 +28,8 @@ class RobotPlot:
         :param plot_properties: parameters to supply to matplotlib's plot function (color, marker type, etc.)
         """
         self.name = plot_name
-        self.flat = flat_plot
-        self.enabled = plot_enabled
+        self.flat = flat
+        self.enabled = enabled
         self.max_length = max_length
         self.skip_count = skip_count
         self.skip_counter = 0
@@ -47,13 +47,17 @@ class RobotPlot:
         if z_range is not None:
             z_range = list(z_range)
             assert len(z_range) == 2
-
         self.ranges = [x_range, y_range, z_range]
+
+        # note which axes have constraints
         self.ranges_contrained = []
         for r in self.ranges:
             self.ranges_contrained.append(False if r is None else True)
+
         self.range_offset = range_offset
 
+        # define maximum and minimum values for the plot
+        # (ranges define the current view. The range of plot will never exceed the limits)
         if x_lim is not None:
             x_lim = list(x_lim)
             assert len(x_lim) == 2
@@ -65,7 +69,7 @@ class RobotPlot:
             assert len(z_lim) == 2
         self.limits = [x_lim, y_lim, z_lim]
 
-        self.data = [[] for _ in range(2 if flat_plot else 3)]
+        self.data = [[] for _ in range(2 if flat else 3)]
 
     def set_properties(self, **kwargs):
         self.changed_properties = kwargs

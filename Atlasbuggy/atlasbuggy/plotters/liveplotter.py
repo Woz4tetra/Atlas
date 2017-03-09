@@ -14,8 +14,8 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class LivePlotter(BasePlotter):
     initialized = False
 
-    def __init__(self, num_columns, *robot_plots, enabled=True, enable_legend=True, legend_args=None, lag_cap=0.005,
-                 plot_skip_count=0, matplotlib_events=None):
+    def __init__(self, num_columns, *robot_plots, enabled=True, draw_legend=True, legend_args=None, lag_cap=0.005,
+                 skip_count=0, matplotlib_events=None):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
         windows don't behave well. This also conserves CPU usage.
@@ -26,17 +26,20 @@ class LivePlotter(BasePlotter):
         :param lag_cap: Constrains how out of sync the plot can be with incoming packets. If the plot
             is causing a time difference greater than the one specified, skip plotting the incoming data
             until the plotter comes back in sync.
+        :param skip_count: only plot every nth value
+        :param matplotlib_events: dictionary of matplotlib callback events
         """
         if LivePlotter.initialized:
             raise Exception("Can't have multiple plotter instances!")
         LivePlotter.initialized = True
 
-        super(LivePlotter, self).__init__(num_columns, legend_args, enable_legend, matplotlib_events, enabled,
-                                          *robot_plots)
+        super(LivePlotter, self).__init__(
+            num_columns, legend_args, draw_legend, matplotlib_events, enabled, *robot_plots
+        )
 
         self.time0 = None
         self.lag_cap = lag_cap
-        self.plot_skip_count = plot_skip_count
+        self.plot_skip_count = skip_count
         self.skip_counter = 0
         self.closed = False
         self.is_paused = False
@@ -76,7 +79,7 @@ class LivePlotter(BasePlotter):
         """
         self.time0 = time0
 
-    def should_update(self, packet_timestamp=None):
+    def should_update(self, packet_timestamp):
         """
         Signal whether or not the plot should update using self.lag_cap.
         If the packet_timestamp - current_time is greater than self.lag_cap, return False
@@ -84,11 +87,10 @@ class LivePlotter(BasePlotter):
         :param packet_timestamp: A timestamp received with a packet
         :return: True or False whether the plot should update or not
         """
-        # likely source of rare bug where the plot lags badly
-        # if self.plotter_enabled:
-        #     return False
+        if not self.enabled:
+            return False
 
-        if self.time0 is not None:
+        if self.time0 is not None and packet_timestamp is not None:
             current_time = time.time() - self.time0
 
             lag_status = abs(packet_timestamp - current_time) < self.lag_cap
@@ -99,7 +101,7 @@ class LivePlotter(BasePlotter):
         skip_status = self.plot_skip_count > 0 and self.skip_counter % self.plot_skip_count == 0
         return lag_status and skip_status
 
-    def plot(self):
+    def plot(self, timestamp=None):
         """
         Update plot using data supplied to the robot plot objects
         :return: True or False if the plotting operation was successful
@@ -111,7 +113,7 @@ class LivePlotter(BasePlotter):
             self.plt.pause(0.05)
             return
 
-        if not self.enabled:
+        if not self.enabled or not self.should_update(timestamp):
             return
 
         for plot in self.robot_plots:
@@ -170,6 +172,9 @@ class LivePlotter(BasePlotter):
         self.is_paused = not self.is_paused
 
     def freeze_plot(self):
+        """
+        Turn of live plotting and freeze the plot in place
+        """
         if self.enabled:
             self.plt.ioff()
             self.plt.gcf()
@@ -178,7 +183,6 @@ class LivePlotter(BasePlotter):
     def close(self):
         """
         Close the plot safely
-        :return: None
         """
         if self.enabled and not self.closed:
             self.closed = True

@@ -45,6 +45,12 @@ class Logger(AtlasWriteFile):
     """A class for recording data from a robot to a logs file"""
 
     def __init__(self, file_name=None, directory=None):
+        """
+        :param file_name: If None, the current time is used (hh;mm;ss)
+        :param directory: If None, today's date is used (YYYY_Mmm_DD).
+            If a tuple containing None, None is replaced with today's date
+            example: ("some_data", None) -> "some_data/2017_Mar_09"
+        """
         if file_name is None:
             file_name = time.strftime(default_log_file_name)
         if directory is None:
@@ -70,20 +76,19 @@ class Logger(AtlasWriteFile):
         :param whoiam: whoiam ID of packet (see object.py for details)
         :param packet: packet received by robot port
         :param packet_type: packet decorator. Determines how the packet was used
-        :return: None
         """
 
         if self.is_open():
-            if timestamp is None:
+            if timestamp is None:  # before interface's start method is called (before robot object's initialize)
                 timestamp = no_timestamp
             else:
                 assert type(timestamp) == float
 
+            # for error and debug packets, they can be multi-line, replace with continue characters
             if packet_type == "error" or packet_type == "debug":
                 if "\n" in packet:
                     packet = packet.replace("\n", "\n" + packet_types[packet_type + " continued"])
                     packet += "\n" + packet_types[packet_type + " end"]
-                    print(repr(packet))
 
             self.write(self.line_code % (
                 packet_types[packet_type], timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
@@ -107,10 +112,13 @@ class Parser(AtlasReadFile):
 
     def __init__(self, file_name, directory=None, start_index=0, end_index=-1):
         """
-        :param file_name:
-        :param directory:
-        :param start_index:
-        :param end_index:
+        :param file_name: name to search for
+            can be part of the name. If the desired file is named
+                "15;19;32.gzip", input_name can be "15;19"
+        :param directory: searches in working directory. (must be exact name of the folder)
+            If None, the most recently created folder will be used
+        :param start_index: line number to start the log file from
+        :param end_index: line number to end the log file on
         """
         super(Parser, self).__init__(file_name, directory, True, log_file_type, log_dir)
 
@@ -119,21 +127,10 @@ class Parser(AtlasReadFile):
         # index variables
         self.start_index = start_index
         self.end_index = end_index
-        self.index = self.start_index  # current packet number (or line number)
+        self.index = 0  # current packet number (or line number)
 
         if self.end_index == -1:
             self.end_index = len(self.contents)
-
-    def __iter__(self):
-        """
-        Iterate through the file. The recommended use of this class.
-
-        for example:
-        parser = Parser("file name", "directory in logs")
-        for index, timestamp, name, values in parser:
-            pass
-        """
-        return self
 
     def next(self):
         """
@@ -144,6 +141,7 @@ class Parser(AtlasReadFile):
         if self.index < self.end_index:
             line = self.parse_line()
             self.index += 1
+
             if line is not None:
                 packet_type, timestamp, whoiam, packet = line
                 return self.index - 1, packet_type, timestamp, whoiam, packet
@@ -167,45 +165,49 @@ class Parser(AtlasReadFile):
         whoiam = ""
         packet = ""
 
-        timestamp = no_timestamp
+        timestamp = no_timestamp  # no timestamp by default
 
         # the values are from the end of the name to the end of the line
         if len(packet_type) >= len("error") and packet_type[:len("error")] == "error":
             if len(packet_type) == len("error"):
+                # parse error packet
                 timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
                 if timestamp == no_timestamp:
                     timestamp = 0.0
+
+                # format error message for printing
                 packet = "\n----- Error message in log (time: %0.4fs, type: %s) -----\n" % (
                     timestamp, whoiam)
                 packet += "Traceback (most recent call last):\n"
                 packet += line[whoiam_index + len(time_whoiam_sep):]
 
             elif packet_type[len("error") + 1:] == "continued":
+                # error message continued on next line, add to the current message
                 packet = line[1:]
 
             elif packet_type[len("error") + 1:] == "end":
+                # error message end, add end flag
                 packet = "----- End error message -----\n"
 
-            packet_type = "error"
+            packet_type = "error"  # the user shouldn't use continue or end packet types
 
         elif len(packet_type) >= len("debug") and packet_type[:len("debug")] == "debug":
             if len(packet_type) == len("debug"):
+                # parse debug packet
                 timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
-                # if timestamp == no_timestamp:
-                #     packet = "[debug at initialization from %s]: " % whoiam
-                # else:
-                #     packet = "[debug at %0.4fs from %s]: " % (timestamp, whoiam)
                 packet += line[whoiam_index + len(time_whoiam_sep):]
 
             elif packet_type[len("debug") + 1:] == "continued":
+                # debug message continued on next line, add to the current message
                 packet = "\n" + line[1:]
 
             elif packet_type[len("debug") + 1:] == "end":
+                # debug message end, add end flag (if multi-line)
                 packet = "[end debug from %s]: " % line[1:]
 
-            packet_type = "debug"
+            packet_type = "debug"  # the user shouldn't use continue or end packet types
 
-        else:
+        else:  # parse object, command, and user packets
             timestamp, time_index, whoiam, whoiam_index = self.find_packet_header(line)
             if timestamp == "invalid":
                 print("Invalid timestamp in line #%s: %s" % (self.index, line))
@@ -213,11 +215,15 @@ class Parser(AtlasReadFile):
             if len(whoiam) == 0:
                 print("Invalid whoiam in line #%s: %s" % (self.index, line))
                 return None
-            else:
-                packet = line[whoiam_index + len(time_whoiam_sep):]
+
+            # packet is from the end of the timestamp marker to the end
+            packet = line[whoiam_index + len(time_whoiam_sep):]
 
         if timestamp == no_timestamp:
             timestamp = None
+        else:  # go through initialization packets, then jump to start index
+            if self.index < self.start_index:
+                self.index = self.start_index
 
         return packet_type, timestamp, whoiam, packet
 
@@ -228,18 +234,19 @@ class Parser(AtlasReadFile):
         # search for the name from the current index to the end of the line
         whoiam_index = line.find(whoiam_packet_sep)
 
-        timestamp = no_timestamp
-
-        if time_index != -1:
+        if time_index != -1:  # if timestamp was found
             timestamp = line[1:time_index]
             if timestamp != no_timestamp:
+                # attempt to convert to float
                 try:
                     timestamp = float(timestamp)
                 except ValueError:
                     print("Invalid timestamp:", timestamp)
                     timestamp = "invalid"
+        else:
+            timestamp = "invalid"
 
-        if whoiam_index != -1:
+        if whoiam_index != -1:  # if whoiam was found
             # the name is from the end of the timestamp to name_index
             whoiam = line[time_index + len(time_whoiam_sep): whoiam_index]
         else:

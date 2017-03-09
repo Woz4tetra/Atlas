@@ -428,10 +428,11 @@ class RobotSerialPort(Process):
         :param ignore_flag:
         :return:
         """
+        string = "[%s, %s] %s" % (self.address, self.whoiam, " ".join(map(str, strings)))
+        with self.print_out_lock:
+            self.debug_print_outs.put(string)
+
         if self.debug_enabled or ignore_flag:
-            string = "[%s, %s] %s" % (self.address, self.whoiam, " ".join(map(str, strings)))
-            with self.print_out_lock:
-                self.debug_print_outs.put(string)
             print(string)
 
     def change_rate(self, new_baud_rate):
