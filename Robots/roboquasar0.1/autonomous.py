@@ -16,7 +16,7 @@ parser.add_argument("-d", "--debug", help="enable debug prints", action="store_t
 parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
 args = parser.parse_args()
 
-robot = RoboQuasar(False, *map_sets["cut"])
+robot = RoboQuasar(False, *map_sets["buggy"])
 robot.init_compass(args.compass)
 
 

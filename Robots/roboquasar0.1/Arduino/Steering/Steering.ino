@@ -8,8 +8,8 @@ unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
 #define MAX_SPEED 250
-#define LEFT_LIMIT -125
-#define RIGHT_LIMIT 150
+#define RIGHT_LIMIT -150
+#define LEFT_LIMIT 160
 #define POSITION_ZERO 135
 
 int position = 0;
@@ -58,11 +58,11 @@ void disengageStepper()
 void setPosition(int p) {
     if (stepper.distanceToGo() == 0)
     {
-        if (p > RIGHT_LIMIT) {
-            p = RIGHT_LIMIT;
-        }
-        else if (p < LEFT_LIMIT) {
+        if (p > LEFT_LIMIT) {
             p = LEFT_LIMIT;
+        }
+        else if (p < RIGHT_LIMIT) {
+            p = RIGHT_LIMIT;
         }
         stepper.moveTo(p);
         Serial.print('g');
@@ -150,8 +150,8 @@ void setup()
     stepper.setMaxSpeed(MAX_SPEED);
     stepper.setAcceleration(2500.0);
 
-    String leftLimitStr = String(LEFT_LIMIT);
-    String rightLimitStr = String(RIGHT_LIMIT);
+    String leftLimitStr = String(RIGHT_LIMIT);
+    String rightLimitStr = String(LEFT_LIMIT);
     String maxSpeedStr = String(MAX_SPEED);
 
     buggy.setInitData(maxSpeedStr + "\t" + leftLimitStr + "\t" + rightLimitStr);
@@ -191,12 +191,12 @@ void loop()
         if (speedCommand != 0) {
             stepper.runSpeed();
 
-            // if (stepper.currentPosition() > RIGHT_LIMIT) {
-            //     setPosition(RIGHT_LIMIT);
+            // if (stepper.currentPosition() > LEFT_LIMIT) {
+            //     setPosition(LEFT_LIMIT);
             //     speedCommand = 0;
             // }
-            // else if (stepper.currentPosition() < LEFT_LIMIT) {
-            //     setPosition(LEFT_LIMIT);
+            // else if (stepper.currentPosition() < RIGHT_LIMIT) {
+            //     setPosition(RIGHT_LIMIT);
             //     speedCommand = 0;
             // }
         }
