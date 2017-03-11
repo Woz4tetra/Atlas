@@ -5,37 +5,54 @@ Contains functions that return important project directories
 import os
 import gzip
 import string
-from stat import S_ISREG, ST_CTIME, ST_MODE
+import time
+
+# from stat import S_ISREG, ST_CTIME, ST_MODE
 
 number_characters = set(string.digits)
 whitespace_characters = set(string.whitespace)
+compressed_file_type = "gzip"
 
 
 class AtlasFile:
-    """
-
-    """
-    def __init__(self, input_name, input_dir, file_type, default_dir):
+    def __init__(self, input_name, input_dir, file_types, default_dir, compressed, make_dirs):
         """
         :param input_name: name to search for
             can be part of the name. If the desired file is named
                 "15;19;32.gzip", input_name can be "15;19"
         :param input_dir: searches in working directory. (must be exact name of the folder)
             If None, the most recently created folder will be used
-        :param file_type: file extension (without ".")
+        :param file_types: file extension (without ".") or tuple of possible file types
         :param default_dir: default directory to search in
+        :param compressed: has the file been compressed
         """
         self.input_name = input_name
         self.input_dir = input_dir
-        self.file_type = file_type.replace(".", "")
+        if type(file_types) == str:
+            self.file_types = [file_types.replace(".", "")]
+        else:
+            self.file_types = [file_type.replace(".", "") for file_type in file_types]
         self.default_dir = default_dir
+        self.compressed = compressed
 
         self.directory = self.get_abs_dir(self.input_dir)
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         self.file_name = self.get_file_name(input_name, self.directory)
+        if len(self.file_types) == 1:
+            if self.compressed:
+                if not self.file_name.endswith(compressed_file_type):
+                    self.file_name += compressed_file_type
+            else:
+                if not self.file_name.endswith(self.file_types[0]):
+                    self.file_name += self.file_types[0]
         self.full_path = os.path.join(self.directory, self.file_name)
 
         self.contents = ""
         self.raw_contents = ""
+
+        ext_index = self.file_name.rfind(".")
+        self.file_name_no_ext = self.file_name[:ext_index]
 
     def get_abs_dir(self, directory):
         """
@@ -74,18 +91,30 @@ class AtlasFile:
         :param directory: absolute directory
         :return: intrepreted file name
         """
-        name_with_ext = file_name + "." + self.file_type
+        ext_index = file_name.rfind(".")
+
+        if self.compressed:
+            file_types = [compressed_file_type]
+        elif ext_index != -1 and file_name[ext_index:] in self.file_types:
+            file_types = [file_name[ext_index:]]
+        else:
+            file_types = self.file_types
+
         if file_name is None:  # retrieve last file
             entries = os.listdir(self.directory)
             if len(entries) == 0:
                 raise FileNotFoundError(
-                    "File of type '%s' not found in directory: %s" % (self.file_type, self.directory))
+                    "File of type(s) '%s' not found in directory: %s" % (self.file_types, self.directory))
 
             # make listed files absolute paths
             entries = [os.path.join(self.directory, entry) for entry in entries]
 
             # remove files that don't have the matching extension
-            files = filter(lambda entry: entry.endswith(self.file_type), entries)
+            files = []
+            for entry in entries:
+                for file_type in file_types:
+                    if entry.endswith(file_type):
+                        files.append(entry)
 
             # sort by date created
             files = sorted(files, key=lambda x: os.path.getmtime(x))
@@ -94,22 +123,43 @@ class AtlasFile:
             return files[-1]
         else:
             for entry in os.listdir(self.directory):
-                # if there is a perfect match, use it
-                if name_with_ext == entry:
-                    return entry
-
-                # if the file partially matches, use that entry
-                if len(file_name) < len(entry) and entry.endswith(self.file_type) and file_name == entry[:len(file_name)]:
-                    file_name = entry
-
-            if not file_name.endswith("." + self.file_type):
-                file_name += "." + self.file_type
+                for file_type in file_types:
+                    file_name, exact = self.find_match(file_name, entry, file_type)
+                    if exact:
+                        return file_name
 
             return file_name
 
+    def find_match(self, file_name, entry, file_type):
+        name_with_ext = file_name + "." + file_type
+        # if there is a perfect match, use it
+        if name_with_ext == entry:
+            return entry, True
+
+        # if the file partially matches, use that entry
+        if len(file_name) < len(entry) and entry.endswith(file_type) and file_name == entry[:len(file_name)]:
+            file_name = entry
+
+        return file_name, False
+
+    def format_path_as_time(self, file_name, directory, file_time_format, dir_time_format):
+        if file_name is None:
+            file_name = time.strftime(file_time_format)
+        if directory is None:
+            directory = time.strftime(dir_time_format)
+        elif type(directory) == tuple and None in directory:
+            directory = list(directory)
+            none_index = directory.index(None)
+            directory[none_index] = time.strftime(dir_time_format)
+
+            for index, sub_dir in enumerate(directory):
+                directory[index] = sub_dir.strip("/")
+            directory = "/".join(directory).strip("/")
+        return file_name, directory
+
 
 class AtlasWriteFile(AtlasFile):
-    def __init__(self, input_name, input_dir, compress, file_type, default_dir):
+    def __init__(self, input_name, input_dir, compress, file_types, default_dir):
         """
         :param input_name: name to search for
             can be part of the name. If the desired file is named
@@ -120,11 +170,8 @@ class AtlasWriteFile(AtlasFile):
         :param file_type: expected file extension
         :param default_dir: default directory to search in
         """
-        if compress:
-            file_type = "gzip"
-
         super(AtlasWriteFile, self).__init__(
-            input_name, input_dir, file_type, default_dir,
+            input_name, input_dir, file_types, default_dir, compress, True
         )
 
         # make directories if they don't exit
@@ -198,7 +245,7 @@ class AtlasWriteFile(AtlasFile):
 
 
 class AtlasReadFile(AtlasFile):
-    def __init__(self, input_name, input_dir, decompress, file_type, default_dir):
+    def __init__(self, input_name, input_dir, decompress, file_types, default_dir):
         """
         File is opened when AtlasReadFile is initialized
 
@@ -208,28 +255,24 @@ class AtlasReadFile(AtlasFile):
         :param input_dir: searches in working directory. (must be exact name of the folder)
             If None, the most recently created folder will be used
         :param decompress: decompress the file. File type will automatically become gzip
-        :param file_type: expected file extension
+        :param file_types: expected file extension
         :param default_dir: default directory to search in
         """
-        if decompress:
-            file_type = "gzip"
-
         super(AtlasReadFile, self).__init__(
-            input_name, input_dir, file_type, default_dir,
+            input_name, input_dir, file_types, default_dir, decompress, False
         )
+        self.decompress = decompress
 
-        self._open(decompress)
-
-    def _open(self, decompress):
+    def open(self):
         """
         Open the file and put it in self.contents
         :param decompress: decompress the file (gzip)
         """
-        with open(self.full_path, "rb" if decompress else "r") as data_file:
+        with open(self.full_path, "rb" if self.decompress else "r") as data_file:
             self.raw_contents = data_file.read()
             self.contents = self.raw_contents
 
-        if decompress:
+        if self.decompress:
             self._decompress()
 
     def _decompress(self):

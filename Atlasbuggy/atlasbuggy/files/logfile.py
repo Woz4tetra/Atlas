@@ -11,7 +11,7 @@ time_whoiam_sep = ":"  # timestamp
 whoiam_packet_sep = ";"  # data name
 
 # all data before this date may not work correctly with the current code
-log_file_type = "gzip"
+log_file_type = "txt"
 log_dir = "logs"
 
 default_log_file_name = "%H;%M;%S"
@@ -51,19 +51,9 @@ class Logger(AtlasWriteFile):
             If a tuple containing None, None is replaced with today's date
             example: ("some_data", None) -> "some_data/2017_Mar_09"
         """
-        if file_name is None:
-            file_name = time.strftime(default_log_file_name)
-        if directory is None:
-            directory = time.strftime(default_log_dir_name)
-        elif type(directory) == tuple and None in directory:
-            directory = list(directory)
-            none_index = directory.index(None)
-            directory[none_index] = time.strftime(default_log_dir_name)
-
-            for index, sub_dir in enumerate(directory):
-                directory[index] = sub_dir.strip("/")
-            directory = "/".join(directory).strip("/")
-
+        file_name, directory = self.format_path_as_time(
+            file_name, directory, default_log_file_name, default_log_dir_name
+        )
         super(Logger, self).__init__(file_name, directory, True, log_file_type, log_dir)
 
         self.line_code = (("%s" * 6) + "\n")
@@ -121,6 +111,7 @@ class Parser(AtlasReadFile):
         :param end_index: line number to end the log file on
         """
         super(Parser, self).__init__(file_name, directory, True, log_file_type, log_dir)
+        self.open()
 
         self.contents = self.contents.split("\n")
 

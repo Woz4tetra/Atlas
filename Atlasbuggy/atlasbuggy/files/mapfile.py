@@ -5,6 +5,9 @@ from atlasbuggy.files.atlasbuggyfile import AtlasReadFile, AtlasWriteFile
 class MapFile(AtlasReadFile):
     def __init__(self, map_name, map_dir=None):
         super(MapFile, self).__init__(map_name, map_dir, False, "gpx", "maps")
+
+        self.open()
+
         self.map, self.lats, self.longs = self.parse_map()
 
     def parse_map(self):

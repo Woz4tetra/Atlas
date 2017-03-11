@@ -31,7 +31,9 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        super(RoboQuasar, self).__init__(self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow)
+        super(RoboQuasar, self).__init__(
+            self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
+        )
 
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
@@ -69,10 +71,6 @@ class RoboQuasar(Robot):
         self.recorded_goal_plot = RobotPlot("recorded checkpoint goal", "blue")
         self.current_pos_dot = RobotPlot("current pos dot", "blue", marker='.', markersize=8)
 
-        self.imu_angle_plot = RobotPlot("imu angle")
-        self.bearing_angle_plot = RobotPlot("bearing angle")
-        self.filtered_angle_plot = RobotPlot("filtered angle")
-
         self.sticky_compass_counter = 0
         self.sticky_compass_skip = 100
 
@@ -84,18 +82,21 @@ class RoboQuasar(Robot):
             self.compass_plot, self.goal_plot,
             self.current_pos_dot
         )
-        self.angle_plots = RobotPlotCollection("Angle plots", self.imu_angle_plot, self.bearing_angle_plot,
-                                               self.filtered_angle_plot, enabled=False)
+
+        # self.logitech = Capture("logitech", width=480, height=320)
+        # self.ps3eye = Capture("ps3eye", width=480, height=320)
+        #
+        # self.cam_selector = CameraSelector(self.logitech, self.ps3eye)
 
         if animate:
             self.plotter = LivePlotter(
-                2, self.accuracy_check_plot, self.angle_plots,
+                1, self.accuracy_check_plot,
                 matplotlib_events=dict(key_press_event=self.key_press),
                 enabled=enable_plotting
             )
         else:
             self.plotter = StaticPlotter(
-                2, self.accuracy_check_plot, self.angle_plots,
+                1, self.accuracy_check_plot,
                 matplotlib_events=dict(key_press_event=self.key_press),
                 enabled=enable_plotting
             )
@@ -111,6 +112,15 @@ class RoboQuasar(Robot):
 
         self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
 
+    def playback(self, video_name, video_dir):
+        self.logitech.play_video(video_name, video_dir)
+        self.ps3eye.play_video(video_name, video_dir)
+
+    def start_cameras(self):
+        self.cam_selector.launch()
+        self.logitech.start_camera()
+        self.ps3eye.start_camera()
+
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
             self.update_bearing()
@@ -121,9 +131,10 @@ class RoboQuasar(Robot):
                 self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
 
                 if isinstance(self.plotter, LivePlotter):
-                    status = self.plotter.plot()
-                    if status is not None:
-                        return status
+                    if self.plotter.should_update(self.dt()):
+                        status = self.plotter.plot()
+                        if status is not None:
+                            return status
 
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
             inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -175,10 +186,6 @@ class RoboQuasar(Robot):
                         text_name="angle text"
                     )
 
-                self.imu_angle_plot.append(timestamp, self.imu_angle)
-                # self.bearing_angle_plot.append(timestamp, self.bearing)
-                self.filtered_angle_plot.append(timestamp, angle)
-
                 if self.sticky_compass_skip > 0 and self.sticky_compass_counter % self.sticky_compass_skip == 0:
                     lat2, long2 = self.compass_coords(angle, length=0.0001)
                     self.sticky_compass_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -220,9 +227,15 @@ class RoboQuasar(Robot):
 
     def loop(self):
         if self.is_paused and isinstance(self.plotter, LivePlotter):
-            status = self.plotter.plot()
-            if status is not None:
-                return status
+            if self.plotter.should_update(self.dt()):
+                status = self.plotter.plot()
+                if status is not None:
+                    return status
+
+        # if self.logitech.updated(self.dt()):
+        #     self.logitech.show()
+        # if self.ps3eye.updated(self.dt()):
+        #     self.ps3eye.show()
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:

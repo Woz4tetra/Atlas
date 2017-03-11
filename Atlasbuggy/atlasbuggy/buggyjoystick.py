@@ -1,21 +1,10 @@
 import os
-import sys
 import time
 import math
 
 import pygame
+from atlasbuggy import get_platform
 
-def get_platform():
-    """Use for platform specific operations"""
-    if sys.platform.startswith('darwin'):  # OS X
-        return "mac"
-    elif (sys.platform.startswith('linux') or sys.platform.startswith(
-            'cygwin')):
-        return "linux"
-    elif sys.platform.startswith('win'):  # Windows
-        return "windows"
-    else:
-        return None
 
 try:
     with os.popen('stty size', 'r') as terminal_window:

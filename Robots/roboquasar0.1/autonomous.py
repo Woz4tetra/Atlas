@@ -5,7 +5,7 @@ import math
 import time
 from threading import Thread
 
-from atlasbuggy.interface import run, close
+from atlasbuggy.interface.live import RobotRunner
 
 from joysticks.wiiu_joystick import WiiUJoystick
 from roboquasar import RoboQuasar, map_sets
@@ -15,9 +15,6 @@ parser.add_argument("-l", "--nolog", help="disable logging", action="store_false
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
 parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
 args = parser.parse_args()
-
-robot = RoboQuasar(False, *map_sets["cut"])
-robot.init_compass(args.compass)
 
 
 class AutonomousCommandline(cmd.Cmd):
@@ -94,6 +91,7 @@ class AutonomousCommandline(cmd.Cmd):
         usage: q
         quit the program
         """
+        runner.exit()
         return True
 
     def do_compass(self, line):
@@ -111,15 +109,23 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+log_dir = ("data_days", None)
+checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
-def run_robot():
-    run(robot, WiiUJoystick(), log_data=args.nolog, log_dir=("data_days", None), debug_prints=args.debug)
+robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, video_dir=log_dir)
+robot.init_compass(args.compass)
+
+command_line = AutonomousCommandline()
 
 
-t = Thread(target=run_robot)
+def run_commands():
+    command_line.cmdloop()
+
+
+t = Thread(target=run_commands)
 t.daemon = True
 t.start()
 
-AutonomousCommandline().cmdloop()
-
-close()
+robot.start_cameras()
+runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
+runner.run()

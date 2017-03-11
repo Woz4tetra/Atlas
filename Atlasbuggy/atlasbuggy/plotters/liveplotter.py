@@ -70,35 +70,40 @@ class LivePlotter(BasePlotter):
             self.init_legend()
             self.plt.show(block=False)
 
-    def start_time(self, time0):
+    def start_time(self, time0=None):
         """
         Supply a start time. This keeps all timers in sync
 
         :param time0: a value supplied by time.time()
         :return: None
         """
+        if time0 is None:
+            time0 = time.time()
         self.time0 = time0
 
-    def should_update(self, packet_timestamp):
+    def should_update(self, dt):
         """
         Signal whether or not the plot should update using self.lag_cap.
         If the packet_timestamp - current_time is greater than self.lag_cap, return False
 
-        :param packet_timestamp: A timestamp received with a packet
+        :param dt: current time since program start
         :return: True or False whether the plot should update or not
         """
         if not self.enabled:
             return False
 
-        if self.time0 is not None and packet_timestamp is not None:
+        if self.time0 is not None and dt is not None:
             current_time = time.time() - self.time0
 
-            lag_status = abs(packet_timestamp - current_time) < self.lag_cap
+            lag_status = abs(dt - current_time) < self.lag_cap
         else:
             lag_status = True
 
         self.skip_counter += 1
-        skip_status = self.plot_skip_count > 0 and self.skip_counter % self.plot_skip_count == 0
+        if self.plot_skip_count > 0:
+            skip_status = self.skip_counter % self.plot_skip_count == 0
+        else:
+            skip_status = True
         return lag_status and skip_status
 
     def plot(self, timestamp=None):

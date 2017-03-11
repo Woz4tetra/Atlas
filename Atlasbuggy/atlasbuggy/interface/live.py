@@ -121,7 +121,7 @@ class RobotRunner(BaseInterface):
 
         self._open_ports()
         try:
-            self.robot.start()  # call user's start method (empty by default)
+            self.robot.start_camera()  # call user's start method (empty by default)
         except BaseException as error:
             self._debug_print("Closing all from user's start")
             self._close_ports("error")
@@ -357,7 +357,7 @@ class RobotRunner(BaseInterface):
 
         # start port processes
         for robot_port in self.ports.values():
-            robot_port.start()
+            robot_port.start_camera()
 
     def _stop_all_ports(self):
         """

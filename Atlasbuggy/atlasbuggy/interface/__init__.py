@@ -5,9 +5,10 @@ on its own process).
 What data you send over serial is up to you. There is no strict packet protocol.
 """
 
+from threading import Thread
+
 from atlasbuggy.interface.simulated import RobotSimulator
 from atlasbuggy.interface.live import RobotRunner
-
 
 robot_interface = None
 
@@ -28,10 +29,11 @@ def simulate(file_name, directory, robot, start_index=0, end_index=-1, debug_ena
     global robot_interface
     robot_interface = RobotSimulator(file_name, directory, robot, start_index, end_index, debug_enabled)
     robot_interface.run()
+
     return robot_interface
 
 
-def run(robot, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False):
+def run(robot, joystick=None, log_data=True, log_name=None, log_dir=None, debug_prints=False, blocking=True):
     """
     Launch a live robot using the provided Robot object. The function will exit when the runner has finished
     Run on a separate thread if you don't want this behavior (see the close function)
@@ -48,26 +50,27 @@ def run(robot, joystick=None, log_data=True, log_name=None, log_dir=None, debug_
     global robot_interface
     robot_interface = RobotRunner(robot, joystick, log_data, log_name, log_dir, debug_prints)
     robot_interface.run()
+
     return robot_interface
 
 
-def close():
-    """
-    Close the current robot interface (simulator or live). Use if run or simulated is called on a separate thread
-    example:
-
-    from threading import Thread
-    def run_robot():
-        run(robot)
-
-    t = Thread(target=run_robot)
-    t.daemon = True
-    t.start()
-
-    ...
-
-    close()
-    """
-    global robot_interface
-    if robot_interface is not None:
-        robot_interface.exit()
+# def close():
+#     """
+#     Close the current robot interface (simulator or live). Use if run or simulated is called on a separate thread
+#     example:
+#
+#     from threading import Thread
+#     def run_robot():
+#         run(robot)
+#
+#     t = Thread(target=run_robot)
+#     t.daemon = True
+#     t.start()
+#
+#     ...
+#
+#     close()
+#     """
+#     global robot_interface
+#     if robot_interface is not None:
+#         robot_interface.exit()
