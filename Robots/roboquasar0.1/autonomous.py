@@ -127,6 +127,8 @@ t = Thread(target=run_commands)
 t.daemon = True
 t.start()
 
-robot.start_cameras()
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
+
+robot.start_cameras(runner.file_name_no_ext, runner.directory)
+
 runner.run()

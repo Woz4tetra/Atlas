@@ -11,7 +11,7 @@ import time
 
 number_characters = set(string.digits)
 whitespace_characters = set(string.whitespace)
-compressed_file_type = "gzip"
+compressed_file_type = ".gzip"
 
 
 class AtlasFile:

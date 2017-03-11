@@ -182,7 +182,7 @@ class VideoRecorder(AtlasWriteFile):
     def get_frame(self):
         success, self.frame = self.cv_capture.read()
         if self.resize_frame and self.frame.shape[0:2] != (self.height, self.width):
-            self.frame = cv2.resize(self.frame, (self.height, self.width))
+            self.frame = cv2.resize(self.frame, (self.width, self.height))
 
         if self.enable_recording:
             self.write(self.frame)

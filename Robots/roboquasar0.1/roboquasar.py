@@ -10,8 +10,9 @@ from actuators.underglow import Underglow
 
 from algorithms.controls.bozo_controller import BozoController
 
-from atlasbuggy.files.mapfile import MapFile
 from atlasbuggy.robot import Robot
+from atlasbuggy.capture import Capture
+from atlasbuggy.files.mapfile import MapFile
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.staticplotter import StaticPlotter
 from atlasbuggy.plotters.plot import RobotPlot
@@ -83,10 +84,8 @@ class RoboQuasar(Robot):
             self.current_pos_dot
         )
 
-        # self.logitech = Capture("logitech", width=480, height=320)
-        # self.ps3eye = Capture("ps3eye", width=480, height=320)
-        #
-        # self.cam_selector = CameraSelector(self.logitech, self.ps3eye)
+        self.logitech = Capture("logitech", width=480, height=320, enable_recording=False)
+        self.ps3eye = Capture("ps3eye", width=480, height=320, enable_recording=False)
 
         if animate:
             self.plotter = LivePlotter(
@@ -116,10 +115,9 @@ class RoboQuasar(Robot):
         self.logitech.play_video(video_name, video_dir)
         self.ps3eye.play_video(video_name, video_dir)
 
-    def start_cameras(self):
-        self.cam_selector.launch()
-        self.logitech.start_camera()
-        self.ps3eye.start_camera()
+    def start_cameras(self, video_name, video_dir):
+        self.logitech.start_camera(video_name + " " + self.logitech.name + ".avi", video_dir, 1)
+        self.ps3eye.start_camera(video_name + " " + self.ps3eye.name + ".avi", video_dir, 2)
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
@@ -236,6 +234,16 @@ class RoboQuasar(Robot):
         #     self.logitech.show()
         # if self.ps3eye.updated(self.dt()):
         #     self.ps3eye.show()
+        self.logitech.get_frame(self.dt())
+        self.ps3eye.get_frame(self.dt())
+
+        key = self.logitech.show_frame()
+        if key == 'q':
+            return "done"
+
+        key = self.ps3eye.show_frame()
+        if key == 'q':
+            return "done"
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
