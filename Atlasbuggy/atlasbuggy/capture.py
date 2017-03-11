@@ -1,4 +1,5 @@
 from atlasbuggy.files.videofile import *
+from atlasbuggy import get_platform
 import numpy as np
 
 
@@ -17,6 +18,26 @@ class Capture:
         self.height = height
 
         self.enable_recording = enable_recording
+
+        platform = get_platform()
+        if platform == "linux":
+            self.key_codes = {
+                65362: "up",
+                65364: "down",
+                65361: "left",
+                65363: "right",
+                10: "enter"
+            }
+        elif platform == "mac":
+            self.key_codes = {
+                63232: "up",
+                63233: "down",
+                63234: "left",
+                63235: "right",
+                13: "enter"
+            }
+        else:
+            self.key_codes = {}
 
     def play_video(self, video_name=None, video_dir=None):
         self.reader = VideoPlayer(video_name, video_dir, self.name, self, self.width, self.height)
@@ -67,6 +88,8 @@ class Capture:
 
     def key_pressed(self, delay=1):
         key = cv2.waitKey(delay)
+        if key in self.key_codes:
+            return self.key_codes[key]
         if key > -1:
             if 0 <= key < 0x100:
                 return chr(key)
@@ -84,13 +107,36 @@ class CameraSelector:
         print("Press enter to confirm and q or esc to cancel.")
 
         self.shape = None
-        self.window_name = "Camera Selector: camera #"
+        self.window_name = "Camera Selector"
         self.capture_num = 0
+        self.captures = {}
 
         self.cv_capture = cv2.VideoCapture(self.capture_num)
+        self.captures[self.capture_num] = self.cv_capture
 
         self.cv_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
         self.cv_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+
+        platform = get_platform()
+        if platform == "linux":
+            self.key_codes = {
+                65362: "up",
+                65364: "down",
+                65361: "left",
+                65363: "right",
+                10   : "enter"
+            }
+        elif platform == "mac":
+            self.key_codes = {
+                63232: "up",
+                63233: "down",
+                63234: "left",
+                63235: "right",
+                13   : "enter"
+            }
+        else:
+            self.key_codes = {}
 
     def launch(self):
         while True:
@@ -112,28 +158,36 @@ class CameraSelector:
             success, frame = self.cv_capture.read()
 
             if success is True and frame is not None:
-                cv2.imshow(self.window_name + str(self.capture_num), frame)
+                cv2.imshow(self.window_name, frame)
                 self.shape = frame.shape
             else:
-                cv2.imshow(self.window_name + str(self.capture_num), np.zeros(self.shape))
+                cv2.imshow(self.window_name, np.zeros(self.shape))
 
     def update_capture(self, delta=None, new_capture=None):
-        self.cv_capture.release()
+        # self.cv_capture.release()
+        # cv2.destroyWindow(self.window_name + str(self.capture_num))
 
-        cv2.destroyWindow(self.window_name + str(self.cap_num))
         if delta is not None:
             self.capture_num += delta
         elif new_capture is not None:
             self.capture_num = new_capture
+
+        if self.capture_num in self.captures:
+            self.cv_capture = self.captures[self.capture_num]
+        else:
+            self.cv_capture = cv2.VideoCapture(self.capture_num)
+            self.cv_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
+            self.cv_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+            self.captures[self.capture_num] = self.cv_capture
+
         print(self.capture_num)
 
-        self.cv_capture = cv2.VideoCapture(self.capture_num)
-
-        self.cv_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
-        self.cv_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
     def key_pressed(self, delay=1):
         key = cv2.waitKey(delay)
+        if key in self.key_codes:
+            return self.key_codes[key]
         if key > -1:
             if 0 <= key < 0x100:
                 return chr(key)
