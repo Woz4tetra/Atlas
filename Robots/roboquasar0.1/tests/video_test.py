@@ -19,11 +19,11 @@ class CaptureTester(Robot):
         self.capture2.play_video(video_name, video_dir)
 
     def start_cam(self, video_name, video_dir):
-        status = self.capture1.start_camera(video_name + " " + self.capture1.name + ".avi", video_dir, 1)
+        status = self.capture1.start_camera(video_name + " " + self.capture1.name + ".avi", video_dir)
         if status is not None:
             return status
 
-        status = self.capture2.start_camera(video_name + " " + self.capture2.name + ".avi", video_dir, 2)
+        status = self.capture2.start_camera(video_name + " " + self.capture2.name + ".avi", video_dir)
         if status is not None:
             return status
 
@@ -40,6 +40,7 @@ class CaptureTester(Robot):
             return "done"
 
     def close(self, reason):
+        self.capture1.close()
         self.capture2.close()
 
 
