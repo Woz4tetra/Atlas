@@ -275,18 +275,17 @@ class RoboQuasar(Robot):
 
         self.imu_angle = (-self.imu.euler.z + self.start_angle - self.compass_angle) % (2 * math.pi)
 
-        if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
-            return self.imu_angle, self.imu_angle
-        else:
-            if self.bearing - self.imu_angle > math.pi:
-                self.imu_angle += 2 * math.pi
-            if self.imu_angle - self.bearing > math.pi:
-                self.bearing += 2 * math.pi
-
-            return self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing, self.imu_angle
-            # return self.imu_angle
-            # return self.bearing
-            # return self.imu_angle
+        return -self.imu_angle, -self.imu_angle
+        # if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
+        #     return -self.imu_angle, -self.imu_angle
+        # else:
+        #     if self.bearing - self.imu_angle > math.pi:
+        #         self.imu_angle += 2 * math.pi
+        #     if self.imu_angle - self.bearing > math.pi:
+        #         self.bearing += 2 * math.pi
+        #
+        #     angle = self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing
+        #     return -angle, -self.imu_angle
 
     def update_bearing(self):
         if len(self.long_data) == 0 or self.gps.longitude_deg != self.long_data[-1]:
@@ -327,6 +326,12 @@ class RoboQuasar(Robot):
 
 
 map_sets = {
+    "single": (
+        "Single Point",
+        "Single Point Inside",
+        "Single Point Outside",
+        "single"
+    ),
     "cut 3": (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",

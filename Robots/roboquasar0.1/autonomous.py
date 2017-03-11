@@ -109,10 +109,11 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+
 log_dir = ("data_days", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
-robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, video_dir=log_dir)
+robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 robot.init_compass(args.compass)
 
 command_line = AutonomousCommandline()
