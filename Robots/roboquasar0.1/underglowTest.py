@@ -1,3 +1,4 @@
+from threading import Thread
 from atlasbuggy.robot import Robot
 from actuators.underglow import Underglow
 
@@ -16,3 +17,15 @@ class UnderglowCommandline(cmd.Cmd):
 
 glow = UnderglowTest()
 
+command_line = UnderglowCommandline()
+
+
+def run_commands():
+    command_line.cmdloop()
+
+
+t = Thread(target=run_commands)
+t.daemon = True
+t.start()
+
+glow.run()
