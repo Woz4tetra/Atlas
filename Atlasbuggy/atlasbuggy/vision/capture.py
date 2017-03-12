@@ -26,7 +26,7 @@ class Capture:
                 65364: "down",
                 65361: "left",
                 65363: "right",
-                10: "enter"
+                10   : "enter"
             }
         elif platform == "mac":
             self.key_codes = {
@@ -34,7 +34,7 @@ class Capture:
                 63233: "down",
                 63234: "left",
                 63235: "right",
-                13: "enter"
+                13   : "enter"
             }
         else:
             self.key_codes = {}
@@ -117,7 +117,6 @@ class CameraSelector:
         self.cv_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
         self.cv_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-
         platform = get_platform()
         if platform == "linux":
             self.key_codes = {
@@ -182,7 +181,6 @@ class CameraSelector:
             self.captures[self.capture_num] = self.cv_capture
 
         print(self.capture_num)
-
 
     def key_pressed(self, delay=1):
         key = cv2.waitKey(delay)

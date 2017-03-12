@@ -1,22 +1,19 @@
 import math
 
-from sensors.gps import GPS
-from sensors.imu import IMU
-from sensors.lidarturret import LidarTurret
-
 from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
-
 from algorithms.controls.bozo_controller import BozoController
-
-from atlasbuggy.robot import Robot
-from atlasbuggy.capture import Capture
 from atlasbuggy.files.mapfile import MapFile
-from atlasbuggy.plotters.liveplotter import LivePlotter
-from atlasbuggy.plotters.staticplotter import StaticPlotter
-from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
+from atlasbuggy.plotters.liveplotter import LivePlotter
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.staticplotter import StaticPlotter
+from atlasbuggy.robot import Robot
+from atlasbuggy.vision.capture import Capture
+from sensors.gps import GPS
+from sensors.imu import IMU
+from sensors.lidarturret import LidarTurret
 
 
 class RoboQuasar(Robot):

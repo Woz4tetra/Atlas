@@ -6,7 +6,7 @@ os.chdir("..")
 
 from atlasbuggy.interface import RobotSimulator
 from atlasbuggy.robot import Robot
-from atlasbuggy.capture import Capture
+from atlasbuggy.vision.capture import Capture
 
 
 class CaptureTester(Robot):
