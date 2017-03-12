@@ -25,7 +25,7 @@ class RobotObjectCollection:
         self.whoiam_ids = whoiam_ids
         self.enabled = enabled
         self.baud = None
-        self.is_live = True
+        self.is_live = None
         self.command_packets = {}
 
         for whoiam in self.whoiam_ids:

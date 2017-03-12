@@ -21,12 +21,6 @@ class RobotSimulator(BaseInterface):
 
         # read the log file
         self.parser = logfile.Parser(file_name, directory, start_index, end_index)
-        self.input_name = self.parser.input_name
-        self.input_dir = self.parser.input_dir
-        self.directory = self.parser.directory
-        self.file_name = self.parser.file_name
-        self.full_path = self.parser.full_path
-        self.file_name_no_ext = self.parser.file_name_no_ext
 
         print("Using file:", self.parser.full_path)
         super(RobotSimulator, self).__init__(robot, debug_enabled, "Simulator")
@@ -34,6 +28,9 @@ class RobotSimulator(BaseInterface):
         # tell robot objects it is simulated so command queues don't build up unnecessarily
         for robot_object in self.robot.objects.values():
             robot_object.is_live = False
+        self.robot.is_live = False
+
+        self.robot.parser = self.parser
 
         self.close_called = False
         self.current_index = 0

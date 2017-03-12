@@ -2,63 +2,70 @@
 from atlasbuggy.interface import RobotSimulator
 from atlasbuggy.interface import RobotRunner
 from atlasbuggy.robot import Robot
-from atlasbuggy.vision.capture import Capture
-
+from atlasbuggy.vision.camera import Camera
+import time
 
 class CaptureTester(Robot):
     def __init__(self, enable_recording):
         super(CaptureTester, self).__init__()
-        self.logitech = Capture("logitech", enable_recording=enable_recording)
-        self.ps3eye = Capture("ps3eye", enable_recording=enable_recording)
+        self.logitech = Camera("logitech", width=300, height=200)
+        # self.ps3eye = Camera("ps3eye")
+
+        self.start_time = time.time()
 
         super(CaptureTester, self).__init__()
 
-    def play(self, video_name, video_dir):
-        self.logitech.play_video(video_name + self.logitech.name, video_dir)
-        self.ps3eye.play_video(video_name + self.logitech.ps3eye, video_dir)
+    def start(self):
+        logitech_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.logitech.name)
+        # ps3eye_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.ps3eye.name)
+        directory = self.get_path_info("input dir")
 
-    def start_cam(self, video_name, video_dir):
-        status = self.logitech.start_camera("%s%s.avi" % (video_name, self.logitech.name), video_dir)
-        if status is not None:
-            return status
+        if self.is_live:
+            status = self.logitech.launch_camera(
+                logitech_name, directory, True,#self.logger.is_open(),
+            )
+            if status is not None:
+                return status
 
-        status = self.ps3eye.start_camera("%s%s.avi" % (video_name, self.ps3eye.name), video_dir)
-        if status is not None:
-            return status
+            # status = self.ps3eye.launch_camera(
+            #     ps3eye_name, directory, self.logger.is_open(),
+            # )
+            # if status is not None:
+            #     return status
+        else:
+            self.logitech.launch_video(logitech_name, directory)
+            # self.ps3eye.launch_video(ps3eye_name, directory)
+
+        self.start_time = time.time()
 
     def loop(self):
-        self.logitech.get_frame(self.dt())
-        self.ps3eye.get_frame(self.dt())
+        if self.logitech.get_frame(self.dt()) is None:
+            return "exit"
+        # self.ps3eye.get_frame(self.dt())
 
         key = self.logitech.show_frame()
-        if key == 'q':
+        if key == 'q' or key == -2:
             return "done"
 
-        key = self.ps3eye.show_frame()
-        if key == 'q':
-            return "done"
+        # key = self.ps3eye.show_frame()
+        # if key == 'q':
+        #     return "done"
 
     def close(self, reason):
         self.logitech.close()
-        self.ps3eye.close()
+        # self.ps3eye.close()
+        print(time.time() - self.start_time)
+        print(self.dt())
 
 
-def run(live=True):
+def run(live):
     video_tester = CaptureTester(False)
 
     if live:
         runner = RobotRunner(video_tester, log_data=False)
-        file_name, directory = runner.get_path()
-        status = video_tester.start_cam(file_name, directory)
-        if status is None:
-            runner.run()
+        runner.run()
     else:
-        file_name, directory = "15;13", "data_days/2017_Mar_05"
+        simulator = RobotSimulator("18;54", "2017_Mar_12", video_tester)
+        simulator.run()
 
-        simulator = RobotSimulator(file_name, directory, video_tester)
-        file_name, directory = simulator.get_path()
-        status = video_tester.play(file_name, directory)
-        if status is None:
-            simulator.run()
-
-run()
+run(False)

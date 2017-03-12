@@ -16,13 +16,6 @@ class BaseInterface:
 
         self.exit_thrown = False
 
-        self.input_name = ""
-        self.input_dir = ""
-        self.directory = ""
-        self.file_name = ""
-        self.full_path = ""
-        self.file_name_no_ext = ""
-
     def run(self, loop=None):
         """
         run skeleton for the interface. Calls the interface's wrapper methods:
@@ -30,7 +23,10 @@ class BaseInterface:
         """
 
         # initialization
-        self._start()
+        status = self._start()
+        if status is not None:
+            self._close(status)
+            return
         try:
             # should the interface continue?
             while self._should_run() and not self.exit_thrown:
@@ -58,9 +54,6 @@ class BaseInterface:
             pass
 
         self._close("done")
-
-    def get_path(self):
-        return self.file_name_no_ext, self.input_dir
 
     # ----- internal methods -----
 

@@ -58,12 +58,9 @@ class RobotRunner(BaseInterface):
             self.logger.open()
             print("Writing to:", self.logger.full_path)
 
-        self.input_name = self.logger.input_name
-        self.input_dir = self.logger.input_dir
-        self.directory = self.logger.directory
-        self.file_name = self.logger.file_name
-        self.full_path = self.logger.full_path
-        self.file_name_no_ext = self.logger.file_name_no_ext
+        for robot_object in self.robot.objects.values():
+            robot_object.is_live = True
+        self.robot.is_live = True
 
         # create a pipe from all port processes to the main loop
         self.packet_queue = Queue()
@@ -128,7 +125,7 @@ class RobotRunner(BaseInterface):
 
         self._open_ports()
         try:
-            self.robot.start()  # call user's start method (empty by default)
+            return self.robot.start()  # call user's start method (empty by default)
         except BaseException as error:
             self._debug_print("Closing all from user's start")
             self._close_ports("error")

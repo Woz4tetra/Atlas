@@ -142,7 +142,8 @@ class AtlasFile:
 
         return file_name, False
 
-    def format_path_as_time(self, file_name, directory, file_time_format, dir_time_format):
+    @staticmethod
+    def format_path_as_time(file_name, directory, file_time_format, dir_time_format):
         if file_name is None:
             file_name = time.strftime(file_time_format)
         if directory is None:

@@ -121,8 +121,8 @@ class AutonomousCommandline(cmd.Cmd):
 log_dir = ("data_days", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
-robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
-robot.init_compass(args.compass)
+robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass)
+runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
 command_line = AutonomousCommandline()
 
@@ -135,9 +135,5 @@ t = Thread(target=run_commands)
 t.daemon = True
 t.start()
 
-runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
-
-file_name, directory = runner.get_path()
-robot.start_cameras(file_name, directory, args.nolog)
 
 runner.run()

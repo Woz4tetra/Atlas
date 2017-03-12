@@ -20,7 +20,7 @@ class LidarTest(Robot):
         self.slam_plots = SlamPlots(self.slam.map_size_pixels, self.slam.map_size_meters, skip_count=0)
         self.lidar_t0 = 0.0
 
-        self.link(self.turret, self.received_lidar)
+        self.link_object(self.turret, self.received_lidar)
 
     def received_lidar(self, timestamp, packet, packet_type):
         if self.turret.did_cloud_update():

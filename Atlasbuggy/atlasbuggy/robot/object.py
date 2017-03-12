@@ -23,7 +23,7 @@ class RobotObject:
         self.whoiam = whoiam
         self.enabled = enabled
         self.baud = None  # set this externally AFTER super().__init__ is called if a different baud rate is desired
-        self.is_live = True
+        self.is_live = None
         self.command_packets = Queue(maxsize=255)
 
     def receive_first(self, packet):

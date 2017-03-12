@@ -4,13 +4,13 @@ from atlasbuggy.files.atlasbuggyfile import AtlasWriteFile, AtlasReadFile
 from atlasbuggy.files.logfile import default_log_dir_name, default_log_file_name
 
 
-class VideoPlayer(AtlasReadFile):
+class VideoPlayer:
     def __init__(self, video_name, video_dir, window_name, capture, width=None, height=None, frame_skip=0,
                  loop_video=False, start_frame=0, slider_callback=None):
-        video_name, video_dir = self.format_path_as_time(video_name, video_dir, default_log_dir_name,
-                                                         default_log_file_name)
+        video_name, video_dir = AtlasReadFile.format_path_as_time(video_name, video_dir, default_log_dir_name,
+                                                                  default_log_file_name)
 
-        super(VideoPlayer, self).__init__(video_name, video_dir, False, ("avi", "mov"), "videos")
+        self.read_file = AtlasReadFile(video_name, video_dir, False, ("avi", "mov"), "videos")
 
         self.window_name = window_name
 

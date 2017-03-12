@@ -3,17 +3,22 @@ import math
 from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
-from algorithms.controls.bozo_controller import BozoController
-from atlasbuggy.files.mapfile import MapFile
-from atlasbuggy.plotters.collection import RobotPlotCollection
-from atlasbuggy.plotters.liveplotter import LivePlotter
-from atlasbuggy.plotters.plot import RobotPlot
-from atlasbuggy.plotters.staticplotter import StaticPlotter
-from atlasbuggy.robot import Robot
-from atlasbuggy.vision.capture import Capture
 from sensors.gps import GPS
 from sensors.imu import IMU
 from sensors.lidarturret import LidarTurret
+
+from algorithms.controls.bozo_controller import BozoController
+
+from atlasbuggy.files.mapfile import MapFile
+from atlasbuggy.vision.camera import Camera
+
+from atlasbuggy.plotters.plot import RobotPlot
+from atlasbuggy.plotters.collection import RobotPlotCollection
+
+from atlasbuggy.plotters.liveplotter import LivePlotter
+from atlasbuggy.plotters.staticplotter import StaticPlotter
+
+from atlasbuggy.robot import Robot
 
 
 class RoboQuasar(Robot):
@@ -29,10 +34,26 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
+        self.logitech = Camera("logitech", width=480, height=320, show=enable_plotting)
+        self.ps3eye = Camera("ps3eye", width=480, height=320, show=enable_plotting)
+
+        self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
+
         super(RoboQuasar, self).__init__(
             self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
         )
 
+        self.link_object(self.gps, self.receive_gps)
+        self.link_object(self.imu, self.receive_imu)
+
+        self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
+
+        self.init_plots(
+            animate, enable_plotting, initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir
+        )
+
+    def init_plots(self, animate, enable_plotting, initial_compass,
+                   checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
         self.outer_map = MapFile(outer_map_name, map_dir)
@@ -81,9 +102,6 @@ class RoboQuasar(Robot):
             self.current_pos_dot
         )
 
-        self.logitech = Capture("logitech", width=480, height=320, enable_recording=False)
-        self.ps3eye = Capture("ps3eye", width=480, height=320, enable_recording=False)
-
         if animate:
             self.plotter = LivePlotter(
                 1, self.accuracy_check_plot,
@@ -101,20 +119,28 @@ class RoboQuasar(Robot):
         self.inner_map_plot.update(self.inner_map.lats, self.inner_map.longs)
         self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
 
-        self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
+    def start(self):
+        logitech_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.logitech.name)
+        ps3eye_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.ps3eye.name)
+        directory = self.get_path_info("input dir")
 
-        self.link(self.gps, self.receive_gps)
-        self.link(self.imu, self.receive_imu)
+        if self.is_live:
+            status = self.logitech.launch_camera(
+                logitech_name, directory, self.logger.is_open(),
+                capture_number=1
+            )
+            if status is not None:
+                return status
 
-        self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
-
-    def playback(self, video_name, video_dir):
-        self.logitech.play_video(video_name, video_dir)
-        self.ps3eye.play_video(video_name, video_dir)
-
-    def start_cameras(self, video_name, video_dir):
-        self.logitech.start_camera(video_name + " " + self.logitech.name + ".avi", video_dir, 1)
-        self.ps3eye.start_camera(video_name + " " + self.ps3eye.name + ".avi", video_dir, 2)
+            status = self.ps3eye.launch_camera(
+                ps3eye_name, directory, self.logger.is_open(),
+                capture_number=2
+            )
+            if status is not None:
+                return status
+        else:
+            self.logitech.launch_video(logitech_name, directory)
+            self.ps3eye.launch_video(ps3eye_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
@@ -126,10 +152,9 @@ class RoboQuasar(Robot):
                 self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
 
                 if isinstance(self.plotter, LivePlotter):
-                    if self.plotter.should_update(self.dt()):
-                        status = self.plotter.plot()
-                        if status is not None:
-                            return status
+                    status = self.plotter.plot(self.dt())
+                    if status is not None:
+                        return status
 
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
             inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -222,15 +247,10 @@ class RoboQuasar(Robot):
 
     def loop(self):
         if self.is_paused and isinstance(self.plotter, LivePlotter):
-            if self.plotter.should_update(self.dt()):
-                status = self.plotter.plot()
-                if status is not None:
-                    return status
+            status = self.plotter.plot(self.dt())
+            if status is not None:
+                return status
 
-        # if self.logitech.updated(self.dt()):
-        #     self.logitech.show()
-        # if self.ps3eye.updated(self.dt()):
-        #     self.ps3eye.show()
         self.logitech.get_frame(self.dt())
         self.ps3eye.get_frame(self.dt())
 
@@ -238,7 +258,7 @@ class RoboQuasar(Robot):
         if key == 'q':
             return "done"
 
-        key = self.ps3eye.show_frame()
+        key = self.ps3eye.show_frame(self.ps3eye.frame)
         if key == 'q':
             return "done"
 
@@ -337,19 +357,19 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3": (
+    "cut 3" : (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2": (
+    "cut 2" : (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy": (
+    "buggy" : (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",

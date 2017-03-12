@@ -24,8 +24,11 @@ class Robot:
 
         self.is_paused = False  # for simulations. The robot can be paused (see self.pause)
 
+        self.is_live = None
+
         # for runners
-        self.logger = None  # Instance of atlasbuggy.files.logfile.Logger (None if unused)
+        self.logger = None  # Instance of atlasbuggy.files.logfile.Logger (None if is_live is False)
+        self.parser = None  # Instance of atlasbuggy.files.logfile.Parser (None if is_live is True)
         self.queue_len = 0  # The number of packets on the packet queue
         self.joystick = None  # instance of BuggyJoystick
 
@@ -49,7 +52,7 @@ class Robot:
 
             else:
                 raise RobotObjectInitializationError(
-                    "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
+                    "Object passed is not valid:", repr(robot_object))
 
     def __getitem__(self, item):
         return self.objects[item]
@@ -122,7 +125,32 @@ class Robot:
         else:
             return arg
 
-    def link(self, arg, callback_fn):
+    def get_path_info(self, arg):
+        if self.logger is not None:
+            info_source = self.logger
+        elif self.parser is not None:
+            info_source = self.parser
+        else:
+            return None
+
+        if arg == "input name":
+            return info_source.input_name
+        elif arg == "input dir":
+            return info_source.input_dir
+        elif arg == "file types":
+            return info_source.file_types
+        elif arg == "default dir":
+            return info_source.default_dir
+        elif arg == "abs directory":
+            return info_source.directory
+        elif arg == "file name":
+            return info_source.file_name
+        elif arg == "file name no extension":
+            return info_source.file_name_no_ext
+        elif arg == "full path":
+            return info_source.full_path
+
+    def link_object(self, arg, callback_fn):
         """
         Link a callback function
             example: self.link(self.robot_object, self.some_function)
