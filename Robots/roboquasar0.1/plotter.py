@@ -23,5 +23,8 @@ t.daemon = True
 t.start()
 
 robot = RoboQuasar(True, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
-simulator = RobotSimulator(file_name, directory, robot, debug_enabled=True)
+simulator = RobotSimulator(file_name, directory, robot, debug_enabled=False)
+
+robot.playback(simulator.file_name_no_ext, simulator.directory)
+
 simulator.run()

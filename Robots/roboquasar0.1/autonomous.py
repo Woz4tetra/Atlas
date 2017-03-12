@@ -92,7 +92,15 @@ class AutonomousCommandline(cmd.Cmd):
         quit the program
         """
         runner.exit()
+        print()
         return True
+
+    def do_EOF(self, line):
+        """
+        usage: EOF
+        quit the program
+        """
+        return self.do_q(line)
 
     def do_compass(self, line):
         """
@@ -129,6 +137,7 @@ t.start()
 
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
-robot.start_cameras(runner.file_name_no_ext, runner.directory)
+file_name, directory = runner.get_path()
+robot.start_cameras(file_name, directory, args.nolog)
 
 runner.run()

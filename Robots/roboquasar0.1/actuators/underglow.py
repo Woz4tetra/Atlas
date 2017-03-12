@@ -23,6 +23,9 @@ class Underglow(RobotObject):
             range(self.num_leds)]
         self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, enabled=self.enable_plotting)
 
+    def receive(self, timestamp, packet):
+        pass
+
     def constrain_input(self, rgb):
         if len(rgb) == 1:
             rgb = rgb[0]
@@ -72,7 +75,7 @@ class Underglow(RobotObject):
         self.send("wipe%3.0d%3.0d%3.0d%3.0d" % (r, g, b, delay))
 
     def fancy_gradient(self, start):
-    	self.send("g%2.0d" % (start))
+        self.send("g%2.0d" % start)
 
     def set_all(self, *rgb):
         self.set_leds(0, self.num_leds, *rgb)

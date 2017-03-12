@@ -51,6 +51,9 @@ class Robot:
                 raise RobotObjectInitializationError(
                     "Object passed isn't a RobotObject or RobotObjectCollection:", repr(robot_object))
 
+    def __getitem__(self, item):
+        return self.objects[item]
+
     def dt(self):
         """
         Time since the start of the program. Uses the timestamps of received packets

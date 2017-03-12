@@ -124,10 +124,14 @@ class VideoPlayer(AtlasReadFile):
 
 
 class VideoRecorder(AtlasWriteFile):
-    def __init__(self, video_name, video_dir, width, height, enable_recording, capture, cam_number):
+    def __init__(self, video_name, video_dir, width, height, enable_recording, capture, cam_number, cv_capture):
         super(VideoRecorder, self).__init__(video_name, video_dir, False, "avi", "videos")
-
-        self.cv_capture = cv2.VideoCapture(cam_number)
+        if cv_capture is not None:
+            self.cv_capture = cv_capture
+        elif cam_number is not None:
+            self.cv_capture = cv2.VideoCapture(cam_number)
+        else:
+            raise ValueError("Capture number or capture instance not supplied!")
 
         print("Sampling for FPS...", end="")
         time0 = time.time()
@@ -168,6 +172,8 @@ class VideoRecorder(AtlasWriteFile):
             self.video.open(self.full_path, fourcc, fps, (self.recorder_width, self.recorder_height), True)
 
             self._is_open = True
+
+            print("Writing video to:", self.full_path)
         else:
             self.video = None
 
