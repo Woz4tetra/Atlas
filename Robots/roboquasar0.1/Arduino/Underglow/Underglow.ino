@@ -102,8 +102,20 @@ void loop() {
                 int wait = command.substring(13, 16).toInt();
                 colorWipe(strip.Color(r, g, b), wait);
             }
+            else if (command.charAt(0) == 'g' && command.length() == 3) {
+              fancyGradient(substring(1,3).toInt()); 
+            }
         }
     }
+}
+
+void fancyGradient(int start){
+  //strip.setPixelColor(index, strip.Color(r, g, b))
+  int index = 0;
+  for(int x = 0; x < LED_NUM; x++){
+    index = (start + x) % LED_NUM;
+    strip.setPixelColor(index, strip.Color(sin(x) * 255, cos(x) * 255, 100))
+  }
 }
 
 void fadeColors(int r, int g, int b, uint16_t cycles, uint8_t wait, int increment) {
