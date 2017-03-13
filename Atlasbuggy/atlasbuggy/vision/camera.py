@@ -1,6 +1,5 @@
 from atlasbuggy.files.videofile import *
 from atlasbuggy import get_platform
-import numpy as np
 
 
 class Camera:
@@ -28,6 +27,7 @@ class Camera:
         self.length_sec = 0.0
         self.length_msec = 0.0
         self.start_time = 0.0
+        self.current_time = 0.0
         self.prev_t = None
 
         self.width = width
@@ -237,7 +237,7 @@ class Camera:
             if position >= 0:
                 self.capture.set(cv2.CAP_PROP_POS_FRAMES, int(position))
 
-    def get_frame(self, timestamp):
+    def get_frame(self, timestamp=None):
         raise Exception("launch_camera or launch_video not called!")
 
     def get_frame_camera(self, timestamp=None):
