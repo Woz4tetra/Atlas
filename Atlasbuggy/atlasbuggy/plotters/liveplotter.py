@@ -106,11 +106,12 @@ class LivePlotter(BasePlotter):
             skip_status = True
         return lag_status and skip_status
 
-    def plot(self, timestamp=None):
+    def plot(self, timestamp=None, only_draw=False):
         """
         Update plot using data supplied to the robot plot objects
         :return: True or False if the plotting operation was successful
         """
+
         if self.closed:
             return "exit"
 
@@ -162,7 +163,6 @@ class LivePlotter(BasePlotter):
 
         except BaseException as error:
             traceback.print_exc()
-            print("plot closing:", error)
 
             self.close()
             return "error"

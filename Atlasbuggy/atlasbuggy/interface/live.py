@@ -206,10 +206,12 @@ class RobotRunner(BaseInterface):
                     return status
 
     def _close(self, reason):
-        self._debug_print("Closing all")
+        if not self.close_called:
+            self.close_called = True
+            self._debug_print("Closing all")
 
-        self._close_log()
-        self._close_ports(reason)
+            self._close_log()
+            self._close_ports(reason)
 
     def _should_run(self):
         """

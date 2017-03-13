@@ -28,6 +28,7 @@ class Pipeline(Process):
 
             with self.pipeline_lock:
                 self.results_queue.put(self.pipeline(frame))
+                print("1", self.results_queue.empty())
 
     def pipeline(self, frame):
         return cv2.medianBlur(frame, 111)
@@ -44,8 +45,8 @@ class Pipeline(Process):
 class CaptureTester(Robot):
     def __init__(self, enable_recording):
         super(CaptureTester, self).__init__()
-        self.logitech = Camera("logitech", width=300, height=200)
-        self.ps3eye = Camera("ps3eye")
+        self.logitech = Camera("logitech")
+        self.ps3eye = Camera("ps3eye", enabled=False)
 
         self.start_time = time.time()
 
@@ -58,13 +59,13 @@ class CaptureTester(Robot):
 
         if self.is_live:
             status = self.logitech.launch_camera(
-                logitech_name, directory, self.logger.is_open(),
+                logitech_name, directory, self.logger.is_open(), capture_number=1
             )
             if status is not None:
                 return status
 
             status = self.ps3eye.launch_camera(
-                ps3eye_name, directory, self.logger.is_open(),
+                ps3eye_name, directory, self.logger.is_open(), capture_number=2
             )
             if status is not None:
                 return status
@@ -81,12 +82,10 @@ class CaptureTester(Robot):
         if self.ps3eye.get_frame(self.dt()) is None:
             return "exit"
 
-        key = self.logitech.show_frame()
+        self.logitech.show_frame()
+        self.ps3eye.show_frame()
+        key = self.logitech.key_pressed()
         if key == 'q' or key == -2:
-            return "done"
-
-        key = self.ps3eye.show_frame()
-        if key == 'q':
             return "done"
 
     def close(self, reason):
@@ -111,6 +110,7 @@ class PipelineTest:
             # self.pipeline.put(self.mac_cam.get_frame())
             with self.pipeline.pipeline_lock:
                 if not self.pipeline.results_queue.empty():
+                    print("2", self.pipeline.results_queue.empty())
                     cv2.imshow("pipeline", self.pipeline.results_queue.get())
                     # self.mac_cam.show_frame(frame)
 
@@ -136,5 +136,5 @@ def pipeline():
         test.show()
 
 
-# run(True)
-pipeline()
+run(True)
+# pipeline()

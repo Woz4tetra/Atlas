@@ -1,3 +1,4 @@
+import os
 from atlasbuggy.files.videofile import *
 from atlasbuggy import get_platform
 
@@ -8,7 +9,7 @@ class Camera:
     min_cap_num = 0
     max_cap_num = None
 
-    def __init__(self, name, width=None, height=None, show=True, skip_count=0):
+    def __init__(self, name, width=None, height=None, show=True, skip_count=0, enabled=True):
         self.file_name = ""
         self.directory = ""
         self.full_path = ""
@@ -20,6 +21,7 @@ class Camera:
         self.frame = None
         self.show = show
         self.record = False
+        self.enabled = enabled
 
         self.fps = 0.0
         self.fps_sum = 0.0
@@ -73,7 +75,12 @@ class Camera:
         self.directory = write_file.directory
         self.full_path = write_file.full_path
 
+        self.get_frame = self.get_frame_camera
+
         self.record = record
+
+        if not self.enabled:
+            return None
 
         if capture_number is None:
             capture, height, width = self.launch_selector()
@@ -102,7 +109,6 @@ class Camera:
             self.width = width
 
         self.start_time = time.time()
-        self.get_frame = self.get_frame_camera
         if self.show:
             cv2.namedWindow(self.name)
 
@@ -118,6 +124,17 @@ class Camera:
         self.file_name = read_file.file_name
         self.directory = read_file.directory
         self.full_path = read_file.full_path
+
+        self.get_frame = self.get_frame_video
+
+        if not os.path.isfile(self.full_path):
+            self.enabled = False
+            return None
+
+        print(self.enabled, self.name, self.full_path)
+
+        if not self.enabled:
+            return None
 
         self.capture = cv2.VideoCapture(self.full_path)
         self.fps = self.capture.get(cv2.CAP_PROP_FPS)
@@ -146,8 +163,6 @@ class Camera:
 
         if start_frame > 0:
             self.set_frame_pos(start_frame)
-
-        self.get_frame = self.get_frame_video
 
     def launch_selector(self):
         selector_window_name = "Select camera for: " + self.name
@@ -207,8 +222,9 @@ class Camera:
                     cv2.imshow(selector_window_name, frame)
                 except cv2.error:
                     print("Camera failed to load! Camera number upper limit:", current_num)
-                    current_capture.release()
-                    del Camera.captures[current_num]
+                    if current_num in Camera.captures:
+                        current_capture.release()
+                        del Camera.captures[current_num]
                     current_num -= 1
                     Camera.max_cap_num = current_num
                     current_capture = self.load_capture(current_num)
@@ -242,7 +258,11 @@ class Camera:
         raise Exception("launch_camera or launch_video not called!")
 
     def get_frame_camera(self, timestamp=None):
+        if not self.enabled:
+            return 0
         success, self.frame = self.capture.read()
+        if not success:
+            return None
         if self.resize_frame and self.frame.shape[0:2] != (self.height, self.width):
             self.frame = cv2.resize(self.frame, (self.width, self.height))
 
@@ -255,6 +275,8 @@ class Camera:
         return self.frame
 
     def get_frame_video(self, timestamp=None):
+        if not self.enabled:
+            return 0
         if timestamp is not None:
             self.current_time = self.current_pos() * self.length_sec / self.num_frames
             if abs(timestamp - self.current_time) > self.sync_up_error:
@@ -300,8 +322,6 @@ class Camera:
 
             cv2.imshow(self.name, frame)
 
-        return self.key_pressed()
-
     def load_capture(self, arg):
         if arg not in Camera.captures:
             print("Loading capture '%s'..." % arg, end="")
@@ -346,6 +366,8 @@ class Camera:
         self.key_codes[key_num] = value
 
     def key_pressed(self, delay=1):
+        if not self.enabled:
+            return -1
         key = cv2.waitKey(delay)
         if key in self.key_codes:
             return self.key_codes[key]

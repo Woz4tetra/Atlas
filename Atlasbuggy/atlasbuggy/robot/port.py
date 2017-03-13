@@ -66,7 +66,11 @@ class RobotSerialPort(Process):
         self.first_packet_ask = "init?"
         self.first_packet_header = "init:"
 
+        self.stop_packet_ask = "stop"
+        self.stop_packet_header = "stopping"
+
         self.protocol_timeout = 3  # seconds
+        self.protocol_packets = [self.whoiam_header, self.first_packet_header, self.stop_packet_header]
 
         # misc. serial protocol
         self.packet_end = "\n"  # what this microcontroller's packets end with
@@ -311,6 +315,10 @@ class RobotSerialPort(Process):
                         # put data found into the queue
                         with lock:
                             for packet in packets:
+                                for header in self.protocol_packets:
+                                    if len(packet) >= len(header) and packet[:len(header)] == header:
+                                        self.debug_print("Misplaced protocol packet:", repr(packet))
+
                                 queue.put((self.whoiam, time.time(), packet))
                                 # start_time isn't used. The main process has its own initial time reference
 
@@ -479,7 +487,7 @@ class RobotSerialPort(Process):
         :return:
         """
         if not self.stop_event.is_set():
-            if self.check_protocol("stop", "stopping") is None:
+            if self.check_protocol(self.stop_packet_ask, self.stop_packet_header) is None:
                 self.debug_print("Failed to send stop flag!!!")
                 return False
             else:

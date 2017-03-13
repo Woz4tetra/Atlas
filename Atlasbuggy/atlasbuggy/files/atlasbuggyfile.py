@@ -160,7 +160,7 @@ class AtlasFile:
 
 
 class AtlasWriteFile(AtlasFile):
-    def __init__(self, input_name, input_dir, compress, file_types, default_dir):
+    def __init__(self, input_name, input_dir, compress, file_types, default_dir, enable_dumping=True):
         """
         :param input_name: name to search for
             can be part of the name. If the desired file is named
@@ -196,6 +196,7 @@ class AtlasWriteFile(AtlasFile):
         self.data_file = None
         self._is_open = False
         self.compress = compress
+        self.enable_dumping = enable_dumping
 
     def open(self):
         self.data_file = open(self.full_path, "w+")
@@ -211,8 +212,9 @@ class AtlasWriteFile(AtlasFile):
         :param s: string
         """
         self.contents += s
-        if len(self.contents) > 0x10000:
-            self._dump_all()
+        if self.enable_dumping:
+            if len(self.contents) > 0x10000:
+                self._dump_all()
 
     def _compress(self):
         """

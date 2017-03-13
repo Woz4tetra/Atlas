@@ -15,6 +15,7 @@ class BaseInterface:
         self.debug_name = debug_name
 
         self.exit_thrown = False
+        self.close_called = False
 
     def run(self, loop=None):
         """

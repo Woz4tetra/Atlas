@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
 parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
+parser.add_argument("-cam", "--nocamera", help="disable cameras", action="store_false")
 args = parser.parse_args()
 
 
@@ -129,7 +130,7 @@ class AutonomousCommandline(cmd.Cmd):
 log_dir = ("data_days", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
-robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass)
+robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass, enable_cameras=args.nocamera)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
 command_line = AutonomousCommandline()
@@ -140,7 +141,7 @@ def run_commands():
 
 
 t = Thread(target=run_commands)
-t.daemon = True
+# t.daemon = True
 t.start()
 
 

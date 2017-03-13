@@ -1,4 +1,5 @@
 import math
+import cv2
 
 from actuators.brakes import Brakes
 from actuators.steering import Steering
@@ -24,7 +25,7 @@ from atlasbuggy.robot import Robot
 class RoboQuasar(Robot):
     def __init__(self, enable_plotting,
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
-                 initial_compass=None, animate=True):
+                 initial_compass=None, animate=True, enable_cameras=True):
 
         self.gps = GPS()
         self.imu = IMU()
@@ -35,7 +36,8 @@ class RoboQuasar(Robot):
         self.underglow = Underglow()
 
         self.logitech = Camera("logitech", show=enable_plotting)
-        self.ps3eye = Camera("ps3eye",  show=enable_plotting)
+        self.ps3eye = Camera("ps3eye", enabled=False, show=enable_plotting)
+        self.enable_cameras = enable_cameras
 
         self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 
@@ -177,7 +179,7 @@ class RoboQuasar(Robot):
 
     def receive_imu(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid() and self.compass_angle is not None:
-            angle, angle_imu_only = self.offset_angle()
+            angle = self.offset_angle()
 
             steering_angle = self.controller.update(
                 self.gps.latitude_deg, self.gps.longitude_deg, angle
@@ -192,7 +194,7 @@ class RoboQuasar(Robot):
             if self.plotter.enabled:
                 if isinstance(self.plotter, LivePlotter):
                     lat2, long2 = self.compass_coords(angle)
-                    lat3, long3 = self.compass_coords(angle_imu_only)
+                    lat3, long3 = self.compass_coords(self.imu_angle)
 
                     self.compass_plot.update([self.gps.latitude_deg, lat2],
                                              [self.gps.longitude_deg, long2])
@@ -247,21 +249,14 @@ class RoboQuasar(Robot):
                                                [self.gps.longitude_deg, self.controller.map[goal_index][1]])
 
     def loop(self):
-        if self.is_paused and isinstance(self.plotter, LivePlotter):
-            status = self.plotter.plot(self.dt())
-            if status is not None:
-                return status
+        # if self.is_paused and isinstance(self.plotter, LivePlotter):
+        #     status = self.plotter.plot(self.dt())
+        #     if status is not None:
+        #         return status
 
-        self.logitech.get_frame(self.dt())
-        self.ps3eye.get_frame(self.dt())
-
-        key = self.logitech.show_frame(self.logitech.frame)
-        if key == 'q':
-            return "done"
-
-        key = self.ps3eye.show_frame(self.ps3eye.frame)
-        if key == 'q':
-            return "done"
+        status = self.cv_pipeline()
+        if status is not None:
+            return status
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
@@ -291,17 +286,29 @@ class RoboQuasar(Robot):
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
 
+    def cv_pipeline(self):
+        if self.enable_cameras:
+            self.logitech.get_frame(self.dt())
+            self.ps3eye.get_frame(self.dt())
+
+            self.logitech.show_frame(self.logitech.frame)
+            self.ps3eye.show_frame(self.ps3eye.frame)
+
+            key = self.logitech.key_pressed()
+            if key == 'q':
+                return "done"
+
     def init_compass(self, packet):
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
         print("initial offset: %0.4f rad" % self.compass_angle)
 
     def offset_angle(self):
         if self.start_angle is None:
-            self.start_angle = -self.imu.euler.z
+            self.start_angle = self.imu.euler.z
 
-        self.imu_angle = (-self.imu.euler.z + self.start_angle - self.compass_angle) % (2 * math.pi)
+        self.imu_angle = (self.imu.euler.z - self.start_angle + self.compass_angle) % (2 * math.pi)
 
-        return -self.imu_angle, -self.imu_angle
+        return self.imu_angle
         # if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
         #     return -self.imu_angle, -self.imu_angle
         # else:
@@ -329,8 +336,8 @@ class RoboQuasar(Robot):
             self.lat_data.pop(0)
 
     def compass_coords(self, angle, length=0.0003):
-        lat2 = length * math.sin(angle) + self.gps.latitude_deg
-        long2 = length * math.cos(angle) + self.gps.longitude_deg
+        lat2 = length * math.sin(-angle) + self.gps.latitude_deg
+        long2 = length * math.cos(-angle) + self.gps.longitude_deg
         return lat2, long2
 
     def key_press(self, event):
@@ -348,8 +355,9 @@ class RoboQuasar(Robot):
             print("!!EMERGENCY BRAKE!!")
 
         self.plotter.close()
-        self.logitech.close()
-        self.ps3eye.close()
+        if self.enable_cameras:
+            self.logitech.close()
+            self.ps3eye.close()
         print("Ran for %0.4fs" % self.dt())
 
 
@@ -381,6 +389,9 @@ map_sets = {
 }
 
 file_sets = {
+    "data day 10"       : (
+        ("16;31", "data_days/2017_Mar_13"),
+    ),
     "data day 9"        : (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1

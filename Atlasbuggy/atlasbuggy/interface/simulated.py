@@ -32,7 +32,6 @@ class RobotSimulator(BaseInterface):
 
         self.robot.parser = self.parser
 
-        self.close_called = False
         self.current_index = 0
 
     def _start(self):
@@ -84,8 +83,8 @@ class RobotSimulator(BaseInterface):
     def _deliver_packet(self, timestamp, whoiam, packet, packet_type):
         """
         Deliver packet to the corresponding robot object
-        
-        :param timestamp: time received since start of the program 
+
+        :param timestamp: time received since start of the program
         :param whoiam: whoiam ID of the packet
         :param packet: a string containing the received packet
         :param packet_type: packet types: object, command, user, error, debug
