@@ -3,45 +3,38 @@ from atlasbuggy.interface import RobotRunner
 from atlasbuggy.robot import Robot
 from atlasbuggy.vision.camera import Camera
 import time
+import cv2
 
 from multiprocessing import Process, Queue, Lock, Event
 
 
 class Pipeline(Process):
     def __init__(self):
-        self.camera = Camera("pipeline")
-        self.camera.launch_camera(
-            "pipeline", ".", False, capture_number=0
-        )
-
-        self.pipeline_queue = Queue()
+        self.frames_queue = Queue()
+        self.results_queue = Queue()
         self.pipeline_lock = Lock()
         self.exit_event = Event()
         self.exit_lock = Lock()
+        self.capture = cv2.VideoCapture(1)
 
         super(Pipeline, self).__init__(target=self.update)
 
     def update(self):
         while True:
-            print("something 1")
+            success, frame = self.capture.read()
             with self.exit_lock:
-                print("something 2")
                 if self.exit_event.is_set():
                     break
-                print("something 3")
 
-            print("something 4")
             with self.pipeline_lock:
-                print("something 5")
-                self.camera.get_frame()
-                print("something 6")
-                self.pipeline_queue.put(self.camera.frame)
-                print("something 7")
+                self.results_queue.put(self.pipeline(frame))
 
-    def show_frame(self):
+    def pipeline(self, frame):
+        return cv2.medianBlur(frame, 111)
+
+    def put(self, frame):
         with self.pipeline_lock:
-            while not self.pipeline_queue.empty():
-                self.camera.show_frame(self.pipeline_queue.get())
+            self.frames_queue.put(frame)
 
     def close(self):
         with self.exit_lock:
@@ -52,7 +45,6 @@ class CaptureTester(Robot):
     def __init__(self, enable_recording):
         super(CaptureTester, self).__init__()
         self.logitech = Camera("logitech", width=300, height=200)
-        self.pipeline = Pipeline(self.logitech)
         self.ps3eye = Camera("ps3eye")
 
         self.start_time = time.time()
@@ -80,11 +72,9 @@ class CaptureTester(Robot):
             self.logitech.launch_video(logitech_name, directory)
             self.ps3eye.launch_video(ps3eye_name, directory)
 
-        self.pipeline.start()
         self.start_time = time.time()
 
     def loop(self):
-        self.pipeline.show_frame()
         if self.logitech.get_frame(self.dt()) is None:
             return "exit"
 
@@ -105,30 +95,46 @@ class CaptureTester(Robot):
 
 
 class PipelineTest:
-    def __init__(self):
+    def __init__(self, use_pipeline):
+        self.use_pipeline = use_pipeline
         self.pipeline = Pipeline()
 
-        self.pipeline.start()
+        self.mac_cam = Camera("mac")
+
+        if self.use_pipeline:
+            self.pipeline.start()
+        else:
+            self.mac_cam.launch_camera(None, None, False, 0)
 
     def show(self):
-        self.pipeline.show_frame()
+        if self.use_pipeline:
+            # self.pipeline.put(self.mac_cam.get_frame())
+            with self.pipeline.pipeline_lock:
+                if not self.pipeline.results_queue.empty():
+                    cv2.imshow("pipeline", self.pipeline.results_queue.get())
+                    # self.mac_cam.show_frame(frame)
+
+        else:
+            frame = self.mac_cam.get_frame()
+            self.mac_cam.show_frame(cv2.medianBlur(frame, 111))
 
 
-# def run(live):
-#     video_tester = CaptureTester(False)
-#
-#     if live:
-#         runner = RobotRunner(video_tester, log_data=False)
-#         runner.run()
-#     else:
-#         simulator = RobotSimulator("18;54", "2017_Mar_12", video_tester)
-#         simulator.run()
-# run(True)
+def run(live):
+    video_tester = CaptureTester(False)
+
+    if live:
+        runner = RobotRunner(video_tester, log_data=False)
+        runner.run()
+    else:
+        simulator = RobotSimulator("18;54", "2017_Mar_12", video_tester)
+        simulator.run()
+
 
 def pipeline():
-    test = PipelineTest()
+    test = PipelineTest(True)
     while True:
         test.show()
 
 
+# run(True)
 pipeline()

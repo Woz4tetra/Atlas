@@ -83,8 +83,8 @@ class Camera:
                 return "exit"
             self.capture = capture
         else:
-            self.load_capture(capture_number)
-            self.capture = success, frame = self.capture.read()
+            self.capture = self.load_capture(capture_number)
+            success, frame = self.capture.read()
             height, width = frame.shape[0:2]
 
         if self.height is not None:
@@ -177,8 +177,8 @@ class Camera:
 
         while selected_capture is None:
             key = self.key_pressed()
-            if key != -1:
-                print("pressed", repr(key))
+            # if key != -1:
+            #     print("pressed", repr(key))
 
             if key == "left":
                 current_num -= 1
@@ -216,6 +216,7 @@ class Camera:
             elif key == "\n" or key == "\r":
                 selected_capture = current_capture
                 Camera.used_captures.add(current_num)
+                print("Using capture #%s for %s" % (current_num, self.name))
 
             elif key == 'q':
                 selected_capture = None

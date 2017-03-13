@@ -34,8 +34,10 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        self.logitech = Camera("logitech", width=480, height=320, show=enable_plotting)
-        self.ps3eye = Camera("ps3eye", width=480, height=320, show=enable_plotting)
+        self.logitech = Camera("logitech", show=enable_plotting)
+        self.ps3eye = Camera("ps3eye",  show=enable_plotting)
+
+        self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 
         self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
 
@@ -48,11 +50,9 @@ class RoboQuasar(Robot):
 
         self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
 
-        self.init_plots(
-            animate, enable_plotting, initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir
-        )
+        self.init_plots(animate, enable_plotting)
 
-    def init_plots(self, animate, enable_plotting, initial_compass,
+    def init_controller(self, initial_compass,
                    checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
@@ -77,6 +77,7 @@ class RoboQuasar(Robot):
         self.bearing_avg_len = 4
         self.imu_angle_weight = 0.65
 
+    def init_plots(self, animate, enable_plotting):
         self.gps_plot = RobotPlot("gps", color="red")
         self.checkpoint_plot = RobotPlot("checkpoint", color="green", marker='.', linestyle='', markersize=8)
         self.map_plot = RobotPlot("map", color="purple")
@@ -254,7 +255,7 @@ class RoboQuasar(Robot):
         self.logitech.get_frame(self.dt())
         self.ps3eye.get_frame(self.dt())
 
-        key = self.logitech.show_frame()
+        key = self.logitech.show_frame(self.logitech.frame)
         if key == 'q':
             return "done"
 
@@ -347,6 +348,8 @@ class RoboQuasar(Robot):
             print("!!EMERGENCY BRAKE!!")
 
         self.plotter.close()
+        self.logitech.close()
+        self.ps3eye.close()
         print("Ran for %0.4fs" % self.dt())
 
 
