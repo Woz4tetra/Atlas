@@ -95,6 +95,14 @@ class AutonomousCommandline(cmd.Cmd):
         print()
         return True
 
+    def do_show_cam(self, line):
+        robot.logitech.show = True
+        robot.ps3eye.show = True
+
+    def do_hide_cam(self, line):
+        robot.logitech.show = False
+        robot.ps3eye.show = False
+
     def do_EOF(self, line):
         """
         usage: EOF

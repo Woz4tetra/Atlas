@@ -64,8 +64,8 @@ def run(live):
         runner = RobotRunner(video_tester, log_data=True)
         runner.run()
     else:
-        simulator = RobotSimulator("18;54", "2017_Mar_12", video_tester)
+        simulator = RobotSimulator("19;18;20", "2017_Mar_12", video_tester)
         simulator.run()
 
 
-run(True)
+run(False)
