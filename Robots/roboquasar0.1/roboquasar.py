@@ -134,16 +134,21 @@ class RoboQuasar(Robot):
         logitech_name = "%s%s.avi" % (log_name, self.logitech.name)
         ps3eye_name = "%s%s.avi" % (log_name, self.ps3eye.name)
 
+        if self.logger is None:
+            record = True
+        else:
+            record = self.logger.is_open()
+
         if self.is_live:
             status = self.logitech.launch_camera(
-                logitech_name, directory, self.logger.is_open(),
+                logitech_name, directory, record,
                 capture_number=1
             )
             if status is not None:
                 return status
 
             status = self.ps3eye.launch_camera(
-                ps3eye_name, directory, self.logger.is_open(),
+                ps3eye_name, directory, record,
                 capture_number=2
             )
             if status is not None:
