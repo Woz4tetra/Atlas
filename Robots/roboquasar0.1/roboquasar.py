@@ -1,5 +1,8 @@
 import math
 import cv2
+import numpy as np
+import bisect
+from threading import Thread, Event
 
 from actuators.brakes import Brakes
 from actuators.steering import Steering
@@ -35,9 +38,9 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        self.logitech = Camera("logitech", show=enable_plotting)
+        self.logitech = Camera("logitech", enabled=enable_cameras, show=enable_plotting)
         self.ps3eye = Camera("ps3eye", enabled=False, show=enable_plotting)
-        self.enable_cameras = enable_cameras
+        self.pipeline = Pipeline(self.logitech)
 
         self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 
@@ -55,7 +58,7 @@ class RoboQuasar(Robot):
         self.init_plots(animate, enable_plotting)
 
     def init_controller(self, initial_compass,
-                   checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
+                        checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
         self.outer_map = MapFile(outer_map_name, map_dir)
@@ -123,9 +126,13 @@ class RoboQuasar(Robot):
         self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
 
     def start(self):
-        logitech_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.logitech.name)
-        ps3eye_name = "%s%s.avi" % (self.get_path_info("file name no extension"), self.ps3eye.name)
-        directory = self.get_path_info("input dir")
+        self.open_cameras(self.get_path_info("file name no extension"), self.get_path_info("input dir"))
+
+        self.pipeline.start()
+
+    def open_cameras(self, log_name, directory):
+        logitech_name = "%s%s.avi" % (log_name, self.logitech.name)
+        ps3eye_name = "%s%s.avi" % (log_name, self.ps3eye.name)
 
         if self.is_live:
             status = self.logitech.launch_camera(
@@ -142,7 +149,7 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
         else:
-            self.logitech.launch_video(logitech_name, directory)
+            self.logitech.launch_video(logitech_name, directory, start_frame=3000)
             self.ps3eye.launch_video(ps3eye_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
@@ -226,6 +233,8 @@ class RoboQuasar(Robot):
                         [self.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
 
     def received(self, timestamp, whoiam, packet, packet_type):
+        self.pipeline.update_time(self.dt())
+
         if self.did_receive("initial compass"):
             self.init_compass(packet)
             print("compass value:", packet)
@@ -253,10 +262,6 @@ class RoboQuasar(Robot):
         #     status = self.plotter.plot(self.dt())
         #     if status is not None:
         #         return status
-
-        status = self.cv_pipeline()
-        if status is not None:
-            return status
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
@@ -286,19 +291,8 @@ class RoboQuasar(Robot):
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
 
-    def cv_pipeline(self):
-        if self.enable_cameras:
-            self.logitech.get_frame(self.dt())
-            self.ps3eye.get_frame(self.dt())
-
-            self.logitech.show_frame(self.logitech.frame)
-            self.ps3eye.show_frame(self.ps3eye.frame)
-
-            key = self.logitech.key_pressed()
-            if key == 'q':
-                return "done"
-
     def init_compass(self, packet):
+        self.record("initial compass", "%s" % packet)
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
         print("initial offset: %0.4f rad" % self.compass_angle)
 
@@ -355,10 +349,109 @@ class RoboQuasar(Robot):
             print("!!EMERGENCY BRAKE!!")
 
         self.plotter.close()
-        if self.enable_cameras:
-            self.logitech.close()
-            self.ps3eye.close()
+
+        self.logitech.close()
+        self.ps3eye.close()
+
+        self.pipeline.close()
         print("Ran for %0.4fs" % self.dt())
+
+
+class Pipeline(Thread):
+    def __init__(self, camera):
+        self.camera = camera
+        self.status = None
+        self.timestamp = None
+        self.exit_event = Event()
+
+        super(Pipeline, self).__init__(target=self.run)
+
+    def update_time(self, timestamp):
+        self.timestamp = timestamp
+
+    def run(self):
+        while not self.exit_event.is_set():
+            if self.camera.get_frame(self.timestamp) is None:
+                self.status = "exit"
+                return
+
+            # frame, lines = self.hough_detector(self.camera.frame)
+            frame = self.threshold(self.camera.frame)
+            contours = self.get_contours(frame, 0.005)[-1:]
+            frame = self.draw_contours(self.camera.frame, contours)
+            self.camera.show_frame(frame)
+
+            key = self.camera.key_pressed()
+            if key == 'q':
+                status = "done"
+                return
+
+    def hough_detector(self, input_frame):
+        frame = cv2.medianBlur(input_frame, 11)
+
+        frame = cv2.Canny(frame, 1, 100)
+        lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
+                               threshold=100,
+                               min_theta=-70 * np.pi / 180,
+                               max_theta=70 * np.pi / 180)
+        self.draw_lines(input_frame, lines)
+        return input_frame, lines
+
+    def threshold(self, input_frame):
+        frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
+        frame = cv2.medianBlur(frame, 11)
+        frame = cv2.equalizeHist(frame)
+
+        thresh_val, frame = cv2.threshold(frame, 0, 255, cv2.THRESH_OTSU)
+        # thresh_val, frame = cv2.threshold(frame, 100, 255, cv2.THRESH_BINARY)
+        return frame
+
+    def draw_contours(self, frame, contours):
+        return cv2.drawContours(frame.copy(), contours, -1, (255, 255, 255), 3)
+
+    def get_contours(self, binary, epsilon=None):
+        """
+        Find the contours of an image and return an array of them sorted by increasing perimeter size.
+
+        :param binary: The binary image that contours are to be calculated
+        :param epsilon: If specified the approxPolyDP algorithm will be applied to the result.
+                        Recommended value is 0.001
+        :return: A 2D numpy array of the contours
+        """
+        binary, contours, hierarchy = cv2.findContours(binary.copy(), cv2.RETR_TREE,
+                                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        sig_contours = []
+        perimeters = []
+
+        for contour in contours:
+            perimeter = cv2.arcLength(contour, closed=False)
+            index = bisect.bisect(perimeters, perimeter)
+            if epsilon is not None:
+                approx = cv2.approxPolyDP(contour, epsilon * perimeter, False)
+                sig_contours.insert(index, approx)
+            else:
+                sig_contours.insert(index, contour)
+            perimeters.insert(index, perimeter)
+
+        return sig_contours
+
+    def draw_lines(self, frame, lines):
+        if lines is not None:
+            for line in lines:
+                rho, theta = line[0][0], line[0][1]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a * rho
+                y0 = b * rho
+                x1 = int(x0 + 1000 * -b)
+                y1 = int(y0 + 1000 * a)
+                x2 = int(x0 - 1000 * -b)
+                y2 = int(y0 - 1000 * a)
+                cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 0), 2)
+
+    def close(self):
+        self.exit_event.set()
 
 
 map_sets = {
@@ -368,19 +461,19 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3" : (
+    "cut 3": (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2" : (
+    "cut 2": (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy" : (
+    "buggy": (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
@@ -389,10 +482,11 @@ map_sets = {
 }
 
 file_sets = {
-    "data day 10"       : (
+    "data day 10": (
+        ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
     ),
-    "data day 9"        : (
+    "data day 9": (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -408,7 +502,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8"        : (
+    "data day 8": (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -416,7 +510,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7"        : (
+    "data day 7": (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -430,12 +524,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6"        : (
+    "data day 6": (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5"        : (
+    "data day 5": (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -443,45 +537,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4"        : (
+    "data day 4": (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3"        : (
+    "data day 3": (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield"        : (
+    "trackfield": (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1"       : (
+    "rolls day 1": (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2"       : (
+    "rolls day 2": (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3"       : (
+    "rolls day 3": (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test"    : (
+    "first cut test": (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data"          : (
+    "bad data": (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out

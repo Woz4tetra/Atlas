@@ -128,10 +128,9 @@ class Camera:
         self.get_frame = self.get_frame_video
 
         if not os.path.isfile(self.full_path):
+            print("Warning: video not found. Disabling camera (%s)" % self.name)
             self.enabled = False
             return None
-
-        print(self.enabled, self.name, self.full_path)
 
         if not self.enabled:
             return None
@@ -192,8 +191,6 @@ class Camera:
 
         while selected_capture is None:
             key = self.key_pressed()
-            # if key != -1:
-            #     print("pressed", repr(key))
 
             if key == "left":
                 current_num -= 1
