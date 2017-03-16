@@ -163,6 +163,7 @@ class Camera:
 
         if start_frame > 0:
             self.set_frame_pos(start_frame)
+            print("Starting at frame %s of %s" % (self.current_pos(), self.num_frames))
 
     def launch_selector(self):
         selector_window_name = "Select camera for: " + self.name

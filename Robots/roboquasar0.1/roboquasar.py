@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import bisect
 from threading import Thread, Event
+import time
 
 from actuators.brakes import Brakes
 from actuators.steering import Steering
@@ -154,7 +155,7 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
         else:
-            self.logitech.launch_video(logitech_name, directory, start_frame=3000)
+            self.logitech.launch_video(logitech_name, directory, start_frame=1800)
             self.ps3eye.launch_video(ps3eye_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
@@ -267,6 +268,8 @@ class RoboQuasar(Robot):
         #     status = self.plotter.plot(self.dt())
         #     if status is not None:
         #         return status
+        if self.pipeline.status is not None:
+            return self.pipeline.status
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
@@ -368,28 +371,107 @@ class Pipeline(Thread):
         self.status = None
         self.timestamp = None
         self.exit_event = Event()
+        self._updated = False
+        self.frame = None
+        self.paused = False
 
         super(Pipeline, self).__init__(target=self.run)
 
     def update_time(self, timestamp):
         self.timestamp = timestamp
 
+    def did_update(self):
+        if self._updated:
+            self._updated = False
+            return True
+        else:
+            return False
+
     def run(self):
-        while not self.exit_event.is_set():
-            if self.camera.get_frame(self.timestamp) is None:
-                self.status = "exit"
-                return
+        thread_error = None
+        try:
+            while not self.exit_event.is_set():
+                if not self.paused:
+                    if self.camera.get_frame(self.timestamp) is None:
+                        self.status = "exit"
+                        return
 
-            # frame, lines = self.hough_detector(self.camera.frame)
-            frame = self.threshold(self.camera.frame)
-            contours = self.get_contours(frame, 0.005)[-1:]
-            frame = self.draw_contours(self.camera.frame, contours)
-            self.camera.show_frame(frame)
+                    frame = self.kernel_threshold(self.camera.frame)
+                    # frame, lines = self.hough_detector(self.camera.frame)
+                    # frame = self.threshold(self.camera.frame)
+                    # frame = self.sobel_filter(self.camera.frame)
 
-            key = self.camera.key_pressed()
-            if key == 'q':
-                status = "done"
-                return
+                    contours = self.get_contours(frame, 0.025)[-2:]
+                    frame = self.draw_contours(self.camera.frame, contours)
+
+                    height, width = self.camera.frame.shape[0:2]
+                    avg_color_top = self.average_color(frame[:height / 2])
+                    avg_color_bot = self.average_color(frame[height / 2:])
+
+                    frame[0:height // 8, 0:width // 4, :] = avg_color_top
+                    frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
+                    frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN, 1,
+                                        (255, 255, 255))
+                    frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN, 1,
+                                        (255, 255, 255))
+
+                    self.camera.show_frame(frame)
+
+                    self._updated = True
+                key = self.camera.key_pressed()
+                if key == 'q':
+                    self.close()
+                elif key == ' ':
+                    self.paused = not self.paused
+
+
+        except BaseException as error:
+            self.status = "error"
+            thread_error = error
+
+        if thread_error is not None:
+            raise thread_error
+
+    def average_color(self, frame):
+        avg_color = np.uint8(np.average(np.average(frame, axis=0), axis=0))
+        return avg_color
+
+    def kernel_threshold(self, frame):
+        frame = cv2.medianBlur(frame, 3)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+        # noise removal
+        kernel = np.ones((3, 3), np.uint8)
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+
+        # sure background area
+        # sure_bg = cv2.dilate(opening, kernel, iterations=3)
+
+        # Finding sure foreground area
+        # dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+        # ret, sure_fg = cv2.threshold(dist_transform, 0.1 * dist_transform.max(), 255, 0)
+
+        # Finding unknown region
+        # sure_fg = np.uint8(sure_fg)
+        # unknown = cv2.subtract(sure_bg, sure_fg)
+
+        # Marker labelling
+        # ret, markers = cv2.connectedComponents(sure_fg)
+        #
+        # # Add one to all labels so that sure background is not 0, but 1
+        # markers = markers + 1
+        #
+        # # Now, mark the region of unknown with zero
+        # markers[unknown == 255] = 0
+        #
+        # markers = cv2.watershed(self.camera.frame, markers)
+        # # self.camera.frame[markers == -1] = [255, 0, 0]
+        #
+        # blank = np.ones(self.camera.frame.shape[0:2], dtype=np.uint8) * 255
+        # blank[markers == -1] = 0
+
+        return opening
 
     def hough_detector(self, input_frame):
         frame = cv2.medianBlur(input_frame, 11)
@@ -402,6 +484,16 @@ class Pipeline(Thread):
         self.draw_lines(input_frame, lines)
         return input_frame, lines
 
+    def sobel_filter(self, frame):
+        # frame = cv2.Laplacian(frame, cv2.CV_64F, ksize=3)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = cv2.medianBlur(frame, 3)
+        frame = cv2.Sobel(frame, cv2.CV_64F, 0, 1, ksize=3)
+
+        frame = np.absolute(frame)
+        frame = np.uint8(frame)
+        return frame
+
     def threshold(self, input_frame):
         frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
         frame = cv2.medianBlur(frame, 11)
@@ -412,9 +504,9 @@ class Pipeline(Thread):
         return frame
 
     def draw_contours(self, frame, contours):
-        return cv2.drawContours(frame.copy(), contours, -1, (255, 255, 255), 3)
+        return cv2.drawContours(frame.copy(), contours, -1, (0, 0, 255), 3)
 
-    def get_contours(self, binary, epsilon=None):
+    def get_contours(self, binary, epsilon=None, num_contours=None):
         """
         Find the contours of an image and return an array of them sorted by increasing perimeter size.
 
@@ -439,7 +531,10 @@ class Pipeline(Thread):
                 sig_contours.insert(index, contour)
             perimeters.insert(index, perimeter)
 
-        return sig_contours
+        if num_contours is None:
+            return sig_contours
+        else:
+            return sig_contours[-num_contours:]
 
     def draw_lines(self, frame, lines):
         if lines is not None:
@@ -457,6 +552,7 @@ class Pipeline(Thread):
 
     def close(self):
         self.exit_event.set()
+        self.status = "done"
 
 
 map_sets = {
@@ -466,19 +562,19 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3": (
+    "cut 3" : (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2": (
+    "cut 2" : (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy": (
+    "buggy" : (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
@@ -487,11 +583,11 @@ map_sets = {
 }
 
 file_sets = {
-    "data day 10": (
+    "data day 10"       : (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
     ),
-    "data day 9": (
+    "data day 9"        : (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -507,7 +603,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8": (
+    "data day 8"        : (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -515,7 +611,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7": (
+    "data day 7"        : (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -529,12 +625,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6": (
+    "data day 6"        : (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5": (
+    "data day 5"        : (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -542,45 +638,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4": (
+    "data day 4"        : (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3": (
+    "data day 3"        : (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield": (
+    "trackfield"        : (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1": (
+    "rolls day 1"       : (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2": (
+    "rolls day 2"       : (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3": (
+    "rolls day 3"       : (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test": (
+    "first cut test"    : (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data": (
+    "bad data"          : (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
