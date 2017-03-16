@@ -135,6 +135,7 @@ class Camera:
         if not self.enabled:
             return None
 
+        print("Using video:", self.full_path)
         self.capture = cv2.VideoCapture(self.full_path)
         self.fps = self.capture.get(cv2.CAP_PROP_FPS)
         self.num_frames = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
