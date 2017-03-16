@@ -39,9 +39,9 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        self.logitech = Camera("logitech", enabled=enable_cameras, show=enable_plotting)
-        self.ps3eye = Camera("ps3eye", enabled=False, show=enable_plotting)
-        self.pipeline = Pipeline(self.logitech)
+        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=enable_plotting)
+        self.right_camera = Camera("rightcam", enabled=False, show=enable_plotting)
+        self.pipeline = Pipeline(self.left_camera)
 
         self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 
@@ -127,13 +127,15 @@ class RoboQuasar(Robot):
         self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
 
     def start(self):
-        self.open_cameras(self.get_path_info("file name no extension"), self.get_path_info("input dir"))
+        file_name = self.get_path_info("file name no extension").replace(";", "_")
+        directory = self.get_path_info("input dir")
+        self.open_cameras(file_name, directory)
 
         self.pipeline.start()
 
     def open_cameras(self, log_name, directory):
-        logitech_name = "%s%s.avi" % (log_name, self.logitech.name)
-        ps3eye_name = "%s%s.avi" % (log_name, self.ps3eye.name)
+        logitech_name = "%s%s.avi" % (log_name, self.left_camera.name)
+        ps3eye_name = "%s%s.avi" % (log_name, self.right_camera.name)
 
         if self.logger is None:
             record = True
@@ -141,22 +143,22 @@ class RoboQuasar(Robot):
             record = self.logger.is_open()
 
         if self.is_live:
-            status = self.logitech.launch_camera(
+            status = self.left_camera.launch_camera(
                 logitech_name, directory, record,
                 capture_number=1
             )
             if status is not None:
                 return status
 
-            status = self.ps3eye.launch_camera(
+            status = self.right_camera.launch_camera(
                 ps3eye_name, directory, record,
                 capture_number=2
             )
             if status is not None:
                 return status
         else:
-            self.logitech.launch_video(logitech_name, directory, start_frame=1800)
-            self.ps3eye.launch_video(ps3eye_name, directory)
+            self.left_camera.launch_video(logitech_name, directory, start_frame=200)
+            self.right_camera.launch_video(ps3eye_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
@@ -358,8 +360,8 @@ class RoboQuasar(Robot):
 
         self.plotter.close()
 
-        self.logitech.close()
-        self.ps3eye.close()
+        self.left_camera.close()
+        self.right_camera.close()
 
         self.pipeline.close()
         print("Ran for %0.4fs" % self.dt())
@@ -401,18 +403,22 @@ class Pipeline(Thread):
                     # frame = self.threshold(self.camera.frame)
                     # frame = self.sobel_filter(self.camera.frame)
 
-                    contours = self.get_contours(frame, 0.025)[-2:]
+                    contours, perimeters = self.get_contours(frame, 0.025, 2)
                     frame = self.draw_contours(self.camera.frame, contours)
 
+                    frame, results = self.get_pavement_edge(perimeters, contours, frame)
+
                     height, width = self.camera.frame.shape[0:2]
-                    avg_color_top = self.average_color(frame[:height / 2])
-                    avg_color_bot = self.average_color(frame[height / 2:])
+                    avg_color_top = self.average_color(frame[:height // 2])
+                    avg_color_bot = self.average_color(frame[height // 2:])
 
                     frame[0:height // 8, 0:width // 4, :] = avg_color_top
                     frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
-                    frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN, 1,
+                    frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
+                                        1,
                                         (255, 255, 255))
-                    frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN, 1,
+                    frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
+                                        1,
                                         (255, 255, 255))
 
                     self.camera.show_frame(frame)
@@ -424,7 +430,6 @@ class Pipeline(Thread):
                 elif key == ' ':
                     self.paused = not self.paused
 
-
         except BaseException as error:
             self.status = "error"
             thread_error = error
@@ -432,18 +437,31 @@ class Pipeline(Thread):
         if thread_error is not None:
             raise thread_error
 
+    def get_pavement_edge(self, perimeters, contours, frame):
+        results = []
+        if perimeters[-1] > 2000:
+            contour = contours[-1]
+            for index in range(1, len(contour)):
+                point1 = contour[index - 1][0]
+                point2 = contour[index][0]
+                diff = point2 - point1
+                angle = np.arctan2(diff[0], diff[1])
+                if -np.pi / 2 - 0.5 < angle < -np.pi / 2 + 0.5:
+                    frame = cv2.line(frame, tuple(point1.tolist()), tuple(point2.tolist()), (50, 200, 0), thickness=10)
+                    results.append((angle, point1, point2))
+        return frame, results
+
     def average_color(self, frame):
         avg_color = np.uint8(np.average(np.average(frame, axis=0), axis=0))
         return avg_color
 
     def kernel_threshold(self, frame):
-        frame = cv2.medianBlur(frame, 3)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        value, frame = cv2.threshold(frame, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
         # noise removal
         kernel = np.ones((3, 3), np.uint8)
-        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+        opening = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel, iterations=2)
 
         # sure background area
         # sure_bg = cv2.dilate(opening, kernel, iterations=3)
@@ -507,14 +525,6 @@ class Pipeline(Thread):
         return cv2.drawContours(frame.copy(), contours, -1, (0, 0, 255), 3)
 
     def get_contours(self, binary, epsilon=None, num_contours=None):
-        """
-        Find the contours of an image and return an array of them sorted by increasing perimeter size.
-
-        :param binary: The binary image that contours are to be calculated
-        :param epsilon: If specified the approxPolyDP algorithm will be applied to the result.
-                        Recommended value is 0.001
-        :return: A 2D numpy array of the contours
-        """
         binary, contours, hierarchy = cv2.findContours(binary.copy(), cv2.RETR_TREE,
                                                        cv2.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
@@ -532,9 +542,9 @@ class Pipeline(Thread):
             perimeters.insert(index, perimeter)
 
         if num_contours is None:
-            return sig_contours
+            return sig_contours, perimeters
         else:
-            return sig_contours[-num_contours:]
+            return sig_contours[-num_contours:], perimeters[-num_contours:]
 
     def draw_lines(self, frame, lines):
         if lines is not None:

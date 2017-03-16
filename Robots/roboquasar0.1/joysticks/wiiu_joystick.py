@@ -3,7 +3,7 @@ if __name__ == '__main__':
 
     sys.path.insert("../")
 
-from atlasbuggy.buggyjoystick import BuggyJoystick, get_platform
+from atlasbuggy.joysticks.buggyjoystick import BuggyJoystick, get_platform
 
 
 class WiiUJoystick(BuggyJoystick):

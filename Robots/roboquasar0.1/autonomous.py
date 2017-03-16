@@ -97,12 +97,12 @@ class AutonomousCommandline(cmd.Cmd):
         return True
 
     def do_show_cam(self, line):
-        robot.logitech.show = True
-        robot.ps3eye.show = True
+        robot.left_camera.show = True
+        robot.right_camera.show = True
 
     def do_hide_cam(self, line):
-        robot.logitech.show = False
-        robot.ps3eye.show = False
+        robot.left_camera.show = False
+        robot.right_camera.show = False
 
     def do_EOF(self, line):
         """

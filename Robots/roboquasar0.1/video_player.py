@@ -1,7 +1,6 @@
-from roboquasar import RoboQuasar, file_sets, map_sets
-from atlasbuggy.files.logfile import Parser, Logger
+from roboquasar import RoboQuasar, map_sets
 from atlasbuggy.files.atlasbuggyfile import AtlasFile
-import time
+
 
 def run(record, play):
     assert record != play
@@ -9,7 +8,7 @@ def run(record, play):
     checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
     robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
-    robot.logitech.show = True
+    # robot.left_camera.show = True
 
     file_name = None
     directory = None
@@ -19,19 +18,22 @@ def run(record, play):
         file_name, directory = "18_33_06", "data_days/2017_Mar_14"
         # file_name, directory = "18_36_30", "data_days/2017_Mar_14"
         robot.is_live = False
-
     if record:
-        file_name, directory = None, ("data_days", None)
+        file_name, directory = AtlasFile.format_path_as_time(None, ("data_days", None), "%H_%M_%S", "%Y_%b_%d")
         robot.is_live = True
 
     assert file_name is not None and directory is not None
 
     robot.open_cameras(file_name, directory)
 
-    robot.pipeline.run()
+    try:
+        robot.pipeline.run()
+    except KeyboardInterrupt:
+        pass
 
     print("Closing cameras")
-    robot.logitech.close()
+    robot.left_camera.close()
     robot.pipeline.close()
 
-run(record=False, play=True)
+
+run(record=True, play=False)

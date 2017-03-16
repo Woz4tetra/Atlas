@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, "../")
 
-from atlasbuggy.buggyjoystick import BuggyJoystick
+from atlasbuggy.joysticks.buggyjoystick import BuggyJoystick
 
 
 class Logitech(BuggyJoystick):
