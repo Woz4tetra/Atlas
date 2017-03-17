@@ -1,6 +1,6 @@
 import os
 import threading
-from roboquasar import RoboQuasar, map_sets
+from roboquasar import RoboQuasar, map_sets, video_sets
 from atlasbuggy.files.atlasbuggyfile import AtlasFile
 
 
@@ -42,22 +42,25 @@ def run(record, play):
 
     file_name = None
     directory = None
+    file_format = "mp4"
 
     if play:
         # file_name, directory = file_sets["data day 10"][0]
-        file_name, directory = "17_00_00", "data_days/2017_Mar_16"
-        # file_name, directory = "18_36_30", "data_days/2017_Mar_14"
+        file_name, directory, file_format = video_sets["data day 11"][0]
         robot.is_live = False
+
     if record:
         file_name, directory = AtlasFile.format_path_as_time(None, ("data_days", None), "%H_%M_%S", "%Y_%b_%d")
         robot.is_live = True
 
     assert file_name is not None and directory is not None
 
-    robot.open_cameras(file_name, directory, "mp4")
+    robot.open_cameras(file_name, directory, file_format)
+
+    robot.pipeline.read_thread.start()
 
     try:
-        robot.pipeline.run()
+        robot.pipeline.pipeline()
     except KeyboardInterrupt:
         pass
 
@@ -66,4 +69,4 @@ def run(record, play):
     robot.pipeline.close()
 
 
-run(record=False, play=True)
+run(record=True, play=False)

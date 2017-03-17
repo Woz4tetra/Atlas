@@ -92,6 +92,8 @@ class Camera:
         else:
             self.capture = self.load_capture(capture_number)
             success, frame = self.capture.read()
+            if not success:
+                raise FileNotFoundError("Camera %s failed to load!" % capture_number)
             height, width = frame.shape[0:2]
 
         if self.height is not None:
@@ -274,6 +276,7 @@ class Camera:
         return self.frame
 
     def get_frame_video(self, timestamp=None):
+        # t0 = time.time()
         if not self.enabled:
             return 0
         if timestamp is not None:
@@ -289,7 +292,12 @@ class Camera:
         if self.frame_skip_count > 0:
             self.set_frame_pos(self.current_pos() + self.frame_skip_count)
 
+        # t1 = time.time()
         success, self.frame = self.capture.read()
+        # t2 = time.time()
+        # print(t1 - t0)
+        # print(t2 - t1)
+        # print()
 
         if not success or self.frame is None:
             if self.loop_video:
@@ -357,7 +365,10 @@ class Camera:
             if self.file_name.endswith('avi'):
                 codec = 'MJPG'
             elif self.file_name.endswith('mp4'):
-                codec = 'X264'
+                if get_platform() == 'mac':
+                    codec = 'mp4v'
+                else:
+                    codec = 'X264'
             else:
                 raise ValueError("Invalid file format")
             fourcc = cv2.VideoWriter_fourcc(*codec)

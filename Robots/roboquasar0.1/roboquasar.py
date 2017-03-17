@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import bisect
 from threading import Thread, Event
+from queue import Queue
 import time
 
 from actuators.brakes import Brakes
@@ -129,7 +130,7 @@ class RoboQuasar(Robot):
     def start(self):
         file_name = self.get_path_info("file name no extension").replace(";", "_")
         directory = self.get_path_info("input dir")
-        self.open_cameras(file_name, directory)
+        self.open_cameras(file_name, directory, "mp4")
 
         self.pipeline.start()
 
@@ -145,7 +146,7 @@ class RoboQuasar(Robot):
         if self.is_live:
             status = self.left_camera.launch_camera(
                 logitech_name, directory, record,
-                capture_number=1
+                capture_number=0
             )
             if status is not None:
                 return status
@@ -367,17 +368,26 @@ class RoboQuasar(Robot):
         print("Ran for %0.4fs" % self.dt())
 
 
-class Pipeline(Thread):
-    def __init__(self, camera):
+class Pipeline:
+    def __init__(self, camera, separate_read_thread=True):
         self.camera = camera
         self.status = None
         self.timestamp = None
         self.exit_event = Event()
         self._updated = False
-        self.frame = None
         self.paused = False
 
-        super(Pipeline, self).__init__(target=self.run)
+        self.frame_queue = Queue(maxsize=255)
+
+        self.separate_read_thread = separate_read_thread
+
+        self.pipeline_thread = Thread(target=self.pipeline)
+        self.read_thread = Thread(target=self.read_camera)
+
+    def start(self):
+        if self.separate_read_thread:
+            self.read_thread.start()
+        self.pipeline_thread.start()
 
     def update_time(self, timestamp):
         self.timestamp = timestamp
@@ -389,38 +399,57 @@ class Pipeline(Thread):
         else:
             return False
 
-    def run(self):
+    def read_camera(self):
         thread_error = None
         try:
             while not self.exit_event.is_set():
                 if not self.paused:
                     if self.camera.get_frame(self.timestamp) is None:
                         self.status = "exit"
-                        return
+                        break
+
+                    if not self.frame_queue.full():
+                        self.frame_queue.put(self.camera.frame)
+
+        except BaseException as error:
+            self.status = "error"
+            thread_error = error
+
+        if thread_error is not None:
+            raise thread_error
+
+    def pipeline(self):
+        thread_error = None
+        try:
+            while not self.exit_event.is_set():
+                if not self.paused:
+                    if self.separate_read_thread:
+                        if self.frame_queue.empty():
+                            continue
+                        frame = None
+                        while not self.frame_queue.empty():
+                            frame = self.frame_queue.get()
+                            if frame is None:
+                                self.status = "exit"
+                                break
+                    else:
+                        if self.camera.get_frame(self.timestamp) is None:
+                            self.status = "exit"
+                            break
+
+                        frame = self.camera.frame
+                    frame, lines = self.hough_detector(frame)
 
                     # frame = self.kernel_threshold(self.camera.frame)
-                    # frame, lines = self.hough_detector(self.camera.frame)
-                    # frame = self.threshold(self.camera.frame)
-                    # frame = self.sobel_filter(self.camera.frame)
-
                     # contours, perimeters = self.get_contours(frame, 0.025, 2)
                     # if len(contours) > 0:
                     #     frame = self.draw_contours(self.camera.frame, contours)
                     #
                     #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
                     #
-                    # height, width = self.camera.frame.shape[0:2]
-                    # avg_color_top = self.average_color(frame[:height // 2])
-                    # avg_color_bot = self.average_color(frame[height // 2:])
-                    #
-                    # frame[0:height // 8, 0:width // 4, :] = avg_color_top
-                    # frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
-                    # frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
-                    #                     1, (255, 255, 255))
-                    # frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
-                    #                     1, (255, 255, 255))
+                    # frame = self.average_color(frame)
 
-                    self.camera.show_frame(self.camera.frame)
+                    self.camera.show_frame(frame)
 
                     self._updated = True
                 key = self.camera.key_pressed()
@@ -452,7 +481,17 @@ class Pipeline(Thread):
 
     def average_color(self, frame):
         avg_color = np.uint8(np.average(np.average(frame, axis=0), axis=0))
-        return avg_color
+        height, width = self.camera.frame.shape[0:2]
+        avg_color_top = self.average_color(frame[:height // 2])
+        avg_color_bot = self.average_color(frame[height // 2:])
+
+        frame[0:height // 8, 0:width // 4, :] = avg_color_top
+        frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
+        frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
+                            1, (255, 255, 255))
+        frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
+                            1, (255, 255, 255))
+        return avg_color, frame
 
     def kernel_threshold(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -492,15 +531,16 @@ class Pipeline(Thread):
         # blank = np.ones(self.camera.frame.shape[0:2], dtype=np.uint8) * 255
         # blank[markers == -1] = 0
 
-
     def hough_detector(self, input_frame):
-        frame = cv2.medianBlur(input_frame, 11)
+        # frame = cv2.medianBlur(input_frame, 11)
+        frame = cv2.GaussianBlur(input_frame, (11, 11), 0)
 
         frame = cv2.Canny(frame, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
-                               threshold=100,
-                               min_theta=-70 * np.pi / 180,
-                               max_theta=70 * np.pi / 180)
+                               threshold=125,
+                               # min_theta=-70 * np.pi / 180,
+                               # max_theta=70 * np.pi / 180
+                               )
         self.draw_lines(input_frame, lines)
         return input_frame, lines
 
@@ -694,4 +734,23 @@ file_sets = {
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
         ("18;02", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
         ("18;09", "old_data/2016_Dec_09/bad_data")),  # gps spazzed out
+}
+
+video_sets = {
+
+    "data day 11": (
+        ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
+        ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1
+        ("17_05_21", "data_days/2017_Mar_16", "mp4"),  # 2
+        ("17_06_50", "data_days/2017_Mar_16", "mp4"),  # 3
+        ("17_10_16", "data_days/2017_Mar_16", "mp4"),  # 4
+        ("17_12_45", "data_days/2017_Mar_16", "mp4"),  # 5
+        ("17_14_46", "data_days/2017_Mar_16", "mp4"),  # 6
+        ("17_20_03", "data_days/2017_Mar_16", "mp4"),  # 7
+        ("17_30_23", "data_days/2017_Mar_16", "mp4"),  # 8
+        ("17_32_19", "data_days/2017_Mar_16", "mp4"),  # 9
+        ("18_33_06", "data_days/2017_Mar_14", "avi"),  # 10
+        ("18_34_26", "data_days/2017_Mar_14", "avi"),  # 11
+        ("18_36_30", "data_days/2017_Mar_14", "avi"),  # 12
+    )
 }
