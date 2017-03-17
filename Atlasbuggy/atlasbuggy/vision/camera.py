@@ -354,11 +354,15 @@ class Camera:
 
     def init_recording(self):
         if not self.is_recording:
-            codec = 'MJPG'
+            if self.file_name.endswith('avi'):
+                codec = 'MJPG'
+            elif self.file_name.endswith('mp4'):
+                codec = 'X264'
+            else:
+                raise ValueError("Invalid file format")
             fourcc = cv2.VideoWriter_fourcc(*codec)
             self.video_writer = cv2.VideoWriter()
-            self.video_writer.open(self.full_path, fourcc, self.fps_sum / self.num_frames, (self.width, self.height),
-                                   True)
+            self.video_writer.open(self.full_path, fourcc, self.fps_sum / self.num_frames, (self.width, self.height), True)
             self.is_recording = True
 
     def add_key(self, key_num, value):

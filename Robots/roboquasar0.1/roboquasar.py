@@ -133,9 +133,9 @@ class RoboQuasar(Robot):
 
         self.pipeline.start()
 
-    def open_cameras(self, log_name, directory):
-        logitech_name = "%s%s.avi" % (log_name, self.left_camera.name)
-        ps3eye_name = "%s%s.avi" % (log_name, self.right_camera.name)
+    def open_cameras(self, log_name, directory, file_format):
+        logitech_name = "%s%s.%s" % (log_name, self.left_camera.name, file_format)
+        ps3eye_name = "%s%s.%s" % (log_name, self.right_camera.name, file_format)
 
         if self.logger is None:
             record = True
@@ -157,7 +157,7 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
         else:
-            self.left_camera.launch_video(logitech_name, directory, start_frame=200)
+            self.left_camera.launch_video(logitech_name, directory, start_frame=0)
             self.right_camera.launch_video(ps3eye_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
@@ -398,30 +398,29 @@ class Pipeline(Thread):
                         self.status = "exit"
                         return
 
-                    frame = self.kernel_threshold(self.camera.frame)
+                    # frame = self.kernel_threshold(self.camera.frame)
                     # frame, lines = self.hough_detector(self.camera.frame)
                     # frame = self.threshold(self.camera.frame)
                     # frame = self.sobel_filter(self.camera.frame)
 
-                    contours, perimeters = self.get_contours(frame, 0.025, 2)
-                    frame = self.draw_contours(self.camera.frame, contours)
+                    # contours, perimeters = self.get_contours(frame, 0.025, 2)
+                    # if len(contours) > 0:
+                    #     frame = self.draw_contours(self.camera.frame, contours)
+                    #
+                    #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
+                    #
+                    # height, width = self.camera.frame.shape[0:2]
+                    # avg_color_top = self.average_color(frame[:height // 2])
+                    # avg_color_bot = self.average_color(frame[height // 2:])
+                    #
+                    # frame[0:height // 8, 0:width // 4, :] = avg_color_top
+                    # frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
+                    # frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
+                    #                     1, (255, 255, 255))
+                    # frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
+                    #                     1, (255, 255, 255))
 
-                    frame, results = self.get_pavement_edge(perimeters, contours, frame)
-
-                    height, width = self.camera.frame.shape[0:2]
-                    avg_color_top = self.average_color(frame[:height // 2])
-                    avg_color_bot = self.average_color(frame[height // 2:])
-
-                    frame[0:height // 8, 0:width // 4, :] = avg_color_top
-                    frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
-                    frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
-                                        1,
-                                        (255, 255, 255))
-                    frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
-                                        1,
-                                        (255, 255, 255))
-
-                    self.camera.show_frame(frame)
+                    self.camera.show_frame(self.camera.frame)
 
                     self._updated = True
                 key = self.camera.key_pressed()
@@ -457,6 +456,8 @@ class Pipeline(Thread):
 
     def kernel_threshold(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = cv2.equalizeHist(frame)
+
         value, frame = cv2.threshold(frame, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
         # noise removal
@@ -464,11 +465,13 @@ class Pipeline(Thread):
         opening = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel, iterations=2)
 
         # sure background area
-        # sure_bg = cv2.dilate(opening, kernel, iterations=3)
+        sure_bg = cv2.dilate(opening, kernel, iterations=3)
 
         # Finding sure foreground area
-        # dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-        # ret, sure_fg = cv2.threshold(dist_transform, 0.1 * dist_transform.max(), 255, 0)
+        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+        ret, sure_fg = cv2.threshold(dist_transform, 0.1 * dist_transform.max(), 255, 0)
+
+        return dist_transform
 
         # Finding unknown region
         # sure_fg = np.uint8(sure_fg)
@@ -489,7 +492,6 @@ class Pipeline(Thread):
         # blank = np.ones(self.camera.frame.shape[0:2], dtype=np.uint8) * 255
         # blank[markers == -1] = 0
 
-        return opening
 
     def hough_detector(self, input_frame):
         frame = cv2.medianBlur(input_frame, 11)
