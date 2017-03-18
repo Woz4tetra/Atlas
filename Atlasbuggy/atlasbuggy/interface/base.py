@@ -17,7 +17,7 @@ class BaseInterface:
         self.exit_thrown = False
         self.close_called = False
 
-    def run(self, loop=None):
+    def run(self, loop_fn=None):
         """
         run skeleton for the interface. Calls the interface's wrapper methods:
             _start, _should_run, _update, _loop, _close
@@ -44,8 +44,8 @@ class BaseInterface:
                     return
 
                 try:
-                    if loop is not None:
-                        loop()
+                    if loop_fn is not None:
+                        loop_fn()
                 except BaseException as error:
                     self._debug_print("Closing from external loop")
                     self._close("error")

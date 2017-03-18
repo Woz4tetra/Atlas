@@ -46,7 +46,7 @@ def run(record, play):
 
     if play:
         # file_name, directory = file_sets["data day 10"][0]
-        file_name, directory, file_format = video_sets["data day 11"][0]
+        file_name, directory, file_format = video_sets["data day 11"][7]
         robot.is_live = False
 
     if record:
@@ -57,16 +57,16 @@ def run(record, play):
 
     robot.open_cameras(file_name, directory, file_format)
 
-    robot.pipeline.read_thread.start()
+    # robot.pipeline.read_thread.start()
 
     try:
-        robot.pipeline.pipeline()
+        robot.left_pipeline.run()
     except KeyboardInterrupt:
         pass
 
     print("Closing cameras")
     robot.left_camera.close()
-    robot.pipeline.close()
+    robot.left_pipeline.close()
 
 
-run(record=True, play=False)
+run(record=False, play=True)

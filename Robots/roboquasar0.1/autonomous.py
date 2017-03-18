@@ -87,6 +87,16 @@ class AutonomousCommandline(cmd.Cmd):
         """
         robot.manual_mode = False
 
+    def do_whos_in_control(self):
+        if robot.gps_imu_control_enabled:
+            print("gps & imu")
+        else:
+            if robot.left_pipeline.safety_value > robot.left_pipeline.safety_threshold:
+                print("left", end=" ")
+            if robot.right_pipeline.safety_value > robot.right_pipeline.safety_threshold:
+                print("right", end=" ")
+            print("camera")
+
     def do_q(self, line):
         """
         usage: q

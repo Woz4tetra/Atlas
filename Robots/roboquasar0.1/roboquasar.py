@@ -42,11 +42,13 @@ class RoboQuasar(Robot):
 
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=enable_plotting)
         self.right_camera = Camera("rightcam", enabled=False, show=enable_plotting)
-        self.pipeline = Pipeline(self.left_camera)
+        self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
+        self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
 
         self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
 
         self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
+        self.gps_imu_control_enabled = True
 
         super(RoboQuasar, self).__init__(
             self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
@@ -132,7 +134,8 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
         self.open_cameras(file_name, directory, "mp4")
 
-        self.pipeline.start()
+        self.left_pipeline.start()
+        self.right_pipeline.start()
 
     def open_cameras(self, log_name, directory, file_format):
         logitech_name = "%s%s.%s" % (log_name, self.left_camera.name, file_format)
@@ -146,7 +149,7 @@ class RoboQuasar(Robot):
         if self.is_live:
             status = self.left_camera.launch_camera(
                 logitech_name, directory, record,
-                capture_number=0
+                capture_number=1
             )
             if status is not None:
                 return status
@@ -204,7 +207,7 @@ class RoboQuasar(Robot):
             self.record("steering angle",
                         "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
 
-            if not self.manual_mode:
+            if not self.manual_mode and self.gps_imu_control_enabled:
                 self.steering.set_position(steering_angle)
 
             if self.plotter.enabled:
@@ -242,7 +245,7 @@ class RoboQuasar(Robot):
                         [self.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
 
     def received(self, timestamp, whoiam, packet, packet_type):
-        self.pipeline.update_time(self.dt())
+        self.left_pipeline.update_time(self.dt())
 
         if self.did_receive("initial compass"):
             self.init_compass(packet)
@@ -271,8 +274,28 @@ class RoboQuasar(Robot):
         #     status = self.plotter.plot(self.dt())
         #     if status is not None:
         #         return status
-        if self.pipeline.status is not None:
-            return self.pipeline.status
+        if not self.manual_mode:
+            if self.left_pipeline.did_update():
+                value = self.left_pipeline.safety_value
+                if value > self.left_pipeline.safety_threshold:
+                    self.steering.send_step(self.steering.left_limit * value)
+                    self.gps_imu_control_enabled = False
+                else:
+                    self.gps_imu_control_enabled = True
+
+            if self.right_pipeline.did_update():
+                value = self.right_pipeline.safety_value
+                if value > self.right_pipeline.safety_threshold:
+                    self.steering.send_step(self.steering.right_limit * value)
+                    self.gps_imu_control_enabled = False
+                else:
+                    self.gps_imu_control_enabled = True
+
+            if self.left_pipeline.status is not None:
+                return self.left_pipeline.status
+
+            if self.right_pipeline.status is not None:
+                return self.right_pipeline.status
 
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
@@ -364,7 +387,8 @@ class RoboQuasar(Robot):
         self.left_camera.close()
         self.right_camera.close()
 
-        self.pipeline.close()
+        self.left_pipeline.close()
+        self.right_pipeline.close()
         print("Ran for %0.4fs" % self.dt())
 
 
@@ -376,12 +400,19 @@ class Pipeline:
         self.exit_event = Event()
         self._updated = False
         self.paused = False
+        self.frame = None
+
+        self.safety_threshold = 0.3
+        self.safety_value = 0.0
+        self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
+                              (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193), (160, 109, 193))
+        # self.safety_colors = self.safety_colors[::-1]
 
         self.frame_queue = Queue(maxsize=255)
 
         self.separate_read_thread = separate_read_thread
 
-        self.pipeline_thread = Thread(target=self.pipeline)
+        self.pipeline_thread = Thread(target=self.run)
         self.read_thread = Thread(target=self.read_camera)
 
     def start(self):
@@ -418,7 +449,7 @@ class Pipeline:
         if thread_error is not None:
             raise thread_error
 
-    def pipeline(self):
+    def run(self):
         thread_error = None
         try:
             while not self.exit_event.is_set():
@@ -426,32 +457,24 @@ class Pipeline:
                     if self.separate_read_thread:
                         if self.frame_queue.empty():
                             continue
-                        frame = None
+
                         while not self.frame_queue.empty():
-                            frame = self.frame_queue.get()
-                            if frame is None:
+                            self.frame = self.frame_queue.get()
+                            if self.frame is None:
                                 self.status = "exit"
                                 break
+
+                            self.frame = self.pipeline(self.frame)
                     else:
                         if self.camera.get_frame(self.timestamp) is None:
                             self.status = "exit"
                             break
 
-                        frame = self.camera.frame
-                    frame, lines = self.hough_detector(frame)
+                        self.frame = self.pipeline(self.camera.frame)
 
-                    # frame = self.kernel_threshold(self.camera.frame)
-                    # contours, perimeters = self.get_contours(frame, 0.025, 2)
-                    # if len(contours) > 0:
-                    #     frame = self.draw_contours(self.camera.frame, contours)
-                    #
-                    #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
-                    #
-                    # frame = self.average_color(frame)
-
-                    self.camera.show_frame(frame)
-
+                    self.camera.show_frame(self.frame)
                     self._updated = True
+
                 key = self.camera.key_pressed()
                 if key == 'q':
                     self.close()
@@ -464,6 +487,23 @@ class Pipeline:
 
         if thread_error is not None:
             raise thread_error
+
+    def pipeline(self, frame):
+        frame, lines, self.safety_value = self.hough_detector(frame)
+
+        frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
+        cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+
+        # frame = self.kernel_threshold(self.camera.frame)
+        # contours, perimeters = self.get_contours(frame, 0.025, 2)
+        # if len(contours) > 0:
+        #     frame = self.draw_contours(self.camera.frame, contours)
+        #
+        #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
+        #
+        # frame = self.average_color(frame)
+
+        return frame
 
     def get_pavement_edge(self, perimeters, contours, frame):
         results = []
@@ -538,11 +578,11 @@ class Pipeline:
         frame = cv2.Canny(frame, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
                                threshold=125,
-                               # min_theta=-70 * np.pi / 180,
-                               # max_theta=70 * np.pi / 180
+                               min_theta=80 * np.pi / 180,
+                               max_theta=110 * np.pi / 180
                                )
-        self.draw_lines(input_frame, lines)
-        return input_frame, lines
+        safety_percentage = self.draw_lines(input_frame, lines)
+        return input_frame, lines, safety_percentage
 
     def sobel_filter(self, frame):
         # frame = cv2.Laplacian(frame, cv2.CV_64F, ksize=3)
@@ -588,19 +628,45 @@ class Pipeline:
         else:
             return sig_contours[-num_contours:], perimeters[-num_contours:]
 
-    def draw_lines(self, frame, lines):
+    def draw_lines(self, frame, lines, draw_threshold=30):
+        height, width = frame.shape[0:2]
+
         if lines is not None:
+            counter = 0
+            largest_y = 0
+            largest_coords = None
+
             for line in lines:
                 rho, theta = line[0][0], line[0][1]
                 a = np.cos(theta)
                 b = np.sin(theta)
                 x0 = a * rho
                 y0 = b * rho
+
                 x1 = int(x0 + 1000 * -b)
                 y1 = int(y0 + 1000 * a)
                 x2 = int(x0 - 1000 * -b)
                 y2 = int(y0 - 1000 * a)
-                cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 0), 2)
+
+                y3 = int(y0 - width / 2 * a)
+
+                # if y2 > largest_y:
+                #     largest_y = y2
+                #     largest_coords = (x1, y1), (x2, y2)
+                if y3 > largest_y:
+                    largest_y = y3
+                    largest_coords = (x1, y1), (x2, y2)
+
+                # cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 50), 2)
+                # cv2.circle(frame, (x0, y0), 10, (150, 255, 50), 2)
+                counter += 1
+                if counter > draw_threshold:
+                    break
+
+            if largest_coords is not None:
+                cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+            return largest_y / height
+        return 0.0
 
     def close(self):
         self.exit_event.set()
