@@ -40,6 +40,10 @@ class RoboQuasar(Robot):
         self.brakes = Brakes()
         self.underglow = Underglow()
 
+        super(RoboQuasar, self).__init__(
+            self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
+        )
+
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=enable_plotting)
         self.right_camera = Camera("rightcam", enabled=False, show=enable_plotting)
         self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
@@ -49,10 +53,6 @@ class RoboQuasar(Robot):
 
         self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
         self.gps_imu_control_enabled = True
-
-        super(RoboQuasar, self).__init__(
-            self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
-        )
 
         self.link_object(self.gps, self.receive_gps)
         self.link_object(self.imu, self.receive_imu)
@@ -66,6 +66,7 @@ class RoboQuasar(Robot):
         self.checkpoints = MapFile(checkpoint_map_name, map_dir)
         self.inner_map = MapFile(inner_map_name, map_dir)
         self.outer_map = MapFile(outer_map_name, map_dir)
+        
         self.position_state = ""
         self.prev_pos_state = self.position_state
 
@@ -112,9 +113,11 @@ class RoboQuasar(Robot):
             self.current_pos_dot
         )
 
+        self.imu_plot = RobotPlot("imu data", flat=False)
+
         if animate:
             self.plotter = LivePlotter(
-                1, self.accuracy_check_plot,
+                2, self.accuracy_check_plot, self.imu_plot,
                 matplotlib_events=dict(key_press_event=self.key_press),
                 enabled=enable_plotting
             )
@@ -132,7 +135,7 @@ class RoboQuasar(Robot):
     def start(self):
         file_name = self.get_path_info("file name no extension").replace(";", "_")
         directory = self.get_path_info("input dir")
-        self.open_cameras(file_name, directory, "mp4")
+        self.open_cameras(file_name, directory, "avi")
 
         self.left_pipeline.start()
         self.right_pipeline.start()
@@ -197,6 +200,8 @@ class RoboQuasar(Robot):
                 print("%0.4f: %s" % (self.dt(), self.position_state))
 
     def receive_imu(self, timestamp, packet, packet_type):
+        self.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
+
         if self.gps.is_position_valid() and self.compass_angle is not None:
             angle = self.offset_angle()
 
@@ -270,10 +275,11 @@ class RoboQuasar(Robot):
                                                [self.gps.longitude_deg, self.controller.map[goal_index][1]])
 
     def loop(self):
-        # if self.is_paused and isinstance(self.plotter, LivePlotter):
-        #     status = self.plotter.plot(self.dt())
-        #     if status is not None:
-        #         return status
+        if self.is_paused and isinstance(self.plotter, LivePlotter):
+            status = self.plotter.plot(self.dt())
+            if status is not None:
+                return status
+
         if not self.manual_mode:
             if self.left_pipeline.did_update():
                 value = self.left_pipeline.safety_value
@@ -373,6 +379,8 @@ class RoboQuasar(Robot):
             self.toggle_pause()
             if isinstance(self.plotter, LivePlotter):
                 self.plotter.toggle_pause()
+        elif event.key == "q":
+            self.plotter.close()
 
     def close(self, reason):
         if reason == "done":
@@ -404,6 +412,7 @@ class Pipeline:
 
         self.safety_threshold = 0.3
         self.safety_value = 0.0
+        self.prev_safe_value = 0.0
         self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
                               (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193), (160, 109, 193))
         # self.safety_colors = self.safety_colors[::-1]
@@ -416,9 +425,10 @@ class Pipeline:
         self.read_thread = Thread(target=self.read_camera)
 
     def start(self):
-        if self.separate_read_thread:
-            self.read_thread.start()
-        self.pipeline_thread.start()
+        if self.camera.enabled:
+            if self.separate_read_thread:
+                self.read_thread.start()
+            self.pipeline_thread.start()
 
     def update_time(self, timestamp):
         self.timestamp = timestamp
@@ -489,6 +499,7 @@ class Pipeline:
             raise thread_error
 
     def pipeline(self, frame):
+        self.prev_safe_value = self.safety_value
         frame, lines, self.safety_value = self.hough_detector(frame)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
@@ -701,6 +712,9 @@ map_sets = {
 }
 
 file_sets = {
+    "data day 12": (
+        ("16;36", "data_days/2017_Mar_18"),
+    ),
     "data day 10"       : (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
@@ -709,7 +723,7 @@ file_sets = {
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
-        ("15;27", "data_days/2017_Mar_05"),  # 3, running into the lamppost
+        ("15;27", "data_days/2017_Mar_05"),  # 3, running into the lamp post
         ("15;37", "data_days/2017_Mar_05"),  # 4, !! Weird errors !! not sure what's going on
         ("15;46", "data_days/2017_Mar_05"),  # 5
         ("16;00", "data_days/2017_Mar_05"),  # 6, Sketchy run
@@ -803,7 +817,9 @@ file_sets = {
 }
 
 video_sets = {
-
+    "data day 12": (
+        ("16_36_17", "data_days/2017_Mar_18", "mp4"),
+    ),
     "data day 11": (
         ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
         ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1

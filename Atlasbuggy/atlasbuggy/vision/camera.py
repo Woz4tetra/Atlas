@@ -129,12 +129,12 @@ class Camera:
 
         self.get_frame = self.get_frame_video
 
+        if not self.enabled:
+            return None
+
         if not os.path.isfile(self.full_path):
             print("Warning: video not found. Disabling camera (%s)" % self.name)
             self.enabled = False
-            return None
-
-        if not self.enabled:
             return None
 
         print("Using video:", self.full_path)

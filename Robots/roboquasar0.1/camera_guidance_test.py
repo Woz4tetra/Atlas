@@ -6,6 +6,8 @@ from joysticks.wiiu_joystick import WiiUJoystick
 from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
+from sensors.gps import GPS
+from sensors.imu import IMU
 
 from atlasbuggy.vision.camera import Camera
 from atlasbuggy.robot import Robot
@@ -15,23 +17,26 @@ from roboquasar import Pipeline
 
 class PipelineRobot(Robot):
     def __init__(self):
+        self.gps = GPS()
+        self.imu = IMU()
+
         self.steering = Steering()
         self.brakes = Brakes()
         self.underglow = Underglow()
 
-        self.left_camera = Camera("leftcam", enabled=True, show=True)
-        self.right_camera = Camera("rightcam", enabled=False, show=True)
+        self.left_camera = Camera("leftcam", enabled=True, show=False)
+        self.right_camera = Camera("rightcam", enabled=False, show=False)
         self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
         self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
 
         self.manual_mode = True
 
-        super(PipelineRobot, self).__init__(self.steering, self.brakes, self.underglow)
+        super(PipelineRobot, self).__init__(self.steering, self.brakes, self.underglow, self.imu, self.gps)
 
     def start(self):
         file_name = self.get_path_info("file name no extension").replace(";", "_")
         directory = self.get_path_info("input dir")
-        self.open_cameras(file_name, directory, "mp4")
+        self.open_cameras(file_name, directory, "avi")
 
         self.left_pipeline.start()
         self.right_pipeline.start()
@@ -120,5 +125,5 @@ class PipelineRobot(Robot):
 robot = PipelineRobot()
 
 log_dir = ("data_days", None)
-runner = RobotRunner(robot, WiiUJoystick(), log_data=True, log_dir=log_dir, debug_prints=True)
+runner = RobotRunner(robot, WiiUJoystick(), log_data=False, log_dir=log_dir, debug_prints=False)
 runner.run()

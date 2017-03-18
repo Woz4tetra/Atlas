@@ -87,7 +87,7 @@ class AutonomousCommandline(cmd.Cmd):
         """
         robot.manual_mode = False
 
-    def do_whos_in_control(self):
+    def do_control(self, line):
         if robot.gps_imu_control_enabled:
             print("gps & imu")
         else:

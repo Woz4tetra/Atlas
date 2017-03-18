@@ -11,7 +11,7 @@ import time
 
 number_characters = set(string.digits)
 whitespace_characters = set(string.whitespace)
-compressed_file_type = ".gzip"
+compressed_file_type = "gzip"
 
 
 class AtlasFile:
@@ -122,16 +122,23 @@ class AtlasFile:
             # use the last file
             return files[-1]
         else:
+            result_name = file_name
             for entry in os.listdir(self.directory):
                 for file_type in file_types:
-                    file_name, exact = self.find_match(file_name, entry, file_type)
+                    output, exact = self.find_match(file_name, entry, file_type)
                     if exact:
-                        return file_name
+                        return output
+                    elif output != file_name:
+                        result_name = output
 
-            return file_name
+            return result_name
 
     def find_match(self, file_name, entry, file_type):
-        name_with_ext = file_name + "." + file_type
+        if not file_name.endswith(file_type):
+            name_with_ext = file_name + "." + file_type
+        else:
+            name_with_ext = file_name
+
         # if there is a perfect match, use it
         if name_with_ext == entry:
             return entry, True
