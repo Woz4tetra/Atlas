@@ -1,37 +1,37 @@
 import math
-import cv2
-import numpy as np
-import bisect
-from threading import Thread, Event
-from queue import Queue
-import time
 
-from actuators.brakes import Brakes
-from actuators.steering import Steering
-from actuators.underglow import Underglow
-from sensors.gps import GPS
-from sensors.imu import IMU
-from sensors.lidarturret import LidarTurret
+from algorithms.bozo_controller import BozoController
+from algorithms.bozo_filter import BozoFilter
+from algorithms.kalman.kalman_constants import constants
+from algorithms.kalman.kalman_filter import GrovesKalmanFilter
+from algorithms.pipeline import Pipeline
 
-from algorithms.controls.bozo_controller import BozoController
-
-from atlasbuggy.files.mapfile import MapFile
-from atlasbuggy.vision.camera import Camera
-
-from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
+from atlasbuggy.plotters.plot import RobotPlot
 
 from atlasbuggy.plotters.liveplotter import LivePlotter
 from atlasbuggy.plotters.staticplotter import StaticPlotter
 
 from atlasbuggy.robot import Robot
 
+from atlasbuggy.vision.camera import Camera
+
+from sensors.gps import GPS
+from sensors.imu import IMU
+from sensors.lidarturret import LidarTurret
+
+from actuators.brakes import Brakes
+from actuators.steering import Steering
+from actuators.underglow import Underglow
+
 
 class RoboQuasar(Robot):
     def __init__(self, enable_plotting,
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
-                 initial_compass=None, animate=True, enable_cameras=True):
+                 initial_compass=None, animate=True, enable_cameras=True,
+                 enable_kalman=False):
 
+        # ----- initialize robot objects -----
         self.gps = GPS()
         self.imu = IMU()
         self.turret = LidarTurret(enabled=False)
@@ -44,265 +44,232 @@ class RoboQuasar(Robot):
             self.gps, self.imu, self.turret, self.steering, self.brakes, self.underglow,
         )
 
+        self.manual_mode = True
+
+        # ----- init CV classes ------
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=enable_plotting)
         self.right_camera = Camera("rightcam", enabled=False, show=enable_plotting)
         self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
         self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
 
-        self.init_controller(initial_compass, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
-
-        self.controller = BozoController(self.checkpoints, self.inner_map, self.outer_map, offset=5)
-        self.gps_imu_control_enabled = True
-
-        self.link_object(self.gps, self.receive_gps)
-        self.link_object(self.imu, self.receive_imu)
-
-        self.record("maps", "%s,%s,%s,%s" % (checkpoint_map_name, inner_map_name, outer_map_name, map_dir))
-
-        self.init_plots(animate, enable_plotting)
-
-    def init_controller(self, initial_compass,
-                        checkpoint_map_name, inner_map_name, outer_map_name, map_dir):
-        self.checkpoints = MapFile(checkpoint_map_name, map_dir)
-        self.inner_map = MapFile(inner_map_name, map_dir)
-        self.outer_map = MapFile(outer_map_name, map_dir)
-        
+        # ----- init filters and controllers
+        # position state message (in or out of map)
         self.position_state = ""
         self.prev_pos_state = self.position_state
 
-        self.compass_angle = None
-        self.start_angle = None
+        # init controller
+        self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
+        self.bozo_filter = BozoFilter(initial_compass)
 
-        if initial_compass is not None:
-            self.init_compass(initial_compass)
+        # who's controlling steering? (GPS and IMU or CV)
+        self.gps_imu_control_enabled = True
 
-        self.manual_mode = True
+        self.enable_kalman = enable_kalman
+        self.kalman_filter = None
+        self.imu_t0 = 0.0
+        self.gps_t0 = 0.0
 
-        self.lat_data = []
-        self.long_data = []
-        self.bearing = None
-        self.imu_angle = None
+        # ----- link callbacks -----
+        self.link_object(self.gps, self.receive_gps)
+        self.link_object(self.imu, self.receive_imu)
 
-        self.fast_rotation_threshold = 0.2
-        self.bearing_avg_len = 4
-        self.imu_angle_weight = 0.65
+        # ----- init plots -----
+        self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
+                                                self.controller.map, self.controller.inner_map,
+                                                self.controller.outer_map, self.key_press)
 
-    def init_plots(self, animate, enable_plotting):
-        self.gps_plot = RobotPlot("gps", color="red")
-        self.checkpoint_plot = RobotPlot("checkpoint", color="green", marker='.', linestyle='', markersize=8)
-        self.map_plot = RobotPlot("map", color="purple")
-        self.inner_map_plot = RobotPlot("inner map")
-        self.outer_map_plot = RobotPlot("outer map")
-        self.compass_plot = RobotPlot("compass", color="purple")
-        self.compass_plot_imu_only = RobotPlot("compass imu only", color="magenta")
-        self.sticky_compass_plot = RobotPlot("sticky compass", color="gray")
-        self.steering_plot = RobotPlot("steering angle", color="gray", enabled=False)
-        self.goal_plot = RobotPlot("checkpoint goal", color="cyan")
-        self.recorded_goal_plot = RobotPlot("recorded checkpoint goal", "blue")
-        self.current_pos_dot = RobotPlot("current pos dot", "blue", marker='.', markersize=8)
 
-        self.sticky_compass_counter = 0
-        self.sticky_compass_skip = 100
-
-        self.accuracy_check_plot = RobotPlotCollection(
-            "Animation", self.sticky_compass_plot, self.gps_plot,
-            self.checkpoint_plot,
-            self.map_plot, self.inner_map_plot, self.outer_map_plot,
-            self.steering_plot, self.compass_plot_imu_only,
-            self.compass_plot, self.goal_plot,
-            self.current_pos_dot
+    def init_kalman(self, timestamp, lat, long, altitude, initial_yaw, initial_pitch, initial_roll):
+        if not self.enable_kalman:
+            return
+        self.kalman_filter = GrovesKalmanFilter(
+            initial_roll=initial_roll,
+            initial_pitch=initial_pitch,
+            initial_yaw=initial_yaw,
+            initial_lat=lat,
+            initial_long=long,
+            initial_alt=altitude,
+            **constants
         )
 
-        self.imu_plot = RobotPlot("imu data", flat=False)
-
-        if animate:
-            self.plotter = LivePlotter(
-                2, self.accuracy_check_plot, self.imu_plot,
-                matplotlib_events=dict(key_press_event=self.key_press),
-                enabled=enable_plotting
-            )
-        else:
-            self.plotter = StaticPlotter(
-                1, self.accuracy_check_plot,
-                matplotlib_events=dict(key_press_event=self.key_press),
-                enabled=enable_plotting
-            )
-
-        self.map_plot.update(self.checkpoints.lats, self.checkpoints.longs)
-        self.inner_map_plot.update(self.inner_map.lats, self.inner_map.longs)
-        self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
+        self.imu_t0 = timestamp
+        self.gps_t0 = timestamp
 
     def start(self):
+        # extract camera file name from current log file name
         file_name = self.get_path_info("file name no extension").replace(";", "_")
         directory = self.get_path_info("input dir")
-        self.open_cameras(file_name, directory, "avi")
 
+        # start cameras and pipelines
+        self.open_cameras(file_name, directory, "mp4")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
+        # record important data
+        self.record("maps",
+                    "%s,%s,%s,%s" % (
+                        self.controller.course_map_name, self.controller.inner_map_name, self.controller.outer_map_name,
+                        self.controller.map_dir))
+        self.record("initial compass", "%s" % self.bozo_filter.compass_angle_packet)
+
     def open_cameras(self, log_name, directory, file_format):
-        logitech_name = "%s%s.%s" % (log_name, self.left_camera.name, file_format)
-        ps3eye_name = "%s%s.%s" % (log_name, self.right_camera.name, file_format)
+        # create log name
+        left_cam_name = "%s%s.%s" % (log_name, self.left_camera.name, file_format)
+        right_cam_name = "%s%s.%s" % (log_name, self.right_camera.name, file_format)
 
         if self.logger is None:
             record = True
         else:
             record = self.logger.is_open()
 
+        # launch a live camera if the robot is live
+        # otherwise launch a video
         if self.is_live:
             status = self.left_camera.launch_camera(
-                logitech_name, directory, record,
+                left_cam_name, directory, record,
                 capture_number=1
             )
             if status is not None:
                 return status
 
             status = self.right_camera.launch_camera(
-                ps3eye_name, directory, record,
+                right_cam_name, directory, record,
                 capture_number=2
             )
             if status is not None:
                 return status
         else:
-            self.left_camera.launch_video(logitech_name, directory, start_frame=0)
-            self.right_camera.launch_video(ps3eye_name, directory)
+            self.left_camera.launch_video(left_cam_name, directory, start_frame=0)
+            self.right_camera.launch_video(right_cam_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
-            self.update_bearing()
+            if self.enable_kalman and self.bozo_filter.initialized:
+                if self.kalman_filter is None:  # init kalman filter if initial heading is set and its enabled
+                    self.init_kalman(timestamp,
+                                     self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude,
+                                     self.bozo_filter.compass_angle, 0.0, 0.0)
+                else:  # otherwise update the filter
+                    self.kalman_filter.gps_updated(
+                        timestamp - self.gps_t0,
+                        self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude
+                    )
+                    self.gps_t0 = timestamp
+
+                # display filter output
+                self.quasar_plotter.kalman_recomputed_plot.append(*self.kalman_filter.get_position())
+                self.record("kalman recorded", str(self.kalman_filter))
+
+            self.bozo_filter.update_bearing(self.gps.latitude_deg, self.gps.longitude_deg)
             if not self.controller.is_initialized():
                 self.controller.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
-            if self.plotter.enabled:
-                self.gps_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
-
-                if isinstance(self.plotter, LivePlotter):
-                    status = self.plotter.plot(self.dt())
-                    if status is not None:
-                        return status
+            status = self.quasar_plotter.update_gps_plot(self.dt(), self.gps.latitude_deg, self.gps.longitude_deg)
+            if status is None:
+                return status
 
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
             inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
 
-            self.prev_pos_state = self.position_state
-            if outer_state and inner_state:
-                self.position_state = "in bounds"
-                self.outer_map_plot.set_properties(color="blue")
-                self.inner_map_plot.set_properties(color="blue")
-            elif not outer_state:
-                self.position_state = "out of bounds! (outer)"
-                self.outer_map_plot.set_properties(color="red")
-            elif not inner_state:
-                self.position_state = "out of bounds! (inner)"
-                self.inner_map_plot.set_properties(color="red")
-
-            if self.position_state != self.prev_pos_state:
-                print("%0.4f: %s" % (self.dt(), self.position_state))
+            self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
 
     def receive_imu(self, timestamp, packet, packet_type):
-        self.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
+        self.quasar_plotter.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
 
-        if self.gps.is_position_valid() and self.compass_angle is not None:
-            angle = self.offset_angle()
+        if self.gps.is_position_valid() and self.bozo_filter.initialized:
+            if self.enable_kalman:
+                if self.kalman_filter is not None:
+                    self.kalman_filter.imu_updated(
+                        timestamp - self.imu_t0,
+                        self.imu.accel.x, self.imu.accel.y, self.imu.accel.z,
+                        self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z
+                    )
+                    self.imu_t0 = timestamp
 
-            steering_angle = self.controller.update(
-                self.gps.latitude_deg, self.gps.longitude_deg, angle
-            )
-            self.current_pos_dot.update([self.controller.current_pos[0]], [self.controller.current_pos[1]])
+                    lat, long = self.kalman_filter.get_position()[0:2]
+                    filtered_angle = self.kalman_filter.get_orientation()[2]
+                    # angle = self.offset_angle()
+
+                    self.bozo_filter.offset_angle(self.imu.euler.z)
+                else:
+                    return
+            else:
+                filtered_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
+                lat, long = self.gps.latitude_deg, self.gps.longitude_deg
+
+            steering_angle = self.controller.update(lat, long, filtered_angle)
             self.record("steering angle",
                         "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
 
             if not self.manual_mode and self.gps_imu_control_enabled:
                 self.steering.set_position(steering_angle)
 
-            if self.plotter.enabled:
-                if isinstance(self.plotter, LivePlotter):
-                    lat2, long2 = self.compass_coords(angle)
-                    lat3, long3 = self.compass_coords(self.imu_angle)
-
-                    self.compass_plot.update([self.gps.latitude_deg, lat2],
-                                             [self.gps.longitude_deg, long2])
-                    self.compass_plot_imu_only.update([self.gps.latitude_deg, lat3],
-                                                      [self.gps.longitude_deg, long3])
-                    self.plotter.draw_text(
-                        self.accuracy_check_plot,
-                        # "%0.4f, %s" % (math.degrees(steering_angle), self.steering.sent_step),
-                        "%s" % self.imu.gyro.z,
-                        # "%0.4f" % angle,
-                        self.gps.latitude_deg, self.gps.longitude_deg,
-                        text_name="angle text"
-                    )
-
-                if self.sticky_compass_skip > 0 and self.sticky_compass_counter % self.sticky_compass_skip == 0:
-                    lat2, long2 = self.compass_coords(angle, length=0.0001)
-                    self.sticky_compass_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
-                    self.sticky_compass_plot.append(lat2, long2)
-                    self.sticky_compass_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
-                self.sticky_compass_counter += 1
-
-                if isinstance(self.plotter, LivePlotter):
-                    lat2, long2 = self.compass_coords(steering_angle + angle)
-                    self.steering_plot.update([self.gps.latitude_deg, lat2],
-                                              [self.gps.longitude_deg, long2])
-
-                    self.goal_plot.update(
-                        [self.gps.latitude_deg, self.controller.map[self.controller.current_index][0]],
-                        [self.gps.longitude_deg, self.controller.map[self.controller.current_index][1]])
+            self.quasar_plotter.update_indicators(
+                self.controller.current_pos, filtered_angle,
+                self.bozo_filter.imu_angle,
+                self.gps.latitude_deg, self.gps.longitude_deg, steering_angle,
+                self.controller.map[self.controller.current_index][0],
+                self.controller.map[self.controller.current_index][1]
+            )
 
     def received(self, timestamp, whoiam, packet, packet_type):
         self.left_pipeline.update_time(self.dt())
 
         if self.did_receive("initial compass"):
-            self.init_compass(packet)
+            self.bozo_filter.init_compass(packet)
             print("compass value:", packet)
+
         elif self.did_receive("maps"):
             checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+            self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
-            self.checkpoints = MapFile(checkpoint_map_name, map_dir)
-            self.inner_map = MapFile(inner_map_name, map_dir)
-            self.outer_map = MapFile(outer_map_name, map_dir)
+            self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
 
-            self.map_plot.update(self.checkpoints.lats, self.checkpoints.longs)
-            self.inner_map_plot.update(self.inner_map.lats, self.inner_map.longs)
-            self.outer_map_plot.update(self.outer_map.lats, self.outer_map.longs)
         elif self.did_receive("checkpoint"):
             if self.gps.is_position_valid():
-                self.checkpoint_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+                self.quasar_plotter.checkpoint_plot.append(self.gps.latitude_deg, self.gps.longitude_deg)
+
         elif self.did_receive("steering angle"):
-            if isinstance(self.plotter, LivePlotter) and self.gps.is_position_valid():
+            if self.gps.is_position_valid():
                 goal_index = int(packet.split("\t")[-1])
-                self.recorded_goal_plot.update([self.gps.latitude_deg, self.controller.map[goal_index][0]],
-                                               [self.gps.longitude_deg, self.controller.map[goal_index][1]])
+                self.quasar_plotter.plot_recorded_goal(self.gps.latitude_deg, self.gps.longitude_deg,
+                                                       self.controller.map[goal_index][0],
+                                                       self.controller.map[goal_index][1])
+
+        elif self.did_receive("kalman recorded"):
+            position, orientation, velocity, attitude = packet.split("\n")
+            position = [float(x[5:]) for x in position.split(", ")]
+            self.quasar_plotter.kalman_recorded_plot.append(*position)
+
+        elif self.did_receive("maps"):
+            checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+            self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
+
+            self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
+
+    def key_press(self, event):
+        if event.key == " ":
+            self.toggle_pause()
+            if isinstance(self.quasar_plotter.plotter, LivePlotter):
+                self.quasar_plotter.plotter.toggle_pause()
+
+            self.left_pipeline.paused = not self.left_pipeline.paused
+            self.right_pipeline.paused = not self.right_pipeline.paused
+        elif event.key == "q":
+            self.quasar_plotter.close("exit")
+            self.close("exit")
 
     def loop(self):
-        if self.is_paused and isinstance(self.plotter, LivePlotter):
-            status = self.plotter.plot(self.dt())
+        if self.is_paused:
+            status = self.quasar_plotter.check_paused(self.dt())
             if status is not None:
                 return status
 
-        if not self.manual_mode:
-            if self.left_pipeline.did_update():
-                value = self.left_pipeline.safety_value
-                if value > self.left_pipeline.safety_threshold:
-                    self.steering.send_step(self.steering.left_limit * value)
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+        self.update_current_control()
 
-            if self.right_pipeline.did_update():
-                value = self.right_pipeline.safety_value
-                if value > self.right_pipeline.safety_threshold:
-                    self.steering.send_step(self.steering.right_limit * value)
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+        self.update_joystick()
 
-            if self.left_pipeline.status is not None:
-                return self.left_pipeline.status
-
-            if self.right_pipeline.status is not None:
-                return self.right_pipeline.status
-
+    def update_joystick(self):
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
                 if self.joystick.axis_updated("left x") or self.joystick.axis_updated("left y"):
@@ -331,66 +298,36 @@ class RoboQuasar(Robot):
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
 
-    def init_compass(self, packet):
-        self.record("initial compass", "%s" % packet)
-        self.compass_angle = math.radians(float(packet)) - math.pi / 2
-        print("initial offset: %0.4f rad" % self.compass_angle)
+    def update_current_control(self):
+        if not self.manual_mode:
+            if self.left_pipeline.did_update():
+                value = self.left_pipeline.safety_value
+                if value > self.left_pipeline.safety_threshold:
+                    self.steering.send_step(self.steering.left_limit * value)
+                    self.gps_imu_control_enabled = False
+                else:
+                    self.gps_imu_control_enabled = True
 
-    def offset_angle(self):
-        if self.start_angle is None:
-            self.start_angle = self.imu.euler.z
+            if self.right_pipeline.did_update():
+                value = self.right_pipeline.safety_value
+                if value > self.right_pipeline.safety_threshold:
+                    self.steering.send_step(self.steering.right_limit * value)
+                    self.gps_imu_control_enabled = False
+                else:
+                    self.gps_imu_control_enabled = True
 
-        self.imu_angle = (self.imu.euler.z - self.start_angle + self.compass_angle) % (2 * math.pi)
+            if self.left_pipeline.status is not None:
+                return self.left_pipeline.status
 
-        return self.imu_angle
-        # if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
-        #     return -self.imu_angle, -self.imu_angle
-        # else:
-        #     if self.bearing - self.imu_angle > math.pi:
-        #         self.imu_angle += 2 * math.pi
-        #     if self.imu_angle - self.bearing > math.pi:
-        #         self.bearing += 2 * math.pi
-        #
-        #     angle = self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing
-        #     return -angle, -self.imu_angle
-
-    def update_bearing(self):
-        if len(self.long_data) == 0 or self.gps.longitude_deg != self.long_data[-1]:
-            self.long_data.append(self.gps.longitude_deg)
-        if len(self.lat_data) == 0 or self.gps.latitude_deg != self.lat_data[-1]:
-            self.lat_data.append(self.gps.latitude_deg)
-
-        self.bearing = -math.atan2(self.gps.longitude_deg - self.long_data[0],
-                                   self.gps.latitude_deg - self.lat_data[0]) + math.pi
-        self.bearing = (self.bearing - math.pi / 2) % (2 * math.pi)
-
-        if len(self.long_data) > self.bearing_avg_len:
-            self.long_data.pop(0)
-        if len(self.lat_data) > self.bearing_avg_len:
-            self.lat_data.pop(0)
-
-    def compass_coords(self, angle, length=0.0003):
-        lat2 = length * math.sin(-angle) + self.gps.latitude_deg
-        long2 = length * math.cos(-angle) + self.gps.longitude_deg
-        return lat2, long2
-
-    def key_press(self, event):
-        if event.key == " ":
-            self.toggle_pause()
-            if isinstance(self.plotter, LivePlotter):
-                self.plotter.toggle_pause()
-        elif event.key == "q":
-            self.plotter.close()
+            if self.right_pipeline.status is not None:
+                return self.right_pipeline.status
 
     def close(self, reason):
-        if reason == "done":
-            if isinstance(self.plotter, LivePlotter):
-                self.plotter.freeze_plot()
-        else:
+        if reason != "done":
             self.brakes.brake()
             print("!!EMERGENCY BRAKE!!")
 
-        self.plotter.close()
+        self.quasar_plotter.close(reason)
 
         self.left_camera.close()
         self.right_camera.close()
@@ -400,288 +337,155 @@ class RoboQuasar(Robot):
         print("Ran for %0.4fs" % self.dt())
 
 
-class Pipeline:
-    def __init__(self, camera, separate_read_thread=True):
-        self.camera = camera
-        self.status = None
-        self.timestamp = None
-        self.exit_event = Event()
-        self._updated = False
-        self.paused = False
-        self.frame = None
+class RoboQuasarPlotter:
+    def __init__(self, animate, enable_plotting, enable_kalman, course_map, inner_map, outer_map, key_press_fn):
+        # GPS map based plots
+        self.gps_plot = RobotPlot("gps", color="red", enabled=True)
+        self.map_plot = RobotPlot("map", color="purple")
+        self.inner_map_plot = RobotPlot("inner map", enabled=False)
+        self.outer_map_plot = RobotPlot("outer map", enabled=False)
 
-        self.safety_threshold = 0.3
-        self.safety_value = 0.0
-        self.prev_safe_value = 0.0
-        self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
-                              (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193), (160, 109, 193))
-        # self.safety_colors = self.safety_colors[::-1]
+        # angle based plots
+        self.compass_plot = RobotPlot("quasar filtered heading", color="purple")
+        self.compass_plot_imu_only = RobotPlot("imu filtered heading", color="magenta")
+        self.sticky_compass_plot = RobotPlot("sticky compass", color="gray", enabled=False)
+        self.steering_plot = RobotPlot("steering angle", color="gray", enabled=False)
 
-        self.frame_queue = Queue(maxsize=255)
+        # indicator dots and lines
+        self.checkpoint_plot = RobotPlot("checkpoint", color="green", marker='.', linestyle='', markersize=8)
+        self.goal_plot = RobotPlot("checkpoint goal", color="cyan")
+        self.recorded_goal_plot = RobotPlot("recorded checkpoint goal", "blue")
+        self.current_pos_dot = RobotPlot("current pos dot", "blue", marker='.', markersize=8)
 
-        self.separate_read_thread = separate_read_thread
+        # kalman plots
+        self.enable_kalman = enable_kalman
+        self.kalman_recomputed_plot = RobotPlot("kalman recomputed", enabled=self.enable_kalman)
+        self.kalman_recorded_plot = RobotPlot("kalman recorded", enabled=self.enable_kalman)
 
-        self.pipeline_thread = Thread(target=self.run)
-        self.read_thread = Thread(target=self.read_camera)
+        self.sticky_compass_counter = 0
+        self.sticky_compass_skip = 100
 
-    def start(self):
-        if self.camera.enabled:
-            if self.separate_read_thread:
-                self.read_thread.start()
-            self.pipeline_thread.start()
+        # plot collection
+        self.accuracy_check_plot = RobotPlotCollection(
+            "RoboQuasar plot", self.sticky_compass_plot, self.gps_plot,
+            self.checkpoint_plot,
+            self.map_plot, self.inner_map_plot, self.outer_map_plot,
+            self.steering_plot, self.compass_plot_imu_only,
+            self.compass_plot, self.goal_plot,
+            self.current_pos_dot, self.kalman_recomputed_plot, self.kalman_recorded_plot
+        )
 
-    def update_time(self, timestamp):
-        self.timestamp = timestamp
+        # raw IMU data plot
+        self.imu_plot = RobotPlot("imu data", flat=False, enabled=False)
 
-    def did_update(self):
-        if self._updated:
-            self._updated = False
-            return True
+        if animate:
+            self.plotter = LivePlotter(
+                2, self.accuracy_check_plot, self.imu_plot,
+                matplotlib_events=dict(key_press_event=key_press_fn),
+                enabled=enable_plotting
+            )
         else:
-            return False
+            self.plotter = StaticPlotter(
+                1, self.accuracy_check_plot,
+                matplotlib_events=dict(key_press_event=key_press_fn),
+                enabled=enable_plotting
+            )
 
-    def read_camera(self):
-        thread_error = None
-        try:
-            while not self.exit_event.is_set():
-                if not self.paused:
-                    if self.camera.get_frame(self.timestamp) is None:
-                        self.status = "exit"
-                        break
+        # plot maps
+        self.update_maps(course_map, inner_map, outer_map)
 
-                    if not self.frame_queue.full():
-                        self.frame_queue.put(self.camera.frame)
+        self.position_state = ""
+        self.prev_pos_state = self.position_state
 
-        except BaseException as error:
-            self.status = "error"
-            thread_error = error
+    def update_maps(self, course_map, inner_map, outer_map):
+        self.map_plot.update(course_map.lats, course_map.longs)
+        self.inner_map_plot.update(inner_map.lats, inner_map.longs)
+        self.outer_map_plot.update(outer_map.lats, outer_map.longs)
 
-        if thread_error is not None:
-            raise thread_error
+    def update_gps_plot(self, dt, lat, long):
+        if self.plotter.enabled:
+            self.gps_plot.append(lat, long)
 
-    def run(self):
-        thread_error = None
-        try:
-            while not self.exit_event.is_set():
-                if not self.paused:
-                    if self.separate_read_thread:
-                        if self.frame_queue.empty():
-                            continue
+            if isinstance(self.plotter, LivePlotter):
+                status = self.plotter.plot(dt)
+                if status is not None:
+                    return status
 
-                        while not self.frame_queue.empty():
-                            self.frame = self.frame_queue.get()
-                            if self.frame is None:
-                                self.status = "exit"
-                                break
+    def update_map_colors(self, dt, outer_state, inner_state):
+        self.prev_pos_state = self.position_state
+        if outer_state and inner_state:
+            self.position_state = "in bounds"
+            self.outer_map_plot.set_properties(color="blue")
+            self.inner_map_plot.set_properties(color="blue")
+        elif not outer_state:
+            self.position_state = "out of bounds! (outer)"
+            self.outer_map_plot.set_properties(color="red")
+        elif not inner_state:
+            self.position_state = "out of bounds! (inner)"
+            self.inner_map_plot.set_properties(color="red")
 
-                            self.frame = self.pipeline(self.frame)
-                    else:
-                        if self.camera.get_frame(self.timestamp) is None:
-                            self.status = "exit"
-                            break
+        if self.position_state != self.prev_pos_state:
+            print("%0.4f: %s" % (dt, self.position_state))
 
-                        self.frame = self.pipeline(self.camera.frame)
+    def update_indicators(self, current_pos, filtered_angle, imu_angle, lat, long, steering_angle,
+                          goal_lat, goal_long):
+        if self.plotter.enabled:
+            self.current_pos_dot.update([current_pos[0]], [current_pos[1]])
+            if isinstance(self.plotter, LivePlotter):
+                lat2, long2 = self.compass_coords(lat, long, filtered_angle)
+                lat3, long3 = self.compass_coords(lat, long, imu_angle)
 
-                    self.camera.show_frame(self.frame)
-                    self._updated = True
+                self.compass_plot.update([lat, lat2],
+                                         [long, long2])
+                self.compass_plot_imu_only.update([lat, lat3],
+                                                  [long, long3])
+                self.plotter.draw_text(
+                    self.accuracy_check_plot,
+                    "%0.4f" % filtered_angle,
+                    lat, long,
+                    text_name="angle text"
+                )
 
-                key = self.camera.key_pressed()
-                if key == 'q':
-                    self.close()
-                elif key == ' ':
-                    self.paused = not self.paused
+            if self.sticky_compass_skip > 0 and self.sticky_compass_counter % self.sticky_compass_skip == 0:
+                lat2, long2 = self.compass_coords(lat, long, filtered_angle, length=0.0001)
+                self.sticky_compass_plot.append(lat, long)
+                self.sticky_compass_plot.append(lat2, long2)
+                self.sticky_compass_plot.append(lat, long)
+            self.sticky_compass_counter += 1
 
-        except BaseException as error:
-            self.status = "error"
-            thread_error = error
+            if isinstance(self.plotter, LivePlotter):
+                lat2, long2 = self.compass_coords(lat, long, steering_angle + filtered_angle)
+                self.steering_plot.update([lat, lat2],
+                                          [long, long2])
 
-        if thread_error is not None:
-            raise thread_error
+                self.goal_plot.update(
+                    [lat, goal_lat],
+                    [long, goal_long])
 
-    def pipeline(self, frame):
-        self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame)
+    def compass_coords(self, lat, long, angle, length=0.0003):
+        lat2 = length * math.sin(-angle) + lat
+        long2 = length * math.cos(-angle) + long
+        return lat2, long2
 
-        frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
-        cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+    def plot_recorded_goal(self, lat, long, goal_lat, goal_long):
+        if isinstance(self.plotter, LivePlotter):
+            self.recorded_goal_plot.update(
+                [lat, goal_lat],
+                [long, goal_long]
+            )
 
-        # frame = self.kernel_threshold(self.camera.frame)
-        # contours, perimeters = self.get_contours(frame, 0.025, 2)
-        # if len(contours) > 0:
-        #     frame = self.draw_contours(self.camera.frame, contours)
-        #
-        #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
-        #
-        # frame = self.average_color(frame)
+    def check_paused(self, dt):
+        if isinstance(self.plotter, LivePlotter):
+            status = self.plotter.plot(dt)
+            if status is not None:
+                return status
 
-        return frame
+    def close(self, reason):
+        if reason == "done":
+            if isinstance(self.plotter, LivePlotter):
+                self.plotter.freeze_plot()
 
-    def get_pavement_edge(self, perimeters, contours, frame):
-        results = []
-        if perimeters[-1] > 2000:
-            contour = contours[-1]
-            for index in range(1, len(contour)):
-                point1 = contour[index - 1][0]
-                point2 = contour[index][0]
-                diff = point2 - point1
-                angle = np.arctan2(diff[0], diff[1])
-                if -np.pi / 2 - 0.5 < angle < -np.pi / 2 + 0.5:
-                    frame = cv2.line(frame, tuple(point1.tolist()), tuple(point2.tolist()), (50, 200, 0), thickness=10)
-                    results.append((angle, point1, point2))
-        return frame, results
-
-    def average_color(self, frame):
-        avg_color = np.uint8(np.average(np.average(frame, axis=0), axis=0))
-        height, width = self.camera.frame.shape[0:2]
-        avg_color_top = self.average_color(frame[:height // 2])
-        avg_color_bot = self.average_color(frame[height // 2:])
-
-        frame[0:height // 8, 0:width // 4, :] = avg_color_top
-        frame[height // 8:height // 4, 0:width // 4, :] = avg_color_bot
-        frame = cv2.putText(frame, str(avg_color_top)[1:-1], (0, height // 8 - 5), cv2.FONT_HERSHEY_PLAIN,
-                            1, (255, 255, 255))
-        frame = cv2.putText(frame, str(avg_color_bot)[1:-1], (0, height // 4 - 5), cv2.FONT_HERSHEY_PLAIN,
-                            1, (255, 255, 255))
-        return avg_color, frame
-
-    def kernel_threshold(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame = cv2.equalizeHist(frame)
-
-        value, frame = cv2.threshold(frame, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-        # noise removal
-        kernel = np.ones((3, 3), np.uint8)
-        opening = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel, iterations=2)
-
-        # sure background area
-        sure_bg = cv2.dilate(opening, kernel, iterations=3)
-
-        # Finding sure foreground area
-        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-        ret, sure_fg = cv2.threshold(dist_transform, 0.1 * dist_transform.max(), 255, 0)
-
-        return dist_transform
-
-        # Finding unknown region
-        # sure_fg = np.uint8(sure_fg)
-        # unknown = cv2.subtract(sure_bg, sure_fg)
-
-        # Marker labelling
-        # ret, markers = cv2.connectedComponents(sure_fg)
-        #
-        # # Add one to all labels so that sure background is not 0, but 1
-        # markers = markers + 1
-        #
-        # # Now, mark the region of unknown with zero
-        # markers[unknown == 255] = 0
-        #
-        # markers = cv2.watershed(self.camera.frame, markers)
-        # # self.camera.frame[markers == -1] = [255, 0, 0]
-        #
-        # blank = np.ones(self.camera.frame.shape[0:2], dtype=np.uint8) * 255
-        # blank[markers == -1] = 0
-
-    def hough_detector(self, input_frame):
-        # frame = cv2.medianBlur(input_frame, 11)
-        frame = cv2.GaussianBlur(input_frame, (11, 11), 0)
-
-        frame = cv2.Canny(frame, 1, 100)
-        lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
-                               threshold=125,
-                               min_theta=80 * np.pi / 180,
-                               max_theta=110 * np.pi / 180
-                               )
-        safety_percentage = self.draw_lines(input_frame, lines)
-        return input_frame, lines, safety_percentage
-
-    def sobel_filter(self, frame):
-        # frame = cv2.Laplacian(frame, cv2.CV_64F, ksize=3)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame = cv2.medianBlur(frame, 3)
-        frame = cv2.Sobel(frame, cv2.CV_64F, 0, 1, ksize=3)
-
-        frame = np.absolute(frame)
-        frame = np.uint8(frame)
-        return frame
-
-    def threshold(self, input_frame):
-        frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
-        frame = cv2.medianBlur(frame, 11)
-        frame = cv2.equalizeHist(frame)
-
-        thresh_val, frame = cv2.threshold(frame, 0, 255, cv2.THRESH_OTSU)
-        # thresh_val, frame = cv2.threshold(frame, 100, 255, cv2.THRESH_BINARY)
-        return frame
-
-    def draw_contours(self, frame, contours):
-        return cv2.drawContours(frame.copy(), contours, -1, (0, 0, 255), 3)
-
-    def get_contours(self, binary, epsilon=None, num_contours=None):
-        binary, contours, hierarchy = cv2.findContours(binary.copy(), cv2.RETR_TREE,
-                                                       cv2.CHAIN_APPROX_SIMPLE)
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        sig_contours = []
-        perimeters = []
-
-        for contour in contours:
-            perimeter = cv2.arcLength(contour, closed=False)
-            index = bisect.bisect(perimeters, perimeter)
-            if epsilon is not None:
-                approx = cv2.approxPolyDP(contour, epsilon * perimeter, False)
-                sig_contours.insert(index, approx)
-            else:
-                sig_contours.insert(index, contour)
-            perimeters.insert(index, perimeter)
-
-        if num_contours is None:
-            return sig_contours, perimeters
-        else:
-            return sig_contours[-num_contours:], perimeters[-num_contours:]
-
-    def draw_lines(self, frame, lines, draw_threshold=30):
-        height, width = frame.shape[0:2]
-
-        if lines is not None:
-            counter = 0
-            largest_y = 0
-            largest_coords = None
-
-            for line in lines:
-                rho, theta = line[0][0], line[0][1]
-                a = np.cos(theta)
-                b = np.sin(theta)
-                x0 = a * rho
-                y0 = b * rho
-
-                x1 = int(x0 + 1000 * -b)
-                y1 = int(y0 + 1000 * a)
-                x2 = int(x0 - 1000 * -b)
-                y2 = int(y0 - 1000 * a)
-
-                y3 = int(y0 - width / 2 * a)
-
-                # if y2 > largest_y:
-                #     largest_y = y2
-                #     largest_coords = (x1, y1), (x2, y2)
-                if y3 > largest_y:
-                    largest_y = y3
-                    largest_coords = (x1, y1), (x2, y2)
-
-                # cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 50), 2)
-                # cv2.circle(frame, (x0, y0), 10, (150, 255, 50), 2)
-                counter += 1
-                if counter > draw_threshold:
-                    break
-
-            if largest_coords is not None:
-                cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
-            return largest_y / height
-        return 0.0
-
-    def close(self):
-        self.exit_event.set()
-        self.status = "done"
+        self.plotter.close()
 
 
 map_sets = {
@@ -712,12 +516,39 @@ map_sets = {
 }
 
 file_sets = {
-    "data day 12": (
+    "data day 12"       : (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 10"       : (
+    "data day 11"       : (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
+        ("16;19", "data_days/2017_Mar_13"),
+    ),
+    "data day 10"       : (
+        # straight line GPS tests
+        ("17;07", "data_days/2017_Mar_09"),
+        ("17;09", "data_days/2017_Mar_09"),
+        ("17;11", "data_days/2017_Mar_09"),
+
+        # going to single point (initial angle: 235)
+        ("17;29", "data_days/2017_Mar_09"),
+        ("17;33", "data_days/2017_Mar_09"),
+        ("17;36", "data_days/2017_Mar_09"),
+        ("17;38", "data_days/2017_Mar_09"),
+        ("17;41", "data_days/2017_Mar_09"),
+        ("17;44", "data_days/2017_Mar_09"),
+        ("17;46", "data_days/2017_Mar_09"),
+        ("17;49", "data_days/2017_Mar_09"),
+
+        ("17;55", "data_days/2017_Mar_09"),  # autonomous run
+
+        # gently crashing on the buggy course
+        ("18;07", "data_days/2017_Mar_09"),
+        ("18;09", "data_days/2017_Mar_09"),
+
+        # cables disconnecting walking home
+        ("18;30;51", "data_days/2017_Mar_09"),
+        ("18;36", "data_days/2017_Mar_09"),
     ),
     "data day 9"        : (
         ("15;13", "data_days/2017_Mar_05"),  # 0

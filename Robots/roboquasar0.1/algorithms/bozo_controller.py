@@ -1,21 +1,39 @@
 import math
 import sys
 
+from atlasbuggy.files.mapfile import MapFile
+
 
 class BozoController:
     MAX_FLOAT = sys.float_info.max
     MIN_FLOAT = sys.float_info.min
 
-    def __init__(self, course_map, inner_border_map=None, outer_border_map=None, offset=1, border_skip_check=10):
-        self.map = course_map
-        self.inner_map = inner_border_map
-        self.outer_map = outer_border_map
+    def __init__(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None, offset=1,
+                 border_skip_check=10):
+        self.init_maps(course_map_name, map_dir, inner_map_name, outer_map_name)
 
         self.offset = offset
         self.border_skip_check = border_skip_check
         self.current_index = None
         self.current_angle = 0.0
         self.current_pos = self.map[0]
+        self.goal_index = 0
+
+    def init_maps(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None):
+        self.course_map_name = course_map_name
+        self.inner_map_name = inner_map_name
+        self.outer_map_name = outer_map_name
+        self.map_dir = map_dir
+
+        self.map = MapFile(self.course_map_name, map_dir)
+        if self.inner_map_name is None:
+            self.inner_map = None
+        else:
+            self.inner_map = MapFile(self.inner_map_name, map_dir)
+        if self.outer_map_name is None:
+            self.outer_map = None
+        else:
+            self.outer_map = MapFile(self.outer_map_name, map_dir)
 
     def initialize(self, lat, long):
         self.current_index = self.get_goal(lat, long)
@@ -45,11 +63,11 @@ class BozoController:
 
         self.current_pos = lat0, long0
 
-        goal_index = self.closest_point(lat0, long0, self.map)
-        goal_index = (goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
-        self.current_index = goal_index % len(self.map)  # the closest index on the map
+        self.goal_index = self.closest_point(lat0, long0, self.map)
+        self.goal_index = (self.goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
+        self.current_index = self.goal_index % len(self.map)  # the closest index on the map
 
-        return goal_index
+        return self.goal_index
 
     def closest_point(self, lat0, long0, gps_map):
         smallest_dist = None

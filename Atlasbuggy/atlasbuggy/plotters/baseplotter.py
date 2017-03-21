@@ -96,7 +96,8 @@ class BasePlotter:
             if "loc" not in self.legend_args:  # dynamic legend placement
                 self.legend_args["loc"] = 0
 
-            self.plt.legend(**self.legend_args)
+            # self.plt.legend()
+            self.axes[list(self.axes.keys())[0]].legend(**self.legend_args)
 
     def _get_name(self, arg):
         """

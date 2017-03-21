@@ -105,6 +105,10 @@ class Robot:
         if self.logger is not None:
             self.logger.record(self.dt(), tag, string, "user")
 
+        if self.is_live is None:
+            print("Warning! Robot has not been started by a robot runner. Ignoring record. "
+                  "Put record statements in 'start', 'received', 'loop', or 'close'")
+
     def pause(self):
         """
         Sets self.is_paused to True. Only used in simulations

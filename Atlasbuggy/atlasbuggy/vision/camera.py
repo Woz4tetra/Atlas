@@ -133,7 +133,7 @@ class Camera:
             return None
 
         if not os.path.isfile(self.full_path):
-            print("Warning: video not found. Disabling camera (%s)" % self.name)
+            print("Warning: video '%s' not found. Disabling camera (%s)" % (self.full_path, self.name))
             self.enabled = False
             return None
 
@@ -404,3 +404,5 @@ class Camera:
         if self.is_recording:
             self.video_writer.release()
             self.is_recording = False
+
+        cv2.destroyWindow(self.name)

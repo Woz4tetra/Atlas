@@ -26,8 +26,8 @@ class PipelineRobot(Robot):
 
         self.left_camera = Camera("leftcam", enabled=True, show=False)
         self.right_camera = Camera("rightcam", enabled=False, show=False)
-        self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
-        self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
+        self.left_pipeline = Pipeline(self.left_camera, read_thread=False)
+        self.right_pipeline = Pipeline(self.right_camera, read_thread=False)
 
         self.manual_mode = True
 

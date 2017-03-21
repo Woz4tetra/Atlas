@@ -61,6 +61,22 @@ class GrovesKalmanFilter:
         return (np.array(self.get_orientation()) -
                 np.array(navpy.dcm2angle(self.properties.prev_est_attitude)[::-1])) / dt
 
+    def __str__(self):
+        position = self.get_position()
+        orientation = self.get_orientation()
+        velocity = self.get_velocity()
+        attitude = self.properties.estimated_attitude
+
+        return "lat: %s, lon: %s, alt: %s\n" \
+               "rol: %s, pit: %s, yaw: %s\n" \
+               "vx: %s, vy: %s, vz: %s\n" \
+               "atx: %s, aty: %s, atz: %s" % (
+                   position[0], position[1], position[2],
+                   orientation[0], orientation[1], orientation[2],
+                   velocity[0], velocity[1], velocity[2],
+                   attitude[0], attitude[1], attitude[2]
+               )
+
 
 class KalmanProperties:
     def __init__(self, initial_roll, initial_pitch, initial_yaw,
@@ -270,16 +286,12 @@ class INS:
     # ---- non rigorous update fn -----
 
     def modify_measurements(self, accel_measurement, gyro_measurement):
-        # accel_measurement = np.clip(accel_measurement, -0.25, 0.25)
-
         self.accel_measurement = \
             accel_measurement - self.properties.estimated_imu_biases[0:3]
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
-        self.gyro_measurement *= -1
-
-        self.accel_measurement = np.clip(self.accel_measurement, -0.1, 0.1)
+        self.accel_measurement = np.clip(self.accel_measurement, -0.05, 0.05)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
         self.modify_measurements(accel_measurement, gyro_measurement)
