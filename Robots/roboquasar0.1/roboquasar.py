@@ -29,7 +29,7 @@ class RoboQuasar(Robot):
     def __init__(self, enable_plotting,
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
                  initial_compass=None, animate=True, enable_cameras=True,
-                 enable_kalman=False):
+                 enable_kalman=False, use_log_file_maps=False):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -60,6 +60,7 @@ class RoboQuasar(Robot):
         # init controller
         self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
         self.bozo_filter = BozoFilter(initial_compass)
+        self.use_log_file_maps = use_log_file_maps
 
         # who's controlling steering? (GPS and IMU or CV)
         self.gps_imu_control_enabled = True
@@ -77,7 +78,6 @@ class RoboQuasar(Robot):
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
                                                 self.controller.map, self.controller.inner_map,
                                                 self.controller.outer_map, self.key_press)
-
 
     def init_kalman(self, timestamp, lat, long, altitude, initial_yaw, initial_pitch, initial_roll):
         if not self.enable_kalman:
@@ -122,8 +122,7 @@ class RoboQuasar(Robot):
         else:
             record = self.logger.is_open()
 
-        # launch a live camera if the robot is live
-        # otherwise launch a video
+        # launch a live camera if the robot is live, otherwise launch a video
         if self.is_live:
             status = self.left_camera.launch_camera(
                 left_cam_name, directory, record,
@@ -220,10 +219,11 @@ class RoboQuasar(Robot):
             print("compass value:", packet)
 
         elif self.did_receive("maps"):
-            checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
-            self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
+            if self.use_log_file_maps:
+                checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+                self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
-            self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
+                self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
 
         elif self.did_receive("checkpoint"):
             if self.gps.is_position_valid():
@@ -285,6 +285,8 @@ class RoboQuasar(Robot):
                 elif self.joystick.dpad_updated():
                     if self.joystick.dpad[0] != 0:
                         self.steering.change_position(-self.joystick.dpad[0] * 10)
+                    elif self.joystick.dpad[1] != 0:
+                        self.steering.set_position(0)
 
             if self.joystick.button_updated("X") and self.joystick.get_button("X"):
                 self.manual_mode = not self.manual_mode
@@ -329,11 +331,9 @@ class RoboQuasar(Robot):
 
         self.quasar_plotter.close(reason)
 
-        self.left_camera.close()
-        self.right_camera.close()
-
         self.left_pipeline.close()
         self.right_pipeline.close()
+
         print("Ran for %0.4fs" % self.dt())
 
 
@@ -516,6 +516,14 @@ map_sets = {
 }
 
 file_sets = {
+    "push practice 1"    : (
+        ("23;25", "data_days/2017_Mar_21"),
+        ("23;30", "data_days/2017_Mar_21"),
+        ("23;49", "data_days/2017_Mar_21"),
+        ("23;55", "data_days/2017_Mar_21"),
+        ("00;06", "data_days/2017_Mar_21"),
+        ("00;15", "data_days/2017_Mar_21"),
+    ),
     "data day 12"       : (
         ("16;36", "data_days/2017_Mar_18"),
     ),

@@ -207,11 +207,12 @@ class RobotRunner(BaseInterface):
 
     def _close(self, reason):
         if not self.close_called:
-            self.close_called = True
             self._debug_print("Closing all")
 
             self._close_log()
             self._close_ports(reason)
+
+            self.close_called = True
 
     def _should_run(self):
         """
@@ -390,6 +391,11 @@ class RobotRunner(BaseInterface):
         """
         Close all RobotSerialPort processes and close their serial ports
         """
+        if self.close_called:
+            self._debug_print("_close_ports already called. Ignoring")
+            return
+        self.close_called = True
+
         try:
             self._debug_print("Calling user's close function")
             self.robot.close(reason)

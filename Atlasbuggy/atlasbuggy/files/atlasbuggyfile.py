@@ -38,14 +38,14 @@ class AtlasFile:
         self.directory = self.get_abs_dir(self.input_dir)
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
-        self.file_name = self.get_file_name(input_name, self.directory)
+        self.file_name = self.get_file_name(input_name)
         if len(self.file_types) == 1:
             if self.compressed:
                 if not self.file_name.endswith(compressed_file_type):
-                    self.file_name += compressed_file_type
+                    self.file_name += "." + compressed_file_type
             else:
                 if not self.file_name.endswith(self.file_types[0]):
-                    self.file_name += self.file_types[0]
+                    self.file_name += "." + self.file_types[0]
         self.full_path = os.path.join(self.directory, self.file_name)
 
         self.contents = ""
@@ -84,7 +84,7 @@ class AtlasFile:
         else:
             raise NotADirectoryError("Input directory not found! '%s'" % self.input_dir)
 
-    def get_file_name(self, file_name, directory):
+    def get_file_name(self, file_name):
         """
         Interpret input file name
         :param file_name: input file name. If None, the most recently created file will be used
