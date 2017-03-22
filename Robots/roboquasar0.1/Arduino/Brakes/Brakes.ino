@@ -16,10 +16,11 @@
 #define MAX_SPEED 255
 
 bool braking = false;
-bool moving = false;
+bool moving = true;
 int goal = RELEASE_POS;
 
 uint32_t timer = millis();
+uint32_t pingTimer = millis();
 int prevPosition = 0;
 
 Atlasbuggy buggy("brakes");
@@ -77,6 +78,7 @@ void loop() {
     while (buggy.available()) {
         int status = buggy.readSerial();
         if (status == 2) {  // start event
+            pingTimer = millis();
             Serial.print('s');
             Serial.print(currentPosition());
             Serial.print('\n');
@@ -97,6 +99,9 @@ void loop() {
                 braking = false;
                 moving = true;
             }
+            else if (buggy.getCommand().equals("t")) {
+                pingTimer = millis();
+            }
             else {
                 stopMotor();
                 moving = false;
@@ -104,6 +109,19 @@ void loop() {
         }
         // else if (status == -1)  // no command
     }
+
+    if (!buggy.isPaused()) {
+        // if millis() or timer wraps around, we'll just reset it
+        if (pingTimer > millis())  pingTimer = millis();
+
+        if ((millis() - pingTimer) > 500) {
+            goal = BRAKE_POS;
+            braking = true;
+            moving = true;
+            buggy.pause();
+        }
+    }
+
     int current = currentPosition();
     if (abs(current - prevPosition) > 20) {
         moving = true;
@@ -117,29 +135,26 @@ void loop() {
         Serial.print('\n');
     }
 
-   if (!buggy.isPaused())
-   {
-       if (moving) {
-           if (goal < currentPosition()) {
-               motorBackward();
-           }
-           else {
-               motorForward();
-           }
+    if (moving) {
+       if (goal < currentPosition()) {
+           motorBackward();
        }
+       else {
+           motorForward();
+       }
+    }
 
 
-       if (timer > millis())  timer = millis();
+    if (timer > millis())  timer = millis();
 
-        if (millis() - timer > 100) {
-            timer = millis(); // reset the timer
+    if (millis() - timer > 100) {
+        timer = millis(); // reset the timer
 
-            if (abs(current - prevPosition) > 2) {
-                Serial.print('m');
-                Serial.print(current);
-                Serial.print('\n');
-                prevPosition = current;
-            }
+        if (abs(current - prevPosition) > 2) {
+            Serial.print('m');
+            Serial.print(current);
+            Serial.print('\n');
+            prevPosition = current;
         }
-   }
+    }
 }
