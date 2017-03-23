@@ -52,6 +52,7 @@ void setup() {
 }
 
 uint16_t i, j;
+bool pauseCycle = false;
 void loop() {
     while (buggy.available()) {
         int status = buggy.readSerial();
@@ -67,12 +68,14 @@ void loop() {
             // colorWipe(strip.Color(255, 255, 255), 20);
         }
         else if (status == 5) {  // Received the letter 's'
-
+            pauseCycle = true;
         }
-        else if (status == 0) {
+        else if (status == 0)
+        {
             String command = buggy.getCommand();
             if (command.charAt(0) == 'l')
             {
+                pauseCycle = true;
                 int led_num = command.substring(1, 4).toInt();
                 int r = command.substring(4, 7).toInt();
                 int g = command.substring(7, 10).toInt();
@@ -91,11 +94,16 @@ void loop() {
             else if (command.charAt(0) == 'd') {
                 strip.show();
             }
+            else if (command.charAt(0) == 'r') {
+                pauseCycle = false;
+            }
             else if (command.charAt(0) == 'f' && command.length() == 2) {
+                pauseCycle = true;
                 int cycle_num = command.substring(1, 2).toInt();
                 fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, 1, 1);
             }
             else if (command.length() > 4 && command.substring(0, 4).equals("wipe")) {
+                pauseCycle = true;
                 int r = command.substring(4, 7).toInt();
                 int g = command.substring(7, 10).toInt();
                 int b = command.substring(10, 13).toInt();
@@ -103,10 +111,25 @@ void loop() {
                 colorWipe(strip.Color(r, g, b), wait);
             }
             else if (command.charAt(0) == 'g' && command.length() == 3) {
-              fancyGradient(command.substring(1,3).toInt()); 
+                pauseCycle = true;
+                fancyGradient(command.substring(1,3).toInt());
             }
         }
     }
+   if (!buggy.isPaused() && !pauseCycle) {
+       strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+       i++;
+       if (i >= strip.numPixels())
+       {
+           i = 0;
+           j++;
+           if (j >= 256 * 5) {
+               j = 0;
+           }
+           strip.show();
+           delay(1);
+       }
+   }
 }
 
 void fancyGradient(int start){
@@ -120,7 +143,7 @@ void fancyGradient(int start){
     strip.setPixelColor(index,strip.Color(r,g,b));
     Serial.print("rgb: ");
     Serial.print(r,HEX);
-    Serial.print(g,HEX); 
+    Serial.print(g,HEX);
     Serial.println(b,HEX);
   }
   strip.show();

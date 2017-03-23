@@ -368,7 +368,11 @@ class Camera:
                 if get_platform() == 'mac':
                     codec = 'mp4v'
                 else:
-                    codec = 'X264'
+                    # TODO: Figure out mp4 recording in ubuntu
+                    # codec = 'X264'
+                    codec = 'MJPG'
+                    self.file_name = self.file_name[:-3] + "avi"
+                    self.full_path = self.full_path[:-3] + "avi"
             else:
                 raise ValueError("Invalid file format")
             fourcc = cv2.VideoWriter_fourcc(*codec)

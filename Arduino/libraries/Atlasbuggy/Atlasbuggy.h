@@ -18,6 +18,9 @@ public:
     void changeBaud(int newBaud);
     bool available();
 
+    bool unpause();
+    bool pause();
+
 private:
     String _command;
     String _whoiam;
@@ -27,6 +30,4 @@ private:
 
     void writeWhoiam();
     void writeInit();
-    bool unpause();
-    bool pause();
 };

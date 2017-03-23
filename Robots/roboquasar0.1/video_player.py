@@ -12,7 +12,7 @@ def avi_to_mp4():
             )
         )
 
-    directory = "videos/data_days/2017_Mar_16"
+    directory = "videos/data_days/2017_Mar_21"
     path_threads = []
     for entry in os.listdir(directory):
         if entry.endswith("avi"):
@@ -68,5 +68,5 @@ def run(record, play):
     robot.left_camera.close()
     robot.left_pipeline.close()
 
-
-run(record=False, play=True)
+avi_to_mp4()
+# run(record=False, play=True)

@@ -102,6 +102,8 @@ class Pipeline:
             self.status = "error"
             thread_error = error
 
+        self.camera.close()
+
         if thread_error is not None:
             raise thread_error
 
