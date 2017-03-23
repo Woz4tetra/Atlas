@@ -51,6 +51,8 @@ class BaseInterface:
                     self._close("error")
                     raise error
 
+                self.update_events()
+
         except KeyboardInterrupt:
             pass
 
@@ -72,6 +74,19 @@ class BaseInterface:
 
     def _should_run(self):
         pass
+
+    def update_events(self):
+        for event in self.robot.reoccuring_functions:
+            event.update(self.robot.dt())
+
+        index = 0
+        while index < len(self.robot.delayed_functions):
+            event = self.robot.delayed_functions[index]
+            event.update(self.robot.dt())
+            if not event.function_called:
+                self.robot.delayed_functions.pop(index)
+            else:
+                index += 1
 
     def exit(self):
         """

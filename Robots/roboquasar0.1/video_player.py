@@ -46,7 +46,7 @@ def run(record, play):
 
     if play:
         # file_name, directory = file_sets["data day 10"][0]
-        file_name, directory, file_format = video_sets["data day 12"][-1]
+        file_name, directory, file_format = video_sets["data day 11"][2]
         robot.is_live = False
 
     if record:

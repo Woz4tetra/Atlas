@@ -1,4 +1,5 @@
 from atlasbuggy.robot.errors import *
+from atlasbuggy.robot.clock import ReoccuringEvent, DelayedEvent
 from atlasbuggy.robot.object import RobotObject
 from atlasbuggy.robot.collection import RobotObjectCollection
 
@@ -9,14 +10,16 @@ class Robot:
         :param robot_objects: instances of atlasbuggy.robot.object.RobotObject or
             atlasbuggy.robot.object.RobotObjectCollection
         """
-        self.objects = {}  # all current robot object, key: whoiam, value: RobotObject
-        self.linked_functions = {}  # user linked callback functions
+        self._objects = {}  # all current robot object, key: whoiam, value: RobotObject
+        self._linked_functions = {}  # user linked callback functions
+        self._reoccuring_functions = []
+        self._delayed_functions = []
 
-        self.inactive_ids = set()  # disabled whoiam IDs
-        self.ids_used = set()  # IDs used by the user
-        self.ids_received = set()  # IDs received from a log or serial port
+        self._inactive_ids = set()  # disabled whoiam IDs
+        self._ids_used = set()  # IDs used by the user
+        self._ids_received = set()  # IDs received from a log or serial port
 
-        self.packets_received = {}  # number of packets, key: whoiam, value: int
+        self._packets_received = {}  # number of packets, key: whoiam, value: int
 
         self.current_packet = ""  # most recently received packet
         self.current_whoiam = ""  # most recently received whoiam
@@ -36,26 +39,26 @@ class Robot:
         for robot_object in robot_objects:
             if isinstance(robot_object, RobotObject):
                 if robot_object.enabled:  # only add object if it's enabled
-                    self.objects[robot_object.whoiam] = robot_object
+                    self._objects[robot_object.whoiam] = robot_object
                 else:
                     # add to inactive IDs if disabled
-                    self.inactive_ids.add(robot_object.whoiam)
+                    self._inactive_ids.add(robot_object.whoiam)
 
             elif isinstance(robot_object, RobotObjectCollection):
                 if robot_object.enabled:  # only add object if it's enabled
                     for whoiam in robot_object.whoiam_ids:
-                        self.objects[whoiam] = robot_object
+                        self._objects[whoiam] = robot_object
                 else:
                     # add to inactive IDs if disabled
                     for whoiam in robot_object.whoiam_ids:
-                        self.inactive_ids.add(whoiam)
+                        self._inactive_ids.add(whoiam)
 
             else:
                 raise RobotObjectInitializationError(
                     "Object passed is not valid:", repr(robot_object))
 
     def __getitem__(self, item):
-        return self.objects[item]
+        return self._objects[item]
 
     def dt(self):
         """
@@ -162,7 +165,13 @@ class Robot:
         :param callback_fn: a function reference
         """
         whoiam = self._get_whoiam(arg)
-        self.linked_functions[whoiam] = callback_fn
+        self._linked_functions[whoiam] = callback_fn
+
+    def link_reoccuring(self, repeat_time, callback_fn, current_time=None):
+        self._reoccuring_functions.append(ReoccuringEvent(repeat_time, callback_fn, current_time))
+
+    def delay_function(self, delay_time, current_time, callback_fn):
+        self._delayed_functions.append(DelayedEvent(delay_time, current_time, callback_fn))
 
     def did_receive(self, arg):
         """
@@ -173,14 +182,14 @@ class Robot:
         :return: True or False if the arg matches the most recent packet
         """
         if isinstance(arg, RobotObject):
-            self.ids_used.add(arg.whoiam)
+            self._ids_used.add(arg.whoiam)
             return arg.whoiam == self.current_whoiam
         elif isinstance(arg, RobotObjectCollection):
             for whoiam in arg.whoiam_ids:
-                self.ids_used.add(whoiam)
+                self._ids_used.add(whoiam)
                 return whoiam == self.current_whoiam
         else:
-            self.ids_used.add(arg)
+            self._ids_used.add(arg)
             return arg == self.current_whoiam
 
     def num_received(self, arg):
@@ -191,11 +200,11 @@ class Robot:
         :return: number of packets received with the arg's whoiam
         """
         if isinstance(arg, RobotObject):
-            return self.packets_received[arg.whoiam]
+            return self._packets_received[arg.whoiam]
         elif isinstance(arg, RobotObjectCollection):
             packets = 0
             for whoiam in arg.whoiam_ids:
-                packets += self.packets_received[whoiam]
+                packets += self._packets_received[whoiam]
             return packets
         else:
-            return self.packets_received[arg]
+            return self._packets_received[arg]

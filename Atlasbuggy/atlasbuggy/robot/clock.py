@@ -56,3 +56,31 @@ class Clock:
             return self.offset > 0
         else:
             return False
+
+
+class ReoccuringEvent:
+    def __init__(self, repeat_time, function, current_time):
+        self.repeat_time = repeat_time
+        self.function = function
+        if current_time is None:
+            self.prev_time = 0.0
+        else:
+            self.prev_time = current_time
+
+    def update(self, timestamp):
+        if timestamp - self.prev_time > self.repeat_time:
+            self.function()
+            self.prev_time = timestamp
+
+
+class DelayedEvent:
+    def __init__(self, delay_time, current_time, function):
+        self.delay_time = delay_time
+        self.function = function
+        self.prev_time = current_time
+        self.function_called = False
+
+    def update(self, timestamp):
+        if not self.function_called and timestamp - self.prev_time > self.delay_time:
+            self.function()
+            self.function_called = True
