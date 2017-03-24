@@ -114,7 +114,7 @@ void loop() {
         // if millis() or timer wraps around, we'll just reset it
         if (pingTimer > millis())  pingTimer = millis();
 
-        if ((millis() - pingTimer) > 500) {
+        if ((millis() - pingTimer) > 1000) {
             goal = BRAKE_POS;
             braking = true;
             moving = true;

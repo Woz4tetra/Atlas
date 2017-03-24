@@ -12,12 +12,15 @@ def avi_to_mp4():
             )
         )
 
-    directory = "videos/data_days/2017_Mar_21"
+    directory = "videos/push_practice/2017_Mar_23_raw"
+    output_dir = "videos/push_practice/2017_Mar_23"
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
     path_threads = []
     for entry in os.listdir(directory):
         if entry.endswith("avi"):
             path = os.path.join(directory, entry)
-            new_path = path
+            new_path = os.path.join(output_dir, entry)
             ext_index = new_path.rfind(".")
             new_path = new_path[:ext_index]
             print("Converting", entry)
@@ -46,7 +49,10 @@ def run(record, play):
 
     if play:
         # file_name, directory = file_sets["data day 10"][0]
-        file_name, directory, file_format = video_sets["data day 11"][2]
+        # file_name, directory, file_format = video_sets["data day 11"][2]
+        file_name = "00_19_22"
+        directory = "data_days/2017_Mar_24"
+        file_format = "avi"
         robot.is_live = False
 
     if record:

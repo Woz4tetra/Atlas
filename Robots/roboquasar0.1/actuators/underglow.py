@@ -93,6 +93,7 @@ class Underglow(RobotObject):
         )
 
     def rainbow_cycle(self):
+        print("Starting rainbow")
         self.send("r")
 
     def color_wipe(self, delay, *rgb):

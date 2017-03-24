@@ -224,6 +224,9 @@ class RobotSerialPort(Process):
 
             # parse received packets
             for packet in packets:
+                if len(packet) == 0:
+                    self.debug_print("Empty packet! Contained only \\n")
+                    continue
                 if packet[0:len(recv_packet_header)] == recv_packet_header:  # if the packet starts with the header,
                     self.debug_print("received packet: " + repr(packet))
 
@@ -318,6 +321,7 @@ class RobotSerialPort(Process):
                                 for header in self.protocol_packets:
                                     if len(packet) >= len(header) and packet[:len(header)] == header:
                                         self.debug_print("Misplaced protocol packet:", repr(packet))
+                                        continue
 
                                 queue.put((self.whoiam, time.time(), packet))
                                 # start_time isn't used. The main process has its own initial time reference

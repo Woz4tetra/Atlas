@@ -151,8 +151,9 @@ class BuggyJoystick:
                     raise ValueError(
                         "Unregistered button! '%s'. Please add "
                         "it to your joystick class." % event.button)
-        if self.active and (time.time() - self.t0) > 1:  # if no events received for more than timeout, signal stop
-            return "error"
+        # TODO: find better solution. Keeps listening to bumpers
+        # if self.active and (time.time() - self.t0) > 1:  # if no events received for more than timeout, signal stop
+            # return "error"
 
     def get_button(self, name):
         """

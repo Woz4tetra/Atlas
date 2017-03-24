@@ -26,6 +26,7 @@ Atlasbuggy buggy("underglow");
 #define SIGNAL_CYCLES 2
 
 int signal_r, signal_g, signal_b = 0;
+uint32_t time0 = millis();
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
@@ -100,15 +101,16 @@ void loop() {
             else if (command.substring(0, 2).equals("fr")) {
                 pauseCycle = true;
                 int cycle_num = command.substring(2, 3).toInt();
-                fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, 1, 1);
+                fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, SIGNAL_DELAY, SIGNAL_INCREMENT);
             }
             else if (command.charAt(0) == 'f') {
                 pauseCycle = true;
                 int cycle_num = command.substring(1, 4).toInt();
+                Serial.println(cycle_num);
                 int r = command.substring(4, 7).toInt();
                 int g = command.substring(7, 10).toInt();
                 int b = command.substring(10, 13).toInt();
-                fadeColors(r, g, b, cycle_num, 1, 1);
+                fadeColors(r, g, b, cycle_num, SIGNAL_DELAY, SIGNAL_INCREMENT);
             }
             else if (command.length() > 4 && command.substring(0, 4).equals("wipe")) {
                 pauseCycle = true;
@@ -124,20 +126,26 @@ void loop() {
             }
         }
     }
-   if (!buggy.isPaused() && !pauseCycle) {
-       strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-       i++;
-       if (i >= strip.numPixels())
-       {
-           i = 0;
-           j++;
-           if (j >= 256 * 5) {
-               j = 0;
-           }
-           strip.show();
-           delay(1);
-       }
-   }
+
+    // if (!buggy.isPaused() && !pauseCycle) {
+    //     if (time0 > millis()) time0 = millis();
+    //     if ((millis() - time0) > 5)
+    //     {
+    //        strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+    //        i++;
+    //        if (i >= strip.numPixels())
+    //        {
+    //            i = 0;
+    //            j++;
+    //            if (j >= 256 * 5) {
+    //                j = 0;
+    //            }
+    //            strip.show();
+    //         //    delay(1);
+    //        }
+    //        time0 = millis();
+    //     }
+    // }
 }
 
 void fancyGradient(int start){
@@ -158,6 +166,12 @@ void fancyGradient(int start){
 }
 
 void fadeColors(int r, int g, int b, uint16_t cycles, uint8_t wait, int increment) {
+    Serial.println(signal_r);
+    Serial.println(signal_g);
+    Serial.println(signal_b);
+    Serial.println(r);
+    Serial.println(g);
+    Serial.println(b);
     fadeColors(signal_r, signal_g, signal_b, r, g, b, cycles, wait, increment);
 }
 

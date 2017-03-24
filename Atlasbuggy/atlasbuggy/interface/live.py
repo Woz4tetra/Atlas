@@ -207,7 +207,7 @@ class RobotRunner(BaseInterface):
 
         # if no packets have been received for a while, update the timestamp with the current clock time
         current_real_time = time.time() - self.start_time
-        if current_real_time - self.robot.current_timestamp > 0.01:
+        if self.robot.current_timestamp is None or current_real_time - self.robot.current_timestamp > 0.01:
             self.robot.current_timestamp = current_real_time
 
     def _close(self, reason):

@@ -35,6 +35,9 @@ class Brakes(RobotObject):
         self.goal_position = self.unbrake_pos
         self.engaged = False
 
+    def ping(self):
+        self.send("t")
+
     def toggle(self):
         if self.engaged:
             self.release()
