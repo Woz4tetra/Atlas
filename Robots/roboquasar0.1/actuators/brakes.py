@@ -25,21 +25,21 @@ class Brakes(RobotObject):
         self.moving = packet[0] == 'm'
         self.position = int(packet[1:])
 
-    def brake(self):
+    def pull(self):
         self.send('b')
         self.goal_position = self.brake_pos
         self.engaged = True
 
-    def unbrake(self):
+    def release(self):
         self.send('r')
         self.goal_position = self.unbrake_pos
         self.engaged = False
 
     def toggle(self):
         if self.engaged:
-            self.unbrake()
+            self.release()
         else:
-            self.brake()
+            self.pull()
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)

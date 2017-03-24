@@ -74,6 +74,8 @@ class RoboQuasar(Robot):
         self.link_object(self.gps, self.receive_gps)
         self.link_object(self.imu, self.receive_imu)
 
+        self.link_reoccuring(0.15, self.steering_event)
+
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
                                                 self.controller.map, self.controller.inner_map,
@@ -269,6 +271,21 @@ class RoboQuasar(Robot):
 
         self.update_joystick()
 
+    def steering_event(self):
+        if self.steering.calibrated and self.manual_mode:
+            if self.joystick.axis_updated("right x"):
+                delta_step = self.my_round(16 * self.sigmoid(10.0 * self.joystick.get_axis("right x")))
+                self.steering.change_step(delta_step)
+
+    @staticmethod
+    def my_round(x, d=0):
+        p = 10 ** d
+        return float(math.floor((x * p) + math.copysign(0.5, x))) / p
+
+    @staticmethod
+    def sigmoid(x):  # modified sigmoid. -1...1
+        return (-1 / (1 + math.exp(-x)) + 0.5) * 2
+
     def update_joystick(self):
         if self.joystick is not None:
             if self.steering.calibrated and self.manual_mode:
@@ -283,9 +300,9 @@ class RoboQuasar(Robot):
                 elif self.joystick.button_updated("A") and self.joystick.get_button("A"):
                     self.steering.calibrate()
                 elif self.joystick.dpad_updated():
-                    if self.joystick.dpad[0] != 0:
-                        self.steering.change_position(-self.joystick.dpad[0] * 10)
-                    elif self.joystick.dpad[1] != 0:
+                    # if self.joystick.dpad[0] != 0:
+                    #     self.steering.change_position(-self.joystick.dpad[0] * 10)
+                    if self.joystick.dpad[1] != 0:
                         self.steering.set_position(0)
 
             if self.joystick.button_updated("X") and self.joystick.get_button("X"):
@@ -294,11 +311,22 @@ class RoboQuasar(Robot):
 
             elif self.joystick.button_updated("L"):
                 if self.joystick.get_button("L"):
-                    self.brakes.unbrake()
+                    self.brakes.release()
+                    self.underglow.signal_release()
+                    self.delay_function(0.25, self.dt(), self.underglow.rainbow_cycle)
                 else:
-                    self.brakes.brake()
+                    self.brakes.pull()
+                    self.underglow.signal_brake()
+                    self.delay_function(0.25, self.dt(), self.underglow.rainbow_cycle)
+
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
+                if self.brakes.engaged:
+                    self.underglow.signal_brake()
+                    self.delay_function(0.25, self.dt(), self.underglow.rainbow_cycle)
+                else:
+                    self.underglow.signal_release()
+                    self.delay_function(0.25, self.dt(), self.underglow.rainbow_cycle)
 
     def update_current_control(self):
         if not self.manual_mode:
@@ -326,7 +354,7 @@ class RoboQuasar(Robot):
 
     def close(self, reason):
         if reason != "done":
-            self.brakes.brake()
+            self.brakes.pull()
             print("!!EMERGENCY BRAKE!!")
 
         self.quasar_plotter.close(reason)

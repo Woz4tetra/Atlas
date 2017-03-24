@@ -3,7 +3,6 @@ from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
 
 
-
 class Underglow(RobotObject):
     def __init__(self, enabled=True, enable_plotting=False):
         self.enable_plotting = enable_plotting
@@ -12,6 +11,16 @@ class Underglow(RobotObject):
         self.led_plots = None
         self.strip_plot = None
 
+        self.brake_signal_cycles = 4
+        self.brake_signal_r = 255
+        self.brake_signal_g = 255
+        self.brake_signal_b = 0
+
+        self.release_signal_cycles = 4
+        self.release_signal_r = 0
+        self.release_signal_g = 255
+        self.release_signal_b = 255
+
         super(Underglow, self).__init__("underglow", enabled)
 
     def receive_first(self, packet):
@@ -19,7 +28,8 @@ class Underglow(RobotObject):
         self.leds = [(255, 255, 255) for _ in range(self.num_leds)]
 
         self.led_plots = [
-            RobotPlot("LED #%s" % x, enabled=self.enable_plotting, marker='.', markersize=10, x_range=(-1, self.num_leds), color='black') for x in
+            RobotPlot("LED #%s" % x, enabled=self.enable_plotting, marker='.', markersize=10,
+                      x_range=(-1, self.num_leds), color='black') for x in
             range(self.num_leds)]
         self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, enabled=self.enable_plotting)
 
@@ -69,6 +79,21 @@ class Underglow(RobotObject):
         if self.strip_plot.enabled:
             self.led_plots[led_num].set_properties(color=(r / 255, g / 255, b / 255))
             self.leds[led_num] = (r, g, b)
+
+    def signal_brake(self):
+        self.send(
+            "f%3.0d%3.0d%3.0d%3.0d" % (
+                self.brake_signal_cycles, self.brake_signal_r, self.brake_signal_g, self.brake_signal_b)
+        )
+
+    def signal_release(self):
+        self.send(
+            "f%3.0d%3.0d%3.0d%3.0d" % (
+                self.release_signal_cycles, self.release_signal_r, self.release_signal_g, self.release_signal_b)
+        )
+
+    def rainbow_cycle(self):
+        self.send("r")
 
     def color_wipe(self, delay, *rgb):
         r, g, b = self.constrain_input(rgb)

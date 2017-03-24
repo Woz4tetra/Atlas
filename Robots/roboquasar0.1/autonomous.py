@@ -52,14 +52,14 @@ class AutonomousCommandline(cmd.Cmd):
         usage: b
         engage the brake
         """
-        robot.brakes.brake()
+        robot.brakes.pull()
 
     def do_r(self, line):
         """
         usage: r
         disengage the brake
         """
-        robot.brakes.unbrake()
+        robot.brakes.release()
 
     def do_s(self, line):
         """

@@ -374,9 +374,9 @@ class RoboQuasar(Interface):
                         self.steering.set_position(0)
 
                 if self.joystick.button_updated("B") and self.joystick.get_button("B"):
-                    self.brakes.brake()
+                    self.brakes.pull()
                 elif self.joystick.button_updated("X") and self.joystick.get_button("X"):
-                    self.brakes.unbrake()
+                    self.brakes.release()
                 elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
                     self.record("checkpoint", "%s\t%s\t%s" % (self.checkpoint_num, self.gps.latitude_deg, self.gps.longitude_deg))
                     if self.gps.latitude_deg is not None and self.gps.longitude_deg is not None:

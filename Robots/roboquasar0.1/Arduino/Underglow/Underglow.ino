@@ -97,10 +97,18 @@ void loop() {
             else if (command.charAt(0) == 'r') {
                 pauseCycle = false;
             }
-            else if (command.charAt(0) == 'f' && command.length() == 2) {
+            else if (command.substring(0, 2).equals("fr")) {
                 pauseCycle = true;
-                int cycle_num = command.substring(1, 2).toInt();
+                int cycle_num = command.substring(2, 3).toInt();
                 fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, 1, 1);
+            }
+            else if (command.charAt(0) == 'f') {
+                pauseCycle = true;
+                int cycle_num = command.substring(1, 4).toInt();
+                int r = command.substring(4, 7).toInt();
+                int g = command.substring(7, 10).toInt();
+                int b = command.substring(10, 13).toInt();
+                fadeColors(r, g, b, cycle_num, 1, 1);
             }
             else if (command.length() > 4 && command.substring(0, 4).equals("wipe")) {
                 pauseCycle = true;

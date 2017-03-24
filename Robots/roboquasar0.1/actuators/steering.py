@@ -65,8 +65,11 @@ class Steering(RobotObject):
             print("speed:", self.speed)
             self.send("v" + str(self.speed))
 
-    def change_position(self, delta_step):
+    def change_step(self, delta_step):
         self.send_step(self.current_step + delta_step)
+
+    def change_position(self, delta_angle):
+        self.send_step(self.current_step + delta_angle * self.angle_to_step)
 
     def set_position(self, goal_angle):
         # if time.time() - self.last_update_t < 0.5:
