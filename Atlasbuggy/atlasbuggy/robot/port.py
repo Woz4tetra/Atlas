@@ -526,10 +526,10 @@ class RobotSerialPort(Process):
         :return:
         """
 
-        with self.exit_event_lock:
-            if self.exit_event.is_set():
-                self.debug_print("Exit event already set. Stop was sent internally")
-                return True
+        # with self.exit_event_lock:
+        #     if self.exit_event.is_set():
+        #         self.debug_print("Exit event already set. Stop was sent internally")
+        #         return True
 
         if self.start_time > 0 and time.time() - self.start_time <= 2:  # wait for arduino to listen
             time.sleep(2)

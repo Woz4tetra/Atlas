@@ -28,6 +28,7 @@ class Robot:
         self.is_paused = False  # for simulations. The robot can be paused (see self.pause)
 
         self.is_live = None
+        self.debug_enabled = None
 
         # for runners
         self.logger = None  # Instance of atlasbuggy.files.logfile.Logger (None if is_live is False)
@@ -208,3 +209,10 @@ class Robot:
             return packets
         else:
             return self.packets_received[arg]
+
+    def debug_print(self, *values, ignore_flag=False):
+        string = "[%s] %s" % (self.__class__.__name__, " ".join([str(x) for x in values]))
+        self.logger.record(self.current_timestamp, self.__class__.__name__, string, "debug")
+
+        if self.debug_enabled or ignore_flag:
+            print(string)

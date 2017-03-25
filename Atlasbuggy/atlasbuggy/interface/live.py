@@ -61,6 +61,7 @@ class RobotRunner(BaseInterface):
         for robot_object in self.robot.objects.values():
             robot_object.is_live = True
         self.robot.is_live = True
+        self.robot.debug_enabled = self.debug_enabled
 
         # create a pipe from all port processes to the main loop
         self.packet_queue = Queue()
@@ -228,8 +229,6 @@ class RobotRunner(BaseInterface):
         :return: True if the ports are ok
         """
 
-        # TODO: figure out how to handle if the arduino signals to exit via the 'stopping' packet
-
         for robot_port in self.ports.values():
             status = robot_port.is_running()
             if status < 1:
@@ -389,8 +388,9 @@ class RobotRunner(BaseInterface):
             robot_port.stop()
 
         for robot_port in self.ports.values():
-            self._debug_print("Port prev packets: read: %s, write %s" % (
-                robot_port.prev_read_packets, robot_port.prev_write_packet)
+            self._debug_print("[%s] Port previous packets: read: %s, write %s" % (
+                robot_port.whoiam,
+                robot_port.prev_read_packets, repr(robot_port.prev_write_packet))
             )
 
         # check if the port exited properly
@@ -558,7 +558,7 @@ class RobotRunner(BaseInterface):
 
     def _debug_print(self, *values, ignore_flag=False):
         string = "[%s] %s" % (self.debug_name, " ".join([str(x) for x in values]))
-        self.logger.record(self.robot.current_timestamp, "Interface", string, "debug")
+        self.logger.record(self.robot.current_timestamp, self.debug_name, string, "debug")
 
         if self.debug_enabled or ignore_flag:
             print(string)

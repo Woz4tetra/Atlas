@@ -26,7 +26,7 @@ class Brakes(RobotObject):
             self.moving = packet[0] == 'm'
             self.position = int(packet[1:])
         except IndexError:
-            print("ERROR PACKET:", timestamp, packet)
+            print("BRAKES ERROR PACKET:", timestamp, packet)
 
     def pull(self):
         self.send('b')

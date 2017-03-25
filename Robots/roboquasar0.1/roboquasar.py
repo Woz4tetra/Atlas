@@ -278,7 +278,7 @@ class RoboQuasar(Robot):
         self.update_joystick()
 
     def steering_event(self):
-        self.brakes.ping()
+        # self.brakes.ping()
         if self.steering.calibrated and self.manual_mode:
             # if self.joystick.get_axis("ZR") >= 1.0:
             joy_val = self.joystick.get_axis("right x")
@@ -380,7 +380,7 @@ class RoboQuasar(Robot):
     def close(self, reason):
         if reason != "done":
             self.brakes.pull()
-            print("!!EMERGENCY BRAKE!!")
+            self.debug_print("!!EMERGENCY BRAKE!!", ignore_flag=True)
 
         self.quasar_plotter.close(reason)
 

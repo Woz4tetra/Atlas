@@ -13,9 +13,9 @@ from actuators.brakes import Brakes
 from actuators.steering import Steering
 from actuators.underglow import Underglow
 
+
 class CameraGuidanceTest(Robot):
-    def __init__(self, checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
-                initial_compass=None, enable_cameras=True, show_cameras=None):
+    def __init__(self, enable_cameras=True, show_cameras=False):
 
         # ----- initialize robot objects -----
 
@@ -30,8 +30,6 @@ class CameraGuidanceTest(Robot):
         self.manual_mode = True
 
         # ----- init CV classes ------
-        if show_cameras is None:
-            show_cameras = enable_plotting
 
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
         self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
@@ -188,3 +186,13 @@ class CameraGuidanceTest(Robot):
 
             if self.right_pipeline.status is not None:
                 return self.right_pipeline.status
+
+    def close(self, reason):
+        if reason != "done":
+            self.brakes.pull()
+            self.debug_print("!!EMERGENCY BRAKE!!", ignore_flag=True)
+
+        self.left_pipeline.close()
+        self.right_pipeline.close()
+
+        print("Ran for %0.4fs" % self.dt())
