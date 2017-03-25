@@ -36,8 +36,6 @@ class AtlasFile:
         self.compressed = compressed
 
         self.directory = self.get_abs_dir(self.input_dir)
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
         self.file_name = self.get_file_name(input_name)
         if len(self.file_types) == 1:
             if self.compressed:

@@ -456,10 +456,11 @@ class RobotRunner(BaseInterface):
         :param packet: packet string
         """
         try:
-            if self.robot.received(dt, whoiam, packet, "object") is False:
+            status = self.robot.received(dt, whoiam, packet, "object")
+            if status is not None:
                 self._debug_print(
                     "received signalled to exit. whoiam ID: '%s', packet: %s" % (whoiam, repr(packet)))
-                return "exit"
+                return status
 
             if self.robot.current_whoiam in self.robot.linked_functions:
                 return self.robot.linked_functions[self.robot.current_whoiam](

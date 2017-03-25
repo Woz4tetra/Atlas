@@ -1,6 +1,6 @@
 import os
 import threading
-from roboquasar import RoboQuasar, map_sets, video_sets
+from roboquasar import RoboQuasar, map_sets, video_sets, file_sets
 from atlasbuggy.files.atlasbuggyfile import AtlasFile
 
 
@@ -48,11 +48,11 @@ def run(record, play):
     file_format = "mp4"
 
     if play:
-        # file_name, directory = file_sets["data day 10"][0]
-        # file_name, directory, file_format = video_sets["data day 11"][2]
-        file_name = "00_19_22"
-        directory = "data_days/2017_Mar_24"
-        file_format = "avi"
+        file_name, directory = file_sets["push practice 2"][6]
+        file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
+        file_name = file_finder.file_name_no_ext.replace(";", "_")
+
+        # file_name, directory, file_format = video_sets["data day 11"][8]
         robot.is_live = False
 
     if record:
@@ -74,5 +74,5 @@ def run(record, play):
     robot.left_camera.close()
     robot.left_pipeline.close()
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)

@@ -121,6 +121,9 @@ class Camera:
         self.sync_up_error = sync_up_error
         self.start_frame = start_frame
 
+        if not self.enabled:
+            return None
+
         read_file = AtlasReadFile(file_name, directory, False, ("avi", "mp4", "mov"), "videos")
 
         self.file_name = read_file.file_name

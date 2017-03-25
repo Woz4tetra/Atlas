@@ -14,9 +14,10 @@ class Pipeline:
         self.exit_event = Event()
         self._updated = False
         self.paused = False
+        self.pause_updated = False
         self.frame = None
 
-        self.safety_threshold = 0.3
+        self.safety_threshold = 0.1
         self.safety_value = 0.0
         self.prev_safe_value = 0.0
         self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
@@ -76,12 +77,12 @@ class Pipeline:
                             continue
 
                         while not self.frame_queue.empty():
-                            self.frame = self.frame_queue.get()
-                            if self.frame is None:
+                            frame = self.frame_queue.get()
+                            if frame is None:
                                 self.status = "exit"
                                 break
 
-                            self.frame = self.pipeline(self.frame)
+                            self.frame = self.pipeline(frame)
                     else:
                         if self.camera.get_frame(self.timestamp) is None:
                             self.status = "exit"
@@ -97,6 +98,7 @@ class Pipeline:
                     self.close()
                 elif key == ' ':
                     self.paused = not self.paused
+                    self.pause_updated = True
 
         except BaseException as error:
             self.status = "error"
@@ -107,9 +109,16 @@ class Pipeline:
         if thread_error is not None:
             raise thread_error
 
+    def did_pause(self):
+        if self.pause_updated:
+            self.pause_updated = False
+            return True
+        else:
+            return False
+
     def pipeline(self, frame):
         self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame)
+        frame, lines, self.safety_value = self.hough_detector(frame.copy(), False)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -191,18 +200,29 @@ class Pipeline:
         # blank = np.ones(self.camera.frame.shape[0:2], dtype=np.uint8) * 255
         # blank[markers == -1] = 0
 
-    def hough_detector(self, input_frame):
-        # frame = cv2.medianBlur(input_frame, 11)
-        frame = cv2.GaussianBlur(input_frame, (11, 11), 0)
+    def hough_detector(self, input_frame, day_mode):
+        # blur = cv2.medianBlur(input_frame, 5)
+        if day_mode:
+            blur = cv2.GaussianBlur(input_frame, (11, 11), 0)
+        else:
+            blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
+            blur = cv2.equalizeHist(blur)
+            blur = cv2.GaussianBlur(blur, (7, 7), 0)
 
-        frame = cv2.Canny(frame, 1, 100)
+        frame = cv2.Canny(blur, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
                                threshold=125,
                                min_theta=80 * np.pi / 180,
                                max_theta=110 * np.pi / 180
                                )
         safety_percentage = self.draw_lines(input_frame, lines)
-        return input_frame, lines, safety_percentage
+
+        output_frame = cv2.add(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR), input_frame)
+        if day_mode:
+            output_frame = np.concatenate((output_frame, blur), axis=1)
+        else:
+            output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
+        return output_frame, lines, safety_percentage
 
     def sobel_filter(self, frame):
         # frame = cv2.Laplacian(frame, cv2.CV_64F, ksize=3)
@@ -277,7 +297,7 @@ class Pipeline:
                     largest_y = y3
                     largest_coords = (x1, y1), (x2, y2)
 
-                # cv2.line(frame, (x1, y1), (x2, y2), (150, 255, 50), 2)
+                cv2.line(frame, (x1, y1), (x2, y2), (150, 150, 150), 2)
                 # cv2.circle(frame, (x0, y0), 10, (150, 255, 50), 2)
                 counter += 1
                 if counter > draw_threshold:

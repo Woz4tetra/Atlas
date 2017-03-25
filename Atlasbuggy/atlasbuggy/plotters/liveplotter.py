@@ -115,11 +115,11 @@ class LivePlotter(BasePlotter):
         if self.closed:
             return "exit"
 
-        if self.is_paused:
-            self.plt.pause(0.05)
+        if not self.enabled or not self.should_update(timestamp):
             return
 
-        if not self.enabled or not self.should_update(timestamp):
+        if self.is_paused:
+            self.plt.pause(0.05)
             return
 
         for plot in self.robot_plots:

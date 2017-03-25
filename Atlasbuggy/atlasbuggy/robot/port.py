@@ -360,7 +360,7 @@ class RobotSerialPort(Process):
                 self.handle_error("Serial port wasn't open for reading...", traceback.format_stack())
                 return None
 
-        except SerialException as error:
+        except BaseException as error:
             self.handle_error(error, traceback.format_stack())
             return None
 
@@ -404,11 +404,12 @@ class RobotSerialPort(Process):
 
         try:
             if self.serial_ref.is_open:
-                self.serial_ref.write(data)
+                with self.serial_lock:
+                    self.serial_ref.write(data)
             else:
                 self.handle_error("Serial port wasn't open for writing...", traceback.format_stack())
                 return False
-        except SerialException as error:
+        except BaseException as error:
             self.handle_error(error, traceback.format_stack())
             return False
 

@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 from algorithms.bozo_controller import BozoController
 from algorithms.bozo_filter import BozoFilter
@@ -29,7 +30,7 @@ class RoboQuasar(Robot):
     def __init__(self, enable_plotting,
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
                  initial_compass=None, animate=True, enable_cameras=True,
-                 enable_kalman=False, use_log_file_maps=False):
+                 enable_kalman=False, use_log_file_maps=True, show_cameras=None):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -47,8 +48,11 @@ class RoboQuasar(Robot):
         self.manual_mode = True
 
         # ----- init CV classes ------
-        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=enable_plotting)
-        self.right_camera = Camera("rightcam", enabled=False, show=enable_plotting)
+        if show_cameras is None:
+            show_cameras = enable_plotting
+
+        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
+        self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
         self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
         self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
 
@@ -61,6 +65,7 @@ class RoboQuasar(Robot):
         self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
+        self.steering_angle = 0.0
 
         # who's controlling steering? (GPS and IMU or CV)
         self.gps_imu_control_enabled = True
@@ -166,7 +171,7 @@ class RoboQuasar(Robot):
                 self.controller.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
             status = self.quasar_plotter.update_gps_plot(self.dt(), self.gps.latitude_deg, self.gps.longitude_deg)
-            if status is None:
+            if status is not None:
                 return status
 
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -189,7 +194,6 @@ class RoboQuasar(Robot):
 
                     lat, long = self.kalman_filter.get_position()[0:2]
                     filtered_angle = self.kalman_filter.get_orientation()[2]
-                    # angle = self.offset_angle()
 
                     self.bozo_filter.offset_angle(self.imu.euler.z)
                 else:
@@ -198,17 +202,17 @@ class RoboQuasar(Robot):
                 filtered_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
                 lat, long = self.gps.latitude_deg, self.gps.longitude_deg
 
-            steering_angle = self.controller.update(lat, long, filtered_angle)
+            self.steering_angle = self.controller.update(lat, long, filtered_angle)
             self.record("steering angle",
-                        "%s\t%s\t%s" % (steering_angle, self.manual_mode, self.controller.current_index))
+                        "%s\t%s\t%s" % (self.steering_angle, self.manual_mode, self.controller.current_index))
 
             if not self.manual_mode and self.gps_imu_control_enabled:
-                self.steering.set_position(steering_angle)
+                self.steering.set_position(self.steering_angle)
 
             self.quasar_plotter.update_indicators(
                 self.controller.current_pos, filtered_angle,
                 self.bozo_filter.imu_angle,
-                self.gps.latitude_deg, self.gps.longitude_deg, steering_angle,
+                self.gps.latitude_deg, self.gps.longitude_deg, self.steering_angle,
                 self.controller.map[self.controller.current_index][0],
                 self.controller.map[self.controller.current_index][1]
             )
@@ -225,7 +229,8 @@ class RoboQuasar(Robot):
                 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
                 self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
-                self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
+                self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map,
+                                                self.controller.outer_map)
 
         elif self.did_receive("checkpoint"):
             if self.gps.is_position_valid():
@@ -267,8 +272,9 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
 
-        self.update_current_control()
-
+        status = self.update_pipeline()
+        if status is not None:
+            return status
         self.update_joystick()
 
     def steering_event(self):
@@ -334,12 +340,16 @@ class RoboQuasar(Robot):
                     self.underglow.signal_release()
                     # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
 
-    def update_current_control(self):
+    def update_pipeline(self):
         if not self.manual_mode:
             if self.left_pipeline.did_update():
                 value = self.left_pipeline.safety_value
-                if value > self.left_pipeline.safety_threshold:
-                    self.steering.send_step(self.steering.left_limit * value)
+                velocity = self.kalman_filter.get_velocity()
+                speed = np.sqrt(velocity.T * velocity).tolist()[0]
+                if value > self.left_pipeline.safety_threshold and speed > 0.1:
+                    new_angle = self.steering_angle + self.steering.left_limit_angle * value
+                    print(new_angle)
+                    self.steering.set_position(new_angle)
                     self.gps_imu_control_enabled = False
                 else:
                     self.gps_imu_control_enabled = True
@@ -347,13 +357,19 @@ class RoboQuasar(Robot):
             if self.right_pipeline.did_update():
                 value = self.right_pipeline.safety_value
                 if value > self.right_pipeline.safety_threshold:
-                    self.steering.send_step(self.steering.right_limit * value)
+                    new_angle = self.steering_angle + self.steering.right_limit_angle * value
+                    self.steering.set_position(new_angle)
                     self.gps_imu_control_enabled = False
                 else:
                     self.gps_imu_control_enabled = True
 
             if self.left_pipeline.status is not None:
                 return self.left_pipeline.status
+
+            if self.left_pipeline.did_pause():
+                self.toggle_pause()
+                if isinstance(self.quasar_plotter.plotter, LivePlotter):
+                    self.quasar_plotter.plotter.toggle_pause()
 
             if self.right_pipeline.status is not None:
                 return self.right_pipeline.status
@@ -517,6 +533,7 @@ class RoboQuasarPlotter:
     def close(self, reason):
         if reason == "done":
             if isinstance(self.plotter, LivePlotter):
+                print("done!")
                 self.plotter.freeze_plot()
 
         self.plotter.close()
@@ -550,13 +567,36 @@ map_sets = {
 }
 
 file_sets = {
-    "push practice 1"    : (
-        ("23;25", "data_days/2017_Mar_21"),
-        ("23;30", "data_days/2017_Mar_21"),
-        ("23;49", "data_days/2017_Mar_21"),
-        ("23;55", "data_days/2017_Mar_21"),
-        ("00;06", "data_days/2017_Mar_21"),
-        ("00;15", "data_days/2017_Mar_21"),
+    "push practice 2"   : (
+        ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
+        ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
+        ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
+        ("00;14", "push_practice/2017_Mar_24"),  # 3, manual run, heading is off
+        ("00;17", "push_practice/2017_Mar_24"),  # 4, walking to position
+        ("00;19", "push_practice/2017_Mar_24"),  # 5, FIRST AUTONOMOUS RUN!!!
+        ("00;38", "push_practice/2017_Mar_24"),  # 6, AUTONOMOUS RUN!!! Hills 3, 4, & 5, ends in brake command failure
+        ("00;45", "push_practice/2017_Mar_24"),  # 7, Finishing hill 5
+
+        ("23;28", "push_practice/2017_Mar_23/error_logs"),  # 8, failed to send command brakes
+        ("23;35", "push_practice/2017_Mar_23/error_logs"),  # 9, arduinos still running. Can't reconnect
+        ("00;36", "push_practice/2017_Mar_24/error_logs"),  # 10, failed to send command steering
+        ("00;44;47", "push_practice/2017_Mar_24/error_logs"),  # 11, arduinos still running. Can't reconnect
+        ("00;44;58", "push_practice/2017_Mar_24/error_logs"),  # 12, failed to send command steering
+        ("00;47", "push_practice/2017_Mar_24/error_logs"),  # 13, failed to send command brakes
+        ("00;48;23", "push_practice/2017_Mar_24/error_logs"),  # 14, arduinos still running. Can't reconnect
+        ("00;48;31", "push_practice/2017_Mar_24/error_logs"),  # 15, failed to send command steering
+        ("00;50", "push_practice/2017_Mar_24/error_logs"),  # 16, failed to send command brakes
+        ("00;51", "push_practice/2017_Mar_24/error_logs"),  # 17, failed to send command steering
+        ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
+        ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
+    ),
+    "push practice 1"   : (
+        ("23;25", "push_practice/2017_Mar_21"),
+        ("23;30", "push_practice/2017_Mar_21"),
+        ("23;49", "push_practice/2017_Mar_21"),
+        ("23;55", "push_practice/2017_Mar_21"),
+        ("00;06", "push_practice/2017_Mar_22"),
+        ("00;15", "push_practice/2017_Mar_22"),
     ),
     "data day 12"       : (
         ("16;36", "data_days/2017_Mar_18"),

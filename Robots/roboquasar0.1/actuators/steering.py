@@ -15,6 +15,9 @@ class Steering(RobotObject):
         self.left_limit = 0
         self.right_limit = 0
 
+        self.left_limit_angle = 0
+        self.right_limit_angle = 0
+
         self._goal_reached = False
         self.moving = False
         self.calibrated = False
@@ -29,6 +32,8 @@ class Steering(RobotObject):
     def receive_first(self, packet):
         self.max_speed, self.left_limit, self.right_limit = \
             [int(x) for x in packet.split("\t")]
+        self.left_limit_angle = self.left_limit / self.angle_to_step
+        self.right_limit_angle = self.right_limit / self.angle_to_step
 
     def receive(self, timestamp, packet):
         if packet == "calibrating":
