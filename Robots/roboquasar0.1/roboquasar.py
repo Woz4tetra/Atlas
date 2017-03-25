@@ -6,6 +6,7 @@ from algorithms.bozo_filter import BozoFilter
 from algorithms.kalman.kalman_constants import constants
 from algorithms.kalman.kalman_filter import GrovesKalmanFilter
 from algorithms.pipeline import Pipeline
+from algorithms.pipeline2 import Pipeline2
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
 from atlasbuggy.plotters.plot import RobotPlot
@@ -30,7 +31,8 @@ class RoboQuasar(Robot):
     def __init__(self, enable_plotting,
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
                  initial_compass=None, animate=True, enable_cameras=True,
-                 enable_kalman=False, use_log_file_maps=True, show_cameras=None):
+                 enable_kalman=False, use_log_file_maps=True, show_cameras=None,
+                 pipeline=1):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -53,8 +55,13 @@ class RoboQuasar(Robot):
 
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
         self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
-        self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
-        self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
+
+        if pipeline == 1:
+            self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
+            self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
+        elif pipeline == 2:
+            self.left_pipeline = Pipeline2(self.left_camera, separate_read_thread=False)
+            self.right_pipeline = Pipeline2(self.right_camera, separate_read_thread=False)
 
         # ----- init filters and controllers
         # position state message (in or out of map)
@@ -649,7 +656,7 @@ file_sets = {
         ("15;46", "data_days/2017_Mar_05"),  # 5
         ("16;00", "data_days/2017_Mar_05"),  # 6, Sketchy run
         ("16;05", "data_days/2017_Mar_05"),  # 7
-        ("16;06", "data_days/2017_Mar_05"),  # 8, Weird error again, pointing 180º the wrong way
+        ("16;06", "data_days/2017_Mar_05"),  # 8, Weird error again, pointing 180 degrees the wrong way
         ("16;11", "data_days/2017_Mar_05"),  # 9, Steering severely limited
         ("16;29", "data_days/2017_Mar_05"),  # 10, Walking home. UC offered interesting interference
     ),

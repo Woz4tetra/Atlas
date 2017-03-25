@@ -40,7 +40,7 @@ def run(record, play):
 
     checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
 
-    robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir)
+    robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, pipeline=2)
     robot.left_camera.show = True
 
     file_name = None
@@ -48,11 +48,11 @@ def run(record, play):
     file_format = "mp4"
 
     if play:
-        file_name, directory = file_sets["push practice 2"][6]
-        file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
-        file_name = file_finder.file_name_no_ext.replace(";", "_")
+        # file_name, directory = file_sets["push practice 2"][6]
+        # file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
+        # file_name = file_finder.file_name_no_ext.replace(";", "_")
 
-        # file_name, directory, file_format = video_sets["data day 11"][8]
+        file_name, directory, file_format = video_sets["data day 12"][0]
         robot.is_live = False
 
     if record:
@@ -74,5 +74,5 @@ def run(record, play):
     robot.left_camera.close()
     robot.left_pipeline.close()
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)
