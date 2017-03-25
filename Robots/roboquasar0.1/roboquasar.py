@@ -280,7 +280,7 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
 
-        status = self.update_pipeline()
+        status = self.update_pipeline(self.left_pipeline, self.steering.left_limit_angle)
         if status is not None:
             return status
         self.update_joystick()
@@ -346,42 +346,29 @@ class RoboQuasar(Robot):
                 else:
                     self.underglow.signal_release()
 
-    def update_pipeline(self):
+    def update_pipeline(self, pipeline, angle_limit):
         if not self.manual_mode:
-            if self.left_pipeline.did_update():
-                value = self.left_pipeline.safety_value
+            if pipeline.did_update():
+                value = pipeline.safety_value
                 if self.enable_kalman:
                     velocity = self.kalman_filter.get_velocity()
                     speed = np.sqrt(velocity.T * velocity).tolist()[0]
                 else:
                     speed = 0.2
-                if value > self.left_pipeline.safety_threshold and speed > 0.1:
-                    new_angle = self.steering_angle + self.steering.left_limit_angle * value
-                    print(new_angle)
+                if value > pipeline.safety_threshold and speed > 0.1:
+                    new_angle = self.steering_angle + angle_limit * value
                     self.steering.set_position(new_angle)
                     self.gps_imu_control_enabled = False
                 else:
                     self.gps_imu_control_enabled = True
 
-            if self.right_pipeline.did_update():
-                value = self.right_pipeline.safety_value
-                if value > self.right_pipeline.safety_threshold:
-                    new_angle = self.steering_angle + self.steering.right_limit_angle * value
-                    self.steering.set_position(new_angle)
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+            if pipeline.status is not None:
+                return pipeline.status
 
-            if self.left_pipeline.status is not None:
-                return self.left_pipeline.status
-
-            if self.left_pipeline.did_pause():
+            if pipeline.did_pause():
                 self.toggle_pause()
                 if isinstance(self.quasar_plotter.plotter, LivePlotter):
                     self.quasar_plotter.plotter.toggle_pause()
-
-            if self.right_pipeline.status is not None:
-                return self.right_pipeline.status
 
     def close(self, reason):
         if reason != "done":

@@ -136,7 +136,7 @@ class Pipeline2:
     def filter_init(self, frame):
         # allocate a 5x5 area to be a filter
         filter_frame = frame[(mid[0]-2):(mid[0]+2)][(mid[1]-2):(mid[1]+2)]
-        
+
 
 
     def pipeline(self, frame):
