@@ -80,6 +80,7 @@ class RoboQuasar(Robot):
         self.link_object(self.imu, self.receive_imu)
 
         self.link_reoccuring(0.008, self.steering_event)
+        self.link_reoccuring(0.5, self.brake_ping)
 
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
@@ -277,8 +278,10 @@ class RoboQuasar(Robot):
             return status
         self.update_joystick()
 
+    def brake_ping(self):
+        self.brakes.ping()
+
     def steering_event(self):
-        # self.brakes.ping()
         if self.steering.calibrated and self.manual_mode:
             # if self.joystick.get_axis("ZR") >= 1.0:
             joy_val = self.joystick.get_axis("right x")
@@ -325,20 +328,16 @@ class RoboQuasar(Robot):
                 if self.joystick.get_button("L"):
                     self.brakes.release()
                     self.underglow.signal_release()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
                 else:
                     self.brakes.pull()
                     self.underglow.signal_brake()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
 
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
                 if self.brakes.engaged:
                     self.underglow.signal_brake()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
                 else:
                     self.underglow.signal_release()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
 
     def update_pipeline(self):
         if not self.manual_mode:
