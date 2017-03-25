@@ -6,27 +6,28 @@ Possible errors robot ports, objects and interface might face.
 class RobotPortBaseError(Exception):
     def __init__(self, error_message, prev_packet_info, port=None):
         if port is not None:
-            full_message = ""
+            full_messages = []
             with port.message_lock:
-                if not port.error_message.empty():
-                    full_message = port.error_message.get()
-
-            if type(port.whoiam) == str:
-                whoiam_info = '%s' % port.whoiam
-            else:
-                whoiam_info = str(port.whoiam)
+                while not port.error_message.empty():
+                    full_messages.append(port.error_message.get())
 
             port_error_info = ""
-            if len(full_message) > 0:
-                port_error_info += "\nError message from port:\n" \
-                                   "%s\n" % full_message
+            for full_message in full_messages:
+                if type(port.whoiam) == str:
+                    whoiam_info = '%s' % port.whoiam
+                else:
+                    whoiam_info = str(port.whoiam)
 
-            port_error_info += "\nAddress: '%s', ID: %s" % (
-                port.address, whoiam_info
-            )
-            if any(prev_packet_info):  # if any values evaluate to True, print info
-                port_error_info += "\n\nPrevious packet sent (ID: %s, time: %s):\n%s" % (
-                    prev_packet_info[0], prev_packet_info[1], repr(prev_packet_info[2]))
+                if len(full_message) > 0:
+                    port_error_info += "\nError message from port:\n" \
+                                       "%s\n" % full_message
+
+                port_error_info += "\nAddress: '%s', ID: %s" % (
+                    port.address, whoiam_info
+                )
+                if any(prev_packet_info):  # if any values evaluate to True, print info
+                    port_error_info += "\n\nPrevious packet sent (ID: %s, time: %s):\n%s" % (
+                        prev_packet_info[0], prev_packet_info[1], repr(prev_packet_info[2]))
         else:
             port_error_info = ""
         super(RobotPortBaseError, self).__init__(error_message + port_error_info)

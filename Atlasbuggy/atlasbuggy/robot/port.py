@@ -249,21 +249,21 @@ class RobotSerialPort(Process):
         with self.exit_event_lock:
             self.exit_event.set()
 
-        if self.error_message.empty():
-            full_message = ""
-            for line in stack_trace:
-                full_message += str(line)
+        # if self.error_message.empty():
+        full_message = ""
+        for line in stack_trace:
+            full_message += str(line)
 
-            if type(error) == str:
-                full_message += error
-            else:
-                full_message += "%s: %s" % (error.__class__.__name__, str(error))
+        if type(error) == str:
+            full_message += error
+        else:
+            full_message += "%s: %s" % (error.__class__.__name__, str(error))
 
-            with self.message_lock:
-                # queue will always be size of one. Easiest way to share strings and avoid race conditions.
-                # (sometimes the error message would have arrived incomplete because
-                # it gets printed before it gets formed...)
-                self.error_message.put(full_message)
+        with self.message_lock:
+            # queue will always be size of one. Easiest way to share strings and avoid race conditions.
+            # (sometimes the error message would have arrived incomplete because
+            # it gets printed before it gets formed...)
+            self.error_message.put(full_message)
 
     # ----- run methods -----
 
