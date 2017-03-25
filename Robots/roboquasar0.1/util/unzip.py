@@ -3,7 +3,7 @@ import os
 import gzip
 from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
 
-os.chdir("..")
+# os.chdir("..")
 
 
 def unzip_file():
@@ -19,6 +19,7 @@ def unzip_file():
     if file_name is None:
         return
     atlas_file = AtlasReadFile(file_name, directory, True, "gzip", "logs")
+    atlas_file.open()
 
     extension_index = atlas_file.file_name.rfind(".")
     new_name = atlas_file.file_name[:extension_index]

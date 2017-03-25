@@ -12,8 +12,8 @@ def avi_to_mp4():
             )
         )
 
-    directory = "videos/push_practice/2017_Mar_23_raw"
-    output_dir = "videos/push_practice/2017_Mar_23"
+    directory = "videos/rolls/2017_Mar_25_raw"
+    output_dir = "videos/rolls/2017_Mar_25"
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     path_threads = []
@@ -74,5 +74,5 @@ def run(record, play):
     robot.left_camera.close()
     robot.left_pipeline.close()
 
-# avi_to_mp4()
-run(record=False, play=True)
+avi_to_mp4()
+# run(record=False, play=True)

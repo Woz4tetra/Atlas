@@ -212,7 +212,8 @@ class Robot:
 
     def debug_print(self, *values, ignore_flag=False):
         string = "[%s] %s" % (self.__class__.__name__, " ".join([str(x) for x in values]))
-        self.logger.record(self.current_timestamp, self.__class__.__name__, string, "debug")
+        if self.is_live:
+            self.logger.record(self.current_timestamp, self.__class__.__name__, string, "debug")
 
         if self.debug_enabled or ignore_flag:
             print(string)

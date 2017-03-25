@@ -570,6 +570,12 @@ map_sets = {
 }
 
 file_sets = {
+    "rolls day 4" : (
+        ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
+        ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
+        ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
+        ("07;12", "rolls/2017_Mar_25"),  # 3,
+    ),
     "push practice 2"   : (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run

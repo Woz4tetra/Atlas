@@ -125,6 +125,9 @@ class RobotRunner(BaseInterface):
         self.clock.start(self.start_time)
 
         self._open_ports()
+
+        self._debug_print("Interface is starting")
+
         try:
             return self.robot.start()  # call user's start method (empty by default)
         except BaseException as error:

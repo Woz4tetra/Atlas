@@ -19,6 +19,11 @@ class RobotSimulator(BaseInterface):
         :param robot: a subclass instance of the atlasbuggy.robot.Robot class
         """
 
+        if start_index != 0:
+            print("Starting log from", start_index)
+        if end_index != -1:
+            print("Ending log on", end_index)
+
         # read the log file
         self.parser = logfile.Parser(file_name, directory, start_index, end_index)
 
