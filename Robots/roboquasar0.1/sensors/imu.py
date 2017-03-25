@@ -135,9 +135,9 @@ class IMU(RobotObject):
                     elif segment[1] == "m":
                         self.mag_status = int(segment[2:])
                 else:
-                    print("Invalid segment type!", segment[0], data)
+                    print("IMU: Invalid segment type!", segment[0], data)
             else:
-                print("Empty segment!", data)
+                print("IMU: Empty segment!", data)
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)

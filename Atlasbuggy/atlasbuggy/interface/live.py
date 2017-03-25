@@ -156,6 +156,8 @@ class RobotRunner(BaseInterface):
                 self._debug_print("User's loop method signalled to exit")
                 return status
         except BaseException as error:
+            self._debug_print("Closing all from user's loop")
+            self._close_ports("error")
             self._debug_print("_loop signalled an error")
             raise self._handle_error(
                 LoopSignalledError(error),
@@ -225,11 +227,15 @@ class RobotRunner(BaseInterface):
 
         :return: True if the ports are ok
         """
+
+        # TODO: figure out how to handle if the arduino signals to exit via the 'stopping' packet
+
         for robot_port in self.ports.values():
             status = robot_port.is_running()
             if status < 1:
                 self._debug_print("Closing all from _are_ports_active")
                 self._close_ports("error")
+                self._debug_print("status:", status)
                 if status == 0:
                     raise self._handle_error(
                         RobotSerialPortNotConfiguredError(
@@ -382,6 +388,11 @@ class RobotRunner(BaseInterface):
             self._debug_print("closing", robot_port.whoiam)
             robot_port.stop()
 
+        for robot_port in self.ports.values():
+            self._debug_print("Port prev packets: read: %s, write %s" % (
+                robot_port.prev_read_packets, robot_port.prev_write_packet)
+            )
+
         # check if the port exited properly
         for port in self.ports.values():
             has_exited = port.has_exited()
@@ -391,6 +402,7 @@ class RobotRunner(BaseInterface):
                 raise self._handle_error(RobotSerialPortFailedToStopError(
                     "Port signalled error while stopping", self.prev_packet_info,
                     port), traceback.format_stack())
+        self._debug_print("All ports exited")
 
     def _close_ports(self, reason):
         """
@@ -414,6 +426,7 @@ class RobotRunner(BaseInterface):
         self._send_commands()
         self._debug_print("Sent last commands")
         self._stop_all_ports()
+        self._debug_print("Closed ports successfully")
 
     # ----- event handling -----
 
@@ -527,6 +540,7 @@ class RobotRunner(BaseInterface):
         if self.logger.is_open:
             for port in self.ports.values():
                 self._record_debug_prints(self.robot.current_timestamp, port)
+            self._debug_print("Port debug prints recorded")
 
             error_message = "".join(traceback[:-1])
             error_message += "%s: %s" % (error.__class__.__name__, error.args[0])
@@ -534,6 +548,7 @@ class RobotRunner(BaseInterface):
             self.logger.record(self.robot.current_timestamp, error.__class__.__name__, error_message, "error")
 
         self._close_log()
+        self._debug_print("logger closed")
         return error
 
     def _close_log(self):

@@ -79,6 +79,8 @@ class RobotSerialPort(Process):
 
         # buffer for putting packets into
         self.buffer = ""
+        self.prev_read_packets = []
+        self.prev_write_packet = ""
 
         # leaves tabs, letters, numbers, spaces, newlines, and carriage returns
         self.buffer_pattern = re.compile("([^\r\n\t\x20-\x7e]|_)+")
@@ -198,15 +200,29 @@ class RobotSerialPort(Process):
 
         # wait for the correct response
         while not abides_protocol:
-            packets = self.read_packets()
-            if packets is None:
-                return None
-            self.print_packets(packets)
+            in_waiting = self.in_waiting()
+            if in_waiting > 0:
+                packets = self.read_packets(in_waiting)
+                if packets is None:
+                    return None
+                self.print_packets(packets)
 
-            # return None if read failed
-            if packets is None:
-                self.handle_error("Serial read failed... Board never signalled ready", traceback.format_stack())
-                return None
+                # return None if read failed
+                if packets is None:
+                    self.handle_error("Serial read failed... Board never signalled ready", traceback.format_stack())
+                    return None
+
+                # parse received packets
+                for packet in packets:
+                    if len(packet) == 0:
+                        self.debug_print("Empty packet! Contained only \\n")
+                        continue
+                    if packet[0:len(recv_packet_header)] == recv_packet_header:  # if the packet starts with the header,
+                        self.debug_print("received packet: " + repr(packet))
+
+                        answer_packet = packet[len(recv_packet_header):]  # record it and return it
+
+                        abides_protocol = True
 
             prev_rounded_time = rounded_time
             rounded_time = int((time.time() - start_time) * 10)
@@ -221,18 +237,6 @@ class RobotSerialPort(Process):
                 self.handle_error("Didn't receive response for packet '%s'. Operation timed out." % ask_packet,
                                   traceback.format_stack())
                 return None
-
-            # parse received packets
-            for packet in packets:
-                if len(packet) == 0:
-                    self.debug_print("Empty packet! Contained only \\n")
-                    continue
-                if packet[0:len(recv_packet_header)] == recv_packet_header:  # if the packet starts with the header,
-                    self.debug_print("received packet: " + repr(packet))
-
-                    answer_packet = packet[len(recv_packet_header):]  # record it and return it
-
-                    abides_protocol = True
 
         return answer_packet  # when the while loop exits, abides_protocol must be True
 
@@ -257,7 +261,9 @@ class RobotSerialPort(Process):
         if type(error) == str:
             full_message += error
         else:
-            full_message += "%s: %s" % (error.__class__.__name__, str(error))
+            full_message += "%s: %s\n" % (error.__class__.__name__, str(error))
+
+        full_message += "Previous read: %s, write: %s" % (self.prev_read_packets, self.prev_write_packet)
 
         with self.message_lock:
             # queue will always be size of one. Easiest way to share strings and avoid race conditions.
@@ -308,9 +314,20 @@ class RobotSerialPort(Process):
                         self.stop()
                         raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...", self)
 
-                    if self.serial_ref.in_waiting > 0:
+                    # try:
+                    #     in_waiting =
+                    # except BaseException as error:
+                    #     in_waiting = 0
+                    #     print("CATCHING ERROR")
+                    #     print(str(error))
+                    #     print("Error type:", error.__class__.__name__)
+                    in_waiting = self.in_waiting()
+                    if in_waiting is None:
+                        self.stop()
+                        raise RobotSerialPortClosedPrematurelyError("Failed to check serial. Is there a loose connection?", self)
+                    elif in_waiting > 0:
                         # read every possible character available and split them into packets
-                        packets = self.read_packets()
+                        packets = self.read_packets(in_waiting)
                         if packets is None:  # if the read failed
                             self.stop()
                             raise RobotSerialPortReadPacketError("Failed to read packets", self)
@@ -318,23 +335,30 @@ class RobotSerialPort(Process):
                         # put data found into the queue
                         with lock:
                             for packet in packets:
+                                put_on_queue = True
                                 for header in self.protocol_packets:
                                     if len(packet) >= len(header) and packet[:len(header)] == header:
-                                        self.debug_print("Misplaced protocol packet:", repr(packet))
-                                        continue
-
-                                queue.put((self.whoiam, time.time(), packet))
+                                        if header == self.stop_packet_header:
+                                            self.stop()
+                                            raise RobotSerialPortClosedPrematurelyError("Port signalled to exit", self)
+                                        else:
+                                            self.debug_print("Misplaced protocol packet:", repr(packet))
+                                        put_on_queue = False
+                                if put_on_queue:
+                                    queue.put((self.whoiam, time.time(), packet))
                                 # start_time isn't used. The main process has its own initial time reference
 
                             counter.value += len(packets)
 
                 clock.update()  # maintain a constant loop speed
-        except BaseException as error:
-            if isinstance(error, KeyboardInterrupt):
-                self.debug_print("KeyboardInterrupt in port loop")
-            else:
-                self.handle_error(error, traceback.format_stack())
-                self.debug_print("Error thrown in port loop")
+        # except BaseException as error:
+        #     if isinstance(error, KeyboardInterrupt):
+        #         self.debug_print("KeyboardInterrupt in port loop")
+        #     else:
+        #         self.handle_error(error, traceback.format_stack())
+        #         self.debug_print("Error thrown in port loop")
+        except KeyboardInterrupt:
+            self.debug_print("KeyboardInterrupt in port loop")
 
         self.debug_print("Current buffer:", repr(self.buffer))
         self.debug_print("While loop exited. Exit event triggered.")
@@ -342,7 +366,15 @@ class RobotSerialPort(Process):
         if not self.send_stop_events():
             self.handle_error("Stop flag failed to send!", traceback.format_stack())
 
-    def read_packets(self):
+    def in_waiting(self):
+        try:
+            return self.serial_ref.inWaiting()
+        except OSError as error:
+            self.debug_print("Failed to check serial. Is there a loose connection?")
+            self.handle_error(error, traceback.format_stack())
+            return None
+
+    def read_packets(self, in_waiting):
         """
         Read all available data on serial and split them into packets as
         indicated by packet_end.
@@ -355,7 +387,7 @@ class RobotSerialPort(Process):
         try:
             # read every available character
             if self.serial_ref.is_open:
-                incoming = self.serial_ref.read(self.serial_ref.in_waiting)
+                incoming = self.serial_ref.read(in_waiting)
             else:
                 self.handle_error("Serial port wasn't open for reading...", traceback.format_stack())
                 return None
@@ -380,6 +412,7 @@ class RobotSerialPort(Process):
             if len(self.buffer) > len(self.packet_end):
                 # split based on user defined packet end
                 packets = self.buffer.split(self.packet_end)
+                self.prev_read_packets = packets
 
                 # reset the buffer
                 self.buffer = packets.pop(-1)
@@ -396,6 +429,7 @@ class RobotSerialPort(Process):
         :param packet: an arbitrary string without packet_end in it
         :return: True or False if the write was successful
         """
+        self.prev_write_packet = str(packet)
         try:
             data = bytearray(str(packet) + self.packet_end, 'ascii')
         except TypeError as error:
@@ -429,7 +463,7 @@ class RobotSerialPort(Process):
         self.debug_print("Flushing serial")
         self.serial_ref.reset_input_buffer()
         self.serial_ref.reset_output_buffer()
-        self.debug_print("Serial content:", self.serial_ref.in_waiting)
+        self.debug_print("Serial content:", self.in_waiting())
 
     # ----- external and status methods -----
 
@@ -491,6 +525,15 @@ class RobotSerialPort(Process):
 
         :return:
         """
+
+        with self.exit_event_lock:
+            if self.exit_event.is_set():
+                self.debug_print("Exit event already set. Stop was sent internally")
+                return True
+
+        if self.start_time > 0 and time.time() - self.start_time <= 2:  # wait for arduino to listen
+            time.sleep(2)
+
         if not self.stop_event.is_set():
             if self.check_protocol(self.stop_packet_ask, self.stop_packet_header) is None:
                 self.debug_print("Failed to send stop flag!!!")

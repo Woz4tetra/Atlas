@@ -121,6 +121,8 @@ class AtlasFile:
             return files[-1]
         else:
             result_name = file_name
+            if not os.path.isdir(self.directory):
+                return result_name
             for entry in os.listdir(self.directory):
                 for file_type in file_types:
                     output, exact = self.find_match(file_name, entry, file_type)

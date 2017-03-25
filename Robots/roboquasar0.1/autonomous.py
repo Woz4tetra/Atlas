@@ -9,6 +9,7 @@ from atlasbuggy.interface.live import RobotRunner
 
 from joysticks.wiiu_joystick import WiiUJoystick
 from roboquasar import RoboQuasar, map_sets
+from camera_guidance_test import CameraGuidanceTest
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
@@ -141,6 +142,7 @@ log_dir = ("push_practice", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
 
 robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass, enable_cameras=args.nocamera)
+# robot = CameraGuidanceTest(checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass, enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
 command_line = AutonomousCommandline()
@@ -148,6 +150,7 @@ command_line = AutonomousCommandline()
 
 def run_commands():
     command_line.cmdloop()
+    print("Command line exiting")
 
 
 t = Thread(target=run_commands)

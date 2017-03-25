@@ -344,8 +344,11 @@ class RoboQuasar(Robot):
         if not self.manual_mode:
             if self.left_pipeline.did_update():
                 value = self.left_pipeline.safety_value
-                velocity = self.kalman_filter.get_velocity()
-                speed = np.sqrt(velocity.T * velocity).tolist()[0]
+                if self.enable_kalman:
+                    velocity = self.kalman_filter.get_velocity()
+                    speed = np.sqrt(velocity.T * velocity).tolist()[0]
+                else:
+                    speed = 0.2
                 if value > self.left_pipeline.safety_threshold and speed > 0.1:
                     new_angle = self.steering_angle + self.steering.left_limit_angle * value
                     print(new_angle)

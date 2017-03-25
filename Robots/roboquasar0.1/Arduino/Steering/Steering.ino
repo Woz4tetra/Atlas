@@ -9,8 +9,9 @@ unsigned long delta_time = 0;
 
 #define MAX_SPEED 250
 #define RIGHT_LIMIT -150
-#define LEFT_LIMIT 160
+#define LEFT_LIMIT 150
 #define POSITION_ZERO 135
+#define CENTER_OFFSET 45
 
 int position = 0;
 int speedCommand = 0;
@@ -126,7 +127,7 @@ void calibrate()
         disengageStepper();
         return;
     }
-    stepper.runToNewPosition(40);
+    stepper.runToNewPosition(CENTER_OFFSET);
 
     status = approachSwitch(-MAX_SPEED / 4);
     if (!status)
