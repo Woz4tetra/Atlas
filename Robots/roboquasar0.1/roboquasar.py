@@ -57,9 +57,10 @@ class RoboQuasar(Robot):
         self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
         self.pipeline_pid = None
 
+        self.day_mode = day_mode
         if pipeline == 1:
-            self.left_pipeline = Pipeline(self.left_camera, day_mode, separate_read_thread=False)
-            self.right_pipeline = Pipeline(self.right_camera, day_mode, separate_read_thread=False)
+            self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
+            self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
         elif pipeline == 2:
             self.left_pipeline = Pipeline2(self.left_camera, separate_read_thread=False)
             self.right_pipeline = Pipeline2(self.right_camera, separate_read_thread=False)
@@ -128,9 +129,13 @@ class RoboQuasar(Robot):
                     "%s,%s,%s,%s" % (
                         self.controller.course_map_name, self.controller.inner_map_name, self.controller.outer_map_name,
                         self.controller.map_dir))
-        self.record("initial compass", "%s" % self.bozo_filter.compass_angle_packet)
+        self.record("initial compass", self.bozo_filter.compass_angle_packet)
+        self.record("pipeline mode", str(int(self.day_mode)))
 
         self.pipeline_pid = PipelinePID(self.steering.left_limit_angle, self.steering.right_limit_angle, 0.5)
+
+        self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
+        self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
 
     def open_cameras(self, log_name, directory, file_format):
         # create log name

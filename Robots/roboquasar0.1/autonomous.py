@@ -15,7 +15,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
 parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
-parser.add_argument("-cam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-nocam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-day", "--daymode", help="enable day mode", action="store_true")
 args = parser.parse_args()
 
 
@@ -145,7 +146,7 @@ log_dir = ("push_practice", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
 
 robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass,
-                   enable_cameras=args.nocamera, day_mode=False)
+                   enable_cameras=args.nocamera, day_mode=args.daymode)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 

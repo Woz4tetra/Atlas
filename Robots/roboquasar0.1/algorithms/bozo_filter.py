@@ -27,7 +27,6 @@ class BozoFilter:
         self.initialized = True
         self.compass_angle_packet = packet
         self.compass_angle = math.radians(float(packet)) - math.pi / 2
-        print("initial offset: %0.4f rad" % self.compass_angle)
 
     def offset_angle(self, imu_euler_z):
         if self.start_angle is None:
