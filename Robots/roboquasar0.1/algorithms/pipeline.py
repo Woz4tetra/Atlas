@@ -24,6 +24,10 @@ class Pipeline:
         self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
                               (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193),
                               (160, 109, 193))
+        if day_mode:
+            self.hough_threshold = 150
+        else:
+            self.hough_threshold = 125
         # self.safety_colors = self.safety_colors[::-1]
 
         self.frame_queue = Queue(maxsize=255)
@@ -205,7 +209,7 @@ class Pipeline:
         # blur = cv2.medianBlur(input_frame, 5)
         if day_mode:
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(blur, (15, 15), 0)
+            blur = cv2.GaussianBlur(blur, (17, 17), 0)
         else:
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.equalizeHist(blur)
@@ -213,7 +217,7 @@ class Pipeline:
 
         frame = cv2.Canny(blur, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
-                               threshold=125,
+                               threshold=self.hough_threshold,
                                min_theta=80 * np.pi / 180,
                                max_theta=110 * np.pi / 180
                                )

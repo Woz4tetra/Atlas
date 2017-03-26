@@ -76,6 +76,7 @@ class RoboQuasar(Robot):
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
         self.controller_angle = 0.0
+        self.controller_weight_modifier = 1.0
 
         # who's controlling steering? (GPS and IMU or CV)
         self.gps_imu_control_enabled = True
@@ -183,7 +184,7 @@ class RoboQuasar(Robot):
 
                 # display filter output
                 self.quasar_plotter.kalman_recomputed_plot.append(*self.kalman_filter.get_position())
-                self.record("kalman recorded", str(self.kalman_filter))
+                self.record("kalman recorded", str(self.kalman_filter).replace("\n", "\t"))
 
             self.bozo_filter.update_bearing(self.gps.latitude_deg, self.gps.longitude_deg)
             if not self.controller.is_initialized():
@@ -196,7 +197,11 @@ class RoboQuasar(Robot):
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
             inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
 
-            self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
+            bound_status = self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
+            if bound_status > 0:
+                self.controller_weight_modifier = 0.5
+            else:
+                self.controller_weight_modifier = 1.0
 
     def receive_imu(self, timestamp, packet, packet_type):
         self.quasar_plotter.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
@@ -260,10 +265,10 @@ class RoboQuasar(Robot):
                                                        self.controller.map[goal_index][0],
                                                        self.controller.map[goal_index][1])
 
-        elif self.did_receive("kalman recorded"):
-            position, orientation, velocity, attitude = packet.split("\n")
-            position = [float(x[5:]) for x in position.split(", ")]
-            self.quasar_plotter.kalman_recorded_plot.append(*position)
+        # elif self.did_receive("kalman recorded"):
+        #     position, orientation, velocity, attitude = packet.split("\t")
+        #     position = [float(x[5:]) for x in position.split(", ")]
+        #     self.quasar_plotter.kalman_recorded_plot.append(*position)
 
         elif self.did_receive("maps"):
             checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
@@ -271,8 +276,10 @@ class RoboQuasar(Robot):
 
             self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
         elif self.did_receive("pipeline mode"):
-            self.left_pipeline.day_mode = bool(int(packet))
-            self.right_pipeline.day_mode = bool(int(packet))
+            day_mode = bool(int(packet))
+            self.left_pipeline.day_mode = day_mode
+            self.right_pipeline.day_mode = day_mode
+            self.debug_print("Switching to %s mode" % ("day" if day_mode else "night"), ignore_flag=True)
 
     def key_press(self, event):
         if event.key == " ":
@@ -322,7 +329,10 @@ class RoboQuasar(Robot):
 
             if left_percentage != 0.0 or right_percentage != 0.0:
                 # weighted average. As the curb gets closer, the pipeline gains more control
-                steering_angle = avg_percentage * self.controller_angle + (1 - avg_percentage) * self.pipeline_angle
+                control_weight = avg_percentage * self.controller_weight_modifier
+                pipeline_weight = 1 - avg_percentage * self.controller_weight_modifier
+
+                steering_angle = control_weight * self.controller_angle + pipeline_weight * self.pipeline_angle
                 # steering_angle = self.pipeline_angle
                 self.steering.set_position(steering_angle)
             else:
@@ -507,19 +517,25 @@ class RoboQuasarPlotter:
 
     def update_map_colors(self, dt, outer_state, inner_state):
         self.prev_pos_state = self.position_state
+        status = -1
         if outer_state and inner_state:
             self.position_state = "in bounds"
             self.outer_map_plot.set_properties(color="blue")
             self.inner_map_plot.set_properties(color="blue")
+            status = 0
         elif not outer_state:
             self.position_state = "out of bounds! (outer)"
             self.outer_map_plot.set_properties(color="red")
+            status = 1
         elif not inner_state:
             self.position_state = "out of bounds! (inner)"
             self.inner_map_plot.set_properties(color="red")
+            status = 2
 
         if self.position_state != self.prev_pos_state:
             print("%0.4f: %s" % (dt, self.position_state))
+
+        return status
 
     def update_indicators(self, current_pos, filtered_angle, imu_angle, lat, long, steering_angle,
                           goal_lat, goal_long):
@@ -590,25 +606,25 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3": (
+    "cut 3" : (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2": (
+    "cut 2" : (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy": (
+    "buggy" : (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
         "buggy",
     ),
-    "short": (
+    "short" : (
         "Short Course",
         "Short Course Inner",
         "Short Course Outer",
@@ -617,17 +633,21 @@ map_sets = {
 }
 
 file_sets = {
-    "rolls day 5": (
+    "rolls day 5"       : (
         ("07;46", "rolls/2017_Mar_26"),
         ("07;49", "rolls/2017_Mar_26"),
         ("07;54", "rolls/2017_Mar_26"),
+        ("06;50", "rolls/2017_Mar_26"),  # first run
+        ("06;55", "rolls/2017_Mar_26"),  # without camera
+        ("06;56", "rolls/2017_Mar_26"),
+        ("09;06", "rolls/2017_Mar_26"),
     ),
-    "rolls day 4": (
+    "rolls day 4"       : (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
     ),
-    "push practice 2": (
+    "push practice 2"   : (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
         ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
@@ -650,7 +670,7 @@ file_sets = {
         ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
         ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
     ),
-    "push practice 1": (
+    "push practice 1"   : (
         ("23;25", "push_practice/2017_Mar_21"),
         ("23;30", "push_practice/2017_Mar_21"),
         ("23;49", "push_practice/2017_Mar_21"),
@@ -658,15 +678,15 @@ file_sets = {
         ("00;06", "push_practice/2017_Mar_22"),
         ("00;15", "push_practice/2017_Mar_22"),
     ),
-    "data day 12": (
+    "data day 12"       : (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 11": (
+    "data day 11"       : (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
         ("16;19", "data_days/2017_Mar_13"),
     ),
-    "data day 10": (
+    "data day 10"       : (
         # straight line GPS tests
         ("17;07", "data_days/2017_Mar_09"),
         ("17;09", "data_days/2017_Mar_09"),
@@ -692,7 +712,7 @@ file_sets = {
         ("18;30;51", "data_days/2017_Mar_09"),
         ("18;36", "data_days/2017_Mar_09"),
     ),
-    "data day 9": (
+    "data day 9"        : (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -708,7 +728,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8": (
+    "data day 8"        : (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -716,7 +736,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7": (
+    "data day 7"        : (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -730,12 +750,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6": (
+    "data day 6"        : (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5": (
+    "data day 5"        : (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -743,45 +763,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4": (
+    "data day 4"        : (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3": (
+    "data day 3"        : (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield": (
+    "trackfield"        : (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1": (
+    "rolls day 1"       : (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2": (
+    "rolls day 2"       : (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3": (
+    "rolls day 3"       : (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test": (
+    "first cut test"    : (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data": (
+    "bad data"          : (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
