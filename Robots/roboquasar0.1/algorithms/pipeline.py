@@ -7,7 +7,7 @@ import numpy as np
 
 
 class Pipeline:
-    def __init__(self, camera, separate_read_thread=True):
+    def __init__(self, camera, day_mode, separate_read_thread=True):
         self.camera = camera
         self.status = None
         self.timestamp = None
@@ -16,6 +16,7 @@ class Pipeline:
         self.paused = False
         self.pause_updated = False
         self.frame = None
+        self.day_mode = day_mode
 
         self.safety_threshold = 0.1
         self.safety_value = 0.0
@@ -118,7 +119,7 @@ class Pipeline:
 
     def pipeline(self, frame):
         self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame.copy(), True)
+        frame, lines, self.safety_value = self.hough_detector(frame.copy(), self.day_mode)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -203,11 +204,12 @@ class Pipeline:
     def hough_detector(self, input_frame, day_mode):
         # blur = cv2.medianBlur(input_frame, 5)
         if day_mode:
-            blur = cv2.GaussianBlur(input_frame, (11, 11), 0)
+            blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(blur, (15, 15), 0)
         else:
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.equalizeHist(blur)
-            blur = cv2.GaussianBlur(blur, (7, 7), 0)
+            blur = cv2.GaussianBlur(blur, (11, 11), 0)
 
         frame = cv2.Canny(blur, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
@@ -218,10 +220,10 @@ class Pipeline:
         safety_percentage = self.draw_lines(input_frame, lines)
 
         output_frame = cv2.add(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR), input_frame)
-        if day_mode:
-            output_frame = np.concatenate((output_frame, blur), axis=1)
-        else:
-            output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
+        # if day_mode:
+        #     output_frame = np.concatenate((output_frame, blur), axis=1)
+        # else:
+        output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
         return output_frame, lines, safety_percentage
 
     def sobel_filter(self, frame):
@@ -311,3 +313,82 @@ class Pipeline:
     def close(self):
         self.exit_event.set()
         self.status = "done"
+
+class PID:
+    def __init__(self, kp, kd, ki, lower_limit, upper_limit):
+        self.kp = kp
+        self.kd = kd
+        self.ki = ki
+        self.prev_value = None
+        self.prev_error = 0
+        self.error_sum = 0
+        self.prev_time = 0
+        self.lower_limit = lower_limit
+        self.upper_limit = upper_limit
+
+    def update(self, value, goal, timestamp):
+        if self.prev_value is None:
+            self.prev_value = value
+            return 0.0
+
+        dt = timestamp - self.prev_time
+
+        error = goal - value
+        deriv = (error - self.prev_error) / dt
+        self.error_sum += error * dt
+
+        self.prev_value = value
+        self.prev_error = error
+        self.prev_time = timestamp
+
+        output = self.kp * error + self.kd * deriv + self.ki * self.error_sum
+        if output > self.upper_limit:
+            output = self.upper_limit
+        if output < self.lower_limit:
+            output = self.lower_limit
+        return output
+
+class PipelinePID:
+    def __init__(self, left_limit, right_limit, goal_percent):
+        self.left_pid = PID(0.7, 0.0, 0.0, left_limit, right_limit)
+        self.right_pid = PID(0.7, 0.0, 0.0, left_limit, right_limit)
+        self.left_value = 0.0
+        self.right_value = 0.0
+        self.goal = goal_percent
+        self.prev_timestamp = None
+
+    def update(self, timestamp, left_value, right_value):
+        if left_value is not None:
+            self.left_value = left_value
+
+        if right_value is not None:
+            self.right_value = right_value
+
+        if self.left_value is not None or self.right_value is not None:
+            return self.update_pids(timestamp)
+
+    def update_pids(self, timestamp):
+        if timestamp == self.prev_timestamp:
+            self.prev_timestamp = timestamp
+            return None
+        self.prev_timestamp = timestamp
+
+        if self.left_value != 0.0:
+            angle_l_out = self.left_pid.update(self.left_value, self.goal, timestamp)
+        else:
+            angle_l_out = None
+        if self.right_value != 0.0:
+            angle_r_out = self.right_pid.update(self.right_value, self.goal, timestamp)
+        else:
+            angle_r_out = None
+        # print(angle_l_out, angle_r_out)
+        if angle_r_out is None and angle_l_out is None:
+            return 0.0
+
+        if angle_r_out is not None and angle_l_out is not None:
+            return (angle_l_out + angle_r_out) / 2
+
+        if angle_r_out is not None:
+            return angle_r_out
+        else:
+            return angle_l_out

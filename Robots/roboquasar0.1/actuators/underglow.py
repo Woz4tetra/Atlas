@@ -34,7 +34,8 @@ class Underglow(RobotObject):
         self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, enabled=self.enable_plotting)
 
     def receive(self, timestamp, packet):
-        print(timestamp, repr(packet))
+        # print(timestamp, repr(packet))
+        pass
 
     def constrain_input(self, rgb):
         if len(rgb) == 1:

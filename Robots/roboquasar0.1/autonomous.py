@@ -107,11 +107,11 @@ class AutonomousCommandline(cmd.Cmd):
         print()
         return True
 
-    def do_show_cam(self, line):
+    def do_showcam(self, line):
         robot.left_camera.show = True
         robot.right_camera.show = True
 
-    def do_hide_cam(self, line):
+    def do_hidecam(self, line):
         robot.left_camera.show = False
         robot.right_camera.show = False
 
@@ -137,12 +137,15 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+    def do_pipeangle(self, line):
+        print(robot.pipeline_angle)
+
 
 log_dir = ("push_practice", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
 
 robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass,
-                   enable_cameras=args.nocamera)
+                   enable_cameras=args.nocamera, day_mode=False)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
