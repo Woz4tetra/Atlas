@@ -74,7 +74,7 @@ class RoboQuasar(Robot):
         self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
-        self.steering_angle = 0.0
+        self.controller_angle = 0.0
 
         # who's controlling steering? (GPS and IMU or CV)
         self.gps_imu_control_enabled = True
@@ -89,7 +89,7 @@ class RoboQuasar(Robot):
         self.link_object(self.imu, self.receive_imu)
 
         self.link_reoccuring(0.008, self.steering_event)
-        self.link_reoccuring(0.05, self.update_pipeline)
+        self.link_reoccuring(0.05, self.update_auto_steering)
         self.link_reoccuring(0.5, self.brake_ping)
 
         # ----- init plots -----
@@ -215,17 +215,15 @@ class RoboQuasar(Robot):
                 filtered_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
                 lat, long = self.gps.latitude_deg, self.gps.longitude_deg
 
-            self.steering_angle = self.controller.update(lat, long, filtered_angle)
-            self.record("steering angle",
-                        "%s\t%s\t%s" % (self.steering_angle, self.manual_mode, self.controller.current_index))
+            self.controller_angle = self.controller.update(lat, long, filtered_angle)
 
-            if not self.manual_mode and self.gps_imu_control_enabled:
-                self.steering.set_position(self.steering_angle)
+            # if not self.manual_mode and self.gps_imu_control_enabled:
+            #     self.steering.set_position(self.controller_angle)
 
             self.quasar_plotter.update_indicators(
                 self.controller.current_pos, filtered_angle,
                 self.bozo_filter.imu_angle,
-                self.gps.latitude_deg, self.gps.longitude_deg, self.steering_angle,
+                self.gps.latitude_deg, self.gps.longitude_deg, self.controller_angle,
                 self.controller.map[self.controller.current_index][0],
                 self.controller.map[self.controller.current_index][1]
             )
@@ -287,18 +285,36 @@ class RoboQuasar(Robot):
 
         self.update_joystick()
 
-    def update_pipeline(self):
+    def update_auto_steering(self):
         left_percentage, status = self.get_safety_value(self.left_pipeline, self.steering.left_limit_angle)
         if status == "error":
             return status
         right_percentage, status = self.get_safety_value(self.right_pipeline, self.steering.right_limit_angle)
         if status == "error":
             return status
+
+        # generate an angle from a PID
         self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
-        if not self.manual_mode and not self.gps_imu_control_enabled and self.pipeline_angle is not None:
-            self.record("pipeline angle", self.pipeline_angle)
-            # print(self.pipeline_angle)
-            self.steering.set_position(self.pipeline_angle)
+
+        # if not self.manual_mode and not self.gps_imu_control_enabled and self.pipeline_angle is not None:
+        #     self.record("pipeline angle", self.pipeline_angle)
+        #     # print(self.pipeline_angle)
+        #     self.steering.set_position(self.pipeline_angle)
+        if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
+            if left_percentage is not None and right_percentage is not None:
+                # if trapped between two lines, average them to stay in the middle
+                avg_percentage = (left_percentage + right_percentage) / 2
+            elif left_percentage is not None:
+                avg_percentage = left_percentage
+            elif left_percentage is not None:
+                avg_percentage = right_percentage
+            else:
+                avg_percentage = 0.0
+
+            if left_percentage is not None or right_percentage is not None:
+                # weighted average. As the curb gets closer, the pipeline gains more control
+                steering_angle = avg_percentage * self.controller_angle + (1 - avg_percentage) * self.pipeline_angle
+                self.steering.set_position(steering_angle)
 
     def brake_ping(self):
         self.brakes.ping()
@@ -365,19 +381,20 @@ class RoboQuasar(Robot):
         safety_percentage = None
         if not self.manual_mode:
             if pipeline.did_update():
-                value = pipeline.safety_value
+                safety_percentage = pipeline.safety_value
+                # value = pipeline.safety_value
                 # if self.enable_kalman:
                 #     velocity = self.kalman_filter.get_velocity()
                 #     speed = np.sqrt(velocity.T * velocity).tolist()[0]
                 # else:
                 #     speed = 0.2
-                if value > pipeline.safety_threshold:
-                    # new_angle = self.steering_angle + angle_limit * value
-                    # self.steering.set_position(new_angle)
-                    safety_percentage = value
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+                # if value > pipeline.safety_threshold:
+                #     # new_angle = self.controller_angle + angle_limit * value
+                #     # self.steering.set_position(new_angle)
+                #     safety_percentage = value
+                #     self.gps_imu_control_enabled = False
+                # else:
+                #     self.gps_imu_control_enabled = True
 
             if pipeline.status is not None:
                 return safety_percentage, pipeline.status
