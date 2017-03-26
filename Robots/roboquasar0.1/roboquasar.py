@@ -91,7 +91,7 @@ class RoboQuasar(Robot):
 
         self.link_reoccuring(0.008, self.steering_event)
         self.link_reoccuring(0.05, self.update_auto_steering)
-        self.link_reoccuring(0.5, self.brake_ping)
+        self.link_reoccuring(0.05, self.brake_ping)
 
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
@@ -132,10 +132,11 @@ class RoboQuasar(Robot):
         self.record("initial compass", self.bozo_filter.compass_angle_packet)
         self.record("pipeline mode", str(int(self.day_mode)))
 
-        self.pipeline_pid = PipelinePID(self.steering.left_limit_angle, self.steering.right_limit_angle, 0.5)
+        self.pipeline_pid = PipelinePID(self.steering.left_limit_angle, self.steering.right_limit_angle, 0.0)
 
         self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
-        self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
+        if self.bozo_filter.initialized:
+            self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
 
     def open_cameras(self, log_name, directory, file_format):
         # create log name
@@ -238,7 +239,7 @@ class RoboQuasar(Robot):
 
         if self.did_receive("initial compass"):
             self.bozo_filter.init_compass(packet)
-            print("compass value:", packet)
+            self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
 
         elif self.did_receive("maps"):
             if self.use_log_file_maps:
@@ -269,6 +270,9 @@ class RoboQuasar(Robot):
             self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
             self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
+        elif self.did_receive("pipeline mode"):
+            self.left_pipeline.day_mode = bool(int(packet))
+            self.right_pipeline.day_mode = bool(int(packet))
 
     def key_press(self, event):
         if event.key == " ":
@@ -306,7 +310,7 @@ class RoboQuasar(Robot):
         #     # print(self.pipeline_angle)
         #     self.steering.set_position(self.pipeline_angle)
         if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
-            if left_percentage is not None and right_percentage is not None:
+            if left_percentage != 0.0 and right_percentage != 0.0:
                 # if trapped between two lines, average them to stay in the middle
                 avg_percentage = (left_percentage + right_percentage) / 2
             elif left_percentage is not None:
@@ -316,10 +320,13 @@ class RoboQuasar(Robot):
             else:
                 avg_percentage = 0.0
 
-            if left_percentage is not None or right_percentage is not None:
+            if left_percentage != 0.0 or right_percentage != 0.0:
                 # weighted average. As the curb gets closer, the pipeline gains more control
                 steering_angle = avg_percentage * self.controller_angle + (1 - avg_percentage) * self.pipeline_angle
+                # steering_angle = self.pipeline_angle
                 self.steering.set_position(steering_angle)
+            else:
+                self.steering.set_position(self.controller_angle)
 
     def brake_ping(self):
         self.brakes.ping()
@@ -383,7 +390,7 @@ class RoboQuasar(Robot):
                     self.underglow.signal_release()
 
     def get_safety_value(self, pipeline, angle_limit):
-        safety_percentage = None
+        safety_percentage = 0.0
         if not self.manual_mode:
             if pipeline.did_update():
                 safety_percentage = pipeline.safety_value
@@ -583,33 +590,44 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3" : (
+    "cut 3": (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2" : (
+    "cut 2": (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy" : (
+    "buggy": (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
         "buggy",
+    ),
+    "short": (
+        "Short Course",
+        "Short Course Inner",
+        "Short Course Outer",
+        "short"
     )
 }
 
 file_sets = {
-    "rolls day 4" : (
+    "rolls day 5": (
+        ("07;46", "rolls/2017_Mar_26"),
+        ("07;49", "rolls/2017_Mar_26"),
+        ("07;54", "rolls/2017_Mar_26"),
+    ),
+    "rolls day 4": (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
     ),
-    "push practice 2"   : (
+    "push practice 2": (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
         ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
@@ -632,7 +650,7 @@ file_sets = {
         ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
         ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
     ),
-    "push practice 1"   : (
+    "push practice 1": (
         ("23;25", "push_practice/2017_Mar_21"),
         ("23;30", "push_practice/2017_Mar_21"),
         ("23;49", "push_practice/2017_Mar_21"),
@@ -640,15 +658,15 @@ file_sets = {
         ("00;06", "push_practice/2017_Mar_22"),
         ("00;15", "push_practice/2017_Mar_22"),
     ),
-    "data day 12"       : (
+    "data day 12": (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 11"       : (
+    "data day 11": (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
         ("16;19", "data_days/2017_Mar_13"),
     ),
-    "data day 10"       : (
+    "data day 10": (
         # straight line GPS tests
         ("17;07", "data_days/2017_Mar_09"),
         ("17;09", "data_days/2017_Mar_09"),
@@ -674,7 +692,7 @@ file_sets = {
         ("18;30;51", "data_days/2017_Mar_09"),
         ("18;36", "data_days/2017_Mar_09"),
     ),
-    "data day 9"        : (
+    "data day 9": (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -690,7 +708,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8"        : (
+    "data day 8": (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -698,7 +716,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7"        : (
+    "data day 7": (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -712,12 +730,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6"        : (
+    "data day 6": (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5"        : (
+    "data day 5": (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -725,45 +743,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4"        : (
+    "data day 4": (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3"        : (
+    "data day 3": (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield"        : (
+    "trackfield": (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1"       : (
+    "rolls day 1": (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2"       : (
+    "rolls day 2": (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3"       : (
+    "rolls day 3": (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test"    : (
+    "first cut test": (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data"          : (
+    "bad data": (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out

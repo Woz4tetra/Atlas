@@ -138,15 +138,18 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
-    def do_pipeangle(self, line):
+    def do_angle(self, line):
         print(robot.pipeline_angle)
+        print(robot.controller_angle)
+        print(robot.steering.sent_angle)
 
 
-log_dir = ("push_practice", None)
+log_dir = ("rolls", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
+print("Using map:", checkpoint_map_name)
 
 robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass,
-                   enable_cameras=args.nocamera, day_mode=args.daymode)
+                   enable_cameras=args.nocamera, day_mode=args.daymode, enable_kalman=True)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 

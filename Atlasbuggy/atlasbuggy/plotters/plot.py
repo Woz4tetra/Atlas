@@ -11,7 +11,7 @@ class RobotPlot:
     def __init__(self, plot_name, enabled=True, flat=True,
                  x_range=None, y_range=None, z_range=None, range_offset=0,
                  x_lim=None, y_lim=None, z_lim=None, skip_count=0,
-                 max_length=None, **plot_properties):
+                 max_length=None, window_offset=0.00001, **plot_properties):
         """
         :param plot_name: plot title and internal reference name. Make sure its unique
         :param enabled: Turn plots on and off easily with this flag
@@ -34,6 +34,7 @@ class RobotPlot:
         self.skip_count = skip_count
         self.skip_counter = 0
         self.collection_plot = None
+        self.window_offset = window_offset
 
         self.properties = plot_properties
         self.changed_properties = {}
@@ -146,7 +147,7 @@ class RobotPlot:
         """
         if self.ranges[axis_num] is None:
             if self.range_offset == 0:
-                offset = 0.001
+                offset = self.window_offset
             else:
                 offset = self.range_offset
             self.ranges[axis_num] = [value - offset, value + offset]
