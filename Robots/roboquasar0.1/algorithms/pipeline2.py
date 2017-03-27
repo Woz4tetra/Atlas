@@ -9,7 +9,7 @@ class Pipeline2:
     threshold = 70
     calibration_frame = 3053
 
-    # calibration_frame = 20
+    # calibration_frame = 50
 
     def __init__(self, camera, separate_read_thread=True):
         self.camera = camera
@@ -23,7 +23,35 @@ class Pipeline2:
 
         # Filter for validating line
         self.width = None
-        self.filter = np.random.rand(5, 5, 3)  # creates a 5x5 filter for each R,G,B map
+        # self.filter = np.random.rand(5, 5, 3)  # creates a 5x5 filter for each R,G,B map
+
+        self.filter = np.array([[[0.48627451,  0.40784314,  0.20529801],
+          [0.46666667,  0.38823529,  0.17218543],
+          [0.43921569,  0.35294118,  0.11258278],
+          [0.37254902,  0.28627451, 0.],
+          [0.48627451,  0.4,         0.19205298]],
+         [[0., 0., 1.],
+          [0., 0., 1.],
+          [0., 0., 1.],
+          [0., 0., 1.],
+          [0., 0., 1.]],
+         [[0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.]],
+         [[0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.],
+         [0., 0., 1.]],
+         [[1., 1., 1.],
+         [1., 1., 1.],
+         [1., 1., 1.],
+         [1., 1., 1.],
+         [1., 1., 1.]]])
+
+
         self.on_screen = None  # tells whether the desired line is on the screen
         self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
         self.frame_counter = 0  # counts frames to help in filter creation
@@ -78,6 +106,16 @@ class Pipeline2:
 
         if thread_error is not None:
             raise thread_error
+
+    def normalize_frame(self, frame):
+        # requires a 5x5x3 frame and will return a normalized frame
+        for x in range(5):
+            for y in range(5):
+                for c in range(3):
+                    max_v = np.max(frame[:,:,c]) * 1.0
+                    min_v = np.min(frame[:,:,c]) * 1.0
+                    frame[x, y, c] = (frame[x, y, c] - min_v) / (max_v - min_v)
+        return frame
 
     def run(self):
         thread_error = None
@@ -135,20 +173,22 @@ class Pipeline2:
     def filter_init(self, frame):
         # allocate a 5x5 area to be a filter
         mid = self.prev_mid
-        filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
-
+        left1 = mid[0] - 2
+        left2 = mid[0] + 3
+        right1 = mid[1] - 2
+        right2 = mid[1] + 3
+        frame_altered = frame[left1:left2, right1:right2]
+        filter_frame = np.zeros([5,5,3])
         # normalize filter frame
         for x in range(5):
             for y in range(5):
                 for c in range(3):
-                    print(filter_frame[x, y, c])
-                    max_v = np.max(filter_frame[:, :, c]) * 1.0
-                    min_v = np.min(filter_frame[:, :, c]) * 1.0
-                    filter_frame[x, y, c] = (filter_frame[x, y, c] - min_v) / (max_v - min_v)
+                    # print(filter_frame[x, y, c])
+                    max_v = np.max(frame_altered[:,:,c]) * 1.0
+                    min_v = np.min(frame_altered[:,:,c]) * 1.0
+                    filter_frame[x, y, c] = (frame[left1+x, right1+y, c] - min_v) / (max_v - min_v)
 
-                    filter_frame[x, y, c] = 1.1
-
-        print(cv2.split(filter_frame))
+        # print(cv2.split(filter_frame))
         self.filter = filter_frame
 
     def run_filter(self, frame):
@@ -157,6 +197,7 @@ class Pipeline2:
         filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
         # check if shapes match then apply filter
         if self.filter.shape == filter_frame.shape:
+            filter_frame = self.normalize_frame(filter_frame)
             return np.sum(self.filter * filter_frame)
 
     def pipeline(self, frame):
