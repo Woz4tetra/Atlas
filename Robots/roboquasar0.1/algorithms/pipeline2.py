@@ -159,7 +159,6 @@ class Pipeline2:
         if self.filter.shape == filter_frame.shape:
             return np.sum(self.filter * filter_frame)
 
-
     def pipeline(self, frame):
         self.frame_counter += 1  # counts frames
 

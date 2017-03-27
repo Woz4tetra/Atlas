@@ -38,9 +38,7 @@ def avi_to_mp4():
 def run(record, play):
     assert record != play
 
-    checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["cut 3"]
-
-    robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, pipeline=2)
+    robot = RoboQuasar(False, "cut 3", pipeline=2)
     robot.left_camera.show = True
 
     file_name = None
@@ -73,6 +71,7 @@ def run(record, play):
     print("Closing cameras")
     robot.left_camera.close()
     robot.left_pipeline.close()
+
 
 # avi_to_mp4()
 run(record=False, play=True)
