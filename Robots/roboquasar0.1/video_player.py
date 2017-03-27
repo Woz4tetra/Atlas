@@ -74,5 +74,5 @@ def run(record, play):
     robot.left_camera.close()
     robot.left_pipeline.close()
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)

@@ -4,10 +4,12 @@ from threading import Event, Thread
 import cv2
 import numpy as np
 
-class Pipeline2:
 
+class Pipeline2:
     threshold = 70
-    calibration_frame = 3058
+    calibration_frame = 3053
+
+    # calibration_frame = 20
 
     def __init__(self, camera, separate_read_thread=True):
         self.camera = camera
@@ -21,13 +23,10 @@ class Pipeline2:
 
         # Filter for validating line
         self.width = None
-        self.filter = np.random.rand(5,5,3) # creates a 5x5 filter for each R,G,B map
-        self.on_screen = None # tells whether the desired line is on the screen
-        self.moving_up = None # gives amount the percentage is changing, aim to get this to 0 for smooth change
-        self.frame_counter = 0 # counts frames to help in filter creation
-        # frame 3058 shows the desired line
-
-        # Other
+        self.filter = np.random.rand(5, 5, 3)  # creates a 5x5 filter for each R,G,B map
+        self.on_screen = None  # tells whether the desired line is on the screen
+        self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
+        self.frame_counter = 0  # counts frames to help in filter creation
         self.prev_mid = None
 
         self.safety_threshold = 0.1
@@ -135,8 +134,30 @@ class Pipeline2:
 
     def filter_init(self, frame):
         # allocate a 5x5 area to be a filter
-        filter_frame = frame[(mid[0]-2):(mid[0]+2)][(mid[1]-2):(mid[1]+2)]
+        mid = self.prev_mid
+        filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
 
+        # normalize filter frame
+        for x in range(5):
+            for y in range(5):
+                for c in range(3):
+                    print(filter_frame[x, y, c])
+                    max_v = np.max(filter_frame[:, :, c]) * 1.0
+                    min_v = np.min(filter_frame[:, :, c]) * 1.0
+                    filter_frame[x, y, c] = (filter_frame[x, y, c] - min_v) / (max_v - min_v)
+
+                    filter_frame[x, y, c] = 1.1
+
+        print(cv2.split(filter_frame))
+        self.filter = filter_frame
+
+    def run_filter(self, frame):
+        # allocate a 5x5 area to be a filter
+        mid = self.prev_mid
+        filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
+        # check if shapes match then apply filter
+        if self.filter.shape == filter_frame.shape:
+            return np.sum(self.filter * filter_frame)
 
 
     def pipeline(self, frame):
@@ -145,11 +166,17 @@ class Pipeline2:
         self.prev_safe_value = self.safety_value
         frame, lines, self.safety_value = self.hough_detector(frame.copy(), True)
 
-        if self.frame_counter == 3058:
+        if self.frame_counter == Pipeline2.calibration_frame:
             self.filter_init(frame)
 
+        # if self.frame_counter >
+
         # allows us to find the frame we want
-        print(self.frame_counter)
+        # if self.frame_counter <= Pipeline2.calibration_frame:
+        #     print(self.frame_counter)
+        if self.frame_counter == Pipeline2.calibration_frame:
+            print(self.filter)
+        # print(self.frame_counter)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -216,14 +243,12 @@ class Pipeline2:
 
             if largest_coords is not None:
                 cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+                self.find_borderpoints(frame, largest_coords)
+                print(self.run_filter(frame))
 
             return largest_y / height
 
         return 0.0
-
-    def run_filter(self, frame, filter):
-        mid = self.prev_mid
-
 
     def find_borderpoints(self, frame, coords):
         height, width = frame.shape[0:2]
@@ -244,9 +269,9 @@ class Pipeline2:
         #     self.prev_coords = [left_point, right_point]
         # elif self.is_valid_point(frame, coords, Pipeline2.threshold):
         #     self.prev_coords = [left_point, right_point]
-        self.prev_mid = ((left_point[0]+right_point[0])/2, (left_point[1]+right_point[1])/2)
+        self.prev_mid = (int((left_point[0] + right_point[0]) / 2), int((left_point[1] + right_point[1]) / 2))
 
-        print([left_point, right_point])
+        # print([left_point, right_point])
 
         cv2.circle(frame, left_point, 3, (255, 255, 255), 2)
         cv2.circle(frame, right_point, 3, (255, 255, 255), 2)
