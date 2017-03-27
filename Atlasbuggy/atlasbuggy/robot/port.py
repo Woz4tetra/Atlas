@@ -314,13 +314,6 @@ class RobotSerialPort(Process):
                         self.stop()
                         raise RobotSerialPortClosedPrematurelyError("Serial port isn't open for some reason...", self)
 
-                    # try:
-                    #     in_waiting =
-                    # except BaseException as error:
-                    #     in_waiting = 0
-                    #     print("CATCHING ERROR")
-                    #     print(str(error))
-                    #     print("Error type:", error.__class__.__name__)
                     in_waiting = self.in_waiting()
                     if in_waiting is None:
                         self.stop()
@@ -340,7 +333,7 @@ class RobotSerialPort(Process):
                                     if len(packet) >= len(header) and packet[:len(header)] == header:
                                         if header == self.stop_packet_header:
                                             self.stop()
-                                            raise RobotSerialPortClosedPrematurelyError("Port signalled to exit", self)
+                                            raise RobotSerialPortClosedPrematurelyError("Port signalled to exit (stop flag was found)", self)
                                         else:
                                             self.debug_print("Misplaced protocol packet:", repr(packet))
                                         put_on_queue = False

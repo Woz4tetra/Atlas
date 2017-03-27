@@ -129,7 +129,7 @@ void calibrate()
     }
     stepper.runToNewPosition(CENTER_OFFSET);
 
-    status = approachSwitch(-MAX_SPEED / 4);
+    status = approachSwitch(-MAX_SPEED / 8);
     if (!status)
     {
         disengageStepper();
@@ -149,7 +149,7 @@ void setup()
     pinMode(DELIMITER_PIN, INPUT);
 
     stepper.setMaxSpeed(MAX_SPEED);
-    stepper.setAcceleration(2500.0);
+    stepper.setAcceleration(2000.0);
 
     String leftLimitStr = String(RIGHT_LIMIT);
     String rightLimitStr = String(LEFT_LIMIT);

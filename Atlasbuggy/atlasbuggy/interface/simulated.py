@@ -40,6 +40,8 @@ class RobotSimulator(BaseInterface):
         self.current_index = 0
 
     def _start(self):
+        while self.robot.current_timestamp is None:
+            self._update()
         self.robot.start()
 
     def _should_run(self):

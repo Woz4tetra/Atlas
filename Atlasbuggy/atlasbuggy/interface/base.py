@@ -83,7 +83,7 @@ class BaseInterface:
         while index < len(self.robot.delayed_functions):
             event = self.robot.delayed_functions[index]
             event.update(self.robot.dt())
-            if not event.function_called:
+            if event.function_called:
                 self.robot.delayed_functions.pop(index)
             else:
                 index += 1

@@ -43,6 +43,7 @@ class App:
         self.screen = pygame.display.set_mode( (max_joy * 30 + 10, 170) )
  
         self.font = pygame.font.SysFont("Courier", 20)
+        self.small_font = pygame.font.SysFont("Courier", 12)
  
     # A couple of joystick functions...
     def check_axis(self, p_axis):
@@ -66,9 +67,11 @@ class App:
  
         return (0, 0)
  
-    def draw_text(self, text, x, y, color, align_right=False):
-        surface = self.font.render(text, True, color, (0, 0, 0))
-        surface.set_colorkey( (0, 0, 0) )
+    def draw_text(self, text, x, y, color, font=None):
+        if font is None:
+            font = self.font
+        surface = font.render(text, True, color, (0, 0, 0))
+        surface.set_colorkey((0, 0, 0))
  
         self.screen.blit(surface, (x, y))
  
@@ -99,16 +102,23 @@ class App:
  
             self.draw_text("Axes (%d)" % self.my_joystick.get_numaxes(), 
                            5, 25, (255, 255, 255))
- 
+
             for i in range(0, self.my_joystick.get_numaxes()):
-                if (self.my_joystick.get_axis(i)):
-                    pygame.draw.circle(self.screen, (0, 0, 200), 
-                                       (20 + (i * 30), 50), 10, 0)
+                if self.my_joystick.get_axis(i):
+                    color_channel = int(255 * self.my_joystick.get_axis(i))
+                    if color_channel < 0:
+                        color = (abs(color_channel), 0, 0)
+                    else:
+                        color = (0, 0, color_channel)
+                    pygame.draw.circle(self.screen, color,
+                                       (20 + (i * 50), 60), 10, 0)
+                    self.draw_text("%0.2f" % self.my_joystick.get_axis(i),
+                                   10 + (i * 50), 65, (255, 255, 255), self.small_font)
                 else:
                     pygame.draw.circle(self.screen, (255, 0, 0), 
-                                       (20 + (i * 30), 50), 10, 0)
+                                       (20 + (i * 30), 60), 10, 0)
  
-                self.center_text("%d" % i, 20 + (i * 30), 50, (255, 255, 255))
+                self.center_text("%d" % i, 20 + (i * 50), 60, (255, 255, 255))
  
             self.draw_text("Buttons (%d)" % self.my_joystick.get_numbuttons(), 
                            5, 75, (255, 255, 255))
@@ -116,12 +126,12 @@ class App:
             for i in range(0, self.my_joystick.get_numbuttons()):
                 if (self.my_joystick.get_button(i)):
                     pygame.draw.circle(self.screen, (0, 0, 200), 
-                                       (20 + (i * 30), 100), 10, 0)
+                                       (20 + (i * 30), 110), 10, 0)
                 else:
                     pygame.draw.circle(self.screen, (255, 0, 0), 
-                                       (20 + (i * 30), 100), 10, 0)
+                                       (20 + (i * 30), 110), 10, 0)
  
-                self.center_text("%d" % i, 20 + (i * 30), 100, (255, 255, 255))
+                self.center_text("%d" % i, 20 + (i * 30), 110, (255, 255, 255))
  
             self.draw_text("POV Hats (%d)" % self.my_joystick.get_numhats(), 
                            5, 125, (255, 255, 255))

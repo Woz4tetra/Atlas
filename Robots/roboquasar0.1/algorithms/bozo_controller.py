@@ -9,7 +9,7 @@ class BozoController:
     MIN_FLOAT = sys.float_info.min
 
     def __init__(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None, offset=1,
-                 border_skip_check=10):
+                 border_skip_check=10, keep_position_in_boundary=False):
         self.init_maps(course_map_name, map_dir, inner_map_name, outer_map_name)
 
         self.offset = offset
@@ -18,6 +18,7 @@ class BozoController:
         self.current_angle = 0.0
         self.current_pos = self.map[0]
         self.goal_index = 0
+        self.keep_position_in_boundary = keep_position_in_boundary
 
     def init_maps(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None):
         self.course_map_name = course_map_name
@@ -54,12 +55,13 @@ class BozoController:
         return self.current_angle
 
     def get_goal(self, lat0, long0):
-        if not self.point_inside_outer_map(lat0, long0):
-            nearest_index = self.closest_point(lat0, long0, self.outer_map)
-            lat0, long0 = self.outer_map[nearest_index]
-        if not self.point_outside_inner_map(lat0, long0):
-            nearest_index = self.closest_point(lat0, long0, self.inner_map)
-            lat0, long0 = self.inner_map[nearest_index]
+        if self.keep_position_in_boundary:
+            if not self.point_inside_outer_map(lat0, long0):
+                nearest_index = self.closest_point(lat0, long0, self.outer_map)
+                lat0, long0 = self.outer_map[nearest_index]
+            if not self.point_outside_inner_map(lat0, long0):
+                nearest_index = self.closest_point(lat0, long0, self.inner_map)
+                lat0, long0 = self.inner_map[nearest_index]
 
         self.current_pos = lat0, long0
 

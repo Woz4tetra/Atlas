@@ -34,6 +34,7 @@ class Underglow(RobotObject):
         self.strip_plot = RobotPlotCollection("LEDs", *self.led_plots, enabled=self.enable_plotting)
 
     def receive(self, timestamp, packet):
+        # print(timestamp, repr(packet))
         pass
 
     def constrain_input(self, rgb):
@@ -72,7 +73,7 @@ class Underglow(RobotObject):
         r, g, b = self.constrain_input(rgb)
         led_num = int(abs(led_num))
 
-        self.send("l%3.0d%3.0d%3.0d%3.0d" % (led_num, r, g, b))
+        self.send("l%03d%03d%03d%03d" % (led_num, r, g, b))
         # print("l%3.0d%3.0d%3.0d%3.0d" % (led_num, r, g, b))
         # print("#%2.0d\tr: %3.0d\tg: %3.0d\tb: %3.0d" % (led_num, r, g, b))
 
@@ -82,26 +83,25 @@ class Underglow(RobotObject):
 
     def signal_brake(self):
         self.send(
-            "f%3.0d%3.0d%3.0d%3.0d" % (
+            "f%03d%03d%03d%03d" % (
                 self.brake_signal_cycles, self.brake_signal_r, self.brake_signal_g, self.brake_signal_b)
         )
 
     def signal_release(self):
         self.send(
-            "f%3.0d%3.0d%3.0d%3.0d" % (
+            "f%03d%03d%03d%03d" % (
                 self.release_signal_cycles, self.release_signal_r, self.release_signal_g, self.release_signal_b)
         )
 
     def rainbow_cycle(self):
-        print("Starting rainbow")
         self.send("r")
 
     def color_wipe(self, delay, *rgb):
         r, g, b = self.constrain_input(rgb)
-        self.send("wipe%3.0d%3.0d%3.0d%3.0d" % (r, g, b, delay))
+        self.send("wipe%03d%03d%03d%03d" % (r, g, b, delay))
 
     def fancy_gradient(self, start):
-        self.send("g%2.0d" % start)
+        self.send("g%02d" % start)
 
     def set_all(self, *rgb):
         self.set_leds(0, self.num_leds, *rgb)

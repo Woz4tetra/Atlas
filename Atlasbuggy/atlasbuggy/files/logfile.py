@@ -79,6 +79,8 @@ class Logger(AtlasWriteFile):
                 if "\n" in packet:
                     packet = packet.replace("\n", "\n" + packet_types[packet_type + " continued"])
                     packet += "\n" + packet_types[packet_type + " end"]
+            elif packet == "user":
+                packet = packet.replace("\n", "\\n")
 
             self.write(self.line_code % (
                 packet_types[packet_type], timestamp, time_whoiam_sep, whoiam, whoiam_packet_sep, packet))
@@ -149,7 +151,7 @@ class Parser(AtlasReadFile):
             print("Empty line (line #%s)" % self.index)
             return None
         if line[0] not in packet_types.keys():
-            print("Invalid packet type: '%s' in line #%s: %s" % (line[0], self.index, line))
+            # print("Invalid packet type: '%s' in line #%s: %s" % (line[0], self.index, line))
             return None
         packet_type = packet_types[line[0]]
 
@@ -209,6 +211,8 @@ class Parser(AtlasReadFile):
 
             # packet is from the end of the timestamp marker to the end
             packet = line[whoiam_index + len(time_whoiam_sep):]
+            if packet_type == "user":
+                packet.replace("\\n", "\n")
 
         if timestamp == no_timestamp:
             timestamp = None
@@ -232,7 +236,7 @@ class Parser(AtlasReadFile):
                 try:
                     timestamp = float(timestamp)
                 except ValueError:
-                    print("Invalid timestamp:", timestamp)
+                    # print("Invalid timestamp:", timestamp)
                     timestamp = "invalid"
         else:
             timestamp = "invalid"

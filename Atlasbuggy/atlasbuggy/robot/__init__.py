@@ -168,11 +168,11 @@ class Robot:
         whoiam = self._get_whoiam(arg)
         self.linked_functions[whoiam] = callback_fn
 
-    def link_reoccuring(self, repeat_time, callback_fn, current_time=None):
-        self.reoccuring_functions.append(ReoccuringEvent(repeat_time, callback_fn, current_time))
+    def link_reoccuring(self, repeat_time, callback_fn, *args, current_time=None):
+        self.reoccuring_functions.append(ReoccuringEvent(repeat_time, current_time, callback_fn, args))
 
-    def delay_function(self, delay_time, current_time, callback_fn):
-        self.delayed_functions.append(DelayedEvent(delay_time, current_time, callback_fn))
+    def delay_function(self, delay_time, current_time, callback_fn, *args):
+        self.delayed_functions.append(DelayedEvent(delay_time, current_time, callback_fn, args))
 
     def did_receive(self, arg):
         """

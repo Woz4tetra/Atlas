@@ -5,7 +5,7 @@ from algorithms.bozo_controller import BozoController
 from algorithms.bozo_filter import BozoFilter
 from algorithms.kalman.kalman_constants import constants
 from algorithms.kalman.kalman_filter import GrovesKalmanFilter
-from algorithms.pipeline import Pipeline
+from algorithms.pipeline import Pipeline, PipelinePID
 from algorithms.pipeline2 import Pipeline2
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
@@ -32,7 +32,7 @@ class RoboQuasar(Robot):
                  checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
                  initial_compass=None, animate=True, enable_cameras=True,
                  enable_kalman=False, use_log_file_maps=True, show_cameras=None,
-                 pipeline=1):
+                 pipeline=1, day_mode=False):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -55,13 +55,16 @@ class RoboQuasar(Robot):
 
         self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
         self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
+        self.pipeline_pid = None
 
+        self.day_mode = day_mode
         if pipeline == 1:
-            self.left_pipeline = Pipeline(self.left_camera, separate_read_thread=False)
-            self.right_pipeline = Pipeline(self.right_camera, separate_read_thread=False)
+            self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
+            self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
         elif pipeline == 2:
             self.left_pipeline = Pipeline2(self.left_camera, separate_read_thread=False)
             self.right_pipeline = Pipeline2(self.right_camera, separate_read_thread=False)
+        self.pipeline_angle = 0.0
 
         # ----- init filters and controllers
         # position state message (in or out of map)
@@ -72,7 +75,8 @@ class RoboQuasar(Robot):
         self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
-        self.steering_angle = 0.0
+        self.controller_angle = 0.0
+        self.controller_weight_modifier = 1.0
 
         # who's controlling steering? (GPS and IMU or CV)
         self.gps_imu_control_enabled = True
@@ -87,6 +91,8 @@ class RoboQuasar(Robot):
         self.link_object(self.imu, self.receive_imu)
 
         self.link_reoccuring(0.008, self.steering_event)
+        self.link_reoccuring(0.05, self.update_auto_steering)
+        self.link_reoccuring(0.05, self.brake_ping)
 
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
@@ -124,7 +130,14 @@ class RoboQuasar(Robot):
                     "%s,%s,%s,%s" % (
                         self.controller.course_map_name, self.controller.inner_map_name, self.controller.outer_map_name,
                         self.controller.map_dir))
-        self.record("initial compass", "%s" % self.bozo_filter.compass_angle_packet)
+        self.record("initial compass", self.bozo_filter.compass_angle_packet)
+        self.record("pipeline mode", str(int(self.day_mode)))
+
+        self.pipeline_pid = PipelinePID(self.steering.left_limit_angle, self.steering.right_limit_angle, 0.0)
+
+        self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
+        if self.bozo_filter.initialized:
+            self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
 
     def open_cameras(self, log_name, directory, file_format):
         # create log name
@@ -171,7 +184,7 @@ class RoboQuasar(Robot):
 
                 # display filter output
                 self.quasar_plotter.kalman_recomputed_plot.append(*self.kalman_filter.get_position())
-                self.record("kalman recorded", str(self.kalman_filter))
+                self.record("kalman recorded", str(self.kalman_filter).replace("\n", "\t"))
 
             self.bozo_filter.update_bearing(self.gps.latitude_deg, self.gps.longitude_deg)
             if not self.controller.is_initialized():
@@ -184,7 +197,11 @@ class RoboQuasar(Robot):
             outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
             inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
 
-            self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
+            bound_status = self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
+            if bound_status > 0:
+                self.controller_weight_modifier = 0.5
+            else:
+                self.controller_weight_modifier = 1.0
 
     def receive_imu(self, timestamp, packet, packet_type):
         self.quasar_plotter.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
@@ -209,17 +226,15 @@ class RoboQuasar(Robot):
                 filtered_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
                 lat, long = self.gps.latitude_deg, self.gps.longitude_deg
 
-            self.steering_angle = self.controller.update(lat, long, filtered_angle)
-            self.record("steering angle",
-                        "%s\t%s\t%s" % (self.steering_angle, self.manual_mode, self.controller.current_index))
+            self.controller_angle = self.controller.update(lat, long, filtered_angle)
 
-            if not self.manual_mode and self.gps_imu_control_enabled:
-                self.steering.set_position(self.steering_angle)
+            # if not self.manual_mode and self.gps_imu_control_enabled:
+            #     self.steering.set_position(self.controller_angle)
 
             self.quasar_plotter.update_indicators(
                 self.controller.current_pos, filtered_angle,
                 self.bozo_filter.imu_angle,
-                self.gps.latitude_deg, self.gps.longitude_deg, self.steering_angle,
+                self.gps.latitude_deg, self.gps.longitude_deg, self.controller_angle,
                 self.controller.map[self.controller.current_index][0],
                 self.controller.map[self.controller.current_index][1]
             )
@@ -229,7 +244,7 @@ class RoboQuasar(Robot):
 
         if self.did_receive("initial compass"):
             self.bozo_filter.init_compass(packet)
-            print("compass value:", packet)
+            self.debug_print("initial offset: %0.4f rad" % self.bozo_filter.compass_angle, ignore_flag=True)
 
         elif self.did_receive("maps"):
             if self.use_log_file_maps:
@@ -250,16 +265,21 @@ class RoboQuasar(Robot):
                                                        self.controller.map[goal_index][0],
                                                        self.controller.map[goal_index][1])
 
-        elif self.did_receive("kalman recorded"):
-            position, orientation, velocity, attitude = packet.split("\n")
-            position = [float(x[5:]) for x in position.split(", ")]
-            self.quasar_plotter.kalman_recorded_plot.append(*position)
+        # elif self.did_receive("kalman recorded"):
+        #     position, orientation, velocity, attitude = packet.split("\t")
+        #     position = [float(x[5:]) for x in position.split(", ")]
+        #     self.quasar_plotter.kalman_recorded_plot.append(*position)
 
         elif self.did_receive("maps"):
             checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
             self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
             self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map, self.controller.outer_map)
+        elif self.did_receive("pipeline mode"):
+            day_mode = bool(int(packet))
+            self.left_pipeline.day_mode = day_mode
+            self.right_pipeline.day_mode = day_mode
+            self.debug_print("Switching to %s mode" % ("day" if day_mode else "night"), ignore_flag=True)
 
     def key_press(self, event):
         if event.key == " ":
@@ -279,13 +299,49 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
 
-        status = self.update_pipeline()
-        if status is not None:
-            return status
         self.update_joystick()
 
+    def update_auto_steering(self):
+        left_percentage, status = self.get_safety_value(self.left_pipeline, self.steering.left_limit_angle)
+        if status == "error":
+            return status
+        right_percentage, status = self.get_safety_value(self.right_pipeline, self.steering.right_limit_angle)
+        if status == "error":
+            return status
+
+        # generate an angle from a PID
+        self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
+
+        # if not self.manual_mode and not self.gps_imu_control_enabled and self.pipeline_angle is not None:
+        #     self.record("pipeline angle", self.pipeline_angle)
+        #     # print(self.pipeline_angle)
+        #     self.steering.set_position(self.pipeline_angle)
+        if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
+            if left_percentage != 0.0 and right_percentage != 0.0:
+                # if trapped between two lines, average them to stay in the middle
+                avg_percentage = (left_percentage + right_percentage) / 2
+            elif left_percentage is not None:
+                avg_percentage = left_percentage
+            elif left_percentage is not None:
+                avg_percentage = right_percentage
+            else:
+                avg_percentage = 0.0
+
+            if left_percentage != 0.0 or right_percentage != 0.0:
+                # weighted average. As the curb gets closer, the pipeline gains more control
+                control_weight = avg_percentage * self.controller_weight_modifier
+                pipeline_weight = 1 - avg_percentage * self.controller_weight_modifier
+
+                steering_angle = control_weight * self.controller_angle + pipeline_weight * self.pipeline_angle
+                # steering_angle = self.pipeline_angle
+                self.steering.set_position(steering_angle)
+            else:
+                self.steering.set_position(self.controller_angle)
+
+    def brake_ping(self):
+        self.brakes.ping()
+
     def steering_event(self):
-        # self.brakes.ping()
         if self.steering.calibrated and self.manual_mode:
             # if self.joystick.get_axis("ZR") >= 1.0:
             joy_val = self.joystick.get_axis("right x")
@@ -332,57 +388,45 @@ class RoboQuasar(Robot):
                 if self.joystick.get_button("L"):
                     self.brakes.release()
                     self.underglow.signal_release()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
                 else:
                     self.brakes.pull()
                     self.underglow.signal_brake()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
 
             elif self.joystick.button_updated("R") and self.joystick.get_button("R"):
                 self.brakes.toggle()
                 if self.brakes.engaged:
                     self.underglow.signal_brake()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
                 else:
                     self.underglow.signal_release()
-                    # self.delay_function(1.5, self.dt(), self.underglow.rainbow_cycle)
 
-    def update_pipeline(self):
+    def get_safety_value(self, pipeline, angle_limit):
+        safety_percentage = 0.0
         if not self.manual_mode:
-            if self.left_pipeline.did_update():
-                value = self.left_pipeline.safety_value
-                if self.enable_kalman:
-                    velocity = self.kalman_filter.get_velocity()
-                    speed = np.sqrt(velocity.T * velocity).tolist()[0]
-                else:
-                    speed = 0.2
-                if value > self.left_pipeline.safety_threshold and speed > 0.1:
-                    new_angle = self.steering_angle + self.steering.left_limit_angle * value
-                    print(new_angle)
-                    self.steering.set_position(new_angle)
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+            if pipeline.did_update():
+                safety_percentage = pipeline.safety_value
+                # value = pipeline.safety_value
+                # if self.enable_kalman:
+                #     velocity = self.kalman_filter.get_velocity()
+                #     speed = np.sqrt(velocity.T * velocity).tolist()[0]
+                # else:
+                #     speed = 0.2
+                # if value > pipeline.safety_threshold:
+                #     # new_angle = self.controller_angle + angle_limit * value
+                #     # self.steering.set_position(new_angle)
+                #     safety_percentage = value
+                #     self.gps_imu_control_enabled = False
+                # else:
+                #     self.gps_imu_control_enabled = True
 
-            if self.right_pipeline.did_update():
-                value = self.right_pipeline.safety_value
-                if value > self.right_pipeline.safety_threshold:
-                    new_angle = self.steering_angle + self.steering.right_limit_angle * value
-                    self.steering.set_position(new_angle)
-                    self.gps_imu_control_enabled = False
-                else:
-                    self.gps_imu_control_enabled = True
+            if pipeline.status is not None:
+                return safety_percentage, pipeline.status
 
-            if self.left_pipeline.status is not None:
-                return self.left_pipeline.status
-
-            if self.left_pipeline.did_pause():
+            if pipeline.did_pause():
                 self.toggle_pause()
                 if isinstance(self.quasar_plotter.plotter, LivePlotter):
                     self.quasar_plotter.plotter.toggle_pause()
 
-            if self.right_pipeline.status is not None:
-                return self.right_pipeline.status
+        return safety_percentage, None
 
     def close(self, reason):
         if reason != "done":
@@ -473,19 +517,25 @@ class RoboQuasarPlotter:
 
     def update_map_colors(self, dt, outer_state, inner_state):
         self.prev_pos_state = self.position_state
+        status = -1
         if outer_state and inner_state:
             self.position_state = "in bounds"
             self.outer_map_plot.set_properties(color="blue")
             self.inner_map_plot.set_properties(color="blue")
+            status = 0
         elif not outer_state:
             self.position_state = "out of bounds! (outer)"
             self.outer_map_plot.set_properties(color="red")
+            status = 1
         elif not inner_state:
             self.position_state = "out of bounds! (inner)"
             self.inner_map_plot.set_properties(color="red")
+            status = 2
 
         if self.position_state != self.prev_pos_state:
             print("%0.4f: %s" % (dt, self.position_state))
+
+        return status
 
     def update_indicators(self, current_pos, filtered_angle, imu_angle, lat, long, steering_angle,
                           goal_lat, goal_long):
@@ -573,15 +623,29 @@ map_sets = {
         "buggy course map inside border",
         "buggy course map outside border",
         "buggy",
+    ),
+    "short" : (
+        "Short Course",
+        "Short Course Inner",
+        "Short Course Outer",
+        "short"
     )
 }
 
 file_sets = {
-    "rolls day 4" : (
+    "rolls day 5"       : (
+        ("07;46", "rolls/2017_Mar_26"),
+        ("07;49", "rolls/2017_Mar_26"),
+        ("07;54", "rolls/2017_Mar_26"),
+        ("06;50", "rolls/2017_Mar_26"),  # first run
+        ("06;55", "rolls/2017_Mar_26"),  # without camera
+        ("06;56", "rolls/2017_Mar_26"),
+        ("09;06", "rolls/2017_Mar_26"),
+    ),
+    "rolls day 4"       : (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
-        ("07;12", "rolls/2017_Mar_25"),  # 3,
     ),
     "push practice 2"   : (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run

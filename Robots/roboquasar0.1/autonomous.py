@@ -4,6 +4,7 @@ import cmd
 import math
 import time
 from threading import Thread
+import datetime
 
 from atlasbuggy.interface.live import RobotRunner
 
@@ -15,8 +16,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
 parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
-parser.add_argument("-cam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-nocam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-day", "--daymode", help="enable day mode", action="store_true")
+parser.add_argument("-night", "--nightmode", help="enable night mode", action="store_true")
 args = parser.parse_args()
+
+now = datetime.datetime.now()
 
 
 class AutonomousCommandline(cmd.Cmd):
@@ -107,11 +112,11 @@ class AutonomousCommandline(cmd.Cmd):
         print()
         return True
 
-    def do_show_cam(self, line):
+    def do_showcam(self, line):
         robot.left_camera.show = True
         robot.right_camera.show = True
 
-    def do_hide_cam(self, line):
+    def do_hidecam(self, line):
         robot.left_camera.show = False
         robot.right_camera.show = False
 
@@ -137,12 +142,34 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+    def do_angle(self, line):
+        print(robot.pipeline_angle)
+        print(robot.controller_angle)
+        print(robot.steering.sent_angle)
 
-log_dir = ("push_practice", None)
+sunrise = 7.183
+sunset = 19.65
+
+log_dir = ("rolls", None)
 checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
+print("Using map:", checkpoint_map_name)
+print("Sunrise time is", sunrise)
+print("Sunset time is", sunrise)
+
+if args.daymode:
+    day_mode = True
+if args.nightmode:
+    day_mode = False
+
+if not args.daymode and not args.nightmode:
+    hour = now.hour + now.minute / 60
+    if sunrise <= hour < sunset:
+        day_mode = True
+    else:
+        day_mode = False
 
 robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass,
-                   enable_cameras=args.nocamera)
+                   enable_cameras=args.nocamera, day_mode=day_mode, enable_kalman=True)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
