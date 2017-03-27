@@ -53,8 +53,8 @@ class BozoFilter:
             self.lat_data.append(lat)
 
         self.bearing = -math.atan2(long - self.long_data[0],
-                                   lat - self.lat_data[0]) + math.pi
-        self.bearing = (self.bearing - math.pi / 2) % (2 * math.pi)
+                                   lat - self.lat_data[0])# + math.pi
+        self.bearing = self.bearing % (2 * math.pi)
 
         if len(self.long_data) > self.bearing_avg_len:
             self.long_data.pop(0)

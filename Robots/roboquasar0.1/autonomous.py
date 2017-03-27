@@ -151,8 +151,6 @@ sunrise = 7.183
 sunset = 19.65
 
 log_dir = ("rolls", None)
-checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets["buggy"]
-print("Using map:", checkpoint_map_name)
 print("Sunrise time is", sunrise)
 print("Sunset time is", sunrise)
 
@@ -168,7 +166,7 @@ if not args.daymode and not args.nightmode:
     else:
         day_mode = False
 
-robot = RoboQuasar(False, checkpoint_map_name, inner_map_name, outer_map_name, map_dir, args.compass,
+robot = RoboQuasar(False, "buggy", args.compass,
                    enable_cameras=args.nocamera, day_mode=day_mode, enable_kalman=True)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)

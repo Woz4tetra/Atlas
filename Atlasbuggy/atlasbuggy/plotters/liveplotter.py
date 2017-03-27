@@ -15,7 +15,7 @@ class LivePlotter(BasePlotter):
     initialized = False
 
     def __init__(self, num_columns, *robot_plots, enabled=True, draw_legend=True, legend_args=None, lag_cap=0.005,
-                 skip_count=0, matplotlib_events=None):
+                 skip_count=0, matplotlib_events=None, active_window_resizing=True):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
         windows don't behave well. This also conserves CPU usage.
@@ -43,6 +43,7 @@ class LivePlotter(BasePlotter):
         self.skip_counter = 0
         self.closed = False
         self.is_paused = False
+        self.active_window_resizing = active_window_resizing
 
         if self.enabled:
             # create a plot line for each RobotPlot or RobotPlotCollection.
@@ -147,15 +148,16 @@ class LivePlotter(BasePlotter):
             else:
                 return "exit"
 
-            if plot.flat:
-                # print(plot.x_range, end=", ")
-                # print(plot.y_range)
-                self.axes[plot.name].set_xlim(plot.x_range)
-                self.axes[plot.name].set_ylim(plot.y_range)
-            else:
-                self.axes[plot.name].set_xlim3d(plot.x_range)
-                self.axes[plot.name].set_ylim3d(plot.y_range)
-                self.axes[plot.name].set_zlim3d(plot.z_range)
+            if self.active_window_resizing:
+                if plot.flat:
+                    # print(plot.x_range, end=", ")
+                    # print(plot.y_range)
+                    self.axes[plot.name].set_xlim(plot.x_range)
+                    self.axes[plot.name].set_ylim(plot.y_range)
+                else:
+                    self.axes[plot.name].set_xlim3d(plot.x_range)
+                    self.axes[plot.name].set_ylim3d(plot.y_range)
+                    self.axes[plot.name].set_zlim3d(plot.z_range)
 
         try:
             self.fig.canvas.draw()

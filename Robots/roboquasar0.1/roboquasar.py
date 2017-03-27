@@ -1,5 +1,4 @@
 import math
-import numpy as np
 
 from algorithms.bozo_controller import BozoController
 from algorithms.bozo_filter import BozoFilter
@@ -28,8 +27,7 @@ from actuators.underglow import Underglow
 
 
 class RoboQuasar(Robot):
-    def __init__(self, enable_plotting,
-                 checkpoint_map_name, inner_map_name, outer_map_name, map_dir,
+    def __init__(self, enable_plotting, map_set_name,
                  initial_compass=None, animate=True, enable_cameras=True,
                  enable_kalman=False, use_log_file_maps=True, show_cameras=None,
                  pipeline=1, day_mode=False):
@@ -72,6 +70,10 @@ class RoboQuasar(Robot):
         self.prev_pos_state = self.position_state
 
         # init controller
+        self.map_set_name = map_set_name
+        print("Using map set:", map_set_name)
+        checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[map_set_name]
+
         self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
@@ -97,7 +99,7 @@ class RoboQuasar(Robot):
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
                                                 self.controller.map, self.controller.inner_map,
-                                                self.controller.outer_map, self.key_press)
+                                                self.controller.outer_map, self.key_press, self.map_set_name)
 
     def init_kalman(self, timestamp, lat, long, altitude, initial_yaw, initial_pitch, initial_roll):
         if not self.enable_kalman:
@@ -126,10 +128,7 @@ class RoboQuasar(Robot):
         self.right_pipeline.start()
 
         # record important data
-        self.record("maps",
-                    "%s,%s,%s,%s" % (
-                        self.controller.course_map_name, self.controller.inner_map_name, self.controller.outer_map_name,
-                        self.controller.map_dir))
+        self.record("map set", self.map_set_name)
         self.record("initial compass", self.bozo_filter.compass_angle_packet)
         self.record("pipeline mode", str(int(self.day_mode)))
 
@@ -212,14 +211,21 @@ class RoboQuasar(Robot):
                     self.kalman_filter.imu_updated(
                         timestamp - self.imu_t0,
                         self.imu.accel.x, self.imu.accel.y, self.imu.accel.z,
-                        self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z
+                        self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z,
                     )
                     self.imu_t0 = timestamp
 
                     lat, long = self.kalman_filter.get_position()[0:2]
                     filtered_angle = self.kalman_filter.get_orientation()[2]
 
-                    self.bozo_filter.offset_angle(self.imu.euler.z)
+                    imu_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
+
+                    if filtered_angle - imu_angle > math.pi:
+                        imu_angle += 2 * math.pi
+                    if imu_angle - filtered_angle > math.pi:
+                        filtered_angle += 2 * math.pi
+
+                    filtered_angle = 0.5 * filtered_angle + 0.5 * imu_angle
                 else:
                     return
             else:
@@ -234,7 +240,7 @@ class RoboQuasar(Robot):
             self.quasar_plotter.update_indicators(
                 self.controller.current_pos, filtered_angle,
                 self.bozo_filter.imu_angle,
-                self.gps.latitude_deg, self.gps.longitude_deg, self.controller_angle,
+                lat, long, self.controller_angle,
                 self.controller.map[self.controller.current_index][0],
                 self.controller.map[self.controller.current_index][1]
             )
@@ -248,7 +254,11 @@ class RoboQuasar(Robot):
 
         elif self.did_receive("maps"):
             if self.use_log_file_maps:
-                checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+                if "," in packet:
+                    checkpoint_map_name, inner_map_name, outer_map_name, map_dir = packet.split(",")
+                else:
+                    checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[packet]
+                    self.quasar_plotter.plot_image(packet)
                 self.controller.init_maps(checkpoint_map_name, map_dir, inner_map_name, outer_map_name)
 
                 self.quasar_plotter.update_maps(self.controller.map, self.controller.inner_map,
@@ -302,10 +312,10 @@ class RoboQuasar(Robot):
         self.update_joystick()
 
     def update_auto_steering(self):
-        left_percentage, status = self.get_safety_value(self.left_pipeline, self.steering.left_limit_angle)
+        left_percentage, status = self.get_safety_value(self.left_pipeline)
         if status == "error":
             return status
-        right_percentage, status = self.get_safety_value(self.right_pipeline, self.steering.right_limit_angle)
+        right_percentage, status = self.get_safety_value(self.right_pipeline)
         if status == "error":
             return status
 
@@ -399,24 +409,11 @@ class RoboQuasar(Robot):
                 else:
                     self.underglow.signal_release()
 
-    def get_safety_value(self, pipeline, angle_limit):
+    def get_safety_value(self, pipeline):
         safety_percentage = 0.0
         if not self.manual_mode:
             if pipeline.did_update():
                 safety_percentage = pipeline.safety_value
-                # value = pipeline.safety_value
-                # if self.enable_kalman:
-                #     velocity = self.kalman_filter.get_velocity()
-                #     speed = np.sqrt(velocity.T * velocity).tolist()[0]
-                # else:
-                #     speed = 0.2
-                # if value > pipeline.safety_threshold:
-                #     # new_angle = self.controller_angle + angle_limit * value
-                #     # self.steering.set_position(new_angle)
-                #     safety_percentage = value
-                #     self.gps_imu_control_enabled = False
-                # else:
-                #     self.gps_imu_control_enabled = True
 
             if pipeline.status is not None:
                 return safety_percentage, pipeline.status
@@ -442,12 +439,13 @@ class RoboQuasar(Robot):
 
 
 class RoboQuasarPlotter:
-    def __init__(self, animate, enable_plotting, enable_kalman, course_map, inner_map, outer_map, key_press_fn):
+    def __init__(self, animate, enable_plotting, enable_kalman, course_map, inner_map, outer_map, key_press_fn,
+                 map_set_name):
         # GPS map based plots
         self.gps_plot = RobotPlot("gps", color="red", enabled=True)
         self.map_plot = RobotPlot("map", color="purple")
-        self.inner_map_plot = RobotPlot("inner map", enabled=False)
-        self.outer_map_plot = RobotPlot("outer map", enabled=False)
+        self.inner_map_plot = RobotPlot("inner map", enabled=True)
+        self.outer_map_plot = RobotPlot("outer map", enabled=True)
 
         # angle based plots
         self.compass_plot = RobotPlot("quasar filtered heading", color="purple")
@@ -463,8 +461,8 @@ class RoboQuasarPlotter:
 
         # kalman plots
         self.enable_kalman = enable_kalman
-        self.kalman_recomputed_plot = RobotPlot("kalman recomputed", enabled=self.enable_kalman)
-        self.kalman_recorded_plot = RobotPlot("kalman recorded", enabled=self.enable_kalman)
+        self.kalman_recomputed_plot = RobotPlot("kalman recomputed", color="blue", enabled=self.enable_kalman)
+        self.kalman_recorded_plot = RobotPlot("kalman recorded", color="gray", enabled=self.enable_kalman)
 
         self.sticky_compass_counter = 0
         self.sticky_compass_skip = 100
@@ -476,7 +474,7 @@ class RoboQuasarPlotter:
             self.map_plot, self.inner_map_plot, self.outer_map_plot,
             self.steering_plot, self.compass_plot_imu_only,
             self.compass_plot, self.goal_plot,
-            self.current_pos_dot, self.kalman_recomputed_plot, self.kalman_recorded_plot
+            self.current_pos_dot, self.kalman_recomputed_plot, self.kalman_recorded_plot,
         )
 
         # raw IMU data plot
@@ -486,7 +484,7 @@ class RoboQuasarPlotter:
             self.plotter = LivePlotter(
                 2, self.accuracy_check_plot, self.imu_plot,
                 matplotlib_events=dict(key_press_event=key_press_fn),
-                enabled=enable_plotting
+                enabled=enable_plotting, active_window_resizing=False
             )
         else:
             self.plotter = StaticPlotter(
@@ -497,6 +495,7 @@ class RoboQuasarPlotter:
 
         # plot maps
         self.update_maps(course_map, inner_map, outer_map)
+        self.plot_image(map_set_name)
 
         self.position_state = ""
         self.prev_pos_state = self.position_state
@@ -505,6 +504,23 @@ class RoboQuasarPlotter:
         self.map_plot.update(course_map.lats, course_map.longs)
         self.inner_map_plot.update(inner_map.lats, inner_map.longs)
         self.outer_map_plot.update(outer_map.lats, outer_map.longs)
+
+    def plot_image(self, map_set_name):
+        if map_set_name in image_sets:
+            image_info = image_sets[map_set_name]
+        else:
+            return
+
+        # image_path, img_point_1, img_point_2, gps_point_1, gps_point_2 = image_info
+        self.plotter.draw_image(*image_info)
+
+        # center = (gps_point_1[0] + gps_point_2[0]) / 2
+        # width = abs(gps_point_1[1] - gps_point_2[1])
+
+        # print([center - width, center + width], [gps_point_1[1], gps_point_2[1]])
+        # self.image_box.update([center - width, center - width, center + width, center + width],
+        #                       [gps_point_1[1], gps_point_2[1], gps_point_2[1], gps_point_1[1]])
+        # self.plotter.get_axis(self.accuracy_check_plot).set_xlim((center - width, center + width))
 
     def update_gps_plot(self, dt, lat, long):
         if self.plotter.enabled:
@@ -572,7 +588,8 @@ class RoboQuasarPlotter:
                     [lat, goal_lat],
                     [long, goal_long])
 
-    def compass_coords(self, lat, long, angle, length=0.0003):
+    @staticmethod
+    def compass_coords(lat, long, angle, length=0.0003):
         lat2 = length * math.sin(-angle) + lat
         long2 = length * math.cos(-angle) + long
         return lat2, long2
@@ -630,6 +647,19 @@ map_sets = {
         "Short Course Outer",
         "short"
     )
+}
+
+image_sets = {
+    # "buggy": (
+    #     "maps/buggy/Buggy Course Image 1.png", (40.440829, -79.948150),
+    #     (40.441729, -79.941543), (136, 515), (2080, 161)
+    # ),
+    "buggy": (
+        "maps/buggy/Buggy Course Image 2.png",
+        (427, 2040), (2611, 836),
+        (40.43910438921088, -79.94750440120698),
+        (40.44156221153447, -79.94164109230043),
+    ),
 }
 
 file_sets = {

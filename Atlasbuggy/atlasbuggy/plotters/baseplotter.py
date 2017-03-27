@@ -2,9 +2,9 @@
 The base class shared by liveplotter and staticplotter. Contains properties shared by the two types.
 """
 
+import numpy as np
 from atlasbuggy.plotters.plot import RobotPlot
 from atlasbuggy.plotters.collection import RobotPlotCollection
-
 
 class BasePlotter:
     fig_num = 0
@@ -144,6 +144,32 @@ class BasePlotter:
                     self.axes[plot_name].plot(x, y, 'o', **dot_properties)
                 else:
                     self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
+
+    def draw_image(self, image_name, img_coord_1, img_coord_2, plot_coord_1, plot_coord_2, img_format="png"):
+        """
+        Draw a dot on the input plot (plot name or plot instance)
+        :param arg: string or robot plot
+        :param x: float
+        :param y: float
+        :param z: float
+        :param dot_properties: matplotlib properties (color, markersize, etc)
+        """
+        if self.enabled:
+            image = self.plt.imread(image_name, format=img_format)
+            height, width = image.shape[0:2]
+            img_x1 = height - img_coord_1[1]
+            img_x2 = height - img_coord_2[1]
+            img_y1 = width - img_coord_1[0]
+            img_y2 = width - img_coord_2[0]
+            height, width = width, height
+
+            plot_x1 = (plot_coord_1[0] - plot_coord_2[0]) / (img_x1 - img_x2) * (0 - img_x2) + plot_coord_2[0]
+            plot_x2 = (plot_coord_1[0] - plot_coord_2[0]) / (img_x1 - img_x2) * (width - img_x2) + plot_coord_2[0]
+            plot_y1 = (plot_coord_1[1] - plot_coord_2[1]) / (img_y1 - img_y2) * (0 - img_y2) + plot_coord_2[1]
+            plot_y2 = (plot_coord_1[1] - plot_coord_2[1]) / (img_y1 - img_y2) * (height - img_y2) + plot_coord_2[1]
+            image = np.rot90(image, k=3)
+
+            self.plt.imshow(image, extent=(plot_x1, plot_x2, plot_y1, plot_y2))
 
     def draw_text(self, arg, text, x, y, z=None, text_name=None, **text_properties):
         """

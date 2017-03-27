@@ -27,7 +27,7 @@ class GrovesKalmanFilter:
             self.properties.estimated_position, \
             self.properties.estimated_velocity, \
             self.properties.estimated_attitude = self.ins.update(
-                imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T,
+                imu_dt, np.matrix([ax, ay, az]).T, np.matrix([gx, gy, gz]).T
             )
 
     def gps_updated(self, gps_dt, lat, long, altitude):
@@ -169,20 +169,19 @@ class KalmanProperties:
 
 
 class INS:
-    def __init__(self, properties: KalmanProperties):
+    def __init__(self, properties: KalmanProperties, update_type=0):
         self.properties = properties
 
         self.accel_measurement = np.matrix(np.zeros((3, 1)))
         self.gyro_measurement = np.matrix(np.zeros((3, 1)))
+        self.imu_filtered_measurement = np.matrix(np.zeros((3, 1)))
 
-        use_rigorous_update = False
-
-        if use_rigorous_update:
-            self.update = self.rigorous_update
-            print("Using RIGOROUS update")
-        else:
+        if update_type == 0:
             self.update = self.non_rigorous_update
             print("Using NON-RIGOROUS update")
+        elif update_type == 1:
+            self.update = self.rigorous_update
+            print("Using RIGOROUS update")
 
     def get_earth_rotation_transform(self, dt):
         earth_rotation_amount = earth_rotation_rate * dt
@@ -291,7 +290,7 @@ class INS:
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
-        self.accel_measurement = np.clip(self.accel_measurement, -0.05, 0.05)
+        self.accel_measurement = np.clip(self.accel_measurement, -0.01, 0.01)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
         self.modify_measurements(accel_measurement, gyro_measurement)
