@@ -127,7 +127,7 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "avi")
+        self.open_cameras(file_name, directory, "mp4")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
@@ -321,35 +321,49 @@ class RoboQuasar(Robot):
         self.update_joystick()
 
     def update_auto_steering(self):
-        left_percentage, status = self.get_safety_value(self.left_pipeline)
-        if status == "error":
-            return status
-        right_percentage, status = self.get_safety_value(self.right_pipeline)
-        if status == "error":
-            return status
+        if self.gps.is_position_valid() and self.bozo_filter.initialized:
+            if self.left_camera.enabled or self.right_camera.enabled:
+                left_percentage, status = self.get_safety_value(self.left_pipeline)
+                if status == "error":
+                    return status
+                right_percentage, status = self.get_safety_value(self.right_pipeline)
+                if status == "error":
+                    return status
 
-        # generate an angle from a PID
+                # generate an angle from a PID
 
-        if left_percentage is not None or right_percentage is not None:
-            self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
+                if left_percentage is not None or right_percentage is not None:
+                    self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
 
-            if left_percentage is not None and right_percentage is not None:
-                # if trapped between two lines, average them to stay in the middle
-                avg_percentage = (left_percentage + right_percentage) / 2
-            elif left_percentage is not None:
-                avg_percentage = left_percentage
-            elif left_percentage is not None:
-                avg_percentage = right_percentage
+                    if left_percentage is not None and right_percentage is not None:
+                        # if trapped between two lines, average them to stay in the middle
+                        avg_percentage = (left_percentage + right_percentage) / 2
+                    elif left_percentage is not None:
+                        avg_percentage = left_percentage
+                    elif left_percentage is not None:
+                        avg_percentage = right_percentage
+                    else:
+                        avg_percentage = 0.0
+
+                    if not self.manual_mode and self.pipeline_angle is not None:
+                        control_weight = 1 - avg_percentage
+                        pipeline_weight = avg_percentage
+
+                        steering_angle = control_weight * self.controller_angle + pipeline_weight * self.pipeline_angle
+                        # steering_angle = self.pipeline_angle
+                        self.steering.set_position(steering_angle)
+
+                        # self.quasar_plotter.plotter.draw_text(
+                        #     self.quasar_plotter.accuracy_check_plot,
+                        #     "%0.4f" % steering_angle,
+                        #     self.gps.latitude_deg, self.gps.longitude_deg,
+                        #     text_name="angle text"
+                        # )
+                        print("%0.2f, %0.2f, %0.2fº %s of %0.2fº" % (
+                            control_weight, pipeline_weight, math.degrees(steering_angle),
+                            "left" if steering_angle >= 0 else "right", math.degrees(self.steering.right_limit_angle)))
             else:
-                avg_percentage = 0.0
-
-            if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
-                control_weight = 1 - avg_percentage * self.controller_weight_modifier
-                pipeline_weight = avg_percentage * self.controller_weight_modifier
-
-                steering_angle = control_weight * self.controller_angle + pipeline_weight * self.pipeline_angle
-                # steering_angle = self.pipeline_angle
-                self.steering.set_position(steering_angle)
+                self.steering.set_position(self.controller_angle)
 
     def brake_ping(self):
         self.brakes.ping()
@@ -577,12 +591,6 @@ class RoboQuasarPlotter:
                                          [long, long2])
                 self.compass_plot_imu_only.update([lat, lat3],
                                                   [long, long3])
-                self.plotter.draw_text(
-                    self.accuracy_check_plot,
-                    "%0.4f, %0.4f" % (filtered_angle, imu_angle),
-                    lat, long,
-                    text_name="angle text"
-                )
 
             if self.sticky_compass_skip > 0 and self.sticky_compass_counter % self.sticky_compass_skip == 0:
                 lat2, long2 = self.compass_coords(lat, long, filtered_angle, length=0.0001)
@@ -677,6 +685,8 @@ image_sets = {
 file_sets = {
     "rolls day 6"       : (
         ("23;53", "rolls/2017_Mar_27"),
+        ("00;44", "rolls/2017_Mar_28"),
+        ("00;50", "rolls/2017_Mar_28"),
     ),
     "rolls day 5"       : (
         ("07;46", "rolls/2017_Mar_26"),
@@ -866,10 +876,10 @@ video_sets = {
         ("00_50_03", "push_practice/2017_Mar_24", "mp4"),
         ("00_51_05", "push_practice/2017_Mar_24", "mp4"),
     ),
-    "data day 12": (
+    "data day 12"    : (
         ("16_36_17", "data_days/2017_Mar_18", "mp4"),
     ),
-    "data day 11": (
+    "data day 11"    : (
         ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
         ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1
         ("17_05_21", "data_days/2017_Mar_16", "mp4"),  # 2

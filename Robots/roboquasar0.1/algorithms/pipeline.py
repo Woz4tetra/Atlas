@@ -280,6 +280,8 @@ class Pipeline:
         if lines is not None:
             counter = 0
             largest_y = 0
+            left_y = 0
+            right_y = 0
             largest_coords = None
 
             for line in lines:
@@ -302,6 +304,8 @@ class Pipeline:
                 if y3 > largest_y:
                     largest_y = y3
                     largest_coords = (x1, y1), (x2, y2)
+                    left_y = y0
+                    right_y = int(y0 - width * a)
 
                 cv2.line(frame, (x1, y1), (x2, y2), (150, 150, 150), 2)
                 # cv2.circle(frame, (x0, y0), 10, (150, 255, 50), 2)
@@ -311,7 +315,12 @@ class Pipeline:
 
             if largest_coords is not None:
                 cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
-            return largest_y / height
+
+            if left_y > right_y:
+                return left_y / height
+            else:
+                return right_y / height
+            # return largest_y / height
         return 0.0
 
     def close(self):
