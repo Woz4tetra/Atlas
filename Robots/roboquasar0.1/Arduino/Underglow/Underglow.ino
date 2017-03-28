@@ -104,7 +104,7 @@ void loop() {
                 int cycle_num = command.substring(2, 3).toInt();
                 fadeColors(random(0, 255), random(0, 255), random(0, 255), cycle_num, SIGNAL_DELAY, SIGNAL_INCREMENT);
             }
-            else if (command.charAt(0) == 'f') {
+            else if (command.charAt(0) == 'f' && command.length() == 13) {
                 int cycle_num = command.substring(1, 4).toInt();
                 int r = command.substring(4, 7).toInt();
                 int g = command.substring(7, 10).toInt();

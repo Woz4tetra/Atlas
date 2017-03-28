@@ -17,6 +17,7 @@
 
 bool braking = false;
 bool moving = true;
+bool pause_ping = true;
 int goal = RELEASE_POS;
 
 uint32_t timer = millis();
@@ -87,6 +88,8 @@ void loop() {
             prevPosition = currentPosition();
             stopMotor();
             moving = false;
+            delay(1500);
+            pingTimer = millis();
         }
         if (status == 0) {  // user command
             if (buggy.getCommand().equals("b")) {
@@ -102,6 +105,13 @@ void loop() {
             else if (buggy.getCommand().equals("t")) {
                 pingTimer = millis();
             }
+            else if (buggy.getCommand().equals("p")) {
+                pause_ping = true;
+            }
+            else if (buggy.getCommand().equals("u")) {
+                pause_ping = false;
+                pingTimer = millis();
+            }
             else {
                 stopMotor();
                 moving = false;
@@ -110,7 +120,7 @@ void loop() {
         // else if (status == -1)  // no command
     }
 
-    if (!buggy.isPaused()) {
+    if (!buggy.isPaused() && !pause_ping) {
         // if millis() or timer wraps around, we'll just reset it
         if (pingTimer > millis())  pingTimer = millis();
 

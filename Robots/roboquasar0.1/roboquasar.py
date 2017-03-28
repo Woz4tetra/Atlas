@@ -94,7 +94,9 @@ class RoboQuasar(Robot):
 
         self.link_reoccuring(0.008, self.steering_event)
         self.link_reoccuring(0.05, self.update_auto_steering)
-        self.link_reoccuring(0.05, self.brake_ping)
+        if not self.enable_kalman:
+            self.brakes.unpause_pings()
+            self.link_reoccuring(0.05, self.brake_ping)
 
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(animate, enable_plotting, enable_kalman,
@@ -116,6 +118,8 @@ class RoboQuasar(Robot):
 
         self.imu_t0 = timestamp
         self.gps_t0 = timestamp
+
+        print(self.dt(), "Kalman filter initialized")
 
     def start(self):
         # extract camera file name from current log file name
@@ -171,9 +175,12 @@ class RoboQuasar(Robot):
         if self.gps.is_position_valid():
             if self.enable_kalman and self.bozo_filter.initialized:
                 if self.kalman_filter is None:  # init kalman filter if initial heading is set and its enabled
+                    self.debug_print(self.dt(), "Kalman filter initializing")
                     self.init_kalman(timestamp,
                                      self.gps.latitude_deg, self.gps.longitude_deg, self.gps.altitude,
                                      self.bozo_filter.compass_angle, 0.0, 0.0)
+                    self.brakes.unpause_pings()
+                    self.link_reoccuring(0.05, self.brake_ping)
                 else:  # otherwise update the filter
                     self.kalman_filter.gps_updated(
                         timestamp - self.gps_t0,
@@ -349,6 +356,7 @@ class RoboQuasar(Robot):
                 self.steering.set_position(self.controller_angle)
 
     def brake_ping(self):
+        print(self.dt(), "ping")
         self.brakes.ping()
 
     def steering_event(self):
@@ -429,6 +437,8 @@ class RoboQuasar(Robot):
         if reason != "done":
             self.brakes.pull()
             self.debug_print("!!EMERGENCY BRAKE!!", ignore_flag=True)
+        else:
+            self.brakes.pause_pings()
 
         self.quasar_plotter.close(reason)
 

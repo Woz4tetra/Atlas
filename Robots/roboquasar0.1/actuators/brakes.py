@@ -38,6 +38,12 @@ class Brakes(RobotObject):
         self.goal_position = self.unbrake_pos
         self.engaged = False
 
+    def pause_pings(self):
+        self.send("p")
+
+    def unpause_pings(self):
+        self.send("u")
+
     def ping(self):
         self.send("t")
 
