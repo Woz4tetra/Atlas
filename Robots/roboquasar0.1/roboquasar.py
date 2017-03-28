@@ -127,7 +127,7 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "mp4")
+        self.open_cameras(file_name, directory, "avi")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
@@ -329,14 +329,11 @@ class RoboQuasar(Robot):
             return status
 
         # generate an angle from a PID
-        self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
 
-        # if not self.manual_mode and not self.gps_imu_control_enabled and self.pipeline_angle is not None:
-        #     self.record("pipeline angle", self.pipeline_angle)
-        #     # print(self.pipeline_angle)
-        #     self.steering.set_position(self.pipeline_angle)
-        if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
-            if left_percentage != 0.0 and right_percentage != 0.0:
+        if left_percentage is not None or right_percentage is not None:
+            self.pipeline_angle = self.pipeline_pid.update(self.dt(), left_percentage, right_percentage)
+
+            if left_percentage is not None and right_percentage is not None:
                 # if trapped between two lines, average them to stay in the middle
                 avg_percentage = (left_percentage + right_percentage) / 2
             elif left_percentage is not None:
@@ -346,19 +343,15 @@ class RoboQuasar(Robot):
             else:
                 avg_percentage = 0.0
 
-            if left_percentage != 0.0 or right_percentage != 0.0:
-                # weighted average. As the curb gets closer, the pipeline gains more control
-                control_weight = avg_percentage * self.controller_weight_modifier
-                pipeline_weight = 1 - avg_percentage * self.controller_weight_modifier
+            if not self.manual_mode and self.pipeline_angle is not None and self.bozo_filter.initialized:
+                control_weight = 1 - avg_percentage * self.controller_weight_modifier
+                pipeline_weight = avg_percentage * self.controller_weight_modifier
 
                 steering_angle = control_weight * self.controller_angle + pipeline_weight * self.pipeline_angle
                 # steering_angle = self.pipeline_angle
                 self.steering.set_position(steering_angle)
-            else:
-                self.steering.set_position(self.controller_angle)
 
     def brake_ping(self):
-        print(self.dt(), "ping")
         self.brakes.ping()
 
     def steering_event(self):
@@ -420,10 +413,12 @@ class RoboQuasar(Robot):
                     self.underglow.signal_release()
 
     def get_safety_value(self, pipeline):
-        safety_percentage = 0.0
+        safety_percentage = None
         if not self.manual_mode:
             if pipeline.did_update():
                 safety_percentage = pipeline.safety_value
+            else:
+                return safety_percentage, None
 
             if pipeline.status is not None:
                 return safety_percentage, pipeline.status
@@ -680,6 +675,9 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 6"       : (
+        ("23;53", "rolls/2017_Mar_27"),
+    ),
     "rolls day 5"       : (
         ("07;46", "rolls/2017_Mar_26"),
         ("07;49", "rolls/2017_Mar_26"),
