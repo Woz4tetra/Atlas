@@ -74,7 +74,7 @@ class RoboQuasar(Robot):
         print("Using map set:", map_set_name)
         checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[map_set_name]
 
-        self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=5)
+        self.controller = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=2)
         self.bozo_filter = BozoFilter(initial_compass)
         self.use_log_file_maps = use_log_file_maps
         self.controller_angle = 0.0
@@ -134,7 +134,8 @@ class RoboQuasar(Robot):
         # record important data
         self.record("map set", self.map_set_name)
         self.record("initial compass", self.bozo_filter.compass_angle_packet)
-        self.record("pipeline mode", str(int(self.day_mode)))
+        if self.day_mode is not None:
+            self.record("pipeline mode", str(int(self.day_mode)))
 
         self.pipeline_pid = PipelinePID(self.steering.left_limit_angle, self.steering.right_limit_angle, 0.0)
 
@@ -200,15 +201,6 @@ class RoboQuasar(Robot):
             if status is not None:
                 return status
 
-            outer_state = self.controller.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
-            inner_state = self.controller.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
-
-            bound_status = self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
-            if bound_status > 0:
-                self.controller_weight_modifier = 0.5
-            else:
-                self.controller_weight_modifier = 1.0
-
     def receive_imu(self, timestamp, packet, packet_type):
         self.quasar_plotter.imu_plot.append(timestamp, self.imu.accel.x, self.imu.accel.y)
 
@@ -223,16 +215,16 @@ class RoboQuasar(Robot):
                     self.imu_t0 = timestamp
 
                     lat, long = self.kalman_filter.get_position()[0:2]
-                    filtered_angle = self.kalman_filter.get_orientation()[2]
+                    # filtered_angle = self.kalman_filter.get_orientation()[2]
 
-                    imu_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
+                    filtered_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
+                    # imu_angle = self.bozo_filter.offset_angle(self.imu.euler.z)
+                    # if filtered_angle - imu_angle > math.pi:
+                    #     imu_angle += 2 * math.pi
+                    # if imu_angle - filtered_angle > math.pi:
+                    #     filtered_angle += 2 * math.pi
 
-                    if filtered_angle - imu_angle > math.pi:
-                        imu_angle += 2 * math.pi
-                    if imu_angle - filtered_angle > math.pi:
-                        filtered_angle += 2 * math.pi
-
-                    filtered_angle = 0.5 * filtered_angle + 0.5 * imu_angle
+                    # filtered_angle = 0.5 * filtered_angle + 0.5 * imu_angle
                 else:
                     return
             else:
@@ -244,6 +236,16 @@ class RoboQuasar(Robot):
             # if not self.manual_mode and self.gps_imu_control_enabled:
             #     self.steering.set_position(self.controller_angle)
 
+            outer_state = self.controller.point_inside_outer_map(lat, long)
+            inner_state = self.controller.point_outside_inner_map(lat, long)
+
+            bound_status, changed = self.quasar_plotter.update_map_colors(self.dt(), outer_state, inner_state)
+            if changed:
+                if bound_status > 0:
+                    self.controller_weight_modifier = 0.5
+                else:
+                    self.controller_weight_modifier = 1.0
+
             self.quasar_plotter.update_indicators(
                 self.controller.current_pos, filtered_angle,
                 self.bozo_filter.imu_angle,
@@ -253,7 +255,7 @@ class RoboQuasar(Robot):
             )
 
     def received(self, timestamp, whoiam, packet, packet_type):
-        self.left_pipeline.update_time(self.dt())
+        # self.left_pipeline.update_time(self.dt())
 
         if self.did_receive("initial compass"):
             self.bozo_filter.init_compass(packet)
@@ -471,7 +473,7 @@ class RoboQuasarPlotter:
 
         # kalman plots
         self.enable_kalman = enable_kalman
-        self.kalman_recomputed_plot = RobotPlot("kalman recomputed", color="blue", enabled=self.enable_kalman)
+        self.kalman_recomputed_plot = RobotPlot("kalman recomputed", color="green", enabled=self.enable_kalman)
         self.kalman_recorded_plot = RobotPlot("kalman recorded", color="gray", enabled=self.enable_kalman)
 
         self.sticky_compass_counter = 0
@@ -544,24 +546,29 @@ class RoboQuasarPlotter:
     def update_map_colors(self, dt, outer_state, inner_state):
         self.prev_pos_state = self.position_state
         status = -1
+        changed = False
         if outer_state and inner_state:
             self.position_state = "in bounds"
-            self.outer_map_plot.set_properties(color="blue")
-            self.inner_map_plot.set_properties(color="blue")
             status = 0
         elif not outer_state:
             self.position_state = "out of bounds! (outer)"
-            self.outer_map_plot.set_properties(color="red")
             status = 1
         elif not inner_state:
             self.position_state = "out of bounds! (inner)"
-            self.inner_map_plot.set_properties(color="red")
             status = 2
 
         if self.position_state != self.prev_pos_state:
             print("%0.4f: %s" % (dt, self.position_state))
+            changed = True
 
-        return status
+            if status == 0:
+                self.outer_map_plot.set_properties(color="blue")
+                self.inner_map_plot.set_properties(color="blue")
+            elif status == 1:
+                self.outer_map_plot.set_properties(color="red")
+            elif status == 2:
+                self.inner_map_plot.set_properties(color="red")
+        return status, changed
 
     def update_indicators(self, current_pos, filtered_angle, imu_angle, lat, long, steering_angle,
                           goal_lat, goal_long):
@@ -577,7 +584,7 @@ class RoboQuasarPlotter:
                                                   [long, long3])
                 self.plotter.draw_text(
                     self.accuracy_check_plot,
-                    "%0.4f" % filtered_angle,
+                    "%0.4f, %0.4f" % (filtered_angle, imu_angle),
                     lat, long,
                     text_name="angle text"
                 )
@@ -850,6 +857,17 @@ file_sets = {
 }
 
 video_sets = {
+    "push practice 2": (
+        ("00_10_35", "push_practice/2017_Mar_24", "mp4"),
+        ("00_14_10", "push_practice/2017_Mar_24", "mp4"),
+        ("00_17_45", "push_practice/2017_Mar_24", "mp4"),
+        ("00_19_22", "push_practice/2017_Mar_24", "mp4"),
+        ("00_38_15", "push_practice/2017_Mar_24", "mp4"),
+        ("00_45_49", "push_practice/2017_Mar_24", "mp4"),
+        ("00_47_21", "push_practice/2017_Mar_24", "mp4"),
+        ("00_50_03", "push_practice/2017_Mar_24", "mp4"),
+        ("00_51_05", "push_practice/2017_Mar_24", "mp4"),
+    ),
     "data day 12": (
         ("16_36_17", "data_days/2017_Mar_18", "mp4"),
     ),

@@ -18,16 +18,14 @@ class Pipeline:
         self.frame = None
         self.day_mode = day_mode
 
+        self.hough_threshold = 115
         self.safety_threshold = 0.1
         self.safety_value = 0.0
         self.prev_safe_value = 0.0
         self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
                               (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193),
                               (160, 109, 193))
-        if day_mode:
-            self.hough_threshold = 150
-        else:
-            self.hough_threshold = 125
+
         # self.safety_colors = self.safety_colors[::-1]
 
         self.frame_queue = Queue(maxsize=255)
@@ -208,9 +206,11 @@ class Pipeline:
     def hough_detector(self, input_frame, day_mode):
         # blur = cv2.medianBlur(input_frame, 5)
         if day_mode:
+            # self.hough_threshold = 150
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.GaussianBlur(blur, (17, 17), 0)
         else:
+            # self.hough_threshold = 125
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.equalizeHist(blur)
             blur = cv2.GaussianBlur(blur, (11, 11), 0)
@@ -318,6 +318,7 @@ class Pipeline:
         self.exit_event.set()
         self.status = "done"
 
+
 class PID:
     def __init__(self, kp, kd, ki, lower_limit, upper_limit):
         self.kp = kp
@@ -351,6 +352,7 @@ class PID:
         if output < self.lower_limit:
             output = self.lower_limit
         return output
+
 
 class PipelinePID:
     def __init__(self, left_limit, right_limit, goal_percent):

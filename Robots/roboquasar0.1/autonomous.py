@@ -21,8 +21,6 @@ parser.add_argument("-day", "--daymode", help="enable day mode", action="store_t
 parser.add_argument("-night", "--nightmode", help="enable night mode", action="store_true")
 args = parser.parse_args()
 
-now = datetime.datetime.now()
-
 
 class AutonomousCommandline(cmd.Cmd):
     def do_imu(self, line):
@@ -147,13 +145,16 @@ class AutonomousCommandline(cmd.Cmd):
         print(robot.controller_angle)
         print(robot.steering.sent_angle)
 
+
 sunrise = 7.183
 sunset = 19.65
+now = datetime.datetime.now()
 
 log_dir = ("rolls", None)
 print("Sunrise time is", sunrise)
 print("Sunset time is", sunrise)
 
+day_mode = False
 if args.daymode:
     day_mode = True
 if args.nightmode:

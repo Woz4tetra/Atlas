@@ -65,17 +65,28 @@ class BozoController:
 
         self.current_pos = lat0, long0
 
-        self.goal_index = self.closest_point(lat0, long0, self.map)
+        if self.current_index is None:
+            start = 0
+            end = len(self.map)
+        else:
+            start = self.goal_index - self.offset
+            end = start + self.offset * 10
+            if end >= len(self.map):
+                end = len(self.map)
+
+        self.goal_index = self.closest_point(lat0, long0, self.map, start, end)
         self.goal_index = (self.goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
         self.current_index = self.goal_index % len(self.map)  # the closest index on the map
 
         return self.goal_index
 
-    def closest_point(self, lat0, long0, gps_map):
+    def closest_point(self, lat0, long0, gps_map, start=0, end=None):
         smallest_dist = None
         goal_index = 0
 
-        for index in range(0, len(gps_map)):
+        if end is None:
+            end = len(gps_map)
+        for index in range(start, end):
             lat1, long1 = gps_map[index]
             dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) + (long1 - long0) * (long1 - long0))
             if smallest_dist is None or dist < smallest_dist:
