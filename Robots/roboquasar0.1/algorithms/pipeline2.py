@@ -24,7 +24,7 @@ class Pipeline2:
 
         # Filter for validating line
         self.width = None
-        self.filter = np.random.rand(5, 5, 3)  # creates a 5x5 filter for each R,G,B map
+        self.filter = np.random.rand(7, 7, 3)  # creates a 5x5 filter for each R,G,B map
 
         # self.filter = np.array([[[0.48627451,  0.40784314,  0.20529801],
         #   [0.46666667,  0.38823529,  0.17218543],
@@ -170,50 +170,41 @@ class Pipeline2:
             return (1 / (1 + math.exp(-x + mid)) - 0.5) * mul
 
     def normalize_frame(self, frame, method=1):
-        # requires a 5x5x3 frame and will return a normalized frame
-        filter_frame = np.zeros([5,5,3]) + 1
-        for x in range(5):
-            for y in range(5):
-                for c in range(3):
-                    max_v = np.max(frame[:, :, c]) * 1.0
-                    min_v = np.min(frame[:, :, c]) * 1.0
-                    if method == 1:
-                        filter_frame[x, y, c] = (frame[x, y, c] - min_v) / (max_v - min_v)
-                    elif method == 2:
-                        if frame[x, y, c] != 0:
-                            filter_frame[x, y, c] = (frame[x, y, c] - min_v) / (max_v - min_v)
-                            filter_frame[x, y, c] = 1 / filter_frame[x, y, c]
-                    elif method == 3:
-                        mid = (max_v + min_v) / 2
-                        #frame[x, y, c] = (frame[x, y, c] - min_v) / (max_v - min_v)
-                        filter_frame[x, y, c] = self.sigmoid(frame[x, y, c], mid, mid)
+        # requires a 7x7x3 frame and will return a normalized frame
+        filter_frame = np.zeros([7,7,3]) + 1
+
+        if method == 1:
+            for c in range(3):
+                max_v = np.max(frame[:, :, c]) * 1.0
+                min_v = np.min(frame[:, :, c]) * 1.0
+                filter_frame[:, :, c] = (frame[:, :, c] - min_v) / (max_v - min_v)
 
         return filter_frame
 
     def run_filter(self, frame):
-        # allocate a 5x5 area to be a filter
+        # allocate a 7x7 area to be a filter
         mid = self.prev_mid
-        filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
+        filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
+
         # check if shapes match then apply filter
         if self.filter.shape == filter_frame.shape:
-            filter_frame = self.normalize_frame(filter_frame, 2)
             return np.sum(self.filter * filter_frame)
 
     def filter_init(self, frame):
-        # allocate a 5x5 area to be a filter
+        # allocate a 7x7 area to be a filter
         mid = self.prev_mid
-        left1 = mid[0] - 2
-        left2 = mid[0] + 3
-        right1 = mid[1] - 2
-        right2 = mid[1] + 3
+        left1 = mid[0] - 3
+        left2 = mid[0] + 4
+        right1 = mid[1] - 3
+        right2 = mid[1] + 4
         frame_altered = frame[left1:left2, right1:right2]
 
-        self.filter = self.normalize_frame(frame_altered, 2)
+        self.filter = self.normalize_frame(frame_altered, 1)
 
     def run_filter(self, frame):
-        # allocate a 5x5 area to be a filter
+        # allocate a 7x7 area to be a filter
         mid = self.prev_mid
-        filter_frame = frame[(mid[0] - 2):(mid[0] + 3), (mid[1] - 2):(mid[1] + 3)]
+        filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
         # check if shapes match then apply filter
         if self.filter.shape == filter_frame.shape:
             # filter_frame = self.normalize_frame(filter_frame, 2)
