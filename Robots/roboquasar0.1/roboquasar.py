@@ -266,8 +266,9 @@ class RoboQuasar(Robot):
                 offset = math.copysign(0.3, joy_val)
                 joy_val -= offset
 
-            delta_step = self.my_round(16 * self.sigmoid(10.0 * joy_val))
-            self.steering.change_step(delta_step)
+            delta_step = int(self.my_round(16 * self.sigmoid(10.0 * joy_val)))
+            if abs(delta_step) > 0:
+                self.steering.change_step(delta_step)
 
     @staticmethod
     def my_round(x, d=0):
