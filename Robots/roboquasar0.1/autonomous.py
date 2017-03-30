@@ -19,6 +19,7 @@ parser.add_argument("-c", "--compass", default=0, help="initialize compass", typ
 parser.add_argument("-nocam", "--nocamera", help="disable cameras", action="store_false")
 parser.add_argument("-day", "--daymode", help="enable day mode", action="store_true")
 parser.add_argument("-night", "--nightmode", help="enable night mode", action="store_true")
+parser.add_argument("-map", "--mapset", help="map set to use", action="store", type=str)
 args = parser.parse_args()
 
 
@@ -91,16 +92,6 @@ class AutonomousCommandline(cmd.Cmd):
         """
         robot.manual_mode = False
 
-    def do_control(self, line):
-        if robot.gps_imu_control_enabled:
-            print("gps & imu")
-        else:
-            if robot.left_pipeline.safety_value > robot.left_pipeline.safety_threshold:
-                print("left", end=" ")
-            if robot.right_pipeline.safety_value > robot.right_pipeline.safety_threshold:
-                print("right", end=" ")
-            print("camera")
-
     def do_q(self, line):
         """
         usage: q
@@ -134,16 +125,11 @@ class AutonomousCommandline(cmd.Cmd):
             float(line)
         except ValueError:
             return
-        robot.bozo_filter.init_compass(line)
+        robot.angle_filter.init_compass(line)
 
     def do_lights(self, line):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
-
-    def do_angle(self, line):
-        print(robot.pipeline_angle)
-        print(robot.controller_angle)
-        print(robot.steering.sent_angle)
 
 
 sunrise = 7.183
@@ -152,7 +138,7 @@ now = datetime.datetime.now()
 
 log_dir = ("rolls", None)
 print("Sunrise time is", sunrise)
-print("Sunset time is", sunrise)
+print("Sunset time is", sunset)
 
 day_mode = False
 if args.daymode:
@@ -164,11 +150,13 @@ if not args.daymode and not args.nightmode:
     hour = now.hour + now.minute / 60
     if sunrise <= hour < sunset:
         day_mode = True
+        print("It's day time!")
     else:
         day_mode = False
+        print("It's night time!")
 
-robot = RoboQuasar(False, "buggy", args.compass,
-                   enable_cameras=args.nocamera, day_mode=day_mode, enable_kalman=True)
+robot = RoboQuasar(False, args.mapset, args.compass,
+                   enable_cameras=args.nocamera, day_mode=day_mode)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 

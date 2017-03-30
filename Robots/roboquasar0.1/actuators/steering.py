@@ -80,9 +80,9 @@ class Steering(RobotObject):
         # if time.time() - self.last_update_t < 0.5:
         #     return
         # self.last_update_t = time.time()
-        if not self.moving:
-            self.sent_angle = goal_angle
-            self.send_step(goal_angle * self.angle_to_step)
+        # if not self.moving:
+        self.sent_angle = goal_angle
+        self.send_step(goal_angle * self.angle_to_step)
 
     def send_step(self, step):
         self.sent_step = int(step)

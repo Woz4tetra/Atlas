@@ -1,9 +1,7 @@
 import math
 
 from algorithms.bozo_controller import BozoController
-from algorithms.angle_filter import BozoFilter
-from algorithms.kalman.kalman_constants import constants
-from algorithms.kalman.kalman_filter import GrovesKalmanFilter
+from algorithms.bozo_filter import BozoFilter
 from algorithms.pipeline import Pipeline, PID
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
@@ -254,7 +252,8 @@ class RoboQuasar(Robot):
         steering_angle = self.imu_angle_weight * self.imu_steering_angle + \
                          self.left_angle_weight * self.left_steering_angle + \
                          self.right_angle_weight * self.right_steering_angle
-        self.steering.set_position(steering_angle)
+        if not self.manual_mode:
+            self.steering.set_position(steering_angle)
 
     def brake_ping(self):
         self.brakes.ping()

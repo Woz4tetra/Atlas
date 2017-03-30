@@ -94,6 +94,10 @@ class BozoController:
                 goal_index = index
         return goal_index
 
+    def lock_onto_map(self, lat, long):
+        index = self.closest_point(lat, long, self.map)
+        return self.map[index], index
+
     @staticmethod
     def does_point_intersect(point: list, edge_1: list, edge_2: list, epsilon=1E-5):
         if edge_1[1] > edge_2[1]:
