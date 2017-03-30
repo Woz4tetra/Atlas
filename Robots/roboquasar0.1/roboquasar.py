@@ -127,7 +127,7 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "avi")
+        self.open_cameras(file_name, directory, "mp4")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
@@ -675,6 +675,13 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 7"       : (
+        ("23;17", "rolls/2017_Mar_28"),
+        ("23;20", "rolls/2017_Mar_28"),
+        ("23;31", "rolls/2017_Mar_28"),
+        ("23;41", "rolls/2017_Mar_28"),
+        ("00;03", "rolls/2017_Mar_29"),
+    ),
     "rolls day 6"       : (
         ("23;53", "rolls/2017_Mar_27"),
     ),
