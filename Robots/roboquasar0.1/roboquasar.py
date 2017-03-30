@@ -554,6 +554,13 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 7"       : (
+        ("23;17", "rolls/2017_Mar_28"),
+        ("23;20", "rolls/2017_Mar_28"),
+        ("23;31", "rolls/2017_Mar_28"),
+        ("23;41", "rolls/2017_Mar_28"),
+        ("00;03", "rolls/2017_Mar_29"),
+    ),
     "rolls day 6"       : (
         ("23;53", "rolls/2017_Mar_27"),
         ("00;44", "rolls/2017_Mar_28"),
