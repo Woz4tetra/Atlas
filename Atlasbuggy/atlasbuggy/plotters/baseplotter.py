@@ -106,11 +106,17 @@ class BasePlotter:
         :return: name of the plot
         """
         if type(arg) == str:
-            return arg
+            if arg in self.robot_plots and self.robot_plots[arg].enabled:
+                return arg
+            else:
+                return None
         elif isinstance(arg, RobotPlot) or isinstance(arg, RobotPlotCollection):
-            return arg.name
+            if arg.enabled:
+                return arg.name
+            else:
+                return None
         else:
-            return None
+            raise ValueError("Invalid argument for _get_name: '%s'" % str(arg))
 
     def get_axis(self, arg):
         """
@@ -145,7 +151,7 @@ class BasePlotter:
                 else:
                     self.axes[plot_name].plot([x], [y], [z], 'o', **dot_properties)
 
-    def draw_image(self, image_name, img_coord_1, img_coord_2, plot_coord_1, plot_coord_2, img_format="png"):
+    def draw_image(self, arg, image_name, img_coord_1, img_coord_2, plot_coord_1, plot_coord_2, img_format="png"):
         """
         Draw a dot on the input plot (plot name or plot instance)
         :param arg: string or robot plot
@@ -155,6 +161,10 @@ class BasePlotter:
         :param dot_properties: matplotlib properties (color, markersize, etc)
         """
         if self.enabled:
+            plot_name = self._get_name(arg)
+            if plot_name is None:
+                return
+
             image = self.plt.imread(image_name, format=img_format)
             height, width = image.shape[0:2]
             img_x1 = height - img_coord_1[1]
@@ -169,7 +179,7 @@ class BasePlotter:
             plot_y2 = (plot_coord_1[1] - plot_coord_2[1]) / (img_y1 - img_y2) * (height - img_y2) + plot_coord_2[1]
             image = np.rot90(image, k=3)
 
-            self.plt.imshow(image, extent=(plot_x1, plot_x2, plot_y1, plot_y2))
+            self.axes[plot_name].imshow(image, extent=(plot_x1, plot_x2, plot_y1, plot_y2))
 
     def draw_text(self, arg, text, x, y, z=None, text_name=None, **text_properties):
         """

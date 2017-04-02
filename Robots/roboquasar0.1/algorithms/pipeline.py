@@ -1,4 +1,5 @@
 import bisect
+import time
 from queue import Queue
 from threading import Event, Thread
 
@@ -17,10 +18,12 @@ class Pipeline:
         self.pause_updated = False
         self.frame = None
         self.day_mode = day_mode
+        self.last_detection_t = time.time()
 
-        self.hough_threshold = 115
+        self.hough_threshold = 95#115
         self.safety_threshold = 0.1
         self.safety_value = 0.0
+        self.line_angle = 0.0
         self.prev_safe_value = 0.0
         self.safety_colors = ((0, 0, 255), (255, 113, 56), (255, 200, 56), (255, 255, 56), (208, 255, 100),
                               (133, 237, 93), (74, 206, 147), (33, 158, 193), (67, 83, 193), (83, 67, 193),
@@ -74,43 +77,49 @@ class Pipeline:
         thread_error = None
         try:
             while not self.exit_event.is_set():
-                if not self.paused:
-                    if self.separate_read_thread:
-                        if self.frame_queue.empty():
-                            continue
-
-                        while not self.frame_queue.empty():
-                            frame = self.frame_queue.get()
-                            if frame is None:
-                                self.status = "exit"
-                                break
-
-                            self.frame = self.pipeline(frame)
-                    else:
-                        if self.camera.get_frame(self.timestamp) is None:
-                            self.status = "exit"
-                            break
-
-                        self.frame = self.pipeline(self.camera.frame)
-
-                    self.camera.show_frame(self.frame)
-                    self._updated = True
-
-                key = self.camera.key_pressed()
-                if key == 'q':
-                    self.close()
-                elif key == ' ':
-                    self.paused = not self.paused
-                    self.pause_updated = True
+                self.status = self._update()
+                if self.status is not None:
+                    break
 
         except BaseException as error:
             self.status = "error"
             thread_error = error
 
+        print("Camera '%s' closing" % self.camera.name)
         self.camera.close()
 
         if thread_error is not None:
             raise thread_error
+
+    def _update(self):
+        if not self.paused:
+            if self.separate_read_thread:
+                if self.frame_queue.empty():
+                    return
+
+                while not self.frame_queue.empty():
+                    frame = self.frame_queue.get()
+                    if frame is None:
+                        return "exit"
+
+                    self.frame = self.pipeline(frame)
+            else:
+                if self.camera.get_frame(self.timestamp) is None:
+                    self.status = "exit"
+                    return "exit"
+
+                self.frame = self.pipeline(self.camera.frame)
+
+            self.camera.show_frame(self.frame)
+            self._updated = True
+
+        key = self.camera.key_pressed()
+        if key == 'q':
+            self.close()
+            return "done"
+        elif key == ' ':
+            self.paused = not self.paused
+            self.pause_updated = True
 
     def did_pause(self):
         if self.pause_updated:
@@ -121,7 +130,11 @@ class Pipeline:
 
     def pipeline(self, frame):
         self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame.copy(), self.day_mode)
+        frame, lines, safety_value, line_angle = self.hough_detector(frame.copy(), self.day_mode)
+        if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
+            self.safety_value = safety_value
+            self.line_angle = line_angle
+            self.last_detection_t = time.time()
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -208,27 +221,28 @@ class Pipeline:
         if day_mode:
             # self.hough_threshold = 150
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(blur, (17, 17), 0)
+            # blur = cv2.GaussianBlur(blur, (17, 17), 0)
+            blur = cv2.GaussianBlur(blur, (5, 5), 0)
         else:
             # self.hough_threshold = 125
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.equalizeHist(blur)
-            blur = cv2.GaussianBlur(blur, (11, 11), 0)
+            blur = cv2.GaussianBlur(blur, (7, 7), 0)
 
         frame = cv2.Canny(blur, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
                                threshold=self.hough_threshold,
-                               min_theta=80 * np.pi / 180,
-                               max_theta=110 * np.pi / 180
+                               min_theta=60 * np.pi / 180,
+                               max_theta=120 * np.pi / 180
                                )
-        safety_percentage = self.draw_lines(input_frame, lines)
+        safety_percentage, line_angle = self.draw_lines(input_frame, lines)
 
         output_frame = cv2.add(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR), input_frame)
         # if day_mode:
         #     output_frame = np.concatenate((output_frame, blur), axis=1)
         # else:
         output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
-        return output_frame, lines, safety_percentage
+        return output_frame, lines, safety_percentage, line_angle
 
     def sobel_filter(self, frame):
         # frame = cv2.Laplacian(frame, cv2.CV_64F, ksize=3)
@@ -303,7 +317,7 @@ class Pipeline:
                 #     largest_coords = (x1, y1), (x2, y2)
                 if y3 > largest_y:
                     largest_y = y3
-                    largest_coords = (x1, y1), (x2, y2)
+                    largest_coords = x1, y1, x2, y2
                     left_y = y0
                     right_y = int(y0 - width * a)
 
@@ -314,18 +328,35 @@ class Pipeline:
                     break
 
             if largest_coords is not None:
-                cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+                x1, y1, x2, y2 = largest_coords
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                line_angle = np.arctan2(y1 - y2, x1 - x2)
+                if line_angle < 0:
+                    line_angle += 2 * np.pi
+                line_angle -= np.pi
+                line_angle *= -1
+            else:
+                line_angle = 0.0
 
             if left_y > right_y:
-                return left_y / height
+                safety_value = left_y / height
             else:
-                return right_y / height
+                safety_value = right_y / height
+
+            if safety_value > 1.0:
+                safety_value = 1.0
+            if safety_value < 0.0:
+                safety_value = 0.0
+            # print("%0.4f, %0.4f" % (safety_value, line_angle))
+            # time.sleep(0.01)
+            return safety_value, line_angle
             # return largest_y / height
-        return 0.0
+        return 0.0, 0.0
 
     def close(self):
         self.exit_event.set()
         self.status = "done"
+        print("Closing pipeline")
 
 
 class PID:
@@ -361,4 +392,3 @@ class PID:
         if output < self.lower_limit:
             output = self.lower_limit
         return output
-

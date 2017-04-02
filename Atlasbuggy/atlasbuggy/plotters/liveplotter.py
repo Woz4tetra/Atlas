@@ -136,6 +136,7 @@ class LivePlotter(BasePlotter):
 
             elif isinstance(plot, RobotPlotCollection):
                 for subplot in plot.plots:
+                    # print(subplot.name, subplot.data[0][-1], subplot.data[1][-1])
                     self.lines[plot.name][subplot.name].set_xdata(subplot.data[0])
                     self.lines[plot.name][subplot.name].set_ydata(subplot.data[1])
                     if not plot.flat:
@@ -148,7 +149,7 @@ class LivePlotter(BasePlotter):
             else:
                 return "exit"
 
-            if self.active_window_resizing:
+            if self.active_window_resizing and plot.window_resizing:
                 if plot.flat:
                     # print(plot.x_range, end=", ")
                     # print(plot.y_range)

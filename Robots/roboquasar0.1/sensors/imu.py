@@ -111,33 +111,36 @@ class IMU(RobotObject):
 
     def receive(self, timestamp, packet):
         data = packet.split("\t")
-        for segment in data:
-            if len(segment) > 0:
-                if segment[0] == "e":
-                    self.euler[segment[1]] = math.radians(float(segment[2:]))
-                elif segment[0] == "a":
-                    self.accel[segment[1]] = float(segment[2:])
-                elif segment[0] == "g":
-                    self.gyro[segment[1]] = float(segment[2:])
-                elif segment[0] == "m":
-                    self.mag[segment[1]] = float(segment[2:])
-                elif segment[0] == "l":
-                    self.linaccel[segment[1]] = float(segment[2:])
-                elif segment[0] == "q":
-                    self.quat[segment[1]] = float(segment[2:])
-                elif segment[0] == "s":
-                    if segment[1] == "s":
-                        self.system_status = int(segment[2:])
-                    elif segment[1] == "a":
-                        self.accel_status = int(segment[2:])
-                    elif segment[1] == "g":
-                        self.gyro_status = int(segment[2:])
-                    elif segment[1] == "m":
-                        self.mag_status = int(segment[2:])
+        try:
+            for segment in data:
+                if len(segment) > 0:
+                    if segment[0] == "e":
+                        self.euler[segment[1]] = math.radians(float(segment[2:]))
+                    elif segment[0] == "a":
+                        self.accel[segment[1]] = float(segment[2:])
+                    elif segment[0] == "g":
+                        self.gyro[segment[1]] = float(segment[2:])
+                    elif segment[0] == "m":
+                        self.mag[segment[1]] = float(segment[2:])
+                    elif segment[0] == "l":
+                        self.linaccel[segment[1]] = float(segment[2:])
+                    elif segment[0] == "q":
+                        self.quat[segment[1]] = float(segment[2:])
+                    elif segment[0] == "s":
+                        if segment[1] == "s":
+                            self.system_status = int(segment[2:])
+                        elif segment[1] == "a":
+                            self.accel_status = int(segment[2:])
+                        elif segment[1] == "g":
+                            self.gyro_status = int(segment[2:])
+                        elif segment[1] == "m":
+                            self.mag_status = int(segment[2:])
+                    else:
+                        print("IMU: Invalid segment type!", segment[0], data)
                 else:
-                    print("IMU: Invalid segment type!", segment[0], data)
-            else:
-                print("IMU: Empty segment!", data)
+                    print("IMU: Empty segment!", data)
+        except ValueError:
+            print("Failed to parse:", segment)
 
     def __str__(self):
         string = "%s(whoiam=%s)\n\t" % (self.__class__.__name__, self.whoiam)

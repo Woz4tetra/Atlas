@@ -12,8 +12,8 @@ def avi_to_mp4():
             )
         )
 
-    directory = "videos/rolls/2017_Mar_29_raw"
-    output_dir = "videos/rolls/2017_Mar_29"
+    directory = "videos/data_days/2017_Apr_01_raw"
+    output_dir = "videos/data_days/2017_Apr_01"
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     path_threads = []
@@ -38,7 +38,7 @@ def avi_to_mp4():
 def run(record, play):
     assert record != play
 
-    robot = RoboQuasar(False, "buggy", pipeline=1, day_mode=True)
+    robot = RoboQuasar(False, "buggy", pipeline=1, day_mode=True, show_cameras=True)
     robot.left_camera.show = True
 
     file_name = None
@@ -51,7 +51,7 @@ def run(record, play):
         if use_video_sets:
             file_name, directory, file_format = video_sets["push practice 2"][3]
         else:
-            file_name, directory = file_sets["rolls day 5"][-1]
+            file_name, directory = file_sets["data day 13"][0]
             file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
             file_name = file_finder.file_name_no_ext.replace(";", "_")
 
@@ -68,14 +68,22 @@ def run(record, play):
     # robot.pipeline.read_thread.start()
 
     try:
-        robot.left_pipeline.run()
+        while True:
+            if robot.left_pipeline._update() is not None:
+                break
+            if robot.right_pipeline._update() is not None:
+                break
+
     except KeyboardInterrupt:
         pass
 
     print("Closing cameras")
     robot.left_camera.close()
+    robot.right_camera.close()
+
+    robot.right_pipeline.close()
     robot.left_pipeline.close()
 
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)

@@ -63,7 +63,7 @@ class RobotSimulator(BaseInterface):
 
         # print errors and debug prints (if enabled)
         if packet_type == "error" or (packet_type == "debug" and self.debug_enabled):
-            print(self.robot.current_packet)
+            print("\t%s" % self.robot.current_packet)
             return
         else:
             self.robot.ids_received.add(self.robot.current_whoiam)

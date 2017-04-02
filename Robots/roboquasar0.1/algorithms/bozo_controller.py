@@ -43,16 +43,19 @@ class BozoController:
         return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_index = self.get_goal(lat, long)
-        goal_lat, goal_long = self.map[goal_index]
-
-        goal_angle = math.atan2(goal_long - long, goal_lat - lat) - math.pi / 2
+        goal_angle = self.get_goal_angle(lat, long)
         if goal_angle < 0:
             goal_angle += 2 * math.pi
         angle_error = self.shift_angle(goal_angle - yaw)
 
         self.current_angle = angle_error
         return self.current_angle
+
+    def get_goal_angle(self, lat, long):
+        goal_index = self.get_goal(lat, long)
+        goal_lat, goal_long = self.map[goal_index]
+
+        return math.atan2(goal_long - long, goal_lat - lat)
 
     def get_goal(self, lat0, long0):
         if self.keep_position_in_boundary:

@@ -24,9 +24,14 @@ class BozoFilter:
         self.imu_angle_weight = 0.65
 
     def init_compass(self, packet):
-        self.initialized = True
-        self.compass_angle_packet = packet
-        self.compass_angle = math.radians(float(packet)) - math.pi / 2
+        if packet is not None:
+            self.initialized = True
+            if type(packet) == str:
+                self.compass_angle_packet = packet
+                self.compass_angle = math.radians(float(packet))
+            else:  # assume float in radians
+                self.compass_angle_packet = str(math.degrees(packet))
+                self.compass_angle = packet
 
     def offset_angle(self, imu_euler_z):
         if self.start_angle is None:

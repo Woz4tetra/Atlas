@@ -15,11 +15,13 @@ from camera_guidance_test import CameraGuidanceTest
 parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
-parser.add_argument("-c", "--compass", default=0, help="initialize compass", type=int)
+parser.add_argument("-c", "--compass", default=None, help="initialize compass", type=int)
 parser.add_argument("-nocam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-s", "--show", help="show cameras", action="store_true")
 parser.add_argument("-day", "--daymode", help="enable day mode", action="store_true")
 parser.add_argument("-night", "--nightmode", help="enable night mode", action="store_true")
-parser.add_argument("-map", "--mapset", help="map set to use", action="store", type=str)
+parser.add_argument("-m", "--mapset", help="map set to use", action="store", type=str)
+parser.add_argument("-dir", "--directory", help="where to put logs", action="store", type=str)
 args = parser.parse_args()
 
 
@@ -102,12 +104,14 @@ class AutonomousCommandline(cmd.Cmd):
         return True
 
     def do_showcam(self, line):
-        robot.left_camera.show = True
-        robot.right_camera.show = True
+        if robot.dt() > 1:
+            robot.left_camera.show = True
+            robot.right_camera.show = True
 
     def do_hidecam(self, line):
-        robot.left_camera.show = False
-        robot.right_camera.show = False
+        if robot.dt() > 1:
+            robot.left_camera.show = False
+            robot.right_camera.show = False
 
     def do_EOF(self, line):
         """
@@ -136,7 +140,10 @@ sunrise = 7.183
 sunset = 19.65
 now = datetime.datetime.now()
 
-log_dir = ("rolls", None)
+if args.directory is not None:
+    log_dir = (args.directory, None)
+else:
+    log_dir = None
 print("Sunrise time is", sunrise)
 print("Sunset time is", sunset)
 
@@ -156,7 +163,7 @@ if not args.daymode and not args.nightmode:
         print("It's night time!")
 
 robot = RoboQuasar(False, args.mapset, args.compass,
-                   enable_cameras=args.nocamera, day_mode=day_mode)
+                   enable_cameras=args.nocamera, day_mode=day_mode, show_cameras=args.show)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 

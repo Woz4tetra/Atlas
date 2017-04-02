@@ -1,7 +1,7 @@
 
 
 class RobotPlotCollection:
-    def __init__(self, collection_name, *robot_plots, enabled=True, flat=True):
+    def __init__(self, collection_name, *robot_plots, enabled=True, flat=True, window_resizing=True):
         """
         If you want to plot multiple lines on one subplot, pass your robot plot objects to a collection.
         Each robot plot will be treated as one line on the subplot.
@@ -17,10 +17,13 @@ class RobotPlotCollection:
         # unify key properties between all subplots
         self.flat = flat
         self.enabled = enabled
+        self.window_resizing = window_resizing
         for plot in robot_plots:
             if plot.enabled:
                 plot.flat = self.flat
                 plot.properties["label"] = plot.name
+                plot.window_resizing = window_resizing
+
                 self.plots.append(plot)
                 plot.collection_plot = self
 
