@@ -48,16 +48,12 @@ class RoboQuasar(Robot):
         if show_cameras is None:
             show_cameras = enable_plotting
 
-        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
-        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
-        self.pipeline_pid = None
+        self.left_camera = Camera("leftcam", enabled=False, show=show_cameras,)
+        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras,)
 
         self.day_mode = day_mode
         self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
         self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
-
-        self.angle_pid = None
-        self.percent_pid = None
 
         # ----- init filters and controllers
         # position state message (in or out of map)
@@ -115,9 +111,6 @@ class RoboQuasar(Robot):
         self.record_compass()
         if self.day_mode is not None:
             self.record("pipeline mode", str(int(self.day_mode)))
-
-        self.angle_pid = PID(2.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
-        self.percent_pid = PID(1.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
 
         self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
 
