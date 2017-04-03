@@ -1,4 +1,5 @@
 import math
+import time
 
 from algorithms.bozo_controller import BozoController
 from algorithms.bozo_filter import BozoFilter
@@ -27,8 +28,7 @@ from actuators.underglow import Underglow
 class RoboQuasar(Robot):
     def __init__(self, enable_plotting, map_set_name,
                  initial_compass=None, animate=True, enable_cameras=True,
-                 use_log_file_maps=True, show_cameras=None,
-                 pipeline=1, day_mode=False):
+                 pipeline=1, use_log_file_maps=True, show_cameras=None, day_mode=False):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -49,8 +49,8 @@ class RoboQuasar(Robot):
         if show_cameras is None:
             show_cameras = enable_plotting
 
-        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
-        self.right_camera = Camera("rightcam", enabled=False, show=show_cameras)
+        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
+        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
         self.pipeline_pid = None
 
         self.day_mode = day_mode
@@ -61,8 +61,8 @@ class RoboQuasar(Robot):
             self.left_pipeline = Pipeline2(self.left_camera, self.day_mode, separate_read_thread=False)
             self.right_pipeline = Pipeline2(self.right_camera, self.day_mode, separate_read_thread=False)
 
-        self.left_pid = None
-        self.right_pid = None
+        self.angle_pid = None
+        self.percent_pid = None
 
         # ----- init filters and controllers
         # position state message (in or out of map)
@@ -80,30 +80,24 @@ class RoboQuasar(Robot):
         self.use_log_file_maps = use_log_file_maps
 
         # ----- filtered outputs -----
-        self.pipeline_left_angle = 0.0
-        self.pipeline_left_distance = 0.0  # what percentage the road edge is from furthest visible point
-
-        self.pipeline_right_angle = 0.0
-        self.pipeline_right_distance = 0.0
-
         self.gps_position_guess = (0.0, 0.0)
         self.gps_within_map = True
         self.gps_index_guess = 0
         self.imu_heading_guess = 0.0
 
-        self.left_steering_angle = 0.0
-        self.right_steering_angle = 0.0
+        self.steering_power_angle = 0.0
+        self.steering_power_percent = 0.0
         self.imu_steering_angle = 0.0
 
-        self.left_angle_weight = 0.4
-        self.right_angle_weight = 0.4
-        self.imu_angle_weight = 1 - (self.left_angle_weight + self.right_angle_weight)
+        self.pipeline_weight = 0.5
+        self.imu_angle_weight = 1 - self.pipeline_weight
 
         # ----- link callbacks -----
         self.link_object(self.gps, self.receive_gps)
         self.link_object(self.imu, self.receive_imu)
 
         self.link_reoccuring(0.008, self.steering_event)
+        self.link_reoccuring(0.05, self.brake_ping)
         self.link_reoccuring(0.05, self.update_auto_steering)
 
         # ----- init plots -----
@@ -117,22 +111,22 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "mp4")
+        self.open_cameras(file_name, directory, "avi")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
         # record important data
         self.record("map set", self.map_set_name)
-        self.record("initial compass", self.angle_filter.compass_angle_packet)
+        self.record_compass()
         if self.day_mode is not None:
             self.record("pipeline mode", str(int(self.day_mode)))
 
-        self.left_pid = PID(1, 0.1, 0.01, self.steering.left_limit_angle, self.steering.right_limit_angle)
-        self.right_pid = PID(1, 0.1, 0.01, self.steering.left_limit_angle, self.steering.right_limit_angle)
+        self.angle_pid = PID(2.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
+        self.percent_pid = PID(1.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
 
         self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
-        if self.angle_filter.initialized:
-            self.debug_print("initial offset: %0.4f rad" % self.angle_filter.compass_angle, ignore_flag=True)
+
+        self.brakes.unpause_pings()
 
     def open_cameras(self, log_name, directory, file_format):
         # create log name
@@ -148,19 +142,19 @@ class RoboQuasar(Robot):
         if self.is_live:
             status = self.left_camera.launch_camera(
                 left_cam_name, directory, record,
-                capture_number=1
+                capture_number=2
             )
             if status is not None:
                 return status
 
             status = self.right_camera.launch_camera(
                 right_cam_name, directory, record,
-                capture_number=2
+                capture_number=1
             )
             if status is not None:
                 return status
         else:
-            self.left_camera.launch_video(left_cam_name, directory, start_frame=0)
+            self.left_camera.launch_video(left_cam_name, directory)
             self.right_camera.launch_video(right_cam_name, directory)
 
     def receive_gps(self, timestamp, packet, packet_type):
@@ -177,6 +171,13 @@ class RoboQuasar(Robot):
             self.gps_position_guess, self.gps_index_guess = \
                 self.map_manipulator.lock_onto_map(self.gps.latitude_deg, self.gps.longitude_deg)
 
+            if not self.angle_filter.initialized:
+                gps_compass = self.map_manipulator.get_goal_angle(self.gps_position_guess[0],
+                                                                  self.gps_position_guess[1])
+
+                self.angle_filter.init_compass(gps_compass)
+                self.record_compass()
+
             status = self.quasar_plotter.update_gps_plot(timestamp, self.gps.latitude_deg, self.gps.longitude_deg)
             if status is not None:
                 return status
@@ -184,9 +185,10 @@ class RoboQuasar(Robot):
     def receive_imu(self, timestamp, packet, packet_type):
         if self.angle_filter.initialized:
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
-            self.imu_steering_angle = self.map_manipulator.update(
-                self.gps_position_guess[0], self.gps_position_guess[1], self.imu_heading_guess
-            )
+            if self.map_manipulator.is_initialized():
+                self.imu_steering_angle = self.map_manipulator.update(
+                    self.gps_position_guess[0], self.gps_position_guess[1], self.imu_heading_guess
+                )
             self.update_steering()
 
             if self.gps.is_position_valid():
@@ -239,24 +241,45 @@ class RoboQuasar(Robot):
         self.update_joystick()
 
     def update_auto_steering(self):
-        if self.pipeline_right_distance != 0.0 and self.pipeline_left_distance != 0.0:  # try to make pipeline values equal each other
-            self.left_steering_angle = self.left_pid.update(
-                self.pipeline_left_distance - self.pipeline_right_distance, 0.0, self.dt()
-            )
-            self.right_steering_angle = self.right_pid.update(
-                self.pipeline_left_distance - self.pipeline_right_distance, 0.0, self.dt()
-            )
+        # print("percent: %0.4f, %0.4f" % (self.left_pipeline.safety_value, self.right_pipeline.safety_value))
+        # print("angle: %0.4f, %0.4f" % (self.left_pipeline.line_angle, self.right_pipeline.line_angle))
+        # print()
 
+        if self.left_pipeline.line_angle != 0.0 and self.right_pipeline.line_angle != 0.0:
+            measured_angle = -(self.left_pipeline.line_angle + self.right_pipeline.line_angle) / 2
+        elif self.right_pipeline.line_angle == 0.0:
+            measured_angle = -self.left_pipeline.line_angle
+        elif self.left_pipeline.line_angle == 0.0:
+            measured_angle = self.right_pipeline.line_angle
         else:
-            self.left_steering_angle = self.left_pid.update(self.pipeline_left_distance, 0.1, self.dt())
-            self.right_steering_angle = self.right_pid.update(self.pipeline_right_distance, 0.1, self.dt())
+            measured_angle = 0.0
+
+        if self.left_pipeline.safety_value != 0.0 and self.right_pipeline.safety_value != 0.0:
+            measured_percent = self.left_pipeline.safety_value - self.right_pipeline.safety_value
+        elif self.right_pipeline.safety_value == 0.0:
+            measured_percent = self.left_pipeline.safety_value
+        elif self.left_pipeline.safety_value == 0.0:
+            measured_percent = -self.right_pipeline.safety_value
+        else:
+            measured_percent = 0.0
+
+        self.quasar_plotter.percent_pipeline_plot.append(self.dt(), measured_percent)
+        self.quasar_plotter.angle_pipeline_plot.append(self.dt(), measured_angle)
+        # self.quasar_plotter.update_pipeline_plots(self.dt(), self.left_pipeline.safety_value, self.right_pipeline.safety_value)
+
+        self.steering_power_angle = self.angle_pid.update(measured_angle, 0.0, self.dt())
+        self.steering_power_percent = self.percent_pid.update(measured_percent, 0.0, self.dt())
+
+        print("pid: %0.4f, %0.4f" % (self.steering_power_angle, self.steering_power_percent))
 
         self.update_steering()
 
     def update_steering(self):
-        steering_angle = self.imu_angle_weight * self.imu_steering_angle + \
-                         self.left_angle_weight * self.left_steering_angle + \
-                         self.right_angle_weight * self.right_steering_angle
+        pipeline_angle = self.steering_power_angle + self.steering_power_percent
+        steering_angle = self.imu_angle_weight * self.imu_steering_angle + self.pipeline_weight * pipeline_angle
+        self.quasar_plotter.steering_angle_plot.append(self.dt(), steering_angle)
+        print("%0.4f, %0.4f -> %0.4f" % (pipeline_angle, self.imu_steering_angle, steering_angle))
+
         if not self.manual_mode:
             self.steering.set_position(steering_angle)
 
@@ -283,6 +306,11 @@ class RoboQuasar(Robot):
     @staticmethod
     def sigmoid(x):  # modified sigmoid. -1...1
         return (-1 / (1 + math.exp(-x)) + 0.5) * 2
+
+    def record_compass(self):
+        if self.angle_filter.initialized:
+            self.record("initial compass", self.angle_filter.compass_angle_packet)
+            self.debug_print("initial offset: %0.4f rad" % self.angle_filter.compass_angle, ignore_flag=True)
 
     def update_joystick(self):
         if self.joystick is not None:
@@ -386,22 +414,31 @@ class RoboQuasarPlotter:
 
         # plot collection
         self.accuracy_check_plot = RobotPlotCollection(
-            "RoboQuasar plot", self.sticky_compass_plot, self.gps_plot,
+            "RoboQuasar plot",
+            self.sticky_compass_plot, self.gps_plot,
             self.checkpoint_plot,
             self.map_plot, self.inner_map_plot, self.outer_map_plot,
             self.steering_plot, self.compass_plot_imu_only,
             self.compass_plot, self.goal_plot,
             self.current_pos_dot, self.kalman_recomputed_plot, self.kalman_recorded_plot,
+            window_resizing=False
         )
 
-        # raw IMU data plot
-        self.imu_plot = RobotPlot("imu data", flat=False, enabled=False)
+        self.left_pipeline_plot = RobotPlot("left pipeline")
+        self.right_pipeline_plot = RobotPlot("right pipeline")
+        self.pipeline_plots = RobotPlotCollection("pipelines", self.left_pipeline_plot, self.right_pipeline_plot,
+                                                  enabled=False)
+
+        self.angle_pipeline_plot = RobotPlot("angle pipeline")
+        self.percent_pipeline_plot = RobotPlot("percent pipeline")
+        self.steering_angle_plot = RobotPlot("steering angle")
 
         if animate:
             self.plotter = LivePlotter(
-                2, self.accuracy_check_plot, self.imu_plot,
-                matplotlib_events=dict(key_press_event=key_press_fn),
-                enabled=enable_plotting, active_window_resizing=False
+                2, self.accuracy_check_plot,  # self.pipeline_plots,
+                self.angle_pipeline_plot, self.percent_pipeline_plot, self.steering_angle_plot,
+                matplotlib_events=dict(key_press_event=key_press_fn), draw_legend=False,
+                enabled=enable_plotting,
             )
         else:
             self.plotter = StaticPlotter(
@@ -429,7 +466,7 @@ class RoboQuasarPlotter:
             return
 
         # image_path, img_point_1, img_point_2, gps_point_1, gps_point_2 = image_info
-        self.plotter.draw_image(*image_info)
+        self.plotter.draw_image(self.accuracy_check_plot, *image_info)
 
         # center = (gps_point_1[0] + gps_point_2[0]) / 2
         # width = abs(gps_point_1[1] - gps_point_2[1])
@@ -438,6 +475,10 @@ class RoboQuasarPlotter:
         # self.image_box.update([center - width, center - width, center + width, center + width],
         #                       [gps_point_1[1], gps_point_2[1], gps_point_2[1], gps_point_1[1]])
         # self.plotter.get_axis(self.accuracy_check_plot).set_xlim((center - width, center + width))
+
+    def update_pipeline_plots(self, dt, left_value, right_value):
+        self.left_pipeline_plot.append(dt, left_value)
+        self.right_pipeline_plot.append(dt, right_value)
 
     def update_gps_plot(self, dt, lat, long):
         if self.plotter.enabled:
@@ -519,25 +560,25 @@ map_sets = {
         "Single Point Outside",
         "single"
     ),
-    "cut 3" : (
+    "cut 3": (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2" : (
+    "cut 2": (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy" : (
+    "buggy": (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
         "buggy",
     ),
-    "short" : (
+    "short": (
         "Short Course",
         "Short Course Inner",
         "Short Course Outer",
@@ -559,19 +600,28 @@ image_sets = {
 }
 
 file_sets = {
-    "rolls day 7"       : (
+    "rolls day 8": (
+        ("05;37;41", "rolls/2017_Apr_02"),
+        ("06;17;16", "rolls/2017_Apr_02"),
+        ("06;23;15", "rolls/2017_Apr_02"),
+    ),
+    "data day 13": (
+        ("17;23;27", "data_days/2017_Apr_01"),
+        ("17;25;56", "data_days/2017_Apr_01"),
+    ),
+    "rolls day 7": (
         ("23;17", "rolls/2017_Mar_28"),
         ("23;20", "rolls/2017_Mar_28"),
         ("23;31", "rolls/2017_Mar_28"),
         ("23;41", "rolls/2017_Mar_28"),
         ("00;03", "rolls/2017_Mar_29"),
     ),
-    "rolls day 6"       : (
+    "rolls day 6": (
         ("23;53", "rolls/2017_Mar_27"),
         ("00;44", "rolls/2017_Mar_28"),
         ("00;50", "rolls/2017_Mar_28"),
     ),
-    "rolls day 5"       : (
+    "rolls day 5": (
         ("07;46", "rolls/2017_Mar_26"),
         ("07;49", "rolls/2017_Mar_26"),
         ("07;54", "rolls/2017_Mar_26"),
@@ -580,12 +630,12 @@ file_sets = {
         ("06;56", "rolls/2017_Mar_26"),
         ("09;06", "rolls/2017_Mar_26"),
     ),
-    "rolls day 4"       : (
+    "rolls day 4": (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
     ),
-    "push practice 2"   : (
+    "push practice 2": (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
         ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
@@ -608,7 +658,7 @@ file_sets = {
         ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
         ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
     ),
-    "push practice 1"   : (
+    "push practice 1": (
         ("23;25", "push_practice/2017_Mar_21"),
         ("23;30", "push_practice/2017_Mar_21"),
         ("23;49", "push_practice/2017_Mar_21"),
@@ -616,15 +666,15 @@ file_sets = {
         ("00;06", "push_practice/2017_Mar_22"),
         ("00;15", "push_practice/2017_Mar_22"),
     ),
-    "data day 12"       : (
+    "data day 12": (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 11"       : (
+    "data day 11": (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
         ("16;19", "data_days/2017_Mar_13"),
     ),
-    "data day 10"       : (
+    "data day 10": (
         # straight line GPS tests
         ("17;07", "data_days/2017_Mar_09"),
         ("17;09", "data_days/2017_Mar_09"),
@@ -650,7 +700,7 @@ file_sets = {
         ("18;30;51", "data_days/2017_Mar_09"),
         ("18;36", "data_days/2017_Mar_09"),
     ),
-    "data day 9"        : (
+    "data day 9": (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -666,7 +716,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8"        : (
+    "data day 8": (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -674,7 +724,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7"        : (
+    "data day 7": (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -688,12 +738,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6"        : (
+    "data day 6": (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5"        : (
+    "data day 5": (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -701,45 +751,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4"        : (
+    "data day 4": (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3"        : (
+    "data day 3": (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield"        : (
+    "trackfield": (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1"       : (
+    "rolls day 1": (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2"       : (
+    "rolls day 2": (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3"       : (
+    "rolls day 3": (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test"    : (
+    "first cut test": (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data"          : (
+    "bad data": (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
@@ -766,10 +816,10 @@ video_sets = {
         ("00_50_03", "push_practice/2017_Mar_24", "mp4"),
         ("00_51_05", "push_practice/2017_Mar_24", "mp4"),
     ),
-    "data day 12"    : (
+    "data day 12": (
         ("16_36_17", "data_days/2017_Mar_18", "mp4"),
     ),
-    "data day 11"    : (
+    "data day 11": (
         ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
         ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1
         ("17_05_21", "data_days/2017_Mar_16", "mp4"),  # 2

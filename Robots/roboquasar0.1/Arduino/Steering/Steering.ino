@@ -11,7 +11,7 @@ unsigned long delta_time = 0;
 #define RIGHT_LIMIT -150
 #define LEFT_LIMIT 150
 #define POSITION_ZERO 135
-#define CENTER_OFFSET 45
+#define CENTER_OFFSET 35
 
 int position = 0;
 int speedCommand = 0;

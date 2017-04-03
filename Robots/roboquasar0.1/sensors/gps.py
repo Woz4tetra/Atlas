@@ -112,4 +112,5 @@ class GPS(RobotObject):
         string += "fix: %s, quality: %i, satellites: %i\n\t" % (self.fix, self.fix_quality, self.satellites)
         string += "speed: %2.6f, bearing: %2.6f\n\t" % (self.speed, self.bearing)
         string += "time: %s:%s.%s %s/%s/%s\n" % (self.hour, self.minute, self.seconds, self.day, self.minute, self.year)
+        string += "is valid: %s\n" % (self.is_position_valid())
         return string
