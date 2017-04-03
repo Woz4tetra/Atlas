@@ -20,7 +20,7 @@ class Pipeline:
         self.day_mode = day_mode
         self.last_detection_t = time.time()
 
-        self.hough_threshold = 95#115
+        self.hough_threshold = 95
         self.safety_threshold = 0.1
         self.safety_value = 0.0
         self.line_angle = 0.0
@@ -221,8 +221,8 @@ class Pipeline:
         if day_mode:
             # self.hough_threshold = 150
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
-            # blur = cv2.GaussianBlur(blur, (17, 17), 0)
-            blur = cv2.GaussianBlur(blur, (5, 5), 0)
+            blur = cv2.GaussianBlur(blur, (15, 15), 0)
+            # blur = cv2.GaussianBlur(blur, (5, 5), 0)
         else:
             # self.hough_threshold = 125
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
@@ -230,7 +230,7 @@ class Pipeline:
             blur = cv2.GaussianBlur(blur, (7, 7), 0)
 
         frame = cv2.Canny(blur, 1, 100)
-        lines = cv2.HoughLines(frame, rho=1.0, theta=np.pi / 180,
+        lines = cv2.HoughLines(frame, rho=1.2, theta=np.pi / 180,
                                threshold=self.hough_threshold,
                                min_theta=60 * np.pi / 180,
                                max_theta=120 * np.pi / 180

@@ -106,7 +106,7 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "mp4")
+        self.open_cameras(file_name, directory, "avi")
         self.left_pipeline.start()
         self.right_pipeline.start()
 
@@ -116,8 +116,8 @@ class RoboQuasar(Robot):
         if self.day_mode is not None:
             self.record("pipeline mode", str(int(self.day_mode)))
 
-        self.angle_pid = PID(1.5, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
-        self.percent_pid = PID(0.5, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
+        self.angle_pid = PID(2.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
+        self.percent_pid = PID(1.0, 0.0, 0.0, self.steering.left_limit_angle, self.steering.right_limit_angle)
 
         self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
 
@@ -243,9 +243,9 @@ class RoboQuasar(Robot):
         if self.left_pipeline.line_angle != 0.0 and self.right_pipeline.line_angle != 0.0:
             measured_angle = -(self.left_pipeline.line_angle + self.right_pipeline.line_angle) / 2
         elif self.right_pipeline.line_angle == 0.0:
-            measured_angle = self.left_pipeline.line_angle
+            measured_angle = -self.left_pipeline.line_angle
         elif self.left_pipeline.line_angle == 0.0:
-            measured_angle = -self.right_pipeline.line_angle
+            measured_angle = self.right_pipeline.line_angle
         else:
             measured_angle = 0.0
 
@@ -265,7 +265,7 @@ class RoboQuasar(Robot):
         self.steering_power_angle = self.angle_pid.update(measured_angle, 0.0, self.dt())
         self.steering_power_percent = self.percent_pid.update(measured_percent, 0.0, self.dt())
 
-        # print("pid: %0.4f, %0.4f" % (self.steering_power_angle, self.steering_power_percent))
+        print("pid: %0.4f, %0.4f" % (self.steering_power_angle, self.steering_power_percent))
 
         self.update_steering()
 
@@ -273,7 +273,7 @@ class RoboQuasar(Robot):
         pipeline_angle = self.steering_power_angle + self.steering_power_percent
         steering_angle = self.imu_angle_weight * self.imu_steering_angle + self.pipeline_weight * pipeline_angle
         self.quasar_plotter.steering_angle_plot.append(self.dt(), steering_angle)
-        # print("%0.4f, %0.4f -> %0.4f" % (pipeline_angle, self.imu_steering_angle, steering_angle))
+        print("%0.4f, %0.4f -> %0.4f" % (pipeline_angle, self.imu_steering_angle, steering_angle))
 
         if not self.manual_mode:
             self.steering.set_position(steering_angle)
@@ -432,7 +432,7 @@ class RoboQuasarPlotter:
             self.plotter = LivePlotter(
                 2, self.accuracy_check_plot,  # self.pipeline_plots,
                 self.angle_pipeline_plot, self.percent_pipeline_plot, self.steering_angle_plot,
-                matplotlib_events=dict(key_press_event=key_press_fn),
+                matplotlib_events=dict(key_press_event=key_press_fn), draw_legend=False,
                 enabled=enable_plotting,
             )
         else:
@@ -595,6 +595,11 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 8": (
+        ("05;37;41", "rolls/2017_Apr_02"),
+        ("06;17;16", "rolls/2017_Apr_02"),
+        ("06;23;15", "rolls/2017_Apr_02"),
+    ),
     "data day 13": (
         ("17;23;27", "data_days/2017_Apr_01"),
         ("17;25;56", "data_days/2017_Apr_01"),
