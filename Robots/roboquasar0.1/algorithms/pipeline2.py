@@ -1,10 +1,10 @@
 from queue import Queue
 from threading import Event, Thread
+from algorithms.convnet import NeuralNetwork
 
 import cv2
 import numpy as np
 import math
-
 
 class Pipeline2:
     threshold = 70
@@ -12,7 +12,7 @@ class Pipeline2:
 
     calibration_frame = 50
 
-    def __init__(self, camera, separate_read_thread=True):
+    def __init__(self, camera, day_mode, separate_read_thread=True):
         self.camera = camera
         self.status = None
         self.timestamp = None
@@ -21,42 +21,17 @@ class Pipeline2:
         self.paused = False
         self.pause_updated = False
         self.frame = None
+        self.day_mode = day_mode
 
         # Filter for validating line
-        self.width = None
-        self.filter = np.random.rand(7, 7, 3)  # creates a 5x5 filter for each R,G,B map
+        self.network = None
+        self.train_shape = (7,7,3)
 
-        # self.filter = np.array([[[0.48627451,  0.40784314,  0.20529801],
-        #   [0.46666667,  0.38823529,  0.17218543],
-        #   [0.43921569,  0.35294118,  0.11258278],
-        #   [0.37254902,  0.28627451, 0.],
-        #   [0.48627451,  0.4,         0.19205298]],
-        #  [[0., 0., 1.],
-        #   [0., 0., 1.],
-        #   [0., 0., 1.],
-        #   [0., 0., 1.],
-        #   [0., 0., 1.]],
-        #  [[0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.]],
-        #  [[0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.],
-        #  [0., 0., 1.]],
-        #  [[1., 1., 1.],
-        #  [1., 1., 1.],
-        #  [1., 1., 1.],
-        #  [1., 1., 1.],
-        #  [1., 1., 1.]]])
-
-
-        self.on_screen = None  # tells whether the desired line is on the screen
-        self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
+        # self.on_screen = None  # tells whether the desired line is on the screen
+        # self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
         self.frame_counter = 0  # counts frames to help in filter creation
         self.prev_mid = None
+        self.prev_coords = None
 
         self.safety_threshold = 0.1
         self.safety_value = 0.0
@@ -72,6 +47,33 @@ class Pipeline2:
 
         self.pipeline_thread = Thread(target=self.run)
         self.read_thread = Thread(target=self.read_camera)
+
+    def preprocess_frame(self, frame):
+        # get slope from previous coords
+        left = self.prev_coords[0]
+        right = self.prev_coords[1]
+        slope = (right[1]-left[1])/(right[0]-left[0])
+        frames_and_labels = []
+
+        # make a bunch of correct edge detections
+        for i in range(3, self.camera.width - 4):
+            # create 7x7 frame with label 1 (correct edge)
+            if 3 <= i*slope <= self.camera.height - 4:
+                if frame[i-3: i+4, i*slope-3: i*slope+4].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, i*slope-3: i*slope+4]), 1]
+                    frames_and_labels.append(frame_and_label)
+
+            # create 7x7 frame with label 0 (incorrect edge)
+            if i*slope + 4 <= 14:
+                if frame[i-3: i+4, 0: 7].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, 0: 7]), 0]
+                    frames_and_labels.append(frame_and_label)
+            else:
+                if frame[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, self.camera.height-7: self.camera.height]), 0]
+                    frames_and_labels.append(frame_and_label)
+
+        return frames_and_labels
 
     def start(self):
         if self.camera.enabled:
@@ -161,13 +163,13 @@ class Pipeline2:
         else:
             return False
 
-    def sigmoid(self, x, mid=0, mul=2):
-        # alterable sigmoid with alterable mid point
-        # returns value between -1 and 1 or -0.5 and 0.5
-        if mul == 2:
-            return (2 / (1 + math.exp(-x + mid))) - 1
-        else:
-            return (1 / (1 + math.exp(-x + mid)) - 0.5) * mul
+    # def sigmoid(self, x, mid=0, mul=2):
+    #     # alterable sigmoid with alterable mid point
+    #     # returns value between -1 and 1 or -0.5 and 0.5
+    #     if mul == 2:
+    #         return (2 / (1 + math.exp(-x + mid))) - 1
+    #     else:
+    #         return (1 / (1 + math.exp(-x + mid)) - 0.5) * mul
 
     def normalize_frame(self, frame, method=1):
         # requires a 7x7x3 frame and will return a normalized frame
@@ -181,52 +183,35 @@ class Pipeline2:
 
         return filter_frame
 
-    def run_filter(self, frame):
-        # allocate a 7x7 area to be a filter
-        mid = self.prev_mid
-        filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
+    # def run_filter(self, frame):
+    #     # allocate a 7x7 area to be a filter
+    #     mid = self.prev_mid
+    #     filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
+    #
+    #     # check if shapes match then apply filter
+    #     if self.filter.shape == filter_frame.shape:
+    #         return np.sum(self.filter * filter_frame)
 
-        # check if shapes match then apply filter
-        if self.filter.shape == filter_frame.shape:
-            return np.sum(self.filter * filter_frame)
-
-    def filter_init(self, frame):
-        # allocate a 7x7 area to be a filter
-        mid = self.prev_mid
-        left1 = mid[0] - 3
-        left2 = mid[0] + 4
-        right1 = mid[1] - 3
-        right2 = mid[1] + 4
-        frame_altered = frame[left1:left2, right1:right2]
-
-        self.filter = self.normalize_frame(frame_altered, 1)
-
-    def run_filter(self, frame):
-        # allocate a 7x7 area to be a filter
-        mid = self.prev_mid
-        filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
-        # check if shapes match then apply filter
-        if self.filter.shape == filter_frame.shape:
-            # filter_frame = self.normalize_frame(filter_frame, 2)
-            return np.sum(self.filter * filter_frame)
+    # def filter_init(self, frame):
+    #     # allocate a 7x7 area to be a filter
+    #     mid = self.prev_mid
+    #     left1 = mid[0] - 3
+    #     left2 = mid[0] + 4
+    #     right1 = mid[1] - 3
+    #     right2 = mid[1] + 4
+    #     frame_altered = frame[left1:left2, right1:right2]
+    #
+    #     self.filter = self.normalize_frame(frame_altered, 1)
 
     def pipeline(self, frame):
         self.frame_counter += 1  # counts frames
 
         self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame.copy(), True)
+        frame, lines, self.safety_value = self.hough_detector(frame.copy(), self.day_mode)
 
         if self.frame_counter == Pipeline2.calibration_frame:
-            self.filter_init(frame)
-
-        # if self.frame_counter >
-
-        # allows us to find the frame we want
-        # if self.frame_counter <= Pipeline2.calibration_frame:
-        #     print(self.frame_counter)
-        if self.frame_counter == Pipeline2.calibration_frame:
-            print(self.filter)
-        # print(self.frame_counter)
+            frames_and_labels = self.preprocess_frame(frame)
+            self.network = NeuralNetwork(frames_and_labels)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -252,10 +237,10 @@ class Pipeline2:
 
         output_frame = cv2.add(cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR), input_frame)
 
-        # if day_mode:
-        #     output_frame = np.concatenate((output_frame, blur), axis=1)
-        # else:
-        #     output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
+        if day_mode:
+            output_frame = np.concatenate((output_frame, blur), axis=1)
+        else:
+            output_frame = np.concatenate((output_frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)), axis=1)
 
         return output_frame, lines, safety_percentage
 
@@ -294,7 +279,6 @@ class Pipeline2:
             if largest_coords is not None:
                 cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
                 self.find_borderpoints(frame, largest_coords)
-                print(self.run_filter(frame))
 
             return largest_y / height
 
@@ -315,22 +299,11 @@ class Pipeline2:
         right_point = (width,
                        int(p1[1] + slope * (width - p1[0])))
 
-        # if self.prev_coords == None:
-        #     self.prev_coords = [left_point, right_point]
-        # elif self.is_valid_point(frame, coords, Pipeline2.threshold):
-        #     self.prev_coords = [left_point, right_point]
         self.prev_mid = (int((left_point[0] + right_point[0]) / 2), int((left_point[1] + right_point[1]) / 2))
-
-        # print([left_point, right_point])
+        self.prev_coords = (left_point, right_point)
 
         cv2.circle(frame, left_point, 3, (255, 255, 255), 2)
         cv2.circle(frame, right_point, 3, (255, 255, 255), 2)
-
-    # def is_valid_point(self, frame, coords, threshold):
-    #     val = self.run_filter(frame, self.filter)
-    #     if val < threshold:
-    #         return True
-    #     return False
 
     def close(self):
         self.exit_event.set()

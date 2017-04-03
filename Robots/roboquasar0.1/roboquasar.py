@@ -3,6 +3,7 @@ import math
 from algorithms.bozo_controller import BozoController
 from algorithms.bozo_filter import BozoFilter
 from algorithms.pipeline import Pipeline, PID
+from algorithms.pipeline2 import Pipeline2
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
 from atlasbuggy.plotters.plot import RobotPlot
@@ -53,8 +54,12 @@ class RoboQuasar(Robot):
         self.pipeline_pid = None
 
         self.day_mode = day_mode
-        self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
-        self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
+        if pipeline == 1:
+            self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
+            self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
+        elif pipeline == 2:
+            self.left_pipeline = Pipeline2(self.left_camera, self.day_mode, separate_read_thread=False)
+            self.right_pipeline = Pipeline2(self.right_camera, self.day_mode, separate_read_thread=False)
 
         self.left_pid = None
         self.right_pid = None
@@ -743,6 +748,13 @@ file_sets = {
 }
 
 video_sets = {
+    "rolls day 4": (
+        ("06_19_43", "rolls/2017_Mar_25", "mp4"),
+        ("06_26_43", "rolls/2017_Mar_25", "mp4"),
+        ("06_29_13", "rolls/2017_Mar_25", "mp4"),
+        ("06_33_15", "rolls/2017_Mar_25", "mp4"),
+        ("06_34_14", "rolls/2017_Mar_25", "mp4"),
+    ),
     "push practice 2": (
         ("00_10_35", "push_practice/2017_Mar_24", "mp4"),
         ("00_14_10", "push_practice/2017_Mar_24", "mp4"),

@@ -38,18 +38,18 @@ def avi_to_mp4():
 def run(record, play):
     assert record != play
 
-    robot = RoboQuasar(False, "buggy", pipeline=1, day_mode=True)
+    robot = RoboQuasar(False, "buggy", pipeline=2, day_mode=False)
     robot.left_camera.show = True
 
     file_name = None
     directory = None
     file_format = "mp4"
 
-    use_video_sets = False
+    use_video_sets = True
 
     if play:
         if use_video_sets:
-            file_name, directory, file_format = video_sets["push practice 2"][3]
+            file_name, directory, file_format = video_sets["push practice 2"][-1]
         else:
             file_name, directory = file_sets["rolls day 5"][-1]
             file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
@@ -77,5 +77,5 @@ def run(record, play):
     robot.left_pipeline.close()
 
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)
