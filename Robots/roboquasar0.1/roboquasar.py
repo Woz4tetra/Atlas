@@ -54,6 +54,7 @@ class RoboQuasar(Robot):
         self.pipeline_pid = None
 
         self.day_mode = day_mode
+
         if pipeline == 1:
             self.left_pipeline = Pipeline(self.left_camera, self.day_mode, separate_read_thread=False)
             self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
@@ -111,7 +112,7 @@ class RoboQuasar(Robot):
         directory = self.get_path_info("input dir")
 
         # start cameras and pipelines
-        self.open_cameras(file_name, directory, "avi")
+        self.open_cameras(file_name, directory, "mp4")
         self.left_pipeline.start()
         self.right_pipeline.start()
 

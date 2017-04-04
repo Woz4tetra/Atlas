@@ -4,6 +4,7 @@ from algorithms.convnet import NeuralNetwork
 
 import cv2
 import numpy as np
+import time
 import math
 
 class Pipeline2:
@@ -22,6 +23,7 @@ class Pipeline2:
         self.pause_updated = False
         self.frame = None
         self.day_mode = day_mode
+        self.last_detection_t = time.time()
 
         # Filter for validating line
         self.network = None
@@ -114,47 +116,49 @@ class Pipeline2:
         thread_error = None
         try:
             while not self.exit_event.is_set():
-                if not self.paused:
-                    if self.separate_read_thread:
-                        if self.frame_queue.empty():
-                            continue
-
-                        while not self.frame_queue.empty():
-                            frame = self.frame_queue.get()
-
-                            if frame is None:
-                                self.status = "exit"
-                                break
-
-                            if self.width is None:
-                                self.width = frame.shape[1]
-
-                            self.frame = self.pipeline(frame)
-                    else:
-                        if self.camera.get_frame(self.timestamp) is None:
-                            self.status = "exit"
-                            break
-
-                        self.frame = self.pipeline(self.camera.frame)
-
-                    self.camera.show_frame(self.frame)
-                    self._updated = True
-
-                key = self.camera.key_pressed()
-                if key == 'q':
-                    self.close()
-                elif key == ' ':
-                    self.paused = not self.paused
-                    self.pause_updated = True
+                self.status = self._update()
+                if self.status is not None:
+                    break
 
         except BaseException as error:
             self.status = "error"
             thread_error = error
 
+        print("Camera '%s' closing" % self.camera.name)
         self.camera.close()
 
         if thread_error is not None:
             raise thread_error
+
+    def _update(self):
+        if not self.paused:
+            if self.separate_read_thread:
+                if self.frame_queue.empty():
+                    return
+
+                while not self.frame_queue.empty():
+                    frame = self.frame_queue.get()
+                    if frame is None:
+                        return "exit"
+
+                    self.frame = self.pipeline(frame)
+            else:
+                if self.camera.get_frame(self.timestamp) is None:
+                    self.status = "exit"
+                    return "exit"
+
+                self.frame = self.pipeline(self.camera.frame)
+
+            self.camera.show_frame(self.frame)
+            self._updated = True
+
+        key = self.camera.key_pressed()
+        if key == 'q':
+            self.close()
+            return "done"
+        elif key == ' ':
+            self.paused = not self.paused
+            self.pause_updated = True
 
     def did_pause(self):
         if self.pause_updated:
@@ -163,17 +167,9 @@ class Pipeline2:
         else:
             return False
 
-    # def sigmoid(self, x, mid=0, mul=2):
-    #     # alterable sigmoid with alterable mid point
-    #     # returns value between -1 and 1 or -0.5 and 0.5
-    #     if mul == 2:
-    #         return (2 / (1 + math.exp(-x + mid))) - 1
-    #     else:
-    #         return (1 / (1 + math.exp(-x + mid)) - 0.5) * mul
-
     def normalize_frame(self, frame, method=1):
         # requires a 7x7x3 frame and will return a normalized frame
-        filter_frame = np.zeros([7,7,3]) + 1
+        filter_frame = np.zeros(list(self.train_shape)) + 1
 
         if method == 1:
             for c in range(3):
@@ -207,7 +203,10 @@ class Pipeline2:
         self.frame_counter += 1  # counts frames
 
         self.prev_safe_value = self.safety_value
-        frame, lines, self.safety_value = self.hough_detector(frame.copy(), self.day_mode)
+        frame, lines, safety_value = self.hough_detector(frame.copy(), self.day_mode)
+        if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
+            self.safety_value = safety_value
+            self.last_detection_t = time.time()
 
         if self.frame_counter == Pipeline2.calibration_frame:
             frames_and_labels = self.preprocess_frame(frame)
