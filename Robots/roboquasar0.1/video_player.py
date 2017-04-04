@@ -38,8 +38,8 @@ def avi_to_mp4():
 def run(record, play):
     assert record != play
 
-    robot = RoboQuasar(False, "buggy", pipeline=1, day_mode=True, show_cameras=True)
-    robot.left_camera.show = True
+    robot = RoboQuasar(False, "buggy", day_mode=True, show_cameras=True)
+    robot.right_camera.show = True
 
     file_name = None
     directory = None
@@ -51,9 +51,12 @@ def run(record, play):
         if use_video_sets:
             file_name, directory, file_format = video_sets["push practice 2"][3]
         else:
-            file_name, directory = file_sets["data day 13"][0]
-            file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
-            file_name = file_finder.file_name_no_ext.replace(";", "_")
+            # file_name, directory = file_sets["data day 13"][0]
+            # file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
+            # file_name = file_finder.file_name_no_ext.replace(";", "_")
+            file_name = "00_03_26"
+            directory = "rolls/2017_Mar_29"
+            file_format = "mp4"
 
         robot.is_live = False
 
@@ -69,8 +72,6 @@ def run(record, play):
 
     try:
         while True:
-            if robot.left_pipeline._update() is not None:
-                break
             if robot.right_pipeline._update() is not None:
                 break
 
@@ -78,11 +79,8 @@ def run(record, play):
         pass
 
     print("Closing cameras")
-    robot.left_camera.close()
     robot.right_camera.close()
-
     robot.right_pipeline.close()
-    robot.left_pipeline.close()
 
 
 # avi_to_mp4()

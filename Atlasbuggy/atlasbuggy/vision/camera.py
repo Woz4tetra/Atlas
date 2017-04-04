@@ -121,6 +121,8 @@ class Camera:
         self.sync_up_error = sync_up_error
         self.start_frame = start_frame
 
+        self.get_frame = self.get_frame_video
+
         if not self.enabled:
             return None
 
@@ -130,7 +132,6 @@ class Camera:
         self.directory = read_file.directory
         self.full_path = read_file.full_path
 
-        self.get_frame = self.get_frame_video
 
         if not self.enabled:
             return None

@@ -18,7 +18,10 @@ class BozoController:
         self.current_angle = 0.0
         self.current_pos = self.map[0]
         self.goal_index = 0
+        self.goal_angle = 0.0
         self.keep_position_in_boundary = keep_position_in_boundary
+        self.goal_lat = 0.0
+        self.goal_long = 0.0
 
     def init_maps(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None):
         self.course_map_name = course_map_name
@@ -43,10 +46,11 @@ class BozoController:
         return self.current_index is not None
 
     def update(self, lat, long, yaw):
-        goal_angle = self.get_goal_angle(lat, long)
-        if goal_angle < 0:
-            goal_angle += 2 * math.pi
-        angle_error = self.shift_angle(goal_angle - yaw)
+        self.goal_angle = self.get_goal_angle(lat, long)
+        if self.goal_angle < 0:
+            self.goal_angle += 2 * math.pi
+
+        angle_error = self.shift_angle(self.goal_angle - yaw)
 
         self.current_angle = angle_error
         return self.current_angle
@@ -68,18 +72,20 @@ class BozoController:
 
         self.current_pos = lat0, long0
 
-        if self.current_index is None:
-            start = 0
-            end = len(self.map)
-        else:
-            start = self.goal_index - self.offset
-            end = start + self.offset * 10
-            if end >= len(self.map):
-                end = len(self.map)
+        # if self.current_index is None:
+        start = 0
+        end = len(self.map)
+        # else:
+        #     start = (self.goal_index - self.offset) % len(self.map)
+        #     end = (start + self.offset * 10) % len(self.map)
+        #     if start > end:
+        #         start, end = end, start
 
-        self.goal_index = self.closest_point(lat0, long0, self.map, start, end)
-        self.goal_index = (self.goal_index + self.offset) % len(self.map)  # set goal to the next checkpoint
-        self.current_index = self.goal_index % len(self.map)  # the closest index on the map
+        self.current_index = self.closest_point(lat0, long0, self.map, start, end)
+        self.current_index = self.current_index % len(self.map)  # the closest index on the map
+        self.goal_index = (self.current_index + self.offset) % len(self.map)  # set goal to the next checkpoint
+
+        self.goal_lat, self.goal_long = self.map[self.goal_index]
 
         return self.goal_index
 
