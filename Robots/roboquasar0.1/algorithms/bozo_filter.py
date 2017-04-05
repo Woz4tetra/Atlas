@@ -76,15 +76,18 @@ class BozoFilter:
             self.long_data.append(long)
         if len(self.lat_data) == 0 or lat != self.lat_data[-1]:
             self.lat_data.append(lat)
-        """
-        self.bearing = -math.atan2(long - self.long_data[0],
+        
+        bearing = -math.atan2(long - self.long_data[0],
                                    lat - self.lat_data[0])# + math.pi
-        self.bearing = self.bearing % (2 * math.pi)
-        """
+        bearing = self.bearing % (2 * math.pi)
+        
+
         self.bearing = BozoFilter.bearing_to(
                        self.lat_data[0], self.long_data[0], lat, long)
 
         self.bearing = self.convert_radians(self.bearing)
+        
+        print("Difference: %f" %(self.bearing-bearing))
 
         if len(self.long_data) > self.bearing_avg_len:
             self.long_data.pop(0)
