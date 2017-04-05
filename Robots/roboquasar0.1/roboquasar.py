@@ -178,7 +178,6 @@ class RoboQuasar(Robot):
 
                 self.angle_filter.init_compass(gps_compass)
                 self.record_compass()
-
             status = self.quasar_plotter.update_gps_plot(timestamp, self.gps.latitude_deg, self.gps.longitude_deg)
             if status is not None:
                 return status
@@ -191,14 +190,12 @@ class RoboQuasar(Robot):
                     self.gps_position_guess[0], self.gps_position_guess[1], self.imu_heading_guess
                 )
             self.update_steering()
-
             if self.gps.is_position_valid():
                 self.quasar_plotter.update_indicators((self.gps.latitude_deg, self.gps.longitude_deg),
-                                                      self.imu_heading_guess)
+                                                       self.imu_heading_guess)
 
     def received(self, timestamp, whoiam, packet, packet_type):
         # self.left_pipeline.update_time(self.dt())
-
         if self.did_receive("initial compass"):
             self.angle_filter.init_compass(packet)
             self.debug_print("initial offset: %0.4f rad" % self.angle_filter.compass_angle, ignore_flag=True)
