@@ -71,8 +71,8 @@ def run(record, play):
         while True:
             if robot.left_pipeline._update() is not None:
                 break
-            if robot.right_pipeline._update() is not None:
-                break
+            # if robot.right_pipeline._update() is not None:
+            #     break
 
     except KeyboardInterrupt:
         pass

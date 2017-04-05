@@ -61,20 +61,23 @@ class Pipeline2:
         for i in range(3, self.camera.width - 4):
             # create 7x7 frame with label 1 (correct edge)
             if 3 <= i*slope <= self.camera.height - 4:
-                if frame[i-3: i+4, i*slope-3: i*slope+4].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, i*slope-3: i*slope+4]), 1]
+                if frame[i-3: i+4, int(i*slope)-3: int(i*slope)+4].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, int(i*slope)-3: int(i*slope)+4]), 1]
                     frames_and_labels.append(frame_and_label)
 
             # create 7x7 frame with label 0 (incorrect edge)
             if i*slope + 4 <= 14:
                 if frame[i-3: i+4, 0: 7].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, 0: 7]), 0]
-                    frames_and_labels.append(frame_and_label)
-            else:
-                if frame[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, self.camera.height-7: self.camera.height]), 0]
+                    frame_and_label = [self.normalize_frame(frame[i - 3: i + 4, self.camera.height - 7: self.camera.height]), 0]
                     frames_and_labels.append(frame_and_label)
 
+            else:
+                if frame[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame[i - 3: i + 4, 0: 7]), 0]
+                    frames_and_labels.append(frame_and_label)
+
+        print(frames_and_labels[0])
+        print(frames_and_labels[1])
         return frames_and_labels
 
     def start(self):
@@ -148,6 +151,7 @@ class Pipeline2:
                     return "exit"
 
                 self.frame = self.pipeline(self.camera.frame)
+                # self.frame = self.camera.frame
 
             self.camera.show_frame(self.frame)
             self._updated = True
@@ -178,26 +182,6 @@ class Pipeline2:
                 filter_frame[:, :, c] = (frame[:, :, c] - min_v) / (max_v - min_v)
 
         return filter_frame
-
-    # def run_filter(self, frame):
-    #     # allocate a 7x7 area to be a filter
-    #     mid = self.prev_mid
-    #     filter_frame = frame[(mid[0] - 3):(mid[0] + 4), (mid[1] - 3):(mid[1] + 4)]
-    #
-    #     # check if shapes match then apply filter
-    #     if self.filter.shape == filter_frame.shape:
-    #         return np.sum(self.filter * filter_frame)
-
-    # def filter_init(self, frame):
-    #     # allocate a 7x7 area to be a filter
-    #     mid = self.prev_mid
-    #     left1 = mid[0] - 3
-    #     left2 = mid[0] + 4
-    #     right1 = mid[1] - 3
-    #     right2 = mid[1] + 4
-    #     frame_altered = frame[left1:left2, right1:right2]
-    #
-    #     self.filter = self.normalize_frame(frame_altered, 1)
 
     def pipeline(self, frame):
         self.frame_counter += 1  # counts frames
