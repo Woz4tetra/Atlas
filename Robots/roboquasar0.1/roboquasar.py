@@ -153,7 +153,6 @@ class RoboQuasar(Robot):
             self.map_heading = self.map_manipulator.get_goal_angle(
                 self.gps.latitude_deg, self.gps.longitude_deg
             )
-            print(self.map_manipulator.current_index, self.map_manipulator.goal_index, self.map_heading)
             self.quasar_plotter.goal_plot.update([self.gps.latitude_deg, self.map_manipulator.goal_lat],
                                                  [self.gps.longitude_deg, self.map_manipulator.goal_long])
 
@@ -343,7 +342,7 @@ class RoboQuasarPlotter:
                  map_set_name):
         # GPS map based plots
         self.gps_plot = RobotPlot("gps", color="red", enabled=True)
-        self.map_plot = RobotPlot("map", color="purple")
+        self.map_plot = RobotPlot("map", color="purple", marker='.')
         self.inner_map_plot = RobotPlot("inner map", enabled=True)
         self.outer_map_plot = RobotPlot("outer map", enabled=True)
 
@@ -406,6 +405,10 @@ class RoboQuasarPlotter:
         self.map_plot.update(course_map.lats, course_map.longs)
         self.inner_map_plot.update(inner_map.lats, inner_map.longs)
         self.outer_map_plot.update(outer_map.lats, outer_map.longs)
+
+        for checkpoint_num in range(len(course_map)):
+            self.plotter.draw_text(self.accuracy_check_plot, str(checkpoint_num),
+                                   course_map.lats[checkpoint_num], course_map.longs[checkpoint_num], fontsize='small')
 
     def plot_image(self, map_set_name):
         if map_set_name in image_sets:

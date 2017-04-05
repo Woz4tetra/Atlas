@@ -20,14 +20,13 @@ class MapFile(AtlasReadFile):
         matches = re.finditer(regex, self.contents)
 
         for match_num, match in enumerate(matches):
-            for group_num in range(0, len(match.groups())):
-                lat = float(match.group("lat"))
-                long = float(match.group("lon"))
+            lat = float(match.group("lat"))
+            long = float(match.group("lon"))
 
-                gps_map.append((lat, long))
+            gps_map.append((lat, long))
 
-                lats.append(lat)
-                longs.append(long)
+            lats.append(lat)
+            longs.append(long)
 
         return gps_map, lats, longs
 
