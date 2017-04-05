@@ -9,7 +9,7 @@ class BozoController:
     MIN_FLOAT = sys.float_info.min
 
     def __init__(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None, offset=1,
-                 border_skip_check=10, keep_position_in_boundary=False):
+                 border_skip_check=10, keep_position_in_boundary=False, init_indices=None):
         self.init_maps(course_map_name, map_dir, inner_map_name, outer_map_name)
 
         self.offset = offset
@@ -22,6 +22,7 @@ class BozoController:
         self.keep_position_in_boundary = keep_position_in_boundary
         self.goal_lat = 0.0
         self.goal_long = 0.0
+        self.init_indices = init_indices
 
     def init_maps(self, course_map_name, map_dir, inner_map_name=None, outer_map_name=None):
         self.course_map_name = course_map_name
@@ -89,13 +90,17 @@ class BozoController:
 
         return self.goal_index
 
-    def closest_point(self, lat0, long0, gps_map, start=0, end=None):
+    def closest_point(self, lat0, long0, gps_map, start=0, end=None, init = False):
         smallest_dist = None
         goal_index = 0
 
         if end is None:
             end = len(gps_map)
-        for index in range(start, end):
+        if(init):
+            index_range = self.init_indices
+        else:
+            index_range = range(start,end)
+        for index in index_range:
             lat1, long1 = gps_map[index]
             dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) + (long1 - long0) * (long1 - long0))
             if smallest_dist is None or dist < smallest_dist:
@@ -103,8 +108,8 @@ class BozoController:
                 goal_index = index
         return goal_index
 
-    def lock_onto_map(self, lat, long):
-        index = self.closest_point(lat, long, self.map)
+    def lock_onto_map(self, lat, long, init):
+        index = self.closest_point(lat, long, self.map, init)
         return self.map[index], index
 
     @staticmethod

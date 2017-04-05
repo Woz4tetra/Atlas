@@ -63,7 +63,8 @@ class RoboQuasar(Robot):
         print("Using map set:", map_set_name)
         checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[map_set_name]
 
-        self.map_manipulator = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=3)
+        self.init_checkpoints = [0,1,117,118,123,124,139,140]
+        self.map_manipulator = BozoController(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=3, init_indices = self.init_checkpoints)
         self.angle_filter = BozoFilter(initial_compass)
 
         self.use_log_file_maps = use_log_file_maps
@@ -99,10 +100,12 @@ class RoboQuasar(Robot):
 
         # ----- initializing heading ------
         self.heading_setup = False
-        self.drift1 = 0
-        self.drift2 = 0
+        self.init_drift = 0
+        self.abs_drift = 0
         self.init_pos = 0 #Initial checkpoint
         self.init_gps = 0 #initial position
+        self.add_drift = 0
+        self.init_checkpoints = [0,1,117,118,123,124,139,140]
 
     def start(self):
         # extract camera file name from current log file name
@@ -145,6 +148,8 @@ class RoboQuasar(Robot):
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
+            self.gps.latitude_deg -= (self.abs_drift * self.add_drift)
+            self.gps.longitude_deg -= (self.abs_drift * self.add_drift)
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
@@ -306,16 +311,20 @@ class RoboQuasar(Robot):
                     self.heading_setup = True
                     self.init_gps = self.gps.latitude_deg, self.gps.longitude_deg
                     self.init_pos, _ = lock_onto_map(self.init_gps[0], self.init_gps[1], True)
-                    self.drift1 = (self.init_pos[0] - self.initial_gps[0], 
+                    self.init_drift = (self.init_pos[0] - self.initial_gps[0], 
                                    self.init_pos[1] - self.initial_gps[1])
                 else:
                     gps_reading = self.gps.latitude_deg, self.gps.longitude_deg
-                    actual_pos = lock_onto_map(gps_reading[0], gps_reading[1], init = True)
-                    self.drift2 = (actual_pos[0] - gps_reading[0], 
+                    actual_pos = lock_onto_map(gps_reading[0], gps_reading[1], True)
+                    drift2 = (actual_pos[0] - gps_reading[0], 
                                    actual_pos[1] - gps_reading[1])
-                    bearing = -math.atan2(gps_reading[0] - self.init_pos[0],
-                                          gps_reading[1] - self.init_pos[1])% (2 * math.pi)
+                    #bearing = -math.atan2(gps_reading[0] - self.init_pos[0],
+                    #                      gps_reading[1] - self.init_pos[1])% (2 * math.pi)
+                    self.abs_drift = (abs(self.init_drift) + abs(dift2))/2.0
+                    bearing = BozoFilter.bearing_to(self.init_pos[0], gps_reading[0],
+                                                    self.init_pos[1], gps_reading[1])
                     self.angle_filter.init_compass(bearing)
+                    self.add_drift = 1;
                     self.heading_setup = False
 
 
