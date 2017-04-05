@@ -97,6 +97,9 @@ class RoboQuasar(Robot):
                                                 self.map_manipulator.map, self.map_manipulator.inner_map,
                                                 self.map_manipulator.outer_map, self.key_press, self.map_set_name)
 
+        # ----- initializing heading ------
+        self.heading_setup = False
+
     def start(self):
         # extract camera file name from current log file name
         file_name = self.get_path_info("file name no extension").replace(";", "_")
@@ -294,6 +297,26 @@ class RoboQuasar(Robot):
                     self.underglow.signal_brake()
                 else:
                     self.underglow.signal_release()
+
+            elif self.joystick.button_updated("Blergh") and self.joystick.get_button("Blergh"):
+                if(not self.heading_setup):
+                    self.heading_setup = True
+                    self.init_gps = self.gps.latitude_deg, self.gps.longitude_deg
+                    self.init_pos, _ = lock_onto_map(self.init_gps[0], self.init_gps[1], True)
+                    self.drift1 = (self.init_pos[0] - self.initial_gps[0], 
+                                   self.init_pos[1] - self.initial_gps[1])  #element wise pls
+                else:
+                    gps_reading = self.gps.latitude_deg, self.gps.longitude_deg
+                    actual_pos = lock_onto_map(gps_reading[0], gps_reading[1], init = True)
+                    self.drift2 = (actual_pos[0] - gps_reading[0], 
+                                   actual_pos[1] - gps_reading[1])
+                    bearing = -np.arctan2(gps_reading[0] - self.init_pos[0],
+                                          gps_reading[1] - self.init_pos[1])% (2 * math.pi)
+                    self.angle_filter.init_compass(bearing)
+                    self.heading_setup = False
+
+
+
 
     def brake_ping(self):
         self.brakes.ping()
