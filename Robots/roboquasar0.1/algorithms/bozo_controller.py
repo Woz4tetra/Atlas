@@ -111,7 +111,7 @@ class MapManipulator:
         return goal_index
 
     def lock_onto_map(self, lat, long, init):
-        index = self.closest_point(lat, long, self.map, init)
+        index = self.closest_point(lat, long, self.map, init=init)
         return self.map[index], index
 
     @staticmethod

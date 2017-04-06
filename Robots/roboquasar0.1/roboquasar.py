@@ -74,7 +74,7 @@ class RoboQuasar(Robot):
         self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=3,
                                               init_indices=self.init_checkpoints)
         self.angle_filter = AngleManipulator(initial_compass)
-
+    
         self.use_log_file_maps = use_log_file_maps
 
         # ----- filtered outputs -----
@@ -108,12 +108,10 @@ class RoboQuasar(Robot):
 
         # ----- initializing heading ------
         self.heading_setup = False
-        self.init_drift = 0
-        self.abs_drift = 0
-        self.init_pos = 0  # Initial checkpoint
-        self.init_gps = 0  # initial position
-        self.add_drift = 0
-        self.init_checkpoints = [0, 1, 117, 118, 123, 124, 139, 140]
+        self.init_drift = (0, 0)
+        self.abs_drift = (0, 0)
+        self.init_pos = (0, 0)  # Initial checkpoint
+        self.init_gps = (0, 0)  # initial position
 
     def start(self):
         # extract camera file name from current log file name
@@ -156,8 +154,9 @@ class RoboQuasar(Robot):
 
     def receive_gps(self, timestamp, packet, packet_type):
         if self.gps.is_position_valid():
-            self.gps.latitude_deg -= (self.abs_drift * self.add_drift)
-            self.gps.longitude_deg -= (self.abs_drift * self.add_drift)
+            if self.heading_setup == 2:
+                self.gps.latitude_deg += self.abs_drift[0]
+                self.gps.longitude_deg += self.abs_drift[1]
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
@@ -185,7 +184,7 @@ class RoboQuasar(Robot):
                 return status
 
     def receive_imu(self, timestamp, packet, packet_type):
-        if self.angle_filter.initialized:
+        if self.angle_filter.initialized and self.heading_setup == 2:
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
             if self.map_manipulator.is_initialized():
                 self.imu_steering_angle = self.map_manipulator.update(
@@ -315,26 +314,45 @@ class RoboQuasar(Robot):
                     self.underglow.signal_release()
 
             elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
-                if not self.heading_setup:
-                    self.heading_setup = True
-                    self.init_gps = self.gps.latitude_deg, self.gps.longitude_deg
-                    self.init_pos, self.init_index = self.map_manipulator.lock_onto_map(self.init_gps[0], self.init_gps[1], True)
-                    self.init_drift = (self.init_pos[0] - self.init_gps[0],
-                                       self.init_pos[1] - self.init_gps[1])
-                else:
-                    gps_reading = self.gps.latitude_deg, self.gps.longitude_deg
-                    # actual_pos = self.map_manipulator.lock_onto_map(gps_reading[0], gps_reading[1], True)
-                    actual_pos = self.map_manipulator.map[self.init_index + self.init_offset]
-                    drift2 = (actual_pos[0] - gps_reading[0],
-                              actual_pos[1] - gps_reading[1])
-                    # bearing = -math.atan2(gps_reading[0] - self.init_pos[0],
-                    #                      gps_reading[1] - self.init_pos[1])% (2 * math.pi)
-                    self.abs_drift = (abs(self.init_drift) + abs(drift2)) / 2.0
-                    bearing = AngleManipulator.bearing_to(self.init_pos[0], gps_reading[0],
-                                                          self.init_pos[1], gps_reading[1])
-                    self.angle_filter.init_compass(bearing)
-                    self.add_drift = 1
-                    self.heading_setup = False
+                self.calibrate_with_checkpoints()
+
+    def calibrate_with_checkpoints(self):
+        if self.gps.is_position_valid():
+            if self.heading_setup == 0:
+                self.heading_setup = 1
+                self.init_gps = self.gps.latitude_deg, self.gps.longitude_deg
+                self.init_pos, self.init_index = self.map_manipulator.lock_onto_map(self.init_gps[0], self.init_gps[1], True)
+                self.init_drift = (self.init_pos[0] - self.init_gps[0],
+                                   self.init_pos[1] - self.init_gps[1])
+                print("----------")
+                print("\tInitial GPS: (%0.6f, %0.6f)" % self.init_gps)
+                print("\tLocked index: %s" % self.init_index)
+                print("\tDrift 1: (%0.6f, %0.6f)" % self.init_drift)
+            elif self.heading_setup == 1:
+                gps_reading = self.gps.latitude_deg, self.gps.longitude_deg
+                # actual_pos = self.map_manipulator.lock_onto_map(gps_reading[0], gps_reading[1], True)
+                actual_pos = self.map_manipulator.map[self.init_index + self.init_offset]
+                drift2 = (actual_pos[0] - gps_reading[0],
+                          actual_pos[1] - gps_reading[1])
+
+                self.abs_drift = (self.init_drift[0] + drift2[0]) / 2, (self.init_drift[1] + drift2[1]) / 2
+
+                bearing = AngleManipulator.bearing_to(self.init_pos[0], self.init_pos[1], actual_pos[0], actual_pos[1])
+                # bearing = (-math.atan2(gps_reading[1] - self.init_pos[1],
+                #                      gps_reading[0] - self.init_pos[0]) + math.pi / 2) % (2 * math.pi)
+
+                self.angle_filter.init_compass(bearing)
+                self.heading_setup = 2
+
+                print("\n\tGPS: (%0.6f, %0.6f)" % gps_reading)
+                print("\tLocked GPS: (%0.6f, %0.6f)" % actual_pos)
+                print("\tLocked index: %s" % (self.init_index + self.init_offset))
+                print("\tDrift 2: (%0.6f, %0.6f)" % drift2)
+                print("\tAvg drift: (%0.6f, %0.6f)" % self.abs_drift)
+                print("\tBearing: %0.6f" % bearing)
+                print("----------")
+        else:
+            print("Invalid GPS. Ignoring")
 
     def brake_ping(self):
         self.brakes.ping()
@@ -371,11 +389,8 @@ class RoboQuasar(Robot):
             self.debug_print("!!EMERGENCY BRAKE!!", ignore_flag=True)
         else:
             self.brakes.pause_pings()
-
         self.quasar_plotter.close(reason)
-
         self.right_pipeline.close()
-
         print("Ran for %0.4fs" % self.dt())
 
 

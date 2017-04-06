@@ -62,7 +62,7 @@ class AngleManipulator:
         x = (math.cos(lat0_r) * math.sin(lat1_r) -
              math.sin(lat0_r) * math.cos(lat1_r) * math.cos(delta_lon))
         theta = math.atan2(y, x)
-        return math.radians((math.degrees(theta) + 360.0) % 360.0)
+        return theta % (2 * math.pi)
 
     def update_bearing(self, lat, long):
         if len(self.long_data) == 0 or long != self.long_data[-1]:

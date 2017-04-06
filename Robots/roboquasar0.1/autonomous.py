@@ -135,6 +135,9 @@ class AutonomousCommandline(cmd.Cmd):
         if len(line) > 0:
             robot.underglow.send('f%s' % line)
 
+    def do_check(self, line):
+        robot.calibrate_with_checkpoints()
+
 
 sunrise = 7.183
 sunset = 19.65
