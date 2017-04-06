@@ -1,8 +1,8 @@
 import math
 import numpy as np
 
-from algorithms.bozo_controller import BozoController
-from algorithms.bozo_filter import BozoFilter
+from algorithms.bozo_controller import MapManipulator
+from algorithms.bozo_filter import AngleManipulator
 from algorithms.pipeline import Pipeline
 
 from atlasbuggy.robot import Robot

@@ -4,7 +4,7 @@ import sys
 from atlasbuggy.files.mapfile import MapFile
 
 
-class BozoController:
+class MapManipulator:
     MAX_FLOAT = sys.float_info.max
     MIN_FLOAT = sys.float_info.min
 
@@ -90,16 +90,18 @@ class BozoController:
 
         return self.goal_index
 
-    def closest_point(self, lat0, long0, gps_map, start=0, end=None, init = False):
+    def closest_point(self, lat0, long0, gps_map, start=0, end=None, init=False):
         smallest_dist = None
         goal_index = 0
 
         if end is None:
             end = len(gps_map)
-        if(init):
+
+        if init:
             index_range = self.init_indices
         else:
-            index_range = range(start,end)
+            index_range = range(start, end)
+
         for index in index_range:
             lat1, long1 = gps_map[index]
             dist = math.sqrt((lat1 - lat0) * (lat1 - lat0) + (long1 - long0) * (long1 - long0))
@@ -125,15 +127,15 @@ class BozoController:
         if point[0] < min(edge_1[0], edge_2[0]):
             return True
         else:
-            if abs(edge_1[0] - edge_2[0]) > BozoController.MIN_FLOAT:
+            if abs(edge_1[0] - edge_2[0]) > MapManipulator.MIN_FLOAT:
                 var1 = (edge_2[1] - edge_1[1]) / (edge_2[0] - edge_1[0])
             else:
-                var1 = BozoController.MAX_FLOAT
+                var1 = MapManipulator.MAX_FLOAT
 
-            if abs(edge_1[0] - point[0]) > BozoController.MIN_FLOAT:
+            if abs(edge_1[0] - point[0]) > MapManipulator.MIN_FLOAT:
                 var2 = (point[1] - edge_1[1]) / (point[0] - edge_1[0])
             else:
-                var2 = BozoController.MAX_FLOAT
+                var2 = MapManipulator.MAX_FLOAT
 
             return var2 >= var1
 
@@ -141,20 +143,20 @@ class BozoController:
     def point_within_border(coordinate, gps_map):
         sum_value = 0
         for index in range(len(gps_map) - 1):
-            sum_value += BozoController.does_point_intersect(
+            sum_value += MapManipulator.does_point_intersect(
                 coordinate, gps_map[index], gps_map[index + 1]
             )
         return sum_value % 2 == 1
 
     def point_inside_outer_map(self, lat, long):
         if self.outer_map is not None:
-            return BozoController.point_within_border([lat, long], self.outer_map)
+            return MapManipulator.point_within_border([lat, long], self.outer_map)
         else:
             return True
 
     def point_outside_inner_map(self, lat, long):
         if self.inner_map is not None:
-            return not BozoController.point_within_border([lat, long], self.inner_map)
+            return not MapManipulator.point_within_border([lat, long], self.inner_map)
         else:
             return True
 
@@ -185,8 +187,8 @@ if __name__ == '__main__':
         triangle_inner_map = [[0, 0], [10, 0], [0, 10]]
         triangle_outer_map = [[-10, -10], [20, 0], [0, 20]]
 
-        print(BozoController.point_within_border([0, 0], triangle_inner_map))
-        print(BozoController.point_within_border([0, 0], triangle_outer_map))
+        print(MapManipulator.point_within_border([0, 0], triangle_inner_map))
+        print(MapManipulator.point_within_border([0, 0], triangle_outer_map))
 
 
     ray_test()
