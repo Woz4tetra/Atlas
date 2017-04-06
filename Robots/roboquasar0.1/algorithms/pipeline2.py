@@ -57,27 +57,27 @@ class Pipeline2:
         slope = (right[1]-left[1])/(right[0]-left[0])
         frames_and_labels = []
 
+        frame_altered = frame.astype(np.float32)
+
         # make a bunch of correct edge detections
         for i in range(3, self.camera.width - 4):
             # create 7x7 frame with label 1 (correct edge)
             if 3 <= i*slope <= self.camera.height - 4:
-                if frame[i-3: i+4, int(i*slope)-3: int(i*slope)+4].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i-3: i+4, int(i*slope)-3: int(i*slope)+4]), 1]
+                if frame_altered[i-3: i+4, int(i*slope)-3: int(i*slope)+4].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame_altered[i-3: i+4, int(i*slope)-3: int(i*slope)+4]), 1]
                     frames_and_labels.append(frame_and_label)
 
             # create 7x7 frame with label 0 (incorrect edge)
             if i*slope + 4 <= 14:
-                if frame[i-3: i+4, 0: 7].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i - 3: i + 4, self.camera.height - 7: self.camera.height]), 0]
+                if frame_altered[i-3: i+4, 0: 7].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame_altered[i - 3: i + 4, self.camera.height - 7: self.camera.height]), 0]
                     frames_and_labels.append(frame_and_label)
 
             else:
-                if frame[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame[i - 3: i + 4, 0: 7]), 0]
+                if frame_altered[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
+                    frame_and_label = [self.normalize_frame(frame_altered[i - 3: i + 4, 0: 7]), 0]
                     frames_and_labels.append(frame_and_label)
 
-        print(frames_and_labels[0])
-        print(frames_and_labels[1])
         return frames_and_labels
 
     def start(self):
@@ -163,7 +163,7 @@ class Pipeline2:
         elif key == ' ':
             self.paused = not self.paused
             self.pause_updated = True
-
+            
     def did_pause(self):
         if self.pause_updated:
             self.pause_updated = False
@@ -171,14 +171,32 @@ class Pipeline2:
         else:
             return False
 
+    def get_center_frames(self, frame):
+        left = self.prev_coords[0]
+        right = self.prev_coords[1]
+        slope = (right[1] - left[1]) / (right[0] - left[0])
+
+        frame_altered = frame.astype(np.float32)
+
+        frames = []
+
+        for i in range(3, self.camera.width - 4):
+            # create 7x7 frame with label 1 (correct edge)
+            if 3 <= i * slope <= self.camera.height - 4:
+                if frame_altered[i - 3: i + 4, int(i * slope) - 3: int(i * slope) + 4].shape == (7, 7, 3):
+                    frame_new = self.normalize_frame(frame_altered[i - 3: i + 4, int(i * slope) - 3: int(i * slope) + 4])
+                    frames.append(frame_new)
+
+        return frames
+
     def normalize_frame(self, frame, method=1):
         # requires a 7x7x3 frame and will return a normalized frame
-        filter_frame = np.zeros(list(self.train_shape)) + 1
+        filter_frame = np.zeros(list(self.train_shape))
 
         if method == 1:
             for c in range(3):
-                max_v = np.max(frame[:, :, c]) * 1.0
-                min_v = np.min(frame[:, :, c]) * 1.0
+                max_v = np.max(frame[:, :, c])
+                min_v = np.min(frame[:, :, c])
                 filter_frame[:, :, c] = (frame[:, :, c] - min_v) / (max_v - min_v)
 
         return filter_frame
@@ -188,6 +206,7 @@ class Pipeline2:
 
         self.prev_safe_value = self.safety_value
         frame, lines, safety_value = self.hough_detector(frame.copy(), self.day_mode)
+
         if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
             self.safety_value = safety_value
             self.last_detection_t = time.time()
@@ -262,6 +281,10 @@ class Pipeline2:
             if largest_coords is not None:
                 cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
                 self.find_borderpoints(frame, largest_coords)
+                if self.network != None:
+                    working_frames = self.get_center_frames(frame)
+                    print(self.network.run(working_frames))
+                    print(self.prev_safe_value)
 
             return largest_y / height
 

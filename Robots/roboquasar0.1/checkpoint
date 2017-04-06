@@ -1,0 +1,2 @@
+model_checkpoint_path: "edge_classification"
+all_model_checkpoint_paths: "edge_classification"
