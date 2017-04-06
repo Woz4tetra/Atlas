@@ -23,15 +23,18 @@ class AngleManipulator:
         self.bearing_avg_len = 4
         self.imu_angle_weight = 0.65
 
-    def init_compass(self, packet):
-        if packet is not None:
+    def init_compass(self, arg, reset_imu=True):
+        if arg is not None:
             self.initialized = True
-            if type(packet) == str:
-                self.compass_angle_packet = packet
-                self.compass_angle = math.radians(float(packet))
+            if type(arg) == str:
+                self.compass_angle_packet = arg
+                self.compass_angle = math.radians(float(arg))
             else:  # assume float in radians
-                self.compass_angle_packet = str(math.degrees(packet))
-                self.compass_angle = packet
+                self.compass_angle_packet = str(math.degrees(arg))
+                self.compass_angle = arg
+
+            if reset_imu:
+                self.start_angle = None
 
     def offset_angle(self, imu_euler_z):
         if self.start_angle is None:
