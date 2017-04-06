@@ -34,7 +34,9 @@ class RoboQuasar(Robot):
         self.gps = GPS()
         self.imu = IMU()
         self.turret = LidarTurret(enabled=False)
-
+        self.gps_offset = (0,0)
+        self.safe_rad = 0.5
+        self.safe_value = 50
         self.steering = Steering()
         self.brakes = Brakes()
         self.underglow = Underglow()
@@ -165,14 +167,22 @@ class RoboQuasar(Robot):
         # using the last pipeline data and map data, update refined_position_guess
         if self.gps.is_position_valid():
             if not self.map_manipulator.is_initialized():
-                self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
+                self.map_manipulator.initialize(self.gps.latitude_deg + self.gps_offset[0],
+                                                self.gps.longitude_deg + self.gps_offset[1])
 
-            outer_state = self.map_manipulator.point_inside_outer_map(self.gps.latitude_deg, self.gps.longitude_deg)
-            inner_state = self.map_manipulator.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
+            outer_state = self.map_manipulator.point_inside_outer_map(self.gps.latitude_deg + self.gps_offset[0],
+                                                                      self.gps.longitude_deg + self.gps.offset[1])
+            inner_state = self.map_manipulator.point_outside_inner_map(self.gps.latitude_deg + self.gps_offset[0],
+                                                                       self.gps.longitude_deg + self.gps_offset[1])
             self.gps_within_map = outer_state and inner_state
 
             self.gps_position_guess, self.gps_index_guess = \
-                self.map_manipulator.lock_onto_map(self.gps.latitude_deg, self.gps.longitude_deg)
+                self.map_manipulator.lock_onto_map(self.gps.latitude_deg + self.gps_offset[0],
+                                                   self.gps.longitude_deg + self.gps_offset[1])
+            # change over here
+            # use actual + offset instead of guessing
+            self.gps_position_guess = (self.gps.latitude_deg + self.gps_offset[0],
+                                                   self.gps.longitude_deg + self.gps_offset[1])
 
             if not self.angle_filter.initialized:
                 gps_compass = self.map_manipulator.get_goal_angle(self.gps_position_guess[0],
@@ -195,7 +205,8 @@ class RoboQuasar(Robot):
             self.update_steering()
 
             if self.gps.is_position_valid():
-                self.quasar_plotter.update_indicators((self.gps.latitude_deg, self.gps.longitude_deg),
+                self.quasar_plotter.update_indicators((self.gps.latitude_deg + self.gps_offset[0],
+                                                       self.gps.longitude_deg + self.gps_offset[1]),
                                                       self.imu_heading_guess)
 
     def received(self, timestamp, whoiam, packet, packet_type):
@@ -243,6 +254,11 @@ class RoboQuasar(Robot):
 
         self.update_joystick()
 
+    def update_offset(self):
+        index = self.gps_index_guess
+        self.gps_offset[0] = self.map_manipulator.map[index][0] - self.gps.latitude_deg
+        self.gps_offset[1] = self.map_manipulator.map[index][1] - self.gps.longitude_deg
+
     def update_auto_steering(self):
         # print("percent: %0.4f, %0.4f" % (self.left_pipeline.safety_value, self.right_pipeline.safety_value))
         # print("angle: %0.4f, %0.4f" % (self.left_pipeline.line_angle, self.right_pipeline.line_angle))
@@ -265,6 +281,9 @@ class RoboQuasar(Robot):
             measured_percent = -self.right_pipeline.safety_value
         else:
             measured_percent = 0.0
+
+        if abs(measured_angle) > self.safe_rad  and abs(measured_percent) > self.safe_value:
+            self.update_offset()
 
         self.quasar_plotter.percent_pipeline_plot.append(self.dt(), measured_percent)
         self.quasar_plotter.angle_pipeline_plot.append(self.dt(), measured_angle)

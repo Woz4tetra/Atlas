@@ -17,6 +17,7 @@ class BozoController:
         self.current_index = None
         self.current_angle = 0.0
         self.current_pos = self.map[0]
+        self.pos_index = 0
         self.goal_index = 0
         self.keep_position_in_boundary = keep_position_in_boundary
 
@@ -98,11 +99,11 @@ class BozoController:
         return goal_index
 
     def lock_onto_map(self, lat, long):
-        index = self.closest_point(lat, long, self.map)
-        return self.map[index], index
+        self.pos_index = self.closest_point(lat, long, self.map)
+        return self.map[index], self.pos_index
 
     @staticmethod
-    def does_point_intersect(point: list, edge_1: list, edge_2: list, epsilon=1E-5):
+    def does_point_intersect(point, edge_1, edge_2, epsilon=1E-5):
         if edge_1[1] > edge_2[1]:
             edge_1, edge_2 = edge_2, edge_1
         if point[1] == edge_1[1] or point[1] == edge_2[1]:
