@@ -11,8 +11,8 @@ class NeuralNetwork:
         :param labels: 1/0 labels that say whether correct line or not
         """
         # Hyperparameters
-        self.learning_rate = 0.01
-        self.epochs = 100
+        self.learning_rate = 0.001
+        self.epochs = 80
         self.keep_prob = 0.9
 
         self.saver = None
@@ -86,7 +86,7 @@ class NeuralNetwork:
         # apply a convolution
         x = tf.nn.conv2d(x_tensor, W1, strides=conv_strides, padding='SAME')
         x = tf.nn.bias_add(x, b1)
-        # x = tf.nn.relu(x)
+        x = tf.nn.relu(x)
 
         return x
 
@@ -108,7 +108,7 @@ class NeuralNetwork:
         """
         trains a network with preprocessed data
         """
-        # init = tf.global_variables_initializer()
+        tf.reset_default_graph()
         tf.set_random_seed(1)
 
         x = tf.placeholder(tf.float32, shape=[None] + list(self.frame_shape), name="input")
@@ -167,6 +167,7 @@ class NeuralNetwork:
         # print(frames.shape)
 
         frames = np.resize(test_frames, tuple([1] + list(self.frame_shape)))
+        tf.reset_default_graph()
 
         loaded_graph = tf.Graph()
         with tf.Session(graph=loaded_graph) as sess:

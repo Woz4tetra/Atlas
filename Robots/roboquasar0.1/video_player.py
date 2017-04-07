@@ -49,7 +49,7 @@ def run(record, play):
 
     if play:
         if use_video_sets:
-            file_name, directory, file_format = video_sets["rolls day 5"][3]
+            file_name, directory, file_format = video_sets["rolls day 5"][4]
         else:
             file_name, directory = file_sets["data day 13"][0]
             file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)

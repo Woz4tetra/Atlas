@@ -11,7 +11,8 @@ class Pipeline2:
     threshold = 70
     # calibration_frame = 3053
 
-    calibration_frame = 725
+    # calibration_frame = 725
+    calibration_frame = 495
 
     def __init__(self, camera, day_mode, separate_read_thread=True):
         self.camera = camera
@@ -27,7 +28,7 @@ class Pipeline2:
 
         # Filter for validating line
         self.network = None
-        self.train_shape = (15,15,3)
+        self.train_shape = (21,21,3)
         self.network_on = True
 
         # self.on_screen = None  # tells whether the desired line is on the screen
@@ -204,7 +205,8 @@ class Pipeline2:
             for c in range(3):
                 max_v = np.max(frame[:, :, c])
                 min_v = np.min(frame[:, :, c])
-                filter_frame[:, :, c] = (frame[:, :, c] - min_v) / (max_v - min_v)
+                # filter_frame[:, :, c] = (frame[:, :, c] - min_v) / (max_v - min_v)
+                filter_frame[:,:,c] = frame[:,:,c] / 255
 
         return filter_frame
 
@@ -293,7 +295,7 @@ class Pipeline2:
                 self.find_borderpoints(frame, largest_coords)
                 if self.network != None and self.network_on:
                     working_frames = self.get_center_frames(frame)
-                    print(self.network.run_network(np.float32(working_frames)))
+                    print(self.network.run_network(np.float32(working_frames))[0][0])
 
             return largest_y / height
 
