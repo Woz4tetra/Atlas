@@ -107,6 +107,7 @@ class RoboQuasar(Robot):
         self.initial_drift = (0, 0)
         self.initial_pos = (0, 0)
         self.abs_drift = (0, 0)
+        self.num_points = 0
 
     def start(self):
         # extract camera file name from current log file name
@@ -353,6 +354,8 @@ class RoboQuasar(Robot):
                 )
                 self.initial_drift = (self.initial_pos[0] - self.gps.latitude_deg,
                                       self.initial_pos[1] - self.gps.longitude_deg)
+                self.num_points += 1
+
                 print("----------")
                 print("\tInitial GPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
                 print("\tLocked index: %s" % self.initial_index)
@@ -378,6 +381,27 @@ class RoboQuasar(Robot):
                 print("\tLocked index: %s" % (self.initial_index + self.init_offset))
                 print("\tDrift 2: (%0.6f, %0.6f)" % second_drift)
                 print("\tAvg drift: (%0.6f, %0.6f)" % self.abs_drift)
+                print("\tBearing: %0.6f" % bearing)
+                print("----------")
+
+            elif self.heading_setup == 2:
+            	self.initial_index += self.init_offset
+            	prev_lat, prev_long = self.map_manipulator.map[self.initial_index]
+            	self.initial_pos = prev_lat, prev_long
+            	actual_lat, actual_long = self.map_manipulator.map[self.initial_index+self.init_offset]
+            	self.num_points+= 1
+            	nth_drift = actual_lat - self.gps.latitude_deg, actual_long - self.gps.longitude_deg
+            	#new avg
+            	self.abs_drift = self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0])/self.num_points,
+            					 self.abs_drift[1] + (nth_drift[1] - self.abs_drift[1])/self.num_points
+            	bearing = AngleManipulator.bearing_to(
+            		prev_lat, prev_lon, actual_lat, actual_lon
+            	)
+                print("\n\tGPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
+                print("\tLocked GPS: (%0.6f, %0.6f)" % (actual_lat, actual_long))
+                print("\tLocked index: %s" % (self.initial_index + self.init_offset))
+                print("\tDrift %d: (%0.6f, %0.6f)" % (self.num_points, nth_drift))
+                print("\tNew avg drift: (%0.6f, %0.6f)" % self.abs_drift)
                 print("\tBearing: %0.6f" % bearing)
                 print("----------")
         else:
