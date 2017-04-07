@@ -397,6 +397,9 @@ class RoboQuasar(Robot):
             	bearing = AngleManipulator.bearing_to(
             		prev_lat, prev_lon, actual_lat, actual_lon
             	)
+            	self.angle_filter.init_compass(bearing)
+            	self.record_compass()
+
                 print("\n\tGPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
                 print("\tLocked GPS: (%0.6f, %0.6f)" % (actual_lat, actual_long))
                 print("\tLocked index: %s" % (self.initial_index + self.init_offset))
