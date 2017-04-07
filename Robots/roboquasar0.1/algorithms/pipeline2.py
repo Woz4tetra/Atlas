@@ -11,7 +11,7 @@ class Pipeline2:
     threshold = 70
     # calibration_frame = 3053
 
-    calibration_frame = 50
+    calibration_frame = 725
 
     def __init__(self, camera, day_mode, separate_read_thread=True):
         self.camera = camera
@@ -27,7 +27,8 @@ class Pipeline2:
 
         # Filter for validating line
         self.network = None
-        self.train_shape = (7,7,3)
+        self.train_shape = (15,15,3)
+        self.network_on = True
 
         # self.on_screen = None  # tells whether the desired line is on the screen
         # self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
@@ -60,22 +61,25 @@ class Pipeline2:
         frame_altered = frame.astype(np.float32)
 
         # make a bunch of correct edge detections
-        for i in range(3, self.camera.width - 4):
+        L = int(self.train_shape[0] / 2)
+        R = L+1
+
+        for i in range(L, self.camera.width - R):
             # create 7x7 frame with label 1 (correct edge)
-            if 3 <= i*slope <= self.camera.height - 4:
-                if frame_altered[i-3: i+4, int(i*slope)-3: int(i*slope)+4].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame_altered[i-3: i+4, int(i*slope)-3: int(i*slope)+4]), 1]
+            if L <= i*slope <= self.camera.height - R:
+                if frame_altered[i-L: i+R, int(i*slope)-L: int(i*slope)+R].shape == self.train_shape:
+                    frame_and_label = [self.normalize_frame(frame_altered[i-L: i+R, int(i*slope)-L: int(i*slope)+R]), 1]
                     frames_and_labels.append(frame_and_label)
 
             # create 7x7 frame with label 0 (incorrect edge)
-            if i*slope + 4 <= 14:
-                if frame_altered[i-3: i+4, 0: 7].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame_altered[i - 3: i + 4, self.camera.height - 7: self.camera.height]), 0]
+            if i*slope + R <= 2 * self.train_shape[1]:
+                if frame_altered[i - L: i + R, self.camera.height - self.train_shape[1]: self.camera.height].shape == self.train_shape:
+                    frame_and_label = [self.normalize_frame(frame_altered[i - L: i + R, self.camera.height - self.train_shape[1]: self.camera.height]), 0]
                     frames_and_labels.append(frame_and_label)
 
             else:
-                if frame_altered[i-3: i+4, self.camera.height-7: self.camera.height].shape == (7,7,3):
-                    frame_and_label = [self.normalize_frame(frame_altered[i - 3: i + 4, 0: 7]), 0]
+                if frame_altered[i - L: i + R, 0: self.train_shape[1]].shape == self.train_shape:
+                    frame_and_label = [self.normalize_frame(frame_altered[i - L: i + R, 0: self.train_shape[1]]), 0]
                     frames_and_labels.append(frame_and_label)
 
         return frames_and_labels
@@ -180,11 +184,14 @@ class Pipeline2:
 
         frames = []
 
-        for i in range(3, self.camera.width - 4):
+        L = int(self.train_shape[0] / 2)
+        R = int(self.train_shape[0] - L)
+
+        for i in range(L, self.camera.width - R):
             # create 7x7 frame with label 1 (correct edge)
-            if 3 <= i * slope <= self.camera.height - 4:
-                if frame_altered[i - 3: i + 4, int(i * slope) - 3: int(i * slope) + 4].shape == (7, 7, 3):
-                    frame_new = self.normalize_frame(frame_altered[i - 3: i + 4, int(i * slope) - 3: int(i * slope) + 4])
+            if L <= i * slope <= self.camera.height - R:
+                if frame_altered[i - L: i + R, int(i * slope) - L: int(i * slope) + R].shape == self.train_shape:
+                    frame_new = [self.normalize_frame(frame_altered[i - L: i + R, int(i * slope) - L: int(i * slope) + R])]
                     frames.append(frame_new)
 
         return frames
@@ -207,13 +214,16 @@ class Pipeline2:
         self.prev_safe_value = self.safety_value
         frame, lines, safety_value = self.hough_detector(frame.copy(), self.day_mode)
 
+        if not self.network_on:
+            print(self.frame_counter)
+
         if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
             self.safety_value = safety_value
             self.last_detection_t = time.time()
 
-        if self.frame_counter == Pipeline2.calibration_frame:
+        if self.frame_counter == Pipeline2.calibration_frame and self.network_on:
             frames_and_labels = self.preprocess_frame(frame)
-            self.network = NeuralNetwork(frames_and_labels)
+            self.network = NeuralNetwork(frames_and_labels, self.train_shape)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -281,10 +291,9 @@ class Pipeline2:
             if largest_coords is not None:
                 cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
                 self.find_borderpoints(frame, largest_coords)
-                if self.network != None:
+                if self.network != None and self.network_on:
                     working_frames = self.get_center_frames(frame)
-                    print(self.network.run(working_frames))
-                    print(self.prev_safe_value)
+                    print(self.network.run_network(np.float32(working_frames)))
 
             return largest_y / height
 

@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 class NeuralNetwork:
-    def __init__(self, frames_and_labels, trained=False):
+    def __init__(self, frames_and_labels, frame_shape, trained=False):
         """
         Initializes a simple convolutional network for proper edge classification
         
@@ -12,8 +12,8 @@ class NeuralNetwork:
         """
         # Hyperparameters
         self.learning_rate = 0.01
-        self.epochs = 20
-        self.keep_prob = 0.8
+        self.epochs = 100
+        self.keep_prob = 0.9
 
         self.saver = None
         self.save_path = "./edge_classification"
@@ -21,8 +21,7 @@ class NeuralNetwork:
         self.frames = None # will turn into np.array after preprocess
         self.labels = None # will turn into np.array after preprocess
         self.weights = None
-        self.frame_shape = (7,7,3)
-        self.test_frames = None
+        self.frame_shape = frame_shape
 
         self.trained = trained
 
@@ -31,12 +30,11 @@ class NeuralNetwork:
 
         # train network if not trained
         if not self.trained:
-            self.run_network(True)
+            self.train_network(True)
 
     def run(self, frames):
-        self.test_frames = np.float32(frames)
-        print(self.test_frames.shape)
-        print(self.test_frames.dtype)
+        test_frames = np.float32(frames)
+        self.run_network(test_frames)
 
     def preprocess(self, frames_and_labels):
         """
@@ -80,14 +78,15 @@ class NeuralNetwork:
         depth_original = x_tensor.get_shape().as_list()[3]
         conv_strides = [1] + list(conv_strides) + [1]
 
+
         W_shape = list(conv_ksize) + [depth_original] + [conv_num_outputs]
-        W1 = tf.Variable(tf.truncated_normal(W_shape, stddev=0.01), name="w1")
-        b1 = tf.Variable(tf.truncated_normal([conv_num_outputs], stddev=0.01), name="b1")
+        W1 = tf.Variable(tf.truncated_normal(W_shape, stddev=0.01))
+        b1 = tf.Variable(tf.truncated_normal([conv_num_outputs], stddev=0.01))
 
         # apply a convolution
         x = tf.nn.conv2d(x_tensor, W1, strides=conv_strides, padding='SAME')
         x = tf.nn.bias_add(x, b1)
-        x = tf.nn.relu(x)
+        # x = tf.nn.relu(x)
 
         return x
 
@@ -101,26 +100,32 @@ class NeuralNetwork:
         return tf.contrib.layers.fully_connected(inputs=x_tensor, num_outputs=num_outputs,
                                                  activation_fn=tf.sigmoid)
 
-    def run_network(self, train):
+    def output_layer(self, x_tensor, num_outputs):
+        return tf.contrib.layers.fully_connected(inputs=x_tensor, num_outputs=num_outputs,
+                                                 activation_fn=None)
+
+    def train_network(self, train):
         """
         trains a network with preprocessed data
         """
         # init = tf.global_variables_initializer()
-
-        tf.reset_default_graph()
+        tf.set_random_seed(1)
 
         x = tf.placeholder(tf.float32, shape=[None] + list(self.frame_shape), name="input")
         y = tf.placeholder(tf.float32, shape=[None, 1] , name="y")
         keep_prob = tf.placeholder(tf.float32, name="keep_prob")
+        two = tf.constant(2.0)
+
+        test = tf.multiply(x, two, name="test")
 
         # Convolution
-        output = self.conv2d(x, 64, (3, 3), (1, 1))
+        output = self.conv2d(x, 32, (3, 3), (1, 1))
         # output = self.conv2d(output, 32, (3, 3), (1, 1))
         output = tf.nn.dropout(output, keep_prob)
         output = tf.contrib.layers.flatten(output)
 
         # Fully Connected Layer
-        output = self.fully_connected(output, 20)
+        # output = self.fully_connected(output, 20)
         output = self.fully_connected(output, 1)
         output = tf.identity(output, name="output")
 
@@ -131,11 +136,11 @@ class NeuralNetwork:
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(cost)
 
-        init = tf.global_variables_initializer()
+        # init = tf.global_variables_initializer()
 
         if train:
             with tf.Session() as sess:
-                sess.run(init)
+                sess.run(tf.global_variables_initializer())
                 print(self.epochs)
                 for epoch in range(self.epochs):
                     # for frame, label in zip(self.frames, self.labels):
@@ -154,19 +159,36 @@ class NeuralNetwork:
 
             self.trained = True
 
-        else:
-            loaded_graph = tf.Graph()
-            with tf.Session(graph=loaded_graph) as sess:
-                # Load model
-                loader = tf.train.import_meta_graph(self.save_path + '.meta')
-                loader.restore(sess, self.save_path)
-                print()
+    def run_network(self, test_frames):
+        # frames = []
+        # for test_frame in test_frames:
+        #     frames.append([test_frame])
+        # frames = np.float32(frames)
+        # print(frames.shape)
 
-                # load tensors
-                loaded_x = loaded_graph.get_tensor_by_name('input:0')
-                loaded_keep_prob = loaded_graph.get_tensor_by_name('keep_prob:0')
-                loaded_output = loaded_graph.get_tensor_by_name('output:0')
+        frames = np.resize(test_frames, tuple([1] + list(self.frame_shape)))
 
-                value = sess.run(loaded_output, feed_dict={loaded_x: self.test_frames,
-                                                           loaded_keep_prob: 1.0})
-                return value
+        loaded_graph = tf.Graph()
+        with tf.Session(graph=loaded_graph) as sess:
+            # Load model
+            loader = tf.train.import_meta_graph(self.save_path + '.meta')
+            loader.restore(sess, self.save_path)
+
+            # load tensors
+            loaded_x = loaded_graph.get_tensor_by_name('input:0')
+            loaded_test = loaded_graph.get_tensor_by_name('test:0')
+            loaded_keep_prob = loaded_graph.get_tensor_by_name('keep_prob:0')
+            loaded_output = loaded_graph.get_tensor_by_name('output:0')
+            # value = 0
+            # counter = 0
+            # for test_frame in self.test_frames:
+            #     value += sess.run(loaded_output, feed_dict={loaded_x: test_frame,
+            #                                                loaded_keep_prob: 1.0})
+            #     counter += 1
+            # print(sess.run(test, feed_dict={loaded_x: self.test_frames,
+            #                                                loaded_keep_prob: 1.0}))
+
+            value = sess.run(loaded_output, feed_dict={loaded_x: frames,
+                                                loaded_keep_prob: 1.0})
+
+        return value
