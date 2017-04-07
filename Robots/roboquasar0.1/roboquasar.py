@@ -438,11 +438,11 @@ class RoboQuasar(Robot):
             	new_pos, self.initial_index = self.map_manipulator.lock_onto_map(
                     self.gps.latitude_deg, self.gps.longitude_deg, False
                 )
-            	self.calibration_positions.append((new_lat, new_long))
+            	self.calibration_positions.append(new_pos)
             	next_pos = self.map_manipulator.map[self.initial_index+self.init_offset]
             	nth_drift = new_pos[0] - self.gps.latitude_deg, new_pos[1] - self.gps.longitude_deg
             	#new avg
-            	self.abs_drift = self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0])/len(self.calibration_positions),
+            	self.abs_drift = self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0])/len(self.calibration_positions),\
             					 self.abs_drift[1] + (nth_drift[1] - self.abs_drift[1])/len(self.calibration_positions)
             	bearing = AngleManipulator.bearing_to(
             		new_pos[0], new_pos[1], next_pos[0], next_pos[1]
