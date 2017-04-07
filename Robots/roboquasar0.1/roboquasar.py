@@ -385,22 +385,22 @@ class RoboQuasar(Robot):
                 print("----------")
 
             elif self.heading_setup == 2:
-            	self.initial_index += self.init_offset
-            	prev_lat, prev_long = self.map_manipulator.map[self.initial_index]
-            	self.initial_pos = prev_lat, prev_long
-            	actual_lat, actual_long = self.map_manipulator.map[self.initial_index+self.init_offset]
-            	self.num_points+= 1
-            	nth_drift = actual_lat - self.gps.latitude_deg, actual_long - self.gps.longitude_deg
-            	#new avg
-            	self.abs_drift = self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0])/self.num_points,
-            					 self.abs_drift[1] + (nth_drift[1] - self.abs_drift[1])/self.num_points
-            	bearing = AngleManipulator.bearing_to(
-            		prev_lat, prev_lon, actual_lat, actual_lon
-            	)
+                self.initial_index += self.init_offset
+                prev_lat, prev_long = self.map_manipulator.map[self.initial_index]
+                self.initial_pos = prev_lat, prev_long
+                actual_lat, actual_long = self.map_manipulator.map[self.initial_index + self.init_offset]
+                self.num_points += 1
+                nth_drift = actual_lat - self.gps.latitude_deg, actual_long - self.gps.longitude_deg
+                # new avg
+                self.abs_drift = (self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0]) / self.num_points,
+                                  self.abs_drift[1] + (nth_drift[1] - self.abs_drift[1]) / self.num_points)
+                bearing = AngleManipulator.bearing_to(
+                    prev_lat, prev_long, actual_lat, actual_long
+                )
                 print("\n\tGPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
                 print("\tLocked GPS: (%0.6f, %0.6f)" % (actual_lat, actual_long))
                 print("\tLocked index: %s" % (self.initial_index + self.init_offset))
-                print("\tDrift %d: (%0.6f, %0.6f)" % (self.num_points, nth_drift))
+                print("\tDrift %d: (%0.6f, %0.6f)" % (self.num_points, nth_drift[0], nth_drift[1]))
                 print("\tNew avg drift: (%0.6f, %0.6f)" % self.abs_drift)
                 print("\tBearing: %0.6f" % bearing)
                 print("----------")
