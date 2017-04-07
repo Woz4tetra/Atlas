@@ -66,7 +66,7 @@ class RoboQuasar(Robot):
         self.init_checkpoints = [
             0,  # hill 1
             117,  # hill 3
-            123,  # hill 4
+            124,  # hill 4 TODO GET BETTER CHECKPOINT
             139,  # hill 5
         ]
         self.initial_index = 0
@@ -159,7 +159,7 @@ class RoboQuasar(Robot):
                 print("WARNING. GPS has lost connection!!!")
 
         if is_valid:
-            if self.heading_setup == 2:
+            if self.heading_setup == 1:
                 self.gps.latitude_deg += self.abs_drift[0]
                 self.gps.longitude_deg += self.abs_drift[1]
             if not self.map_manipulator.is_initialized():
@@ -186,7 +186,7 @@ class RoboQuasar(Robot):
                 return status
 
     def receive_imu(self, timestamp, packet, packet_type):
-        if self.angle_filter.initialized and self.heading_setup == 2:
+        if self.angle_filter.initialized and self.heading_setup == 1:
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
             if self.map_manipulator.is_initialized():
                 # assign steering angle from IMU regardless of the pipeline,
@@ -205,6 +205,7 @@ class RoboQuasar(Robot):
                     # adjust IMU offset using the pipeline and knowledge of current map position
 
                     # TODO: double check this range is correct Make sure it's not less than the hough detector limits
+                    print("Pipeline is messing with stuff")
                     pipeline_condition = not (
                         -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
                     imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
@@ -364,6 +365,7 @@ class RoboQuasar(Robot):
                 print("\tInitial GPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
                 print("\tLocked index: %s" % self.initial_index)
                 print("\tDrift: (%0.6f, %0.6f)" % self.initial_drift)
+                print("\tBearing: (%0.6f)" % bearing)
                 print("----------")
 
             elif self.heading_setup == 1:
