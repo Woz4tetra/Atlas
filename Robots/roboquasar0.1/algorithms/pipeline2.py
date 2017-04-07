@@ -8,7 +8,7 @@ import time
 import math
 
 class Pipeline2:
-    threshold = 70
+    threshold = 0.8
     # calibration_frame = 3053
 
     # calibration_frame = 725
@@ -291,11 +291,19 @@ class Pipeline2:
                     break
 
             if largest_coords is not None:
-                cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
                 self.find_borderpoints(frame, largest_coords)
+
                 if self.network != None and self.network_on:
                     working_frames = self.get_center_frames(frame)
-                    print(self.network.run_network(np.float32(working_frames))[0][0])
+                    val = self.network.run_network(np.float32(working_frames))[0][0]
+                    if val > Pipeline2.threshold:
+                        print(val)
+                        cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+
+                # print(val)
+                # cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+                # self.find_borderpoints(frame, largest_coords)
+
 
             return largest_y / height
 
