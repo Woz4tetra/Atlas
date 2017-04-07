@@ -107,7 +107,7 @@ class RoboQuasar(Robot):
         self.initial_drift = (0, 0)
         self.initial_pos = (0, 0)
         self.abs_drift = (0, 0)
-        self.num_points = 0
+        self.calibration_positions = []
 
     def start(self):
         # extract camera file name from current log file name
@@ -169,7 +169,7 @@ class RoboQuasar(Robot):
             inner_state = self.map_manipulator.point_outside_inner_map(self.gps.latitude_deg, self.gps.longitude_deg)
             self.gps_within_map = outer_state and inner_state
 
-            if self.heading_setup == 2 and not self.gps_within_map:
+            if self.heading_setup == 1 and not self.gps_within_map:
                 print("WARNING. Drift correction has been applied but GPS is still out of the map.")
 
             self.quasar_plotter.update_map_colors(timestamp, outer_state, inner_state)
@@ -343,7 +343,8 @@ class RoboQuasar(Robot):
                     self.underglow.signal_release()
 
             elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
-                self.calibrate_with_checkpoints()
+                #self.calibrate_with_checkpoints()
+                self.calibrate_with_checkpoint()
 
     def calibrate_with_checkpoints(self):
         if self.gps.is_position_valid():
@@ -385,8 +386,9 @@ class RoboQuasar(Robot):
                 print("----------")
 
             elif self.heading_setup == 2:
-            	self.initial_index += self.init_offset
-            	prev_lat, prev_long = self.map_manipulator.map[self.initial_index]
+            	prev_lat, prev_long = self.map_manipulator.lock_onto_map(
+                    self.gps.latitude_deg, self.gps.longitude_deg, True
+                )
             	self.initial_pos = prev_lat, prev_long
             	actual_lat, actual_long = self.map_manipulator.map[self.initial_index+self.init_offset]
             	self.num_points+= 1
@@ -409,6 +411,55 @@ class RoboQuasar(Robot):
                 print("----------")
         else:
             print("Invalid GPS. Ignoring")
+
+    def calibrate_with_checkpoint(self):
+        if self.gps.is_position_valid():
+            if self.heading_setup == 0:
+                self.heading_setup = 1
+                self.initial_pos, self.initial_index = self.map_manipulator.lock_onto_map(
+                    self.gps.latitude_deg, self.gps.longitude_deg, True
+                )
+                self.calibration_positions.append(self.initial_pos)
+                self.initial_drift = (self.initial_pos[0] - self.gps.latitude_deg,
+                                      self.initial_pos[1] - self.gps.longitude_deg)
+                next_pos = self.map_manipulator[self.initial_index + self.init_offset]
+                bearing = AngleManipulator.bearing_to(
+                	self.initial_pos[0], self.initial_pos[1], next_pos[0], next_pos[1])
+                self.angle_filter.init_compass(bearing)
+                self.record_compass()
+                print("----------")
+                print("\tInitial GPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
+                print("\tLocked index: %s" % self.initial_index)
+                print("\tDrift: (%0.6f, %0.6f)" % self.initial_drift)
+                print("----------")
+
+            elif self.heading_setup == 1:
+                # actual_pos = self.map_manipulator.lock_onto_map(gps_reading[0], gps_reading[1], True)
+            	new_pos, self.initial_index = self.map_manipulator.lock_onto_map(
+                    self.gps.latitude_deg, self.gps.longitude_deg, False
+                )
+            	self.calibration_positions.append((new_lat, new_long))
+            	next_pos = self.map_manipulator.map[self.initial_index+self.init_offset]
+            	nth_drift = new_pos[0] - self.gps.latitude_deg, new_pos[1] - self.gps.longitude_deg
+            	#new avg
+            	self.abs_drift = self.abs_drift[0] + (nth_drift[0] - self.abs_drift[0])/len(self.calibration_positions),
+            					 self.abs_drift[1] + (nth_drift[1] - self.abs_drift[1])/len(self.calibration_positions)
+            	bearing = AngleManipulator.bearing_to(
+            		new_pos[0], new_pos[1], next_pos[0], next_pos[1]
+            	)
+            	self.angle_filter.init_compass(bearing)
+            	self.record_compass()
+                print("----------")
+                print("\n\tGPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
+                print("\tLocked GPS: (%0.6f, %0.6f)" % (actual_lat, actual_long))
+                print("\tLocked index: %s" % (self.initial_index))
+                print("\tDrift %d: (%0.6f, %0.6f)" % (len(self.calibration_positions), nth_drift))
+                print("\tNew avg drift: (%0.6f, %0.6f)" % self.abs_drift)
+                print("\tBearing: %0.6f" % bearing)
+                print("----------")
+            else:
+            print("Invalid GPS. Ignoring")
+
 
     def brake_ping(self):
         self.brakes.ping()
