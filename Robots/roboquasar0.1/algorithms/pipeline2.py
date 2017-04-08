@@ -27,9 +27,9 @@ class Pipeline2:
         self.last_detection_t = time.time()
 
         # Filter for validating line
-        self.network = None
-        self.train_shape = (21,21,3)
+        self.train_shape = (240,320,3)
         self.network_on = True
+        self.network = NeuralNetwork(self.train_shape, trained=True)
 
         # self.on_screen = None  # tells whether the desired line is on the screen
         # self.moving_up = None  # gives amount the percentage is changing, aim to get this to 0 for smooth change
@@ -216,16 +216,13 @@ class Pipeline2:
         self.prev_safe_value = self.safety_value
         frame, lines, safety_value = self.hough_detector(frame.copy(), self.day_mode)
 
-        if not self.network_on:
-            print(self.frame_counter)
-
         if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
             self.safety_value = safety_value
             self.last_detection_t = time.time()
 
-        if self.frame_counter == Pipeline2.calibration_frame and self.network_on:
-            frames_and_labels = self.preprocess_frame(frame)
-            self.network = NeuralNetwork(frames_and_labels, self.train_shape)
+        if safety_value > 0.5:
+            self.network.run(frame)
+            print(self.network.output_val)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
@@ -293,16 +290,16 @@ class Pipeline2:
             if largest_coords is not None:
                 self.find_borderpoints(frame, largest_coords)
 
-                if self.network != None and self.network_on:
-                    working_frames = self.get_center_frames(frame)
-                    val = self.network.run_network(np.float32(working_frames))[0][0]
-                    if val > Pipeline2.threshold:
-                        print(val)
-                        cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+                # if self.network != None and self.network_on:
+                #     working_frames = self.get_center_frames(frame)
+                #     val = self.network.run_network(np.float32(working_frames))[0][0]
+                #     if val > Pipeline2.threshold:
+                #         print(val)
+                #         cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
 
                 # print(val)
-                # cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
-                # self.find_borderpoints(frame, largest_coords)
+                cv2.line(frame, largest_coords[0], largest_coords[1], (0, 0, 255), 2)
+                self.find_borderpoints(frame, largest_coords)
 
 
             return largest_y / height

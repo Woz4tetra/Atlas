@@ -49,10 +49,10 @@ class RoboQuasar(Robot):
         if show_cameras is None:
             show_cameras = enable_plotting
 
-        # self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
-        # self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
-        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
-        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras)
+        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
+        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
+        # self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras)
+        # self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras)
         self.pipeline_pid = None
 
         self.day_mode = day_mode

@@ -1,69 +1,108 @@
+import os
+import cv2
+
 import tensorflow as tf
 import numpy as np
 
+
 class NeuralNetwork:
-    def __init__(self, frames_and_labels, frame_shape, trained=False):
+    def __init__(self, frame_shape, good_dir="images_good", bad_dir="images_bad", trained=False, epochs=20):
         """
-        Initializes a simple convolutional network for proper edge classification
-        
-        :param keep_prob: probability of keeping data at dropout step
-        :param frames: 5x5 frames for the training set
-        :param labels: 1/0 labels that say whether correct line or not
+        Initializes a simple convolution network for proper edge classification
+
+        :param frames_and_labels: list of [frame, label] elements
+        :param frames_shape: shape of the frame
+        :param trained: whether the network is trained already
+        :param epochs: number of epochs to run the training
         """
         # Hyperparameters
-        self.learning_rate = 0.001
-        self.epochs = 80
+        self.learning_rate = 0.0001
+        self.epochs = epochs
         self.keep_prob = 0.9
 
         self.saver = None
-        self.save_path = "./edge_classification"
+        self.save_path = "./trained_networks/edge_classification"
 
-        self.frames = None # will turn into np.array after preprocess
-        self.labels = None # will turn into np.array after preprocess
-        self.weights = None
+        self.frames = None  # will turn into np.array after pre_process
+        self.labels = None  # will turn into np.array after pre_process
+
         self.frame_shape = frame_shape
+        self.batch_size = 40
+
+        self.frame_label_queue = []
 
         self.trained = trained
 
-        # preprocess frames
-        self.preprocess(frames_and_labels)
+        self.output_val = None
+
+        # pre-process frames
+        if not self.trained:
+            self.pre_process(good_dir, bad_dir)
 
         # train network if not trained
         if not self.trained:
-            self.train_network(True)
+            self.train_network()
 
     def run(self, frames):
         test_frames = np.float32(frames)
         self.run_network(test_frames)
 
-    def preprocess(self, frames_and_labels):
+    def normalize(self, frame):
+        filter_frame = np.zeros(list(self.frame_shape))
+
+        for c in range(3):
+            max_v = np.max(frame[:, :, c])
+            min_v = np.min(frame[:, :, c])
+            filter_frame[:, :, c] = frame[:, :, c] / 255
+
+        return filter_frame
+
+    def pre_process(self, dir_good, dir_bad):
+        frames_and_labels = []
+
+        for entry in os.listdir(dir_good):
+            path = "%s/%s" % (dir_good, entry)
+            frames_and_labels.append([path, 1])
+
+        for entry in os.listdir(dir_bad):
+            path = "%s/%s" % (dir_bad, entry)
+            frames_and_labels.append([path, 0])
+
+        np.random.seed(1)
+        shuffled = np.array(frames_and_labels)
+        np.random.shuffle(shuffled)
+        self.frame_label_queue = shuffled.tolist()
+
+    def process(self, frames_and_labels):
         """
         Normalizes the frame through with respect to each channel
-        
+
         :param frames_and_labels: list with frames and labels
         :return: list which can easily be put into tf.placeholder object
         """
-        #shuffle the frames
-        np.random.seed(1)
-        shuffled_frames = np.array(frames_and_labels)
-        np.random.shuffle(shuffled_frames)
-        shuffled_frames = shuffled_frames.tolist()
+        # shuffle the frames
+        self.frames = None
+        self.labels = None
 
         # normalize the frame
         frames = []
         labels = []
 
-        for frame_and_label in shuffled_frames:
+        for frame_and_label in frames_and_labels:
             frame = frame_and_label[0]
             label = [frame_and_label[1]]
 
-            frames.append(frame)
-            labels.append(label)
+            frame = cv2.imread(frame)
+
+            if frame.shape == self.frame_shape:
+                frame = self.normalize(frame)
+                frames.append(frame)
+                labels.append(label)
 
         self.frames = np.float32(frames)
         self.labels = np.float32(labels)
 
-    def conv2d(self, x_tensor, conv_num_outputs, conv_ksize, conv_strides):
+    def conv2d(self, x_tensor, conv_num_outputs, conv_ksize, conv_strides, pool_ksize, pool_strides):
         """
         Apply convolution then max pooling to x_tensor
         :param x_tensor: TensorFlow Tensor
@@ -78,7 +117,6 @@ class NeuralNetwork:
         depth_original = x_tensor.get_shape().as_list()[3]
         conv_strides = [1] + list(conv_strides) + [1]
 
-
         W_shape = list(conv_ksize) + [depth_original] + [conv_num_outputs]
         W1 = tf.Variable(tf.truncated_normal(W_shape, stddev=0.01))
         b1 = tf.Variable(tf.truncated_normal([conv_num_outputs], stddev=0.01))
@@ -88,7 +126,15 @@ class NeuralNetwork:
         x = tf.nn.bias_add(x, b1)
         x = tf.nn.relu(x)
 
+        # define max_strides, ksize_shape
+        pool_strides = [1] + list(pool_strides) + [1]
+        pool_ksize = [1] + list(pool_ksize) + [1]
+        x = tf.nn.max_pool(x, ksize=pool_ksize, strides=pool_strides, padding='SAME')
+
         return x
+
+    def create_batches(self, batch_size):
+        pass
 
     def fully_connected(self, x_tensor, num_outputs):
         """
@@ -104,7 +150,7 @@ class NeuralNetwork:
         return tf.contrib.layers.fully_connected(inputs=x_tensor, num_outputs=num_outputs,
                                                  activation_fn=None)
 
-    def train_network(self, train):
+    def train_network(self):
         """
         trains a network with preprocessed data
         """
@@ -112,20 +158,22 @@ class NeuralNetwork:
         tf.set_random_seed(1)
 
         x = tf.placeholder(tf.float32, shape=[None] + list(self.frame_shape), name="input")
-        y = tf.placeholder(tf.float32, shape=[None, 1] , name="y")
+        y = tf.placeholder(tf.float32, shape=[None, 1], name="y")
         keep_prob = tf.placeholder(tf.float32, name="keep_prob")
         two = tf.constant(2.0)
 
         test = tf.multiply(x, two, name="test")
 
         # Convolution
-        output = self.conv2d(x, 32, (3, 3), (1, 1))
-        # output = self.conv2d(output, 32, (3, 3), (1, 1))
+        output = self.conv2d(x, 32, (3, 3), (1, 1), (2, 2), (2, 2))
+        output = self.conv2d(output, 64, (3, 3), (1, 1), (2, 2), (2, 2))
+
         output = tf.nn.dropout(output, keep_prob)
+
         output = tf.contrib.layers.flatten(output)
 
         # Fully Connected Layer
-        # output = self.fully_connected(output, 20)
+        output = self.fully_connected(output, 20)
         output = self.fully_connected(output, 1)
         output = tf.identity(output, name="output")
 
@@ -138,36 +186,51 @@ class NeuralNetwork:
 
         # init = tf.global_variables_initializer()
 
-        if train:
+        if not self.trained:
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
-                print(self.epochs)
-                for epoch in range(self.epochs):
-                    # for frame, label in zip(self.frames, self.labels):
-                    #     optimizer.run(feed_dict={input:frame, label:label, keep_prob:self.keep_prob})
-                    sess.run(optimizer, feed_dict={x:self.frames,
-                                                   y:self.labels,
-                                                   keep_prob:self.keep_prob,
-                                                   })
-                    print("Epoch: %s Error: %s" % (epoch, sess.run(cost, feed_dict={x:self.frames,
-                                                                                   y:self.labels,
-                                                                                   keep_prob:self.keep_prob,
-                                                                                  })))
+                print("Number of epochs: %s" % (self.epochs))
+                number_batches = int(len(self.frame_label_queue) / self.batch_size)
+                print("Number of batches: %s" % (number_batches))
+
+                batch_init = 0
+                batch_end = self.batch_size
+                data_size = len(self.frame_label_queue)
+
+                for batch in range(number_batches):
+                    # for train_frame, train_label in zip(train_frames, train_labels):
+                    if data_size - batch_init < self.batch_size:
+                        batch_end = data_size
+
+                    if batch_end - batch_init == 0:
+                        break
+
+                    print(len(self.frame_label_queue[batch_init:batch_end]))
+                    self.process(self.frame_label_queue[batch_init:batch_end])
+
+                    print("----- Batch %s -----" % (batch + 1))
+                    for epoch in range(self.epochs):
+                        sess.run(optimizer, feed_dict={x: self.frames,
+                                                       y: self.labels,
+                                                       keep_prob: self.keep_prob,
+                                                       })
+
+                        print("Epoch: %s Error: %s" % (epoch, sess.run(cost, feed_dict={x: self.frames,
+                                                                                        y: self.labels,
+                                                                                        keep_prob: self.keep_prob,
+                                                                                        })))
+                    batch_init += self.batch_size
+                    batch_end += self.batch_size
                 # Save Model
                 self.saver = tf.train.Saver()
                 self.saver.save(sess, self.save_path)
 
             self.trained = True
 
-    def run_network(self, test_frames):
-        # frames = []
-        # for test_frame in test_frames:
-        #     frames.append([test_frame])
-        # frames = np.float32(frames)
-        # print(frames.shape)
+    def run_network(self, test_frame):
 
-        frames = np.resize(test_frames, tuple([1] + list(self.frame_shape)))
-        tf.reset_default_graph()
+        frames = np.resize(test_frame, tuple([1] + list(self.frame_shape)))
+        # tf.reset_default_graph()
 
         loaded_graph = tf.Graph()
         with tf.Session(graph=loaded_graph) as sess:
@@ -177,19 +240,13 @@ class NeuralNetwork:
 
             # load tensors
             loaded_x = loaded_graph.get_tensor_by_name('input:0')
-            loaded_test = loaded_graph.get_tensor_by_name('test:0')
             loaded_keep_prob = loaded_graph.get_tensor_by_name('keep_prob:0')
             loaded_output = loaded_graph.get_tensor_by_name('output:0')
-            # value = 0
-            # counter = 0
-            # for test_frame in self.test_frames:
-            #     value += sess.run(loaded_output, feed_dict={loaded_x: test_frame,
-            #                                                loaded_keep_prob: 1.0})
-            #     counter += 1
-            # print(sess.run(test, feed_dict={loaded_x: self.test_frames,
-            #                                                loaded_keep_prob: 1.0}))
 
             value = sess.run(loaded_output, feed_dict={loaded_x: frames,
-                                                loaded_keep_prob: 1.0})
+                                                       loaded_keep_prob: 1.0})
 
-        return value
+            self.output_val = value[0][0]
+
+
+        # TODO: Implement retrain function for training on the go
