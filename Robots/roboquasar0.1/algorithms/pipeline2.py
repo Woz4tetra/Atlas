@@ -28,7 +28,6 @@ class Pipeline2:
 
         # Filter for validating line
         self.train_shape = (240,320,3)
-        self.network_on = True
         self.network = NeuralNetwork(self.train_shape, trained=True)
 
         # self.on_screen = None  # tells whether the desired line is on the screen

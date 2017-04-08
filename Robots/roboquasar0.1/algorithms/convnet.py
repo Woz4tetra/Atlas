@@ -21,7 +21,7 @@ class NeuralNetwork:
         self.keep_prob = 0.9
 
         self.saver = None
-        self.save_path = "./trained_networks/edge_classification"
+        self.save_path = "./trained_networks/edge_classification_small"
 
         self.frames = None  # will turn into np.array after pre_process
         self.labels = None  # will turn into np.array after pre_process
@@ -165,15 +165,16 @@ class NeuralNetwork:
         test = tf.multiply(x, two, name="test")
 
         # Convolution
-        output = self.conv2d(x, 32, (3, 3), (1, 1), (2, 2), (2, 2))
-        output = self.conv2d(output, 64, (3, 3), (1, 1), (2, 2), (2, 2))
-
+        # output = self.conv2d(x, 32, (3, 3), (1, 1), (2, 2), (2, 2))
+        # output = self.conv2d(output, 64, (3, 3), (1, 1), (2, 2), (2, 2))
+        output = self.conv2d(x, 7, (3, 3), (1, 1), (2, 2), (2, 2))
         output = tf.nn.dropout(output, keep_prob)
 
         output = tf.contrib.layers.flatten(output)
 
         # Fully Connected Layer
-        output = self.fully_connected(output, 20)
+        # output = self.fully_connected(output, 20)
+        output = self.fully_connected(output, 10)
         output = self.fully_connected(output, 1)
         output = tf.identity(output, name="output")
 
