@@ -83,7 +83,7 @@ class RoboQuasar(Robot):
         self.gps_corrected_lat = 0.0
         self.gps_corrected_long = 0.0
 
-        self.angle_threshold = math.pi / 6
+        self.angle_threshold = math.radians(10)
         self.percent_threshold = 0.4
 
         self.lat_drift = 0.0
@@ -202,60 +202,61 @@ class RoboQuasar(Robot):
                     return status
 
     def receive_imu(self, timestamp, packet, packet_type):
-        if self.angle_filter.initialized and self.drift_corrected:
+        if self.angle_filter.initialized and self.drift_corrected and self.map_manipulator.is_initialized():
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
-            if self.map_manipulator.is_initialized():
-                # assign steering angle from IMU regardless of the pipeline,
-                # in case the pipeline finds it's too close but sees the buggy is straight. In this case, the pipeline
-                # would not assign a new angle
-                self.steering_angle = self.map_manipulator.update(
-                    self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
-                )
 
-                if self.right_pipeline.safety_value > self.percent_threshold:
-                    if not self.prev_pipeline_value_state:
-                        print("Pipeline is taking over steering: %s" % self.right_pipeline.safety_value)
-                        self.prev_pipeline_value_state = True
+            # assign steering angle from IMU regardless of the pipeline,
+            # in case the pipeline finds it's too close but sees the buggy is straight. In this case, the pipeline
+            # would not assign a new angle
+            self.steering_angle = self.map_manipulator.update(
+                self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
+            )
 
-                    # if the pipelines say there is significant angle deviation but the IMU says we're going straight,
-                    # adjust IMU offset using the pipeline and knowledge of current map position
+            if self.right_pipeline.safety_value > self.percent_threshold:
+                if not self.prev_pipeline_value_state:
+                    print(
+                        "Pipeline detected edge above threshold: %0.4f, %0.4f" % (
+                            self.right_pipeline.safety_value, self.right_pipeline.line_angle)
+                    )
+                    self.prev_pipeline_value_state = True
 
-                    # TODO: double check this range is correct Make sure it's not less than the hough detector limits
-                    print("Pipeline is messing with stuff")
-                    pipeline_condition = not (
-                        -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
-                    imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
+                # if the pipelines say there is significant angle deviation but the IMU says we're going straight,
+                # adjust IMU offset using the pipeline and knowledge of current map position
+                pipeline_condition = not (
+                    -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
+                imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
 
-                    pipeline_angle = self.map_heading + self.right_pipeline.line_angle
+                pipeline_angle = self.map_heading + self.right_pipeline.line_angle
 
-                    if (pipeline_condition and imu_condition) or self.uncertainty_condition:
-                        if not self.uncertainty_condition:
-                            print("Uncertainty condition applied. Guiding with CV until straight")
-                            print(
-                                "Angles; CV: %s -> %s, IMU: %s, threshold: %s" % (
-                                    self.right_pipeline.line_angle, pipeline_angle, self.steering_angle,
-                                    self.angle_threshold)
-                            )
-
-                        self.uncertainty_condition = True
-
-                        # use the pipeline and map offset for angle instead
-                        self.steering_angle = self.map_manipulator.update(
-                            self.gps_corrected_lat, self.gps_corrected_long, pipeline_angle
+                if (pipeline_condition and imu_condition) or self.uncertainty_condition:
+                    if not self.uncertainty_condition:
+                        print("Uncertainty condition applied. Guiding with CV until straight")
+                        print(
+                            "Angles; CV: %s -> %s, IMU: %s, threshold: %s" % (
+                                self.right_pipeline.line_angle, pipeline_angle, self.steering_angle,
+                                self.angle_threshold)
                         )
 
-                    # Keep adjusting the angle until the pipeline thinks the buggy is straight,
-                    # then recalibrate IMU offset
-                    if -self.angle_threshold / 2 < self.right_pipeline.line_angle < self.angle_threshold / 2:
-                        self.uncertainty_condition = False
-                        self.angle_filter.init_compass(pipeline_angle)
-                        print("Buggy is straight. Recalibrating steering:", pipeline_angle)
-                elif self.prev_pipeline_value_state:
-                    print(
-                        "IMU is taking over steering. Steering: %s, IMU: %s, Map: %s" % (
-                            self.steering_angle, self.imu_heading_guess, self.map_heading)
+                    self.uncertainty_condition = True
+
+                    # use the pipeline and map offset for angle instead
+                    self.steering_angle = self.map_manipulator.update(
+                        self.gps_corrected_lat, self.gps_corrected_long, pipeline_angle
                     )
-                    self.prev_pipeline_value_state = False
+
+                # Keep adjusting the angle until the pipeline thinks the buggy is straight,
+                # then recalibrate IMU offset
+                if (self.uncertainty_condition and
+                        -self.angle_threshold / 2 < self.right_pipeline.line_angle < self.angle_threshold / 2):
+                    self.uncertainty_condition = False
+                    self.angle_filter.init_compass(pipeline_angle)
+                    print("Buggy is straight. Recalibrating steering:", pipeline_angle)
+            elif self.prev_pipeline_value_state:
+                print(
+                    "IMU is taking over steering. Steering: %s, IMU: %s, Map: %s" % (
+                        self.steering_angle, self.imu_heading_guess, self.map_heading)
+                )
+                self.prev_pipeline_value_state = False
 
             self.update_steering()
 
@@ -354,8 +355,9 @@ class RoboQuasar(Robot):
             print("Invalid GPS. Ignoring")
 
     def record_compass(self):
-        self.record("initial compass", self.angle_filter.compass_angle_packet)
-        self.debug_print("initial offset: %0.4f rad" % self.angle_filter.compass_angle, ignore_flag=True)
+        if self.angle_filter.initialized:
+            self.record("initial compass", self.angle_filter.compass_angle_packet)
+            self.debug_print("initial offset: %0.4f rad" % self.angle_filter.compass_angle, ignore_flag=True)
 
     # ----- manual steering -----
 
