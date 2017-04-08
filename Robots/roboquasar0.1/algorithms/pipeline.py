@@ -2,6 +2,7 @@ import bisect
 import time
 from queue import Queue
 from threading import Event, Thread
+from algorithms.convnet import NeuralNetwork
 
 import cv2
 import numpy as np
@@ -19,9 +20,13 @@ class Pipeline:
         self.frame = None
         self.day_mode = day_mode
         self.last_detection_t = time.time()
+        self.frame_size = (240,320,3)
+        self.network = NeuralNetwork(self.frame_size, trained=True)
+        self.valid_edge = False
 
         self.hough_threshold = 95
-        self.safety_threshold = 0.1
+        self.convnet_threshold = 80
+        # self.safety_threshold = 0.1
         self.safety_value = 0.0
         self.line_angle = 0.0
         self.prev_safe_value = 0.0
@@ -136,8 +141,15 @@ class Pipeline:
             self.line_angle = line_angle
             self.last_detection_t = time.time()
 
+        self.network.run_network(frame)
+        if 100 * self.network.output_value >= self.convnet_threshold:
+            self.valid_edge = True
+        else:
+            self.valid_edge = False
+
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+        cv2.putText(frame, "%s" % self.valid_edge, (30, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
 
         # frame = self.kernel_threshold(self.camera.frame)
         # contours, perimeters = self.get_contours(frame, 0.025, 2)

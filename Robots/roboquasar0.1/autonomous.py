@@ -17,6 +17,7 @@ parser.add_argument("-l", "--nolog", help="disable logging", action="store_false
 parser.add_argument("-d", "--debug", help="enable debug prints", action="store_true")
 parser.add_argument("-c", "--compass", default=None, help="initialize compass", type=int)
 parser.add_argument("-nocam", "--nocamera", help="disable cameras", action="store_false")
+parser.add_argument("-onlycam", "--onlycamera", help="only use CV", action="store_true")
 parser.add_argument("-s", "--show", help="show cameras", action="store_true")
 parser.add_argument("-day", "--daymode", help="enable day mode", action="store_true")
 parser.add_argument("-night", "--nightmode", help="enable night mode", action="store_true")
@@ -166,7 +167,8 @@ if not args.daymode and not args.nightmode:
         print("It's night time!")
 
 robot = RoboQuasar(False, args.mapset, args.compass,
-                   enable_cameras=args.nocamera, day_mode=day_mode, show_cameras=args.show)
+                   enable_cameras=args.nocamera, day_mode=day_mode, show_cameras=args.show,
+                   only_cameras=args.onlycamera)
 # robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 

@@ -27,7 +27,8 @@ from actuators.underglow import Underglow
 class RoboQuasar(Robot):
     def __init__(self, enable_plotting, map_set_name,
                  initial_compass=None, animate=True, enable_cameras=True,
-                 use_log_file_maps=True, show_cameras=None, day_mode=False):
+                 use_log_file_maps=True, show_cameras=None, day_mode=False,
+                 only_cameras=False):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -47,8 +48,10 @@ class RoboQuasar(Robot):
         # ----- init CV classes ------
         if show_cameras is None:
             show_cameras = enable_plotting
-
-        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, )
+        self.only_cameras = only_cameras
+        if self.only_cameras:
+            self.enable_cameras = True
+        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240, skip_count=40)
 
         self.day_mode = day_mode
         self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
@@ -70,7 +73,7 @@ class RoboQuasar(Robot):
             139,  # hill 5
         ]
         self.init_offset = 1
-        self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=3,
+        self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=1,
                                               init_indices=self.init_checkpoints)
         self.angle_filter = AngleManipulator(initial_compass)
 
@@ -89,8 +92,11 @@ class RoboQuasar(Robot):
         self.lat_drift = 0.0
         self.long_drift = 0.0
         self.drift_corrected = False
-        self.lat_drifts = []
-        self.long_drifts = []
+        self.compensating_drift = False
+        self.lat_drift_data = []
+        self.long_drift_data = []
+        self.bearing_data = []
+        self.enable_drift_correction = True
 
         self.gps_within_map = True
         self.prev_within_map_state = True
@@ -156,6 +162,7 @@ class RoboQuasar(Robot):
 
     def receive_gps(self, timestamp, packet, packet_type):
         is_valid = self.gps.is_position_valid()
+
         if is_valid != self.prev_gps_state:
             self.prev_gps_state = is_valid
             if is_valid:
@@ -165,6 +172,8 @@ class RoboQuasar(Robot):
                 print("WARNING. GPS has lost connection!!!")
 
         if is_valid:
+            self.append_drift_data()
+
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
@@ -172,9 +181,13 @@ class RoboQuasar(Robot):
                     print("Current map location:", self.map_manipulator.current_index)
                     self.prev_index = self.map_manipulator.current_index
 
+            self.gps_corrected_lat = self.gps.latitude_deg
+            self.gps_corrected_long = self.gps.longitude_deg
+
             if self.drift_corrected:
-                self.gps_corrected_lat = self.gps.latitude_deg + self.lat_drift
-                self.gps_corrected_long = self.gps.longitude_deg + self.long_drift
+                if self.enable_drift_correction:
+                    self.gps_corrected_lat += self.lat_drift
+                    self.gps_corrected_long += self.long_drift
 
                 outer_state = self.map_manipulator.point_inside_outer_map(
                     self.gps_corrected_lat, self.gps_corrected_long
@@ -197,12 +210,17 @@ class RoboQuasar(Robot):
                 self.quasar_plotter.goal_plot.update([self.gps_corrected_lat, self.map_manipulator.goal_lat],
                                                      [self.gps_corrected_long, self.map_manipulator.goal_long])
 
-                status = self.quasar_plotter.update_gps_plot(timestamp, self.gps_corrected_lat, self.gps_corrected_long)
-                if status is not None:
-                    return status
+            status = self.quasar_plotter.update_gps_plot(timestamp, self.gps_corrected_lat, self.gps_corrected_long)
+            if status is not None:
+                return status
 
     def receive_imu(self, timestamp, packet, packet_type):
-        if self.angle_filter.initialized and self.drift_corrected and self.map_manipulator.is_initialized():
+        if self.only_cameras:
+            self.check_pipeline()
+            self.update_steering()
+            return
+
+        if (self.angle_filter.initialized and self.drift_corrected and self.map_manipulator.is_initialized()):
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
 
             # assign steering angle from IMU regardless of the pipeline,
@@ -212,52 +230,7 @@ class RoboQuasar(Robot):
                 self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
             )
 
-            if self.right_pipeline.safety_value > self.percent_threshold:
-                if not self.prev_pipeline_value_state:
-                    print(
-                        "Pipeline detected edge above threshold: %0.4f, %0.4f" % (
-                            self.right_pipeline.safety_value, self.right_pipeline.line_angle)
-                    )
-                    self.prev_pipeline_value_state = True
-
-                # if the pipelines say there is significant angle deviation but the IMU says we're going straight,
-                # adjust IMU offset using the pipeline and knowledge of current map position
-                pipeline_condition = not (
-                    -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
-                imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
-
-                pipeline_angle = self.map_heading + self.right_pipeline.line_angle
-
-                if (pipeline_condition and imu_condition) or self.uncertainty_condition:
-                    if not self.uncertainty_condition:
-                        print("Uncertainty condition applied. Guiding with CV until straight")
-                        print(
-                            "Angles; CV: %s -> %s, IMU: %s, threshold: %s" % (
-                                self.right_pipeline.line_angle, pipeline_angle, self.steering_angle,
-                                self.angle_threshold)
-                        )
-
-                    self.uncertainty_condition = True
-
-                    # use the pipeline and map offset for angle instead
-                    self.steering_angle = self.map_manipulator.update(
-                        self.gps_corrected_lat, self.gps_corrected_long, pipeline_angle
-                    )
-
-                # Keep adjusting the angle until the pipeline thinks the buggy is straight,
-                # then recalibrate IMU offset
-                if (self.uncertainty_condition and
-                        -self.angle_threshold / 2 < self.right_pipeline.line_angle < self.angle_threshold / 2):
-                    self.uncertainty_condition = False
-                    self.angle_filter.init_compass(pipeline_angle)
-                    print("Buggy is straight. Recalibrating steering:", pipeline_angle)
-            elif self.prev_pipeline_value_state:
-                print(
-                    "IMU is taking over steering. Steering: %s, IMU: %s, Map: %s" % (
-                        self.steering_angle, self.imu_heading_guess, self.map_heading)
-                )
-                self.prev_pipeline_value_state = False
-
+            self.check_pipeline()
             self.update_steering()
 
             if self.gps.is_position_valid():
@@ -291,7 +264,7 @@ class RoboQuasar(Robot):
     # ----- autonomous steering -----
 
     def update_steering(self):
-        if self.angle_filter.initialized and self.drift_corrected:
+        if (self.angle_filter.initialized and self.drift_corrected) or self.only_cameras:
             left_limit = abs(self.steering.left_limit_angle / 3)
             if self.steering_angle > left_limit:  # never turn left too much
                 self.steering_angle = left_limit
@@ -305,54 +278,94 @@ class RoboQuasar(Robot):
                 self.steering.set_position(self.steering_angle)
                 # print("%0.4f, %0.4f -> %0.4f" % (self.pipeline_angle, self.imu_steering_angle, steering_angle))
 
+    def check_pipeline(self):
+        if self.right_pipeline.safety_value > self.percent_threshold and self.right_pipeline.valid_edge:
+            if not self.prev_pipeline_value_state:
+                print(
+                    "Pipeline detected edge above threshold: %0.4f, %0.4f" % (
+                        self.right_pipeline.safety_value, self.right_pipeline.line_angle)
+                )
+                self.prev_pipeline_value_state = True
+
+            # if the pipelines say there is significant angle deviation but the IMU says we're going straight,
+            # adjust IMU offset using the pipeline and knowledge of current map position
+            # pipeline_condition = not (
+            #     -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
+            if self.only_cameras:
+                imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
+            else:
+                imu_condition = True
+
+            pipeline_angle = self.map_heading + self.right_pipeline.line_angle
+
+            if imu_condition:# or self.uncertainty_condition:
+                if not self.uncertainty_condition:
+                    print("Uncertainty condition applied. Guiding with CV until straight")
+                    print(
+                        "Angles; CV: %s -> %s, IMU: %s, threshold: %s" % (
+                            self.right_pipeline.line_angle, pipeline_angle, self.steering_angle,
+                            self.angle_threshold)
+                    )
+
+                self.uncertainty_condition = True
+
+                # use the pipeline and map offset for angle instead
+                # self.steering_angle = self.map_manipulator.update(
+                #     self.gps_corrected_lat, self.gps_corrected_long, pipeline_angle
+                # )
+                self.steering_angle = self.right_pipeline.line_angle
+                print("CV angle: %0.4f" % self.steering_angle)
+
+            # Keep adjusting the angle until the pipeline thinks the buggy is straight,
+            # then recalibrate IMU offset
+            # if (self.uncertainty_condition and
+            #         -self.angle_threshold / 2 < self.right_pipeline.line_angle < self.angle_threshold / 2):
+            #     self.uncertainty_condition = False
+            #     self.angle_filter.init_compass(pipeline_angle)
+            #     print("Buggy is straight. Recalibrating steering:", pipeline_angle)
+        elif self.prev_pipeline_value_state:
+            print(
+                "IMU is taking over steering. Steering: %s, IMU: %s, Map: %s" % (
+                    self.steering_angle, self.imu_heading_guess, self.map_heading)
+            )
+            self.prev_pipeline_value_state = False
+
     def calibrate_with_checkpoint(self):
         if self.gps.is_position_valid():
-            if not self.drift_corrected:
-                locked_lat, locked_long, locked_index = self.map_manipulator.lock_onto_map(
-                    self.gps.latitude_deg, self.gps.longitude_deg, True
-                )
-                self.lat_drift = locked_lat - self.gps.latitude_deg
-                self.long_drift = locked_long - self.gps.longitude_deg
+            self.lat_drift = sum(self.lat_drift_data) / len(self.lat_drift_data)
+            self.long_drift = sum(self.long_drift_data) / len(self.long_drift_data)
+            bearing = sum(self.bearing_data) / len(self.bearing_data)
+            self.angle_filter.init_compass(bearing)
+            self.record_compass()
 
-                self.lat_drifts.append(self.lat_drift)
-                self.long_drifts.append(self.long_drift)
+            print("\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
+            print("\tBearing: %0.6frad, %0.6fdeg" % (bearing, math.degrees(bearing)))
+            if self.drift_corrected:
+                print("\tDrift corrected")
+            self.drift_corrected = True
 
-                next_lat, next_long = self.map_manipulator.map[locked_index + self.init_offset]
-                bearing = self.angle_filter.bearing_to(locked_lat, locked_long, next_lat, next_long)
-                self.angle_filter.init_compass(bearing)
-                self.record_compass()
-
-                self.drift_corrected = True
-
-                print("----------")
-                print("\tInitial GPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
-                print("\tLocked index: %s" % locked_index)
-                print("\tDrift: (%0.6f, %0.6f)" % (self.lat_drift, self.long_drift))
-                print("\tBearing: %0.6frad, %0.6fdeg" % (bearing, math.degrees(bearing)))
-                print("----------")
-            else:
-                locked_lat, locked_long, locked_index = self.map_manipulator.lock_onto_map(
-                    self.gps.latitude_deg, self.gps.longitude_deg, False
-                )
-
-                self.lat_drifts.append(locked_lat - self.gps.latitude_deg)
-                self.long_drifts.append(locked_long - self.gps.longitude_deg)
-                self.lat_drift = sum(self.lat_drifts) / len(self.lat_drifts)
-                self.long_drift = sum(self.long_drifts) / len(self.long_drifts)
-
-                next_lat, next_long = self.map_manipulator.map[locked_index + self.init_offset]
-                bearing = self.angle_filter.bearing_to(locked_lat, locked_long, next_lat, next_long)
-                self.angle_filter.init_compass(bearing)
-
-                print("----------")
-                print("\tUpdate #%s" % len(self.lat_drifts))
-                print("\tGPS: (%0.6f, %0.6f)" % (self.gps.latitude_deg, self.gps.longitude_deg))
-                print("\tLocked index: %s" % locked_index)
-                print("\tDrift: (%0.6f, %0.6f)" % (self.lat_drift, self.long_drift))
-                print("\tBearing: %0.6frad, %0.6fdeg" % (bearing, math.degrees(bearing)))
-                print("----------")
         else:
             print("Invalid GPS. Ignoring")
+
+    def append_drift_data(self):
+        if self.gps.is_position_valid() and self.compensating_drift:
+            locked_lat, locked_long, locked_index = self.map_manipulator.lock_onto_map(
+                self.gps.latitude_deg, self.gps.longitude_deg, True
+            )
+            lat_drift = locked_lat - self.gps.latitude_deg
+            long_drift = locked_long - self.gps.longitude_deg
+            self.lat_drift_data.append(lat_drift)
+            self.long_drift_data.append(long_drift)
+
+            next_lat, next_long = self.map_manipulator.map[locked_index + self.init_offset]
+            bearing = self.angle_filter.bearing_to(locked_lat, locked_long, next_lat, next_long)
+            self.bearing_data.append(bearing)
+
+            print("\tLocked index: %s" % locked_index)
+            print("\tBearing: %0.6frad, %0.6fdeg" % (bearing, math.degrees(bearing)))
+            print("\tNumber of updates: %s" % len(self.lat_drift_data))
+            print("\tDrift: (%0.8f, %0.8f)" % (lat_drift, long_drift))
+
 
     def record_compass(self):
         if self.angle_filter.initialized:
@@ -407,8 +420,16 @@ class RoboQuasar(Robot):
                 else:
                     self.underglow.signal_release()
 
-            elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
-                self.calibrate_with_checkpoint()
+            elif self.joystick.button_updated("Y"):
+                if self.joystick.get_button("Y"):
+                    self.compensating_drift = True
+                else:
+                    self.calibrate_with_checkpoint()
+                    self.compensating_drift = False
+
+            elif self.joystick.button_updated("-"):
+                self.enable_drift_correction = not self.enable_drift_correction
+                print("Drift correction %s" % ("enabled" if self.enable_drift_correction else "disabled!!"))
 
     @staticmethod
     def my_round(x, d=0):
@@ -432,7 +453,7 @@ class RoboQuasar(Robot):
                 offset = math.copysign(0.3, joy_val)
                 joy_val -= offset
 
-            delta_step = int(self.my_round(16 * self.sigmoid(10.0 * joy_val)))
+            delta_step = int(self.my_round(16 * joy_val))
             if abs(delta_step) > 0:
                 self.steering.change_step(delta_step)
 
@@ -684,6 +705,10 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 9"       : (
+        ("05;29", "rolls/2017_Apr_08"),
+        ("08;36", "rolls/2017_Apr_08")
+    ),
     "rolls day 8"       : (
         ("05;37;41", "rolls/2017_Apr_02"),
         ("06;17;16", "rolls/2017_Apr_02"),

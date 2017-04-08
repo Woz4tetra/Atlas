@@ -7,11 +7,11 @@ unsigned long prev_time = 0;
 unsigned long curr_time = 0;
 unsigned long delta_time = 0;
 
-#define MAX_SPEED 250
+#define MAX_SPEED 200
 #define RIGHT_LIMIT -150
 #define LEFT_LIMIT 150
 #define POSITION_ZERO 135
-#define CENTER_OFFSET 35
+#define CENTER_OFFSET 50
 
 int position = 0;
 int speedCommand = 0;
