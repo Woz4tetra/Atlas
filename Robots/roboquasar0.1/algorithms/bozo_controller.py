@@ -41,7 +41,7 @@ class MapManipulator:
             self.outer_map = MapFile(self.outer_map_name, map_dir)
 
     def initialize(self, lat, long):
-        self.current_index = self.get_goal(lat, long)
+        return self.get_goal(lat, long)
 
     def is_initialized(self):
         return self.current_index is not None
@@ -112,7 +112,7 @@ class MapManipulator:
 
     def lock_onto_map(self, lat, long, init):
         index = self.closest_point(lat, long, self.map, init=init)
-        return self.map[index], index
+        return self.map[index][0], self.map[index][1], index
 
     @staticmethod
     def does_point_intersect(point: list, edge_1: list, edge_2: list, epsilon=1E-5):
