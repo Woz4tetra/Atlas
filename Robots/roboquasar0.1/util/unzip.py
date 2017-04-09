@@ -7,14 +7,9 @@ from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
 
 
 def unzip_file():
-    file_name = None
-    directory = None
+    file_name_index = sys.argv[1].rfind("/")
+    directory, file_name = sys.argv[1][:file_name_index], sys.argv[1][file_name_index + 1:]
 
-    if len(sys.argv) > 1:
-        file_name = sys.argv[1]
-    if len(sys.argv) > 2:
-        file_name = sys.argv[1]
-        directory = sys.argv[2]
 
     if file_name is None:
         return

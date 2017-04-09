@@ -9,9 +9,10 @@ import numpy as np
 
 
 class Pipeline:
-    def __init__(self, camera, day_mode, separate_read_thread=True):
+    def __init__(self, camera, day_mode, enabled=True, separate_read_thread=True):
         self.camera = camera
         self.status = None
+        self.enabled = enabled
         self.timestamp = None
         self.exit_event = Event()
         self._updated = False
@@ -134,31 +135,32 @@ class Pipeline:
             return False
 
     def pipeline(self, frame):
-        self.prev_safe_value = self.safety_value
-        frame, lines, safety_value, line_angle = self.hough_detector(frame.copy(), self.day_mode)
-        if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
-            self.safety_value = safety_value
-            self.line_angle = line_angle
-            self.last_detection_t = time.time()
+        if self.enabled:
+            self.prev_safe_value = self.safety_value
+            frame, lines, safety_value, line_angle = self.hough_detector(frame.copy(), self.day_mode)
+            if safety_value != 0.0 or time.time() - self.last_detection_t > 2:
+                self.safety_value = safety_value
+                self.line_angle = line_angle
+                self.last_detection_t = time.time()
 
-        self.network.run_network(frame)
-        if 100 * self.network.output_value >= self.convnet_threshold:
-            self.valid_edge = True
-        else:
-            self.valid_edge = False
+            self.network.run_network(frame)
+            if 100 * self.network.output_value >= self.convnet_threshold:
+                self.valid_edge = True
+            else:
+                self.valid_edge = False
 
-        frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
-        cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
-        cv2.putText(frame, "%s" % self.valid_edge, (30, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+            frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
+            cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+            cv2.putText(frame, "%s" % self.valid_edge, (30, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
 
-        # frame = self.kernel_threshold(self.camera.frame)
-        # contours, perimeters = self.get_contours(frame, 0.025, 2)
-        # if len(contours) > 0:
-        #     frame = self.draw_contours(self.camera.frame, contours)
-        #
-        #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
-        #
-        # frame = self.average_color(frame)
+            # frame = self.kernel_threshold(self.camera.frame)
+            # contours, perimeters = self.get_contours(frame, 0.025, 2)
+            # if len(contours) > 0:
+            #     frame = self.draw_contours(self.camera.frame, contours)
+            #
+            #     frame, results = self.get_pavement_edge(perimeters, contours, frame)
+            #
+            # frame = self.average_color(frame)
 
         return frame
 

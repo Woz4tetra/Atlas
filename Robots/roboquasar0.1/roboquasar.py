@@ -55,7 +55,8 @@ class RoboQuasar(Robot):
                                    skip_count=40)
 
         self.day_mode = day_mode
-        self.right_pipeline = Pipeline(self.right_camera, self.day_mode, separate_read_thread=False)
+        self.right_pipeline = Pipeline(self.right_camera, self.day_mode, enabled=False,
+                                       separate_read_thread=False)
 
         # ----- init filters and controllers
         # position state message (in or out of map)
@@ -173,7 +174,7 @@ class RoboQuasar(Robot):
                 print("WARNING. GPS has lost connection!!!")
 
         if is_valid:
-            self.append_drift_data()
+            # self.append_drift_data()
 
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
@@ -208,6 +209,10 @@ class RoboQuasar(Robot):
                     self.gps_corrected_lat, self.gps_corrected_long
                 )
 
+                map_lat, map_long = self.map_manipulator.map[self.map_manipulator.current_index]
+                self.gps_corrected_lat = (self.gps_corrected_lat + map_lat) / 2
+                self.gps_corrected_long = (self.gps_corrected_long + map_long) / 2
+
                 self.quasar_plotter.goal_plot.update([self.gps_corrected_lat, self.map_manipulator.goal_lat],
                                                      [self.gps_corrected_long, self.map_manipulator.goal_long])
                 self.quasar_plotter.corrected_gps_plot.append(self.gps_corrected_lat, self.gps_corrected_long)
@@ -232,7 +237,7 @@ class RoboQuasar(Robot):
                 self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
             )
 
-            self.check_pipeline()
+            # self.check_pipeline()
             self.update_steering()
 
             if self.gps.is_position_valid():
@@ -259,11 +264,13 @@ class RoboQuasar(Robot):
                                                 self.map_manipulator.outer_map)
 
         elif self.did_receive("drift correction"):
-            if bool(int(packet)):
+            if int(packet) == 0:
+                self.compensating_drift = True
+            elif int(packet) == 1:
+                self.calibrate_with_checkpoint()
+            else:
                 self.calibrate_with_checkpoint()
                 self.compensating_drift = False
-            else:
-                self.compensating_drift = True
 
         elif self.did_receive("pipeline mode"):
             day_mode = bool(int(packet))
@@ -296,42 +303,11 @@ class RoboQuasar(Robot):
                 )
                 self.prev_pipeline_value_state = True
 
-            # if the pipelines say there is significant angle deviation but the IMU says we're going straight,
-            # adjust IMU offset using the pipeline and knowledge of current map position
-            # pipeline_condition = not (
-            #     -self.angle_threshold < self.right_pipeline.line_angle < self.angle_threshold)
-            if self.only_cameras:
-                imu_condition = -self.angle_threshold < self.steering_angle < self.angle_threshold
-            else:
-                imu_condition = True
+            if (-self.angle_threshold < self.steering_angle < self.angle_threshold) or self.only_cameras:
+                if self.right_pipeline.line_angle > 0:  # only turn right
+                    self.steering_angle = self.right_pipeline.line_angle
+                print("CV angle: %0.4f" % self.right_pipeline.line_angle)
 
-            pipeline_angle = self.map_heading + self.right_pipeline.line_angle
-
-            if imu_condition:  # or self.uncertainty_condition:
-                if not self.uncertainty_condition:
-                    print("Uncertainty condition applied. Guiding with CV until straight")
-                    print(
-                        "Angles; CV: %s -> %s, IMU: %s, threshold: %s" % (
-                            self.right_pipeline.line_angle, pipeline_angle, self.steering_angle,
-                            self.angle_threshold)
-                    )
-
-                self.uncertainty_condition = True
-
-                # use the pipeline and map offset for angle instead
-                # self.steering_angle = self.map_manipulator.update(
-                #     self.gps_corrected_lat, self.gps_corrected_long, pipeline_angle
-                # )
-                self.steering_angle = self.right_pipeline.line_angle
-                print("CV angle: %0.4f" % self.steering_angle)
-
-                # Keep adjusting the angle until the pipeline thinks the buggy is straight,
-                # then recalibrate IMU offset
-                # if (self.uncertainty_condition and
-                #         -self.angle_threshold / 2 < self.right_pipeline.line_angle < self.angle_threshold / 2):
-                #     self.uncertainty_condition = False
-                #     self.angle_filter.init_compass(pipeline_angle)
-                #     print("Buggy is straight. Recalibrating steering:", pipeline_angle)
         elif self.prev_pipeline_value_state:
             print(
                 "IMU is taking over steering. Steering: %s, IMU: %s, Map: %s" % (
@@ -341,16 +317,21 @@ class RoboQuasar(Robot):
 
     def calibrate_with_checkpoint(self):
         if self.gps.is_position_valid():
+            self.compensating_drift = True
+            self.append_drift_data()
+
             self.lat_drift = sum(self.lat_drift_data) / len(self.lat_drift_data)
             self.long_drift = sum(self.long_drift_data) / len(self.long_drift_data)
             bearing = sum(self.bearing_data) / len(self.bearing_data)
             self.angle_filter.init_compass(bearing)
             self.record_compass()
 
-            print("\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
-            print("\tBearing: %0.6frad, %0.6fdeg" % (bearing, math.degrees(bearing)))
+            print("\n====="
+                  "\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
+            print("\tBearing: %0.6frad, %0.6fdeg\n"
+                  "=====" % (bearing, math.degrees(bearing)))
             if self.drift_corrected:
-                print("\tDrift corrected")
+                print("\tDrift already corrected")
             self.drift_corrected = True
 
         else:
@@ -428,14 +409,9 @@ class RoboQuasar(Robot):
                 else:
                     self.underglow.signal_release()
 
-            elif self.joystick.button_updated("Y"):
-                if self.joystick.get_button("Y"):
-                    self.compensating_drift = True
-                    self.record("drift correction", 0)
-                else:
-                    self.calibrate_with_checkpoint()
-                    self.compensating_drift = False
-                    self.record("drift correction", 1)
+            elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
+                self.calibrate_with_checkpoint()
+                self.record("drift correction", 1)
 
             elif self.joystick.button_updated("-"):
                 self.enable_drift_correction = not self.enable_drift_correction
@@ -459,9 +435,6 @@ class RoboQuasar(Robot):
         if self.steering.calibrated and self.manual_mode:
             # if self.joystick.get_axis("ZR") >= 1.0:
             joy_val = self.joystick.get_axis("right x")
-            if abs(joy_val) > 0.0:
-                offset = math.copysign(0.3, joy_val)
-                joy_val -= offset
 
             delta_step = int(-self.my_round(16 * joy_val))
             if abs(delta_step) > 0:
@@ -539,6 +512,7 @@ class RoboQuasarPlotter:
                 2, self.accuracy_check_plot,  # self.pipeline_plots,
                 matplotlib_events=dict(key_press_event=key_press_fn), draw_legend=True,
                 enabled=enable_plotting,
+                # skip_count=15
             )
         else:
             self.plotter = StaticPlotter(
@@ -716,11 +690,23 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 10": (
+        ("05;38", "rolls/2017_Apr_09"),
+        ("05;55", "rolls/2017_Apr_09"),
+        ("06;17", "rolls/2017_Apr_09"),
+        ("06;35", "rolls/2017_Apr_09"),
+
+    ),
     "rolls day 9": (
         ("05;29", "rolls/2017_Apr_08"),
         ("06;16", "rolls/2017_Apr_08"),
         ("08;36", "rolls/2017_Apr_08")
     ),
+
+    "push practice 3": (
+        ("00;14", "push_practice/2017_Apr_06"),
+    ),
+
     "rolls day 8": (
         ("05;37;41", "rolls/2017_Apr_02"),
         ("06;17;16", "rolls/2017_Apr_02"),
