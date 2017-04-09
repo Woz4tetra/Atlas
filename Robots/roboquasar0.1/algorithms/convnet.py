@@ -247,7 +247,7 @@ class NeuralNetwork:
             value = sess.run(loaded_output, feed_dict={loaded_x: frames,
                                                        loaded_keep_prob: 1.0})
 
-            self.output_val = value[0][0]
+            print(value[0][0])
 
 
         # TODO: Implement retrain function for training on the go

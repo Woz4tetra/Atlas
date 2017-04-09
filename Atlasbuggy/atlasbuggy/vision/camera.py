@@ -144,6 +144,8 @@ class Camera:
         self.capture = cv2.VideoCapture(self.full_path)
         self.fps = self.capture.get(cv2.CAP_PROP_FPS)
         self.num_frames = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        print(self.num_frames)
+        print(self.fps)
         if self.num_frames <= 0:
             raise FileNotFoundError("Video failed to load!")
         self.length_sec = self.num_frames / self.fps

@@ -219,9 +219,11 @@ class Pipeline2:
             self.safety_value = safety_value
             self.last_detection_t = time.time()
 
-        if safety_value > 0.5:
-            self.network.run(frame)
-            print(self.network.output_val)
+        # if safety_value > 0.5:
+        #     self.network.run(frame)
+        #     print(self.network.output_val)
+
+        self.network.run(frame)
 
         frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
         cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))

@@ -34,7 +34,6 @@ def avi_to_mp4():
     for thread in path_threads:
         thread.join()
 
-
 def run(record, play):
     assert record != play
 
@@ -49,11 +48,14 @@ def run(record, play):
 
     if play:
         if use_video_sets:
-            file_name, directory, file_format = video_sets["rolls day 5"][2]
+            file_name, directory, file_format = video_sets["rolls day 5"][3]
         else:
-            file_name, directory = file_sets["data day 13"][0]
-            file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
-            file_name = file_finder.file_name_no_ext.replace(";", "_")
+            # file_name, directory = file_sets["data day 13"][0]
+            # file_finder = AtlasFile(file_name, directory, "gzip", "logs", False, False)
+            # file_name = file_finder.file_name_no_ext.replace(";", "_")
+            file_name = "08_54_43"
+            directory = "rolls/2017_Apr_02"
+            file_format = "mp4"
 
         robot.is_live = False
 
