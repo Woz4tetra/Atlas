@@ -10,7 +10,6 @@ from atlasbuggy.interface.live import RobotRunner
 
 from joysticks.wiiu_joystick import WiiUJoystick
 from roboquasar import RoboQuasar, map_sets
-from camera_guidance_test import CameraGuidanceTest
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--nolog", help="disable logging", action="store_false")
@@ -169,7 +168,7 @@ if not args.daymode and not args.nightmode:
 robot = RoboQuasar(False, args.mapset, args.compass,
                    enable_cameras=args.nocamera, day_mode=day_mode, show_cameras=args.show,
                    only_cameras=args.onlycamera)
-# robot = CameraGuidanceTest(enable_cameras=True, show_cameras=False)
+
 runner = RobotRunner(robot, WiiUJoystick(), log_data=args.nolog, log_dir=log_dir, debug_prints=args.debug)
 
 command_line = AutonomousCommandline()
