@@ -2,7 +2,7 @@ from atlasbuggy.interface.simulated import RobotSimulator
 from roboquasar import RoboQuasar, file_sets, map_sets  # , video_sets
 
 # file_name, directory = file_sets["rolls day 3"][0]
-file_name, directory = file_sets["rolls day 9"][-1]
+file_name, directory = file_sets["rolls day 9"][1]
 # file_name = "22;02"
 # directory = "data_days/2017_Mar_21"
 
