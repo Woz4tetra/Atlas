@@ -453,7 +453,7 @@ class RoboQuasar(Robot):
                 offset = math.copysign(0.3, joy_val)
                 joy_val -= offset
 
-            delta_step = int(self.my_round(16 * joy_val))
+            delta_step = int(-self.my_round(16 * joy_val))
             if abs(delta_step) > 0:
                 self.steering.change_step(delta_step)
 
