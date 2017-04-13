@@ -51,11 +51,14 @@ class RoboQuasar(Robot):
         self.only_cameras = only_cameras
         if self.only_cameras:
             self.enable_cameras = True
-        self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240,
-                                   skip_count=40)
+        # self.right_camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras, width=320, height=240,
+        #                            skip_count=40)
+        self.left_camera = Camera("leftcam", enabled=enable_cameras, show=show_cameras, width=320, height=240)
 
         self.day_mode = day_mode
-        self.right_pipeline = Pipeline(self.right_camera, self.day_mode, enabled=False,
+        # self.right_pipeline = Pipeline(self.right_camera, self.day_mode, enabled=False,
+        #                                separate_read_thread=False)
+        self.left_pipeline = Pipeline(self.left_camera, self.day_mode, enabled=True,
                                        separate_read_thread=False)
 
         # ----- init filters and controllers
@@ -126,7 +129,8 @@ class RoboQuasar(Robot):
 
         # start cameras and pipelines
         self.open_cameras(file_name, directory, "avi")
-        self.right_pipeline.start()
+        # self.right_pipeline.start()
+        self.left_pipeline.start()
 
         # record important data
         self.record("map set", self.map_set_name)
@@ -142,7 +146,8 @@ class RoboQuasar(Robot):
 
     def open_cameras(self, log_name, directory, file_format):
         # create log name
-        right_cam_name = "%s%s.%s" % (log_name, self.right_camera.name, file_format)
+        # right_cam_name = "%s%s.%s" % (log_name, self.right_camera.name, file_format)
+        left_cam_name = "%s%s.%s" % (log_name, self.left_camera.name, file_format)
 
         if self.logger is None:
             record = True
@@ -151,14 +156,14 @@ class RoboQuasar(Robot):
 
         # launch a live camera if the robot is live, otherwise launch a video
         if self.is_live:
-            status = self.right_camera.launch_camera(
-                right_cam_name, directory, record,
+            status = self.left_camera.launch_camera(
+                left_cam_name, directory, record,
                 capture_number=1
             )
             if status is not None:
                 return status
         else:
-            self.right_camera.launch_video(right_cam_name, directory)
+            self.left_camera.launch_video(left_cam_name, directory)
 
     # ----- sensor received -----
 
@@ -237,7 +242,7 @@ class RoboQuasar(Robot):
                 self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
             )
 
-            # self.check_pipeline()
+            self.check_pipeline()
             self.update_steering()
 
             if self.gps.is_position_valid():
@@ -245,7 +250,7 @@ class RoboQuasar(Robot):
                                                       self.imu_heading_guess)
 
     def received(self, timestamp, whoiam, packet, packet_type):
-        # self.left_pipeline.update_time(self.dt())
+        self.left_pipeline.update_time(self.dt())
 
         if self.did_receive("initial compass"):
             self.angle_filter.init_compass(packet)
@@ -274,7 +279,7 @@ class RoboQuasar(Robot):
 
         elif self.did_receive("pipeline mode"):
             day_mode = bool(int(packet))
-            self.right_pipeline.day_mode = day_mode
+            self.left_pipeline.day_mode = day_mode
             self.debug_print("Switching to %s mode" % ("day" if day_mode else "night"), ignore_flag=True)
 
     # ----- autonomous steering -----
@@ -295,18 +300,18 @@ class RoboQuasar(Robot):
                 # print("%0.4f, %0.4f -> %0.4f" % (self.pipeline_angle, self.imu_steering_angle, steering_angle))
 
     def check_pipeline(self):
-        if self.right_pipeline.safety_value > self.percent_threshold and self.right_pipeline.valid_edge:
+        if self.left_pipeline.safety_value > self.percent_threshold:
             if not self.prev_pipeline_value_state:
                 print(
                     "Pipeline detected edge above threshold: %0.4f, %0.4f" % (
-                        self.right_pipeline.safety_value, self.right_pipeline.line_angle)
+                        self.left_pipeline.safety_value, self.left_pipeline.line_angle)
                 )
                 self.prev_pipeline_value_state = True
 
             if (-self.angle_threshold < self.steering_angle < self.angle_threshold) or self.only_cameras:
-                if self.right_pipeline.line_angle > 0:  # only turn right
-                    self.steering_angle = self.right_pipeline.line_angle
-                print("CV angle: %0.4f" % self.right_pipeline.line_angle)
+                if self.left_pipeline.line_angle > 0:  # only turn right
+                    self.steering_angle = self.left_pipeline.line_angle*(-1)
+                print("CV angle: %0.4f" % self.left_pipeline.line_angle)
 
         elif self.prev_pipeline_value_state:
             print(
@@ -446,7 +451,7 @@ class RoboQuasar(Robot):
             if isinstance(self.quasar_plotter.plotter, LivePlotter):
                 self.quasar_plotter.plotter.toggle_pause()
 
-            self.right_pipeline.paused = not self.right_pipeline.paused
+            self.left_pipeline.paused = not self.left_pipeline.paused
         elif event.key == "q":
             self.quasar_plotter.close("exit")
             self.close("exit")
@@ -458,7 +463,7 @@ class RoboQuasar(Robot):
         else:
             self.brakes.pause_pings()
         self.quasar_plotter.close(reason)
-        self.right_pipeline.close()
+        self.left_pipeline.close()
         print("Ran for %0.4fs" % self.dt())
 
 

@@ -22,8 +22,8 @@ class Pipeline:
         self.day_mode = day_mode
         self.last_detection_t = time.time()
         self.frame_size = (240,320,3)
-        self.network = NeuralNetwork(self.frame_size, trained=True)
-        self.valid_edge = False
+        # self.network = NeuralNetwork(self.frame_size, trained=True)
+        self.valid_edge = True
 
         self.hough_threshold = 95
         self.convnet_threshold = 80
@@ -143,11 +143,11 @@ class Pipeline:
                 self.line_angle = line_angle
                 self.last_detection_t = time.time()
 
-            self.network.run_network(frame)
-            if 100 * self.network.output_value >= self.convnet_threshold:
-                self.valid_edge = True
-            else:
-                self.valid_edge = False
+            # self.network.run_network(frame)
+            # if 100 * self.network.output_value >= self.convnet_threshold:
+            #     self.valid_edge = True
+            # else:
+            #     self.valid_edge = False
 
             frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
             cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
