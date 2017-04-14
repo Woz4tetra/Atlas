@@ -151,7 +151,7 @@ class Pipeline:
 
             frame[10:40, 20:90] = self.safety_colors[int(self.safety_value * 10)]
             cv2.putText(frame, "%0.1f%%" % (self.safety_value * 100), (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
-            cv2.putText(frame, "%s" % self.valid_edge, (30, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+            # cv2.putText(frame, "%s" % self.valid_edge, (30, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
 
             # frame = self.kernel_threshold(self.camera.frame)
             # contours, perimeters = self.get_contours(frame, 0.025, 2)
@@ -233,15 +233,15 @@ class Pipeline:
     def hough_detector(self, input_frame, day_mode):
         # blur = cv2.medianBlur(input_frame, 5)
         if day_mode:
-            # self.hough_threshold = 150
+            self.hough_threshold = 150
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.GaussianBlur(blur, (15, 15), 0)
             # blur = cv2.GaussianBlur(blur, (5, 5), 0)
         else:
-            # self.hough_threshold = 125
+            self.hough_threshold = 125
             blur = cv2.cvtColor(input_frame, cv2.COLOR_BGR2GRAY)
             blur = cv2.equalizeHist(blur)
-            blur = cv2.GaussianBlur(blur, (7, 7), 0)
+            blur = cv2.GaussianBlur(blur, (11, 11), 0)
 
         frame = cv2.Canny(blur, 1, 100)
         lines = cv2.HoughLines(frame, rho=1.2, theta=np.pi / 180,
