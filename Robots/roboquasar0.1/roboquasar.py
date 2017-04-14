@@ -240,7 +240,6 @@ class RoboQuasar(Robot):
             # start using pipelines when crossing hunt
             if self.map_manipulator.current_index >= self.hill_5_start:
                 self.check_pipeline()
-
             self.update_steering()
 
             if self.gps.is_position_valid():
@@ -472,6 +471,7 @@ class RoboQuasarPlotter:
 
         self.sticky_compass_counter = 0
         self.sticky_compass_skip = 100
+        self.label_checkpoints = label_checkpoints
 
         # plot collection
         self.accuracy_check_plot = RobotPlotCollection(
@@ -507,7 +507,6 @@ class RoboQuasarPlotter:
         self.position_state = ""
         self.prev_pos_state = self.position_state
 
-        self.label_checkpoints = label_checkpoints
 
     def update_maps(self, course_map, inner_map, outer_map):
         self.map_plot.update(course_map.lats, course_map.longs)

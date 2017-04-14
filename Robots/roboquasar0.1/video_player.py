@@ -83,5 +83,5 @@ def run(record, play):
     robot.pipeline.close()
 
 
-avi_to_mp4()
-# run(record=False, play=True)
+# avi_to_mp4()
+run(record=False, play=True)
