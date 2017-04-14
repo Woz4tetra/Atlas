@@ -106,12 +106,12 @@ class AutonomousCommandline(cmd.Cmd):
     def do_showcam(self, line):
         if robot.dt() > 1:
             # robot.left_camera.show = True
-            robot.right_camera.show = True
+            robot.camera.show = True
 
     def do_hidecam(self, line):
         if robot.dt() > 1:
             # robot.left_camera.show = False
-            robot.right_camera.show = False
+            robot.camera.show = False
 
     def do_EOF(self, line):
         """

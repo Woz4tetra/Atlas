@@ -39,7 +39,7 @@ def run(record, play):
     assert record != play
 
     robot = RoboQuasar(False, "buggy", day_mode=True, show_cameras=True)
-    robot.right_camera.show = True
+    robot.camera.show = True
 
     file_name = None
     directory = None
@@ -72,15 +72,15 @@ def run(record, play):
 
     try:
         while True:
-            if robot.right_pipeline._update() is not None:
+            if robot.pipeline._update() is not None:
                 break
 
     except KeyboardInterrupt:
         pass
 
     print("Closing cameras")
-    robot.right_camera.close()
-    robot.right_pipeline.close()
+    robot.camera.close()
+    robot.pipeline.close()
 
 
 avi_to_mp4()
