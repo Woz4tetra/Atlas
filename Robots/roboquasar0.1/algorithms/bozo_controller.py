@@ -181,6 +181,9 @@ class MapManipulator:
         else:
             return -angle
 
+    def __len__(self):
+        return len(self.map)
+
 
 if __name__ == '__main__':
     def ray_test():

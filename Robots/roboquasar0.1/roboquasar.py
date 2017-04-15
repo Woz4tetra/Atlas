@@ -70,10 +70,12 @@ class RoboQuasar(Robot):
             124,  # hill 4
             139,  # hill 5
         ]
-        self.disable_gps_checkpoint = self.init_checkpoints[2]
         self.init_offset = 1
         self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=1,
                                               init_indices=self.init_checkpoints)
+        self.gps_disabled = False
+        self.prev_gps_disabled = False
+        self.disable_gps_checkpoints = [(0, 12), (self.init_checkpoints[2], len(self.map_manipulator))]
         self.angle_filter = AngleManipulator(initial_compass)
 
         self.use_log_file_maps = use_log_file_maps
@@ -118,7 +120,7 @@ class RoboQuasar(Robot):
             animate, enable_plotting, False,
             self.map_manipulator.map, self.map_manipulator.inner_map,
             self.map_manipulator.outer_map, self.key_press, self.map_set_name,
-            False
+            True
         )
 
     def start(self):
@@ -236,8 +238,22 @@ class RoboQuasar(Robot):
             # in case the pipeline finds it's too close but sees the buggy is straight. In this case, the pipeline
             # would not assign a new angle
 
-            # start using pipelines when crossing hunt
-            if self.map_manipulator.current_index >= self.disable_gps_checkpoint:
+            self.prev_gps_disabled = self.gps_disabled
+            self.gps_disabled = False
+            for checkpoint_set in self.disable_gps_checkpoints:
+                if checkpoint_set[0] <= self.map_manipulator.current_index <= checkpoint_set[1]:
+                    self.gps_disabled = True
+
+                    if self.prev_gps_disabled != self.gps_disabled:
+                        if self.gps_disabled:
+                            print("Ignoring GPS, driving straight until:", checkpoint_set[1])
+                        else:
+                            print("Reapplying GPS. Recalibrating position")
+                        self.calibrate_with_checkpoint()
+
+                    break
+
+            if self.gps_disabled:
                 # self.check_pipeline()
                 self.steering_angle = self.map_manipulator.update(
                     self.saved_gps_lat, self.saved_gps_long, self.imu_heading_guess
@@ -252,7 +268,7 @@ class RoboQuasar(Robot):
             self.update_steering()
 
             if self.gps.is_position_valid():
-                self.quasar_plotter.update_indicators((self.gps_corrected_lat, self.gps_corrected_long),
+                self.quasar_plotter.update_indicators((self.saved_gps_lat, self.saved_gps_long),
                                                       self.imu_heading_guess)
 
     def received(self, timestamp, whoiam, packet, packet_type):
@@ -437,6 +453,11 @@ class RoboQuasar(Robot):
         elif event.key == "q":
             self.quasar_plotter.close("exit")
             self.close("exit")
+        elif event.key == "[":
+            if self.parser is not None:
+                print(self.parser.index, end=" -> ")
+                self.parser.index += 50
+                print(self.parser.index)
 
     def close(self, reason):
         if reason != "done":
@@ -680,6 +701,9 @@ image_sets = {
 }
 
 file_sets = {
+    "rolls day 11": (
+        ("06;13", "rolls/2017_Apr_15"),
+    ),
     "push practice 4": (
         ("23;35", "push_practice/2017_Apr_13"),
         ("23;47", "push_practice/2017_Apr_13"),
