@@ -46,8 +46,8 @@ class MapManipulator:
     def is_initialized(self):
         return self.current_index is not None
 
-    def update(self, lat, long, yaw):
-        self.goal_angle = self.get_goal_angle(lat, long)
+    def update(self, lat, long, yaw, offset=None):
+        self.goal_angle = self.get_goal_angle(lat, long, offset)
         if self.goal_angle < 0:
             self.goal_angle += 2 * math.pi
 
@@ -56,13 +56,13 @@ class MapManipulator:
         self.current_angle = angle_error
         return self.current_angle
 
-    def get_goal_angle(self, lat, long):
-        goal_index = self.get_goal(lat, long)
+    def get_goal_angle(self, lat, long, offset=None):
+        goal_index = self.get_goal(lat, long, offset)
         goal_lat, goal_long = self.map[goal_index]
 
         return math.atan2(goal_long - long, goal_lat - lat)
 
-    def get_goal(self, lat0, long0):
+    def get_goal(self, lat0, long0, offset=None):
         if self.keep_position_in_boundary:
             if not self.point_inside_outer_map(lat0, long0):
                 nearest_index = self.closest_point(lat0, long0, self.outer_map)
@@ -81,10 +81,12 @@ class MapManipulator:
         #     end = (start + self.offset * 10) % len(self.map)
         #     if start > end:
         #         start, end = end, start
+        if offset is None:
+            offset = self.offset
 
         self.current_index = self.closest_point(lat0, long0, self.map, start, end)
         self.current_index = self.current_index % len(self.map)  # the closest index on the map
-        self.goal_index = (self.current_index + self.offset) % len(self.map)  # set goal to the next checkpoint
+        self.goal_index = (self.current_index + offset) % len(self.map)  # set goal to the next checkpoint
 
         self.goal_lat, self.goal_long = self.map[self.goal_index]
 
@@ -183,6 +185,41 @@ class MapManipulator:
 
     def __len__(self):
         return len(self.map)
+
+
+class PID:
+    def __init__(self, kp, kd, ki, lower_limit=None, upper_limit=None):
+        self.kp = kp
+        self.kd = kd
+        self.ki = ki
+        # self.prev_value = None
+        self.prev_error = 0
+        self.error_sum = 0
+        self.prev_time = 0
+        self.lower_limit = lower_limit
+        self.upper_limit = upper_limit
+
+    def update(self, error, timestamp):
+        # if self.prev_value is None:
+        #     self.prev_value = value
+        #     return 0.0
+
+        dt = timestamp - self.prev_time
+
+        # error = goal - value
+        deriv = (error - self.prev_error) / dt
+        self.error_sum += error * dt
+
+        # self.prev_value = value
+        self.prev_error = error
+        self.prev_time = timestamp
+
+        output = self.kp * error + self.kd * deriv + self.ki * self.error_sum
+        if self.upper_limit is not None and output > self.upper_limit:
+            output = self.upper_limit
+        if self.lower_limit is not None and output < self.lower_limit:
+            output = self.lower_limit
+        return output
 
 
 if __name__ == '__main__':

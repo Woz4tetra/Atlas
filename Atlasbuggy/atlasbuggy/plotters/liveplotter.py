@@ -14,7 +14,7 @@ from atlasbuggy.plotters.collection import RobotPlotCollection
 class LivePlotter(BasePlotter):
     initialized = False
 
-    def __init__(self, num_columns, *robot_plots, enabled=True, draw_legend=True, legend_args=None, lag_cap=0.005,
+    def __init__(self, num_columns, *robot_plots, enabled=True, enable_legend=True, legend_args=None, lag_cap=0.005,
                  skip_count=0, matplotlib_events=None, active_window_resizing=True):
         """
         Only one LivePlotter instance can run at one time. Multiple interactive matplotlib
@@ -34,7 +34,7 @@ class LivePlotter(BasePlotter):
         LivePlotter.initialized = True
 
         super(LivePlotter, self).__init__(
-            num_columns, legend_args, draw_legend, matplotlib_events, enabled, *robot_plots
+            num_columns, legend_args, enable_legend, matplotlib_events, enabled, *robot_plots
         )
 
         self.time0 = None

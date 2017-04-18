@@ -42,17 +42,17 @@ class AngleManipulator:
 
         self.imu_angle = (imu_euler_z - self.start_angle + self.compass_angle) % (2 * math.pi)
 
-        return self.imu_angle
-        # if self.bearing is None or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
-        #     return -self.imu_angle, -self.imu_angle
-        # else:
-        #     if self.bearing - self.imu_angle > math.pi:
-        #         self.imu_angle += 2 * math.pi
-        #     if self.imu_angle - self.bearing > math.pi:
-        #         self.bearing += 2 * math.pi
-        #
-        #     angle = self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing
-        #     return -angle
+        # return self.imu_angle
+        if self.bearing is None:  # or abs(self.imu.gyro.z) > self.fast_rotation_threshold:
+            return self.imu_angle
+        else:
+            if self.bearing - self.imu_angle > math.pi:
+                self.imu_angle += 2 * math.pi
+            if self.imu_angle - self.bearing > math.pi:
+                self.bearing += 2 * math.pi
+
+            angle = self.imu_angle_weight * self.imu_angle + (1 - self.imu_angle_weight) * self.bearing
+            return angle
 
     @staticmethod
     def bearing_to(lat0, lon0, lat1, lon1):
@@ -73,16 +73,16 @@ class AngleManipulator:
         if len(self.lat_data) == 0 or lat != self.lat_data[-1]:
             self.lat_data.append(lat)
 
-        bearing = -math.atan2(long - self.long_data[0],
-                              lat - self.lat_data[0])  # + math.pi
-        bearing = self.bearing % (2 * math.pi)
+        bearing = math.atan2(long - self.long_data[0],
+                             lat - self.lat_data[0])  # + math.pi
+        self.bearing = bearing % (2 * math.pi)
 
-        self.bearing = AngleManipulator.bearing_to(
-            self.lat_data[0], self.long_data[0], lat, long)
+        # self.bearing = AngleManipulator.bearing_to(
+        #     self.lat_data[0], self.long_data[0], lat, long)
+        #
+        # self.bearing = math.radians(self.bearing)
 
-        self.bearing = math.radians(self.bearing)
-
-        print("Difference: %f" % (self.bearing - bearing))
+        # print("Difference: %f" % (self.bearing - bearing))
 
         if len(self.long_data) > self.bearing_avg_len:
             self.long_data.pop(0)

@@ -1,8 +1,8 @@
 import math
 
-from algorithms.bozo_controller import MapManipulator
+from algorithms.bozo_controller import MapManipulator, PID
 from algorithms.bozo_filter import AngleManipulator
-from algorithms.pipeline import Pipeline, PID
+from algorithms.pipeline import Pipeline
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
 from atlasbuggy.plotters.plot import RobotPlot
@@ -26,7 +26,7 @@ class RoboQuasar(Robot):
     def __init__(self, enable_plotting, map_set_name,
                  initial_compass=None, animate=True, enable_cameras=True,
                  use_log_file_maps=True, show_cameras=None, day_mode=False,
-                 only_cameras=False):
+                 only_cameras=False, enable_pid=True):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -61,21 +61,24 @@ class RoboQuasar(Robot):
 
         # init controller
         self.map_set_name = map_set_name
-        print("Using map set:", map_set_name)
         checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[map_set_name]
 
         self.init_checkpoints = [
             0,  # hill 1
-            117,  # hill 3
-            124,  # hill 4
-            139,  # hill 5
+            17,  # hill 2
+            121,  # hill 3
+            127,  # hill 4
+            143,  # hill 5
         ]
         self.init_offset = 1
         self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=1,
                                               init_indices=self.init_checkpoints)
+        self.pid = None
+        self.enable_pid = enable_pid
+
         self.gps_disabled = False
         self.prev_gps_disabled = False
-        self.disable_gps_checkpoints = [(0, 12), (self.init_checkpoints[2], len(self.map_manipulator))]
+        self.disabled_gps_checkpoints = [(0, 12), (self.init_checkpoints[2], len(self.map_manipulator) - 1)]
         self.angle_filter = AngleManipulator(initial_compass)
 
         self.use_log_file_maps = use_log_file_maps
@@ -86,13 +89,20 @@ class RoboQuasar(Robot):
         self.map_heading = 0.0
         self.gps_corrected_lat = 0.0
         self.gps_corrected_long = 0.0
-        self.saved_gps_lat = 0.0
-        self.saved_gps_long = 0.0
         self.left_limit = None
+        self.map_lat = 0.0
+        self.map_long = 0.0
+
+        # ----- dashboard (parameters to tweak) -----
+        self.map_weight = 0.5
+        self.kp = 1.0
+        self.kd = 0.5
+        self.ki = 0.0
 
         self.angle_threshold = math.radians(10)
         self.percent_threshold = 0.4
 
+        # ----- drift correction -----
         self.lat_drift = 0.0
         self.long_drift = 0.0
         self.drift_corrected = False
@@ -101,6 +111,7 @@ class RoboQuasar(Robot):
         self.bearing_data = []
         self.enable_drift_correction = True
 
+        # ----- status variables -----
         self.gps_within_map = True
         self.prev_within_map_state = True
         self.prev_gps_state = False
@@ -120,7 +131,7 @@ class RoboQuasar(Robot):
             animate, enable_plotting, False,
             self.map_manipulator.map, self.map_manipulator.inner_map,
             self.map_manipulator.outer_map, self.key_press, self.map_set_name,
-            True
+            False
         )
 
     def start(self):
@@ -141,7 +152,9 @@ class RoboQuasar(Robot):
         self.debug_print("Using %s mode pipelines" % ("day" if self.day_mode else "night"), ignore_flag=True)
 
         self.brakes.unpause_pings()
-        self.left_limit = abs(self.steering.left_limit_angle / 3)
+
+        # self.left_limit = abs(self.steering.left_limit_angle / 3)
+        self.pid = PID(self.kp, self.kd, self.ki)  # self.steering.left_limit_angle, self.steering.right_limit_angle)
 
     # ----- camera initialization -----
 
@@ -189,6 +202,8 @@ class RoboQuasar(Robot):
             self.gps_corrected_lat = self.gps.latitude_deg
             self.gps_corrected_long = self.gps.longitude_deg
 
+            # self.angle_filter.update_bearing(self.gps_corrected_lat, self.gps_corrected_long)
+
             if self.drift_corrected:
                 # if self.enable_drift_correction:
                 #     self.gps_corrected_lat += self.lat_drift
@@ -212,12 +227,11 @@ class RoboQuasar(Robot):
                     self.gps_corrected_lat, self.gps_corrected_long
                 )
 
-                map_lat, map_long = self.map_manipulator.map[self.map_manipulator.current_index]
-                self.gps_corrected_lat = (self.gps_corrected_lat + map_lat) / 2
-                self.gps_corrected_long = (self.gps_corrected_long + map_long) / 2
+                self.map_lat, self.map_long = self.map_manipulator.map[self.map_manipulator.current_index]
+                self.gps_corrected_lat = self.gps_corrected_lat * (1 - self.map_weight) + self.map_lat * self.map_weight
+                self.gps_corrected_long = self.gps_corrected_long * (
+                    1 - self.map_weight) + self.map_long * self.map_weight
 
-                self.quasar_plotter.goal_plot.update([self.gps_corrected_lat, self.map_manipulator.goal_lat],
-                                                     [self.gps_corrected_long, self.map_manipulator.goal_long])
                 self.quasar_plotter.corrected_gps_plot.append(self.gps_corrected_lat, self.gps_corrected_long)
 
             status = self.quasar_plotter.update_gps_plot(timestamp, self.gps.latitude_deg, self.gps.longitude_deg)
@@ -230,7 +244,7 @@ class RoboQuasar(Robot):
             self.update_steering()
             return
 
-        if (self.angle_filter.initialized and self.drift_corrected and
+        if (self.angle_filter.initialized and self.drift_corrected and self.gps.is_position_valid() and
                 self.map_manipulator.is_initialized()):
             self.imu_heading_guess = self.angle_filter.offset_angle(self.imu.euler.z)
 
@@ -240,36 +254,55 @@ class RoboQuasar(Robot):
 
             self.prev_gps_disabled = self.gps_disabled
             self.gps_disabled = False
-            for checkpoint_set in self.disable_gps_checkpoints:
+            goal_checkpoint = None
+            current_checkpoint = None
+            for checkpoint_set in self.disabled_gps_checkpoints:
                 if checkpoint_set[0] <= self.map_manipulator.current_index <= checkpoint_set[1]:
                     self.gps_disabled = True
+                    current_checkpoint = checkpoint_set[0]
+                    goal_checkpoint = checkpoint_set[1]
 
                     if self.prev_gps_disabled != self.gps_disabled:
                         if self.gps_disabled:
-                            print("Ignoring GPS, driving straight until:", checkpoint_set[1])
+                            self.debug_print("Ignoring GPS, driving straight until:", checkpoint_set[1],
+                                             ignore_flag=True)
                         else:
-                            print("Reapplying GPS. Recalibrating position")
-                        self.calibrate_with_checkpoint()
-
+                            self.debug_print("Reapplying GPS, current index:", self.map_manipulator.current_index,
+                                             ignore_flag=True)
                     break
 
             if self.gps_disabled:
                 # self.check_pipeline()
-                self.steering_angle = self.map_manipulator.update(
-                    self.saved_gps_lat, self.saved_gps_long, self.imu_heading_guess
+                current_lat, current_long = self.map_manipulator.map[current_checkpoint]
+
+                angle_error = self.map_manipulator.update(
+                    current_lat, current_long, self.imu_heading_guess, goal_checkpoint - current_checkpoint
                 )
+                goal_lat, goal_long = self.map_manipulator.map[goal_checkpoint]
+
             else:
-                self.steering_angle = self.map_manipulator.update(
+                angle_error = self.map_manipulator.update(
                     self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
                 )
-                self.saved_gps_lat = self.gps_corrected_lat
-                self.saved_gps_long = self.gps_corrected_long
+
+                current_lat = self.gps_corrected_lat
+                current_long = self.gps_corrected_long
+
+                goal_lat = self.map_manipulator.goal_lat
+                goal_long = self.map_manipulator.goal_long
+
+            if self.enable_pid:
+                self.steering_angle = self.pid.update(angle_error, self.dt())
+            else:
+                self.steering_angle = angle_error
+
+            self.quasar_plotter.update_indicators(
+                (current_lat, current_long),
+                (goal_lat, goal_long),
+                self.imu_heading_guess, self.steering_angle,
+            )
 
             self.update_steering()
-
-            if self.gps.is_position_valid():
-                self.quasar_plotter.update_indicators((self.saved_gps_lat, self.saved_gps_long),
-                                                      self.imu_heading_guess)
 
     def received(self, timestamp, whoiam, packet, packet_type):
         if self.did_receive("initial compass"):
@@ -301,13 +334,8 @@ class RoboQuasar(Robot):
 
     def update_steering(self):
         if (self.angle_filter.initialized and self.drift_corrected) or self.only_cameras:
-            if self.steering_angle > self.left_limit:  # never turn left too much
+            if self.left_limit is not None and self.steering_angle > self.left_limit:  # never turn left too much
                 self.steering_angle = self.left_limit
-
-            self.quasar_plotter.update_goal_angle(
-                self.gps_corrected_lat, self.gps_corrected_long,
-                self.imu_heading_guess - self.steering_angle
-            )
 
             if not self.manual_mode:
                 self.steering.set_position(self.steering_angle)
@@ -352,16 +380,16 @@ class RoboQuasar(Robot):
             self.angle_filter.init_compass(bearing)
             self.record_compass()
 
-            print("\n====="
-                  "\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
-            print("\tBearing: %0.6frad, %0.6fdeg\n"
-                  "=====" % (bearing, math.degrees(bearing)))
+            self.debug_print("\n=====, ignore_flag=True"
+                             "\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
+            self.debug_print("\tBearing: %0.6frad, %0.6fdeg\n, ignore_flag=True"
+                             "=====" % (bearing, math.degrees(bearing)))
             if self.drift_corrected:
-                print("\tDrift already corrected")
+                self.debug_print("\tDrift already corrected", ignore_flag=True)
             self.drift_corrected = True
 
         else:
-            print("Invalid GPS. Ignoring")
+            self.debug_print("Invalid GPS. Ignoring", ignore_flag=True)
 
     def record_compass(self):
         if self.angle_filter.initialized:
@@ -397,7 +425,8 @@ class RoboQuasar(Robot):
 
             if self.joystick.button_updated("X") and self.joystick.get_button("X"):
                 self.manual_mode = not self.manual_mode
-                print("Manual control enabled" if self.manual_mode else "Autonomous mode enabled")
+                self.debug_print("Manual control enabled" if self.manual_mode else "Autonomous mode enabled",
+                                 ignore_flag=True)
 
             elif self.joystick.button_updated("L"):
                 if self.joystick.get_button("L"):
@@ -416,10 +445,6 @@ class RoboQuasar(Robot):
 
             elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
                 self.calibrate_with_checkpoint()
-
-            elif self.joystick.button_updated("-"):
-                self.enable_drift_correction = not self.enable_drift_correction
-                print("Drift correction %s" % ("enabled" if self.enable_drift_correction else "disabled!!"))
 
     @staticmethod
     def my_round(x, d=0):
@@ -458,6 +483,12 @@ class RoboQuasar(Robot):
                 print(self.parser.index, end=" -> ")
                 self.parser.index += 50
                 print(self.parser.index)
+        elif event.key == "]":
+            if self.parser is not None:
+                print(self.parser.index, end=" -> ")
+                self.parser.index += 5000
+                print(self.parser.index)
+                self.pid.error_sum = 0
 
     def close(self, reason):
         if reason != "done":
@@ -519,7 +550,7 @@ class RoboQuasarPlotter:
         if animate:
             self.plotter = LivePlotter(
                 2, self.accuracy_check_plot,  # self.pipeline_plots,
-                matplotlib_events=dict(key_press_event=key_press_fn), draw_legend=True,
+                matplotlib_events=dict(key_press_event=key_press_fn), enable_legend=False,
                 enabled=enable_plotting,
                 skip_count=3
             )
@@ -601,7 +632,7 @@ class RoboQuasarPlotter:
                 self.inner_map_plot.set_properties(color="red")
         return status, changed
 
-    def update_indicators(self, current_pos, imu_angle):
+    def update_indicators(self, current_pos, goal_pos, imu_angle, steering_angle):
         if self.plotter.enabled:
             self.current_pos_dot.update([current_pos[0]], [current_pos[1]])
             if isinstance(self.plotter, LivePlotter):
@@ -610,22 +641,23 @@ class RoboQuasarPlotter:
                 self.compass_plot.update([current_pos[0], lat2],
                                          [current_pos[1], long2])
 
+                goal_lat, goal_long = self.compass_coords(current_pos[0], current_pos[1], imu_angle - steering_angle)
+                self.steering_angle_plot.update([current_pos[0], goal_lat], [current_pos[1], goal_long])
+                self.goal_plot.update([current_pos[0], goal_pos[0]],
+                                      [current_pos[1], goal_pos[1]])
+
+                self.plotter.draw_text(
+                    self.accuracy_check_plot,
+                    "%0.2f, %0.2f" % (math.degrees(imu_angle), math.degrees(steering_angle)),
+                    current_pos[0], current_pos[1], text_name="angles",
+                    fontsize='small'
+                )
+
     @staticmethod
     def compass_coords(lat, long, angle, length=0.0003):
         lat2 = length * math.cos(angle) + lat
         long2 = length * math.sin(angle) + long
         return lat2, long2
-
-    def update_goal_angle(self, lat, long, goal_angle):
-        goal_lat, goal_long = self.compass_coords(lat, long, goal_angle)
-        self.steering_angle_plot.update([lat, goal_lat], [long, goal_long])
-
-    def plot_recorded_goal(self, lat, long, goal_lat, goal_long):
-        if isinstance(self.plotter, LivePlotter):
-            self.recorded_goal_plot.update(
-                [lat, goal_lat],
-                [long, goal_long]
-            )
 
     def check_paused(self, dt):
         if isinstance(self.plotter, LivePlotter):
@@ -643,25 +675,25 @@ class RoboQuasarPlotter:
 
 
 map_sets = {
-    "single": (
+    "single" : (
         "Single Point",
         "Single Point Inside",
         "Single Point Outside",
         "single"
     ),
-    "cut 3": (
+    "cut 3"  : (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2": (
+    "cut 2"  : (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy": (
+    "buggy"  : (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
@@ -673,7 +705,7 @@ map_sets = {
         "buggy course map outside border 2",
         "buggy 2",
     ),
-    "short": (
+    "short"  : (
         "Short Course",
         "Short Course Inner",
         "Short Course Outer",
@@ -686,7 +718,7 @@ image_sets = {
     #     "maps/buggy/Buggy Course Image 1.png", (40.440829, -79.948150),
     #     (40.441729, -79.941543), (136, 515), (2080, 161)
     # ),
-    "buggy": (
+    "buggy"  : (
         "maps/buggy/Buggy Course Image 2.png",
         (427, 2040), (2611, 836),
         (40.43910438921088, -79.94750440120698),
@@ -701,17 +733,17 @@ image_sets = {
 }
 
 file_sets = {
-    "rolls day 11": (
+    "rolls day 11"      : (
         ("06;13", "rolls/2017_Apr_15"),
     ),
-    "push practice 4": (
+    "push practice 4"   : (
         ("23;35", "push_practice/2017_Apr_13"),
         ("23;47", "push_practice/2017_Apr_13"),
         ("23;47", "push_practice/2017_Apr_13"),
         ("00;06", "push_practice/2017_Apr_14"),
         ("00;20", "push_practice/2017_Apr_14"),
     ),
-    "rolls day 10": (
+    "rolls day 10"      : (
         ("05;38", "rolls/2017_Apr_09"),
         ("05;55", "rolls/2017_Apr_09"),
         ("06;17", "rolls/2017_Apr_09"),
@@ -719,38 +751,38 @@ file_sets = {
         ("FIRST SUCCESSFUL ROLLS!!!", "rolls/2017_Apr_09"),
 
     ),
-    "rolls day 9": (
+    "rolls day 9"       : (
         ("05;29", "rolls/2017_Apr_08"),
         ("06;16", "rolls/2017_Apr_08"),
         ("08;36", "rolls/2017_Apr_08")
     ),
 
-    "push practice 3": (
+    "push practice 3"   : (
         ("00;14", "push_practice/2017_Apr_06"),
     ),
 
-    "rolls day 8": (
+    "rolls day 8"       : (
         ("05;37;41", "rolls/2017_Apr_02"),
         ("06;17;16", "rolls/2017_Apr_02"),
         ("06;23;15", "rolls/2017_Apr_02"),
     ),
-    "data day 13": (
+    "data day 13"       : (
         ("17;23;27", "data_days/2017_Apr_01"),
         ("17;25;56", "data_days/2017_Apr_01"),
     ),
-    "rolls day 7": (
+    "rolls day 7"       : (
         ("23;17", "rolls/2017_Mar_28"),
         ("23;20", "rolls/2017_Mar_28"),
         ("23;31", "rolls/2017_Mar_28"),
         ("23;41", "rolls/2017_Mar_28"),
         ("00;03", "rolls/2017_Mar_29"),
     ),
-    "rolls day 6": (
+    "rolls day 6"       : (
         ("23;53", "rolls/2017_Mar_27"),
         ("00;44", "rolls/2017_Mar_28"),
         ("00;50", "rolls/2017_Mar_28"),
     ),
-    "rolls day 5": (
+    "rolls day 5"       : (
         ("07;46", "rolls/2017_Mar_26"),
         ("07;49", "rolls/2017_Mar_26"),
         ("07;54", "rolls/2017_Mar_26"),
@@ -759,12 +791,12 @@ file_sets = {
         ("06;56", "rolls/2017_Mar_26"),
         ("09;06", "rolls/2017_Mar_26"),
     ),
-    "rolls day 4": (
+    "rolls day 4"       : (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
     ),
-    "push practice 2": (
+    "push practice 2"   : (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
         ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
@@ -787,7 +819,7 @@ file_sets = {
         ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
         ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
     ),
-    "push practice 1": (
+    "push practice 1"   : (
         ("23;25", "push_practice/2017_Mar_21"),
         ("23;30", "push_practice/2017_Mar_21"),
         ("23;49", "push_practice/2017_Mar_21"),
@@ -795,15 +827,15 @@ file_sets = {
         ("00;06", "push_practice/2017_Mar_22"),
         ("00;15", "push_practice/2017_Mar_22"),
     ),
-    "data day 12": (
+    "data day 12"       : (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 11": (
+    "data day 11"       : (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
         ("16;19", "data_days/2017_Mar_13"),
     ),
-    "data day 10": (
+    "data day 10"       : (
         # straight line GPS tests
         ("17;07", "data_days/2017_Mar_09"),
         ("17;09", "data_days/2017_Mar_09"),
@@ -829,7 +861,7 @@ file_sets = {
         ("18;30;51", "data_days/2017_Mar_09"),
         ("18;36", "data_days/2017_Mar_09"),
     ),
-    "data day 9": (
+    "data day 9"        : (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -845,7 +877,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8": (
+    "data day 8"        : (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -853,7 +885,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7": (
+    "data day 7"        : (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -867,12 +899,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6": (
+    "data day 6"        : (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5": (
+    "data day 5"        : (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -880,45 +912,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4": (
+    "data day 4"        : (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3": (
+    "data day 3"        : (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield": (
+    "trackfield"        : (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1": (
+    "rolls day 1"       : (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2": (
+    "rolls day 2"       : (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3": (
+    "rolls day 3"       : (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test": (
+    "first cut test"    : (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data": (
+    "bad data"          : (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
@@ -938,10 +970,10 @@ video_sets = {
         ("00_50_03", "push_practice/2017_Mar_24", "mp4"),
         ("00_51_05", "push_practice/2017_Mar_24", "mp4"),
     ),
-    "data day 12": (
+    "data day 12"    : (
         ("16_36_17", "data_days/2017_Mar_18", "mp4"),
     ),
-    "data day 11": (
+    "data day 11"    : (
         ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
         ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1
         ("17_05_21", "data_days/2017_Mar_16", "mp4"),  # 2
