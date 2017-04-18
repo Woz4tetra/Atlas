@@ -78,7 +78,10 @@ class RoboQuasar(Robot):
 
         self.gps_disabled = False
         self.prev_gps_disabled = False
-        self.disabled_gps_checkpoints = [(0, 12), (self.init_checkpoints[2], len(self.map_manipulator) - 1)]
+        self.disabled_gps_checkpoints = [
+            # (0, 12),
+            (self.init_checkpoints[2], len(self.map_manipulator) - 1)
+        ]
         self.angle_filter = AngleManipulator(initial_compass)
 
         self.use_log_file_maps = use_log_file_maps
@@ -234,6 +237,7 @@ class RoboQuasar(Robot):
 
                 self.quasar_plotter.corrected_gps_plot.append(self.gps_corrected_lat, self.gps_corrected_long)
 
+        if self.gps.fix:
             status = self.quasar_plotter.update_gps_plot(timestamp, self.gps.latitude_deg, self.gps.longitude_deg)
             if status is not None:
                 return status
@@ -675,25 +679,25 @@ class RoboQuasarPlotter:
 
 
 map_sets = {
-    "single" : (
+    "single": (
         "Single Point",
         "Single Point Inside",
         "Single Point Outside",
         "single"
     ),
-    "cut 3"  : (
+    "cut 3": (
         "Autonomous Map 3",
         "Autonomous Map 3 Inner",
         "Autonomous Map 3 Outer",
         "cut"
     ),
-    "cut 2"  : (
+    "cut 2": (
         "Autonomous test map 2",
         "Autonomous test map 2 inside border",
         "Autonomous test map 2 outside border",
         "cut"
     ),
-    "buggy"  : (
+    "buggy": (
         "buggy course map",
         "buggy course map inside border",
         "buggy course map outside border",
@@ -705,7 +709,7 @@ map_sets = {
         "buggy course map outside border 2",
         "buggy 2",
     ),
-    "short"  : (
+    "short": (
         "Short Course",
         "Short Course Inner",
         "Short Course Outer",
@@ -718,7 +722,7 @@ image_sets = {
     #     "maps/buggy/Buggy Course Image 1.png", (40.440829, -79.948150),
     #     (40.441729, -79.941543), (136, 515), (2080, 161)
     # ),
-    "buggy"  : (
+    "buggy": (
         "maps/buggy/Buggy Course Image 2.png",
         (427, 2040), (2611, 836),
         (40.43910438921088, -79.94750440120698),
@@ -733,17 +737,27 @@ image_sets = {
 }
 
 file_sets = {
-    "rolls day 11"      : (
+    "push practice 5": (
+        ("23;49", "push_practice/2017_Apr_17"),
+        ("23;54", "push_practice/2017_Apr_17"),
+        ("00;04", "push_practice/2017_Apr_18"),
+        ("00;05", "push_practice/2017_Apr_18"),
+        ("00;14", "push_practice/2017_Apr_18"),
+        ("00;24", "push_practice/2017_Apr_18"),
+        ("00;38", "push_practice/2017_Apr_18"),
+        ("01;11", "push_practice/2017_Apr_18"),
+    ),
+    "rolls day 11": (
         ("06;13", "rolls/2017_Apr_15"),
     ),
-    "push practice 4"   : (
+    "push practice 4": (
         ("23;35", "push_practice/2017_Apr_13"),
         ("23;47", "push_practice/2017_Apr_13"),
         ("23;47", "push_practice/2017_Apr_13"),
         ("00;06", "push_practice/2017_Apr_14"),
         ("00;20", "push_practice/2017_Apr_14"),
     ),
-    "rolls day 10"      : (
+    "rolls day 10": (
         ("05;38", "rolls/2017_Apr_09"),
         ("05;55", "rolls/2017_Apr_09"),
         ("06;17", "rolls/2017_Apr_09"),
@@ -751,38 +765,38 @@ file_sets = {
         ("FIRST SUCCESSFUL ROLLS!!!", "rolls/2017_Apr_09"),
 
     ),
-    "rolls day 9"       : (
+    "rolls day 9": (
         ("05;29", "rolls/2017_Apr_08"),
         ("06;16", "rolls/2017_Apr_08"),
         ("08;36", "rolls/2017_Apr_08")
     ),
 
-    "push practice 3"   : (
+    "push practice 3": (
         ("00;14", "push_practice/2017_Apr_06"),
     ),
 
-    "rolls day 8"       : (
+    "rolls day 8": (
         ("05;37;41", "rolls/2017_Apr_02"),
         ("06;17;16", "rolls/2017_Apr_02"),
         ("06;23;15", "rolls/2017_Apr_02"),
     ),
-    "data day 13"       : (
+    "data day 13": (
         ("17;23;27", "data_days/2017_Apr_01"),
         ("17;25;56", "data_days/2017_Apr_01"),
     ),
-    "rolls day 7"       : (
+    "rolls day 7": (
         ("23;17", "rolls/2017_Mar_28"),
         ("23;20", "rolls/2017_Mar_28"),
         ("23;31", "rolls/2017_Mar_28"),
         ("23;41", "rolls/2017_Mar_28"),
         ("00;03", "rolls/2017_Mar_29"),
     ),
-    "rolls day 6"       : (
+    "rolls day 6": (
         ("23;53", "rolls/2017_Mar_27"),
         ("00;44", "rolls/2017_Mar_28"),
         ("00;50", "rolls/2017_Mar_28"),
     ),
-    "rolls day 5"       : (
+    "rolls day 5": (
         ("07;46", "rolls/2017_Mar_26"),
         ("07;49", "rolls/2017_Mar_26"),
         ("07;54", "rolls/2017_Mar_26"),
@@ -791,12 +805,12 @@ file_sets = {
         ("06;56", "rolls/2017_Mar_26"),
         ("09;06", "rolls/2017_Mar_26"),
     ),
-    "rolls day 4"       : (
+    "rolls day 4": (
         ("06;19", "rolls/2017_Mar_25"),  # 0, first semi-autonomous run part 1
         ("06;39", "rolls/2017_Mar_25"),  # 1, no initial compass
         ("06;48", "rolls/2017_Mar_25"),  # 2, first semi-autonomous run part 2
     ),
-    "push practice 2"   : (
+    "push practice 2": (
         ("23;55", "push_practice/2017_Mar_23"),  # 0, manual run
         ("23;57", "push_practice/2017_Mar_23"),  # 1, manual run
         ("00;10", "push_practice/2017_Mar_24"),  # 2, walking to position
@@ -819,7 +833,7 @@ file_sets = {
         ("00;52;03", "push_practice/2017_Mar_24/error_logs"),  # 18, failed to send command brakes
         ("00;52;12", "push_practice/2017_Mar_24/error_logs"),  # 19, failed to send command brakes
     ),
-    "push practice 1"   : (
+    "push practice 1": (
         ("23;25", "push_practice/2017_Mar_21"),
         ("23;30", "push_practice/2017_Mar_21"),
         ("23;49", "push_practice/2017_Mar_21"),
@@ -827,15 +841,15 @@ file_sets = {
         ("00;06", "push_practice/2017_Mar_22"),
         ("00;15", "push_practice/2017_Mar_22"),
     ),
-    "data day 12"       : (
+    "data day 12": (
         ("16;36", "data_days/2017_Mar_18"),
     ),
-    "data day 11"       : (
+    "data day 11": (
         ("16;04", "data_days/2017_Mar_13"),
         ("16;31", "data_days/2017_Mar_13"),
         ("16;19", "data_days/2017_Mar_13"),
     ),
-    "data day 10"       : (
+    "data day 10": (
         # straight line GPS tests
         ("17;07", "data_days/2017_Mar_09"),
         ("17;09", "data_days/2017_Mar_09"),
@@ -861,7 +875,7 @@ file_sets = {
         ("18;30;51", "data_days/2017_Mar_09"),
         ("18;36", "data_days/2017_Mar_09"),
     ),
-    "data day 9"        : (
+    "data day 9": (
         ("15;13", "data_days/2017_Mar_05"),  # 0
         ("15;19", "data_days/2017_Mar_05"),  # 1
         ("15;25", "data_days/2017_Mar_05"),  # 2
@@ -877,7 +891,7 @@ file_sets = {
     "moving to high bay": (
         ("14;08;26", "data_days/2017_Mar_02"),
     ),
-    "data day 8"        : (
+    "data day 8": (
         ("15;05", "data_days/2017_Feb_26"),  # 0, 1st autonomous run
         ("15;11", "data_days/2017_Feb_26"),  # 1, 2nd autonomous run, IMU stopped working
         ("15;19", "data_days/2017_Feb_26"),  # 2, finished 2nd run
@@ -885,7 +899,7 @@ file_sets = {
         ("15;33", "data_days/2017_Feb_26"),  # 4, 4th run, multiple laps
         ("15;43", "data_days/2017_Feb_26"),  # 5, walking home
     ),
-    "data day 7"        : (
+    "data day 7": (
         ("14;19", "data_days/2017_Feb_24"),  # 0, rolling on schlenley 1
         ("14;26", "data_days/2017_Feb_24"),  # 1, rolling on schlenley 2
         ("16;13", "data_days/2017_Feb_24"),  # 2, GPS not found error 1
@@ -899,12 +913,12 @@ file_sets = {
     ),
 
     # started using checkpoints
-    "data day 6"        : (
+    "data day 6": (
         ("16;47", "data_days/2017_Feb_18"),
         ("16;58", "data_days/2017_Feb_18"),
         ("18;15", "data_days/2017_Feb_18"),
     ),
-    "data day 5"        : (
+    "data day 5": (
         ("16;49", "data_days/2017_Feb_17"),
         ("17;37", "data_days/2017_Feb_17"),
         ("18;32", "data_days/2017_Feb_17"),
@@ -912,45 +926,45 @@ file_sets = {
     # "rolls day 4": (
     #
     # ),
-    "data day 4"        : (
+    "data day 4": (
         ("15", "data_days/2017_Feb_14"),  # filter explodes, LIDAR interfered by the sun
         ("16;20", "data_days/2017_Feb_14"),  # shorten run, LIDAR collapsed
         ("16;57", "data_days/2017_Feb_14"),  # interfered LIDAR
         ("17;10", "data_days/2017_Feb_14"),  # all data is fine, interfered LIDAR
         ("17;33", "data_days/2017_Feb_14")),  # data is fine, normal run
 
-    "data day 3"        : (
+    "data day 3": (
         ("16;38", "data_days/2017_Feb_08"),
         ("17", "data_days/2017_Feb_08"),
         ("18", "data_days/2017_Feb_08")),
 
     # no gyro values
-    "trackfield"        : (
+    "trackfield": (
         ("15;46", "old_data/2016_Dec_02"),
         ("15;54", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02"),
         ("16;10", "old_data/2016_Dec_02")),
 
-    "rolls day 1"       : (
+    "rolls day 1": (
         ("07;22", "old_data/2016_Nov_06"),),  # bad gyro values
 
-    "rolls day 2"       : (
+    "rolls day 2": (
         ("07;36;03 m", "old_data/2016_Nov_12"),
         ("09;12", "old_data/2016_Nov_12"),  # invalid values
         ("07;04;57", "old_data/2016_Nov_13")),  # bad gyro values
 
-    "rolls day 3"       : (
+    "rolls day 3": (
         ("modified 07;04", "old_data/2016_Nov_13"),
         ("modified 07;23", "old_data/2016_Nov_13")),  # wonky value for mag.
 
     # rolling on the cut
-    "first cut test"    : (
+    "first cut test": (
         ("16;29", "old_data/2016_Dec_09"),
         ("16;49", "old_data/2016_Dec_09"),
         ("16;5", "old_data/2016_Dec_09"),
         ("17;", "old_data/2016_Dec_09")),  # nothing wrong, really short
 
-    "bad data"          : (
+    "bad data": (
         ("16;07", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("16;09", "old_data/2016_Dec_09/bad_data"),  # nothing wrong, really short
         ("18;00", "old_data/2016_Dec_09/bad_data"),  # gps spazzed out
@@ -970,10 +984,10 @@ video_sets = {
         ("00_50_03", "push_practice/2017_Mar_24", "mp4"),
         ("00_51_05", "push_practice/2017_Mar_24", "mp4"),
     ),
-    "data day 12"    : (
+    "data day 12": (
         ("16_36_17", "data_days/2017_Mar_18", "mp4"),
     ),
-    "data day 11"    : (
+    "data day 11": (
         ("17_00_00", "data_days/2017_Mar_16", "mp4"),  # 0
         ("17_01_40", "data_days/2017_Mar_16", "mp4"),  # 1
         ("17_05_21", "data_days/2017_Mar_16", "mp4"),  # 2
