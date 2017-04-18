@@ -1,20 +1,20 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
 <metadata>
-  <name>buggy course map</name>
+  <name>buggy course map 2</name>
   <desc></desc>
   <author><name>WTracks</name></author>
   <link href='https://opoto.github.io/wtracks/'>
     <text>WTracks</text>
     <type>text/html</type>
   </link>
-  <time>2017-04-18T03:32:43.524Z</time>
-  <bounds minlat="40.44002097963736" minlon="-79.94315788149835" maxlat="40.44078751726914" maxlon="-79.94122669100761"/>
+  <time>2017-04-18T03:47:24.502Z</time>
+  <bounds minlat="40.44106105987389" minlon="-79.94244709610939" maxlat="40.44182758564622" maxlon="-79.94051590561868"/>
 </metadata>
-<trk><name>buggy course map</name><trkseg>
-  <trkpt lat="40.44159997637583" lon="-79.94164377450944"><ele>288.5257263183594</ele></trkpt>
-  <trkpt lat="40.44156935623581" lon="-79.94165584445"><ele>288.6614685058594</ele></trkpt>
-  <trkpt lat="40.441528529360745" lon="-79.9416705965996"><ele>288.9269409179688</ele></trkpt>
+<trk><name>buggy course map 2</name><trkseg>
+  <trkpt lat="40.44165203058187" lon="-79.94161427021028"><ele>288.3721618652344</ele></trkpt>
+  <trkpt lat="40.44159997637583" lon="-79.94163438677788"><ele>288.537353515625</ele></trkpt>
+  <trkpt lat="40.44152750868854" lon="-79.94166657328606"><ele>288.9269409179688</ele></trkpt>
   <trkpt lat="40.44146626832851" lon="-79.94169741868974"><ele>289.3009643554688</ele></trkpt>
   <trkpt lat="40.44137134566022" lon="-79.94173362851144"><ele>289.941162109375</ele></trkpt>
   <trkpt lat="40.44127131947765" lon="-79.94177788496019"><ele>290.5872192382812</ele></trkpt>
