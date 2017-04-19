@@ -46,8 +46,8 @@ class MapManipulator:
     def is_initialized(self):
         return self.current_index is not None
 
-    def update(self, lat, long, yaw, offset=None):
-        self.goal_angle = self.get_goal_angle(lat, long, offset)
+    def update(self, lat, long, yaw, offset=None, goal_num=None):
+        self.goal_angle = self.get_goal_angle(lat, long, offset, goal_num)
         if self.goal_angle < 0:
             self.goal_angle += 2 * math.pi
 
@@ -56,13 +56,13 @@ class MapManipulator:
         self.current_angle = angle_error
         return self.current_angle
 
-    def get_goal_angle(self, lat, long, offset=None):
-        goal_index = self.get_goal(lat, long, offset)
+    def get_goal_angle(self, lat, long, offset=None, goal_num=None):
+        goal_index = self.get_goal(lat, long, offset, goal_num)
         goal_lat, goal_long = self.map[goal_index]
 
         return math.atan2(goal_long - long, goal_lat - lat)
 
-    def get_goal(self, lat0, long0, offset=None):
+    def get_goal(self, lat0, long0, offset=None, goal_num=None):
         if self.keep_position_in_boundary:
             if not self.point_inside_outer_map(lat0, long0):
                 nearest_index = self.closest_point(lat0, long0, self.outer_map)
@@ -86,7 +86,10 @@ class MapManipulator:
 
         self.current_index = self.closest_point(lat0, long0, self.map, start, end)
         self.current_index = self.current_index % len(self.map)  # the closest index on the map
-        self.goal_index = (self.current_index + offset) % len(self.map)  # set goal to the next checkpoint
+        if goal_num is None:
+            self.goal_index = (self.current_index + offset) % len(self.map)  # set goal to the next checkpoint
+        else:
+            self.goal_index = goal_num
 
         self.goal_lat, self.goal_long = self.map[self.goal_index]
 

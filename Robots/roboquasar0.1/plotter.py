@@ -2,7 +2,7 @@ from atlasbuggy.interface.simulated import RobotSimulator
 from roboquasar import RoboQuasar, file_sets, map_sets  # , video_sets
 
 # file_name, directory = file_sets["push practice 4"][-1]
-file_name, directory = file_sets["push practice 5"][-1]
+file_name, directory = file_sets["push practice 6"][-1]
 # file_name, directory = file_sets["rolls day 10"][-1]
 
 robot = RoboQuasar(

@@ -71,7 +71,7 @@ class RoboQuasar(Robot):
             143,  # hill 5
         ]
         self.init_offset = 1
-        self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=1,
+        self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=2,
                                               init_indices=self.init_checkpoints)
         self.pid = None
         self.enable_pid = enable_pid
@@ -79,7 +79,7 @@ class RoboQuasar(Robot):
         self.gps_disabled = False
         self.prev_gps_disabled = False
         self.disabled_gps_checkpoints = [
-            # (0, 12),
+            (0, 12),
             (self.init_checkpoints[2], len(self.map_manipulator) - 1)
         ]
         self.angle_filter = AngleManipulator(initial_compass)
@@ -97,13 +97,15 @@ class RoboQuasar(Robot):
         self.map_long = 0.0
 
         # ----- dashboard (parameters to tweak) -----
-        self.map_weight = 0.5
-        self.kp = 1.0
-        self.kd = 0.5
+        self.map_weight = 0.15
+        self.kp = 0.9
+        self.kd = 0.0
         self.ki = 0.0
 
         self.angle_threshold = math.radians(10)
         self.percent_threshold = 0.4
+
+        self.enable_drift_correction = False
 
         # ----- drift correction -----
         self.lat_drift = 0.0
@@ -112,7 +114,6 @@ class RoboQuasar(Robot):
         self.lat_drift_data = []
         self.long_drift_data = []
         self.bearing_data = []
-        self.enable_drift_correction = True
 
         # ----- status variables -----
         self.gps_within_map = True
@@ -208,9 +209,9 @@ class RoboQuasar(Robot):
             # self.angle_filter.update_bearing(self.gps_corrected_lat, self.gps_corrected_long)
 
             if self.drift_corrected:
-                # if self.enable_drift_correction:
-                #     self.gps_corrected_lat += self.lat_drift
-                #     self.gps_corrected_long += self.long_drift
+                if self.enable_drift_correction:
+                    self.gps_corrected_lat += self.lat_drift
+                    self.gps_corrected_long += self.long_drift
 
                 outer_state = self.map_manipulator.point_inside_outer_map(
                     self.gps_corrected_lat, self.gps_corrected_long
@@ -280,7 +281,7 @@ class RoboQuasar(Robot):
                 current_lat, current_long = self.map_manipulator.map[current_checkpoint]
 
                 angle_error = self.map_manipulator.update(
-                    current_lat, current_long, self.imu_heading_guess, goal_checkpoint - current_checkpoint
+                    current_lat, current_long, self.imu_heading_guess, goal_num=goal_checkpoint
                 )
                 goal_lat, goal_long = self.map_manipulator.map[goal_checkpoint]
 
@@ -737,6 +738,15 @@ image_sets = {
 }
 
 file_sets = {
+    "push practice 6": (
+        ("23;15", "push_practice/2017_Apr_18"),
+        ("23;24", "push_practice/2017_Apr_18"),
+        ("23;31", "push_practice/2017_Apr_18"),
+        ("23;40", "push_practice/2017_Apr_18"),
+        ("23;46", "push_practice/2017_Apr_18"),
+        ("23;52", "push_practice/2017_Apr_18"),
+        ("00;14", "push_practice/2017_Apr_19"),
+    ),
     "push practice 5": (
         ("23;49", "push_practice/2017_Apr_17"),
         ("23;54", "push_practice/2017_Apr_17"),
