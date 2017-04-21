@@ -68,9 +68,11 @@ class AngleManipulator:
         return theta % (2 * math.pi)
 
     def update_bearing(self, lat, long):
-        if len(self.long_data) == 0 or long != self.long_data[-1]:
+        if len(self.long_data) == 0 or len(self.lat_data) == 0 or (
+                        abs(long - self.long_data[-1]) > 0.00001 and abs(lat - self.lat_data[-1]) > 0.00001):
+            if len(self.long_data) > 0:
+                print(abs(long - self.long_data[-1]))
             self.long_data.append(long)
-        if len(self.lat_data) == 0 or lat != self.lat_data[-1]:
             self.lat_data.append(lat)
 
         bearing = math.atan2(long - self.long_data[0],

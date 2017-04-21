@@ -10,7 +10,8 @@ unsigned long delta_time = 0;
 #define MAX_SPEED 200
 #define RIGHT_LIMIT -150
 #define LEFT_LIMIT 150
-#define POSITION_ZERO 135
+#define POSITION_ZERO 120
+//135
 #define CENTER_OFFSET 50
 
 int position = 0;

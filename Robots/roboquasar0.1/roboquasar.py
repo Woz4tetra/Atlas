@@ -51,7 +51,7 @@ class RoboQuasar(Robot):
         self.camera = Camera("rightcam", enabled=enable_cameras, show=show_cameras)
 
         self.day_mode = day_mode
-        self.pipeline = Pipeline(self.camera, self.day_mode, enabled=True,
+        self.pipeline = Pipeline(self.camera, self.day_mode, enabled=False,
                                  separate_read_thread=False)
 
         # ----- init filters and controllers -----
@@ -64,13 +64,13 @@ class RoboQuasar(Robot):
         checkpoint_map_name, inner_map_name, outer_map_name, map_dir = map_sets[map_set_name]
 
         self.init_checkpoints = [
-            0,  # hill 1
-            17,  # hill 2
-            121,  # hill 3
-            127,  # hill 4
-            143,  # hill 5
+            0,  # 0, hill 1
+            17,  # 1, hill 2
+            121,  # 2, hill 3
+            127,  # 3, hill 4
+            143,  # 4, hill 5
         ]
-        self.init_offset = 1
+        self.init_offset = 12
         self.map_manipulator = MapManipulator(checkpoint_map_name, map_dir, inner_map_name, outer_map_name, offset=2,
                                               init_indices=self.init_checkpoints)
         self.pid = None
@@ -80,7 +80,8 @@ class RoboQuasar(Robot):
         self.prev_gps_disabled = False
         self.disabled_gps_checkpoints = [
             (0, 12),
-            (self.init_checkpoints[2], len(self.map_manipulator) - 1)
+            (13, 17),
+            (130, len(self.map_manipulator) - 1)
         ]
         self.angle_filter = AngleManipulator(initial_compass)
 
@@ -135,7 +136,7 @@ class RoboQuasar(Robot):
             animate, enable_plotting, False,
             self.map_manipulator.map, self.map_manipulator.inner_map,
             self.map_manipulator.outer_map, self.key_press, self.map_set_name,
-            False
+            True
         )
 
     def start(self):
@@ -199,14 +200,8 @@ class RoboQuasar(Robot):
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
 
-                if self.map_manipulator.current_index != self.prev_index:
-                    print("Current map location:", self.map_manipulator.current_index)
-                    self.prev_index = self.map_manipulator.current_index
-
             self.gps_corrected_lat = self.gps.latitude_deg
             self.gps_corrected_long = self.gps.longitude_deg
-
-            # self.angle_filter.update_bearing(self.gps_corrected_lat, self.gps_corrected_long)
 
             if self.drift_corrected:
                 if self.enable_drift_correction:
@@ -235,6 +230,9 @@ class RoboQuasar(Robot):
                 self.gps_corrected_lat = self.gps_corrected_lat * (1 - self.map_weight) + self.map_lat * self.map_weight
                 self.gps_corrected_long = self.gps_corrected_long * (
                     1 - self.map_weight) + self.map_long * self.map_weight
+
+                if self.map_manipulator.current_index > self.init_checkpoints[1]:
+                    self.angle_filter.update_bearing(self.gps_corrected_lat, self.gps_corrected_long)
 
                 self.quasar_plotter.corrected_gps_plot.append(self.gps_corrected_lat, self.gps_corrected_long)
 
@@ -296,6 +294,10 @@ class RoboQuasar(Robot):
                 goal_lat = self.map_manipulator.goal_lat
                 goal_long = self.map_manipulator.goal_long
 
+            if self.map_manipulator.current_index != self.prev_index:
+                print("Current map location:", self.map_manipulator.current_index)
+                self.prev_index = self.map_manipulator.current_index
+
             if self.enable_pid:
                 self.steering_angle = self.pid.update(angle_error, self.dt())
             else:
@@ -329,6 +331,8 @@ class RoboQuasar(Robot):
         elif self.did_receive("drift correction"):
             if int(packet) == 1:
                 self.calibrate_with_checkpoint()
+            elif int(packet) == 2:
+                self.calibrate_imu()
 
         elif self.did_receive("pipeline mode"):
             day_mode = bool(int(packet))
@@ -380,17 +384,48 @@ class RoboQuasar(Robot):
             self.lat_drift = locked_lat - self.gps.latitude_deg
             self.long_drift = locked_long - self.gps.longitude_deg
 
+            # next_lat, next_long = self.map_manipulator.map[locked_index + self.init_offset]
+            # bearing = self.angle_filter.bearing_to(locked_lat, locked_long, next_lat, next_long)
+            # bearing = math.atan2(next_long - locked_long,
+            #                      next_lat - locked_lat)
+            # bearing %= 2 * math.pi
+            # self.angle_filter.init_compass(bearing)
+            # self.record_compass()
+
+            self.debug_print("\n=====\n"
+                             "\tCorrecting GPS"
+                             "\tDrift: (%0.8f, %0.8f)\n"
+                             "=====" % (self.lat_drift, self.long_drift), ignore_flag=True)
+            # self.debug_print("\tBearing: %0.6frad, %0.6fdeg\n"
+            #                  "=====" % (bearing, math.degrees(bearing)), ignore_flag=True)
+            if self.drift_corrected:
+                self.debug_print("\tDrift already corrected", ignore_flag=True)
+            self.drift_corrected = True
+
+        else:
+            self.debug_print("Invalid GPS. Ignoring", ignore_flag=True)
+
+    def calibrate_imu(self):
+        if self.gps.is_position_valid():
+            self.record("drift correction", 2)
+
+            locked_lat, locked_long, locked_index = self.map_manipulator.lock_onto_map(
+                self.gps.latitude_deg, self.gps.longitude_deg, True
+            )
+
             next_lat, next_long = self.map_manipulator.map[locked_index + self.init_offset]
-            bearing = self.angle_filter.bearing_to(locked_lat, locked_long, next_lat, next_long)
+            bearing = math.atan2(next_long - locked_long,
+                                 next_lat - locked_lat)
+            bearing %= 2 * math.pi
             self.angle_filter.init_compass(bearing)
             self.record_compass()
 
-            self.debug_print("\n=====, ignore_flag=True"
-                             "\tDrift: (%0.8f, %0.8f)" % (self.lat_drift, self.long_drift))
-            self.debug_print("\tBearing: %0.6frad, %0.6fdeg\n, ignore_flag=True"
-                             "=====" % (bearing, math.degrees(bearing)))
+            self.debug_print("\n=====\n"
+                             "\tCorrecting IMU", ignore_flag=True)
+            self.debug_print("\tBearing: %0.6frad, %0.6fdeg\n"
+                             "=====" % (bearing, math.degrees(bearing)), ignore_flag=True)
             if self.drift_corrected:
-                self.debug_print("\tDrift already corrected", ignore_flag=True)
+                self.debug_print("\tIMU already corrected", ignore_flag=True)
             self.drift_corrected = True
 
         else:
@@ -451,6 +486,9 @@ class RoboQuasar(Robot):
             elif self.joystick.button_updated("Y") and self.joystick.get_button("Y"):
                 self.calibrate_with_checkpoint()
 
+            elif self.joystick.button_updated("B") and self.joystick.get_button("B"):
+                self.calibrate_imu()
+
     @staticmethod
     def my_round(x, d=0):
         p = 10 ** d
@@ -469,7 +507,7 @@ class RoboQuasar(Robot):
         if self.steering.calibrated and self.manual_mode:
             joy_val = self.joystick.get_axis("right x")
 
-            delta_step = int(-self.my_round(16 * joy_val))
+            delta_step = int(-self.my_round(8 * joy_val))
             if abs(delta_step) > 0:
                 self.steering.change_step(delta_step)
 
@@ -486,7 +524,7 @@ class RoboQuasar(Robot):
         elif event.key == "[":
             if self.parser is not None:
                 print(self.parser.index, end=" -> ")
-                self.parser.index += 50
+                self.parser.index += 500
                 print(self.parser.index)
         elif event.key == "]":
             if self.parser is not None:
@@ -738,6 +776,13 @@ image_sets = {
 }
 
 file_sets = {
+    "race day 2017" : (
+        ("05;36", "raceday/2017_Apr_21"),
+        ("05;50", "raceday/2017_Apr_21"),
+        ("06;16", "raceday/2017_Apr_21"),
+        ("06;29;50", "raceday/2017_Apr_21"),
+        ("06;44", "raceday/2017_Apr_21"),
+    ),
     "push practice 6": (
         ("23;15", "push_practice/2017_Apr_18"),
         ("23;24", "push_practice/2017_Apr_18"),
