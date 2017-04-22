@@ -3,13 +3,13 @@ import os
 import gzip
 from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
 
+
 # os.chdir("..")
 
 
 def unzip_file():
     file_name_index = sys.argv[1].rfind("/")
     directory, file_name = sys.argv[1][:file_name_index], sys.argv[1][file_name_index + 1:]
-
 
     if file_name is None:
         return

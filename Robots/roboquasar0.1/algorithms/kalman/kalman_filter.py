@@ -285,12 +285,14 @@ class INS:
     # ---- non rigorous update fn -----
 
     def modify_measurements(self, accel_measurement, gyro_measurement):
+        # self.accel_measurement /= 30
+
         self.accel_measurement = \
             accel_measurement - self.properties.estimated_imu_biases[0:3]
         self.gyro_measurement = \
             gyro_measurement - self.properties.estimated_imu_biases[3:6]
 
-        self.accel_measurement = np.clip(self.accel_measurement, -0.01, 0.01)
+        # self.accel_measurement = np.clip(self.accel_measurement, -0.01, 0.01)
 
     def non_rigorous_update(self, dt, accel_measurement, gyro_measurement):
         self.modify_measurements(accel_measurement, gyro_measurement)

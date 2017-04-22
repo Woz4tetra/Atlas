@@ -3,6 +3,8 @@ import math
 from algorithms.bozo_controller import MapManipulator, PID
 from algorithms.bozo_filter import AngleManipulator
 from algorithms.pipeline import Pipeline
+from algorithms.kalman.kalman_filter import GrovesKalmanFilter
+from algorithms.kalman.kalman_constants import constants
 
 from atlasbuggy.plotters.collection import RobotPlotCollection
 from atlasbuggy.plotters.plot import RobotPlot
@@ -26,7 +28,7 @@ class RoboQuasar(Robot):
     def __init__(self, enable_plotting, map_set_name,
                  initial_compass=None, animate=True, enable_cameras=True,
                  use_log_file_maps=True, show_cameras=None, day_mode=False,
-                 only_cameras=False, enable_pid=True):
+                 only_cameras=False, enable_pid=True, enable_kalman=True):
 
         # ----- initialize robot objects -----
         self.gps = GPS()
@@ -80,7 +82,7 @@ class RoboQuasar(Robot):
         self.prev_gps_disabled = False
         self.disabled_gps_checkpoints = [
             (0, 12),
-            (13, 17),
+            # (13, 17),
             (130, len(self.map_manipulator) - 1)
         ]
         self.angle_filter = AngleManipulator(initial_compass)
@@ -97,6 +99,10 @@ class RoboQuasar(Robot):
         self.map_lat = 0.0
         self.map_long = 0.0
 
+        self.kalman = None
+        self.gps_t0 = 0.0
+        self.imu_t0 = 0.0
+
         # ----- dashboard (parameters to tweak) -----
         self.map_weight = 0.15
         self.kp = 0.9
@@ -107,6 +113,7 @@ class RoboQuasar(Robot):
         self.percent_threshold = 0.4
 
         self.enable_drift_correction = False
+        self.enable_kalman = enable_kalman
 
         # ----- drift correction -----
         self.lat_drift = 0.0
@@ -129,11 +136,11 @@ class RoboQuasar(Robot):
         self.link_object(self.imu, self.receive_imu)
 
         self.link_reoccuring(0.008, self.steering_event)
-        self.link_reoccuring(0.05, self.brake_ping)
+        self.link_reoccuring(0.01, self.brake_ping)
 
         # ----- init plots -----
         self.quasar_plotter = RoboQuasarPlotter(
-            animate, enable_plotting, False,
+            animate, enable_plotting, self.enable_kalman,
             self.map_manipulator.map, self.map_manipulator.inner_map,
             self.map_manipulator.outer_map, self.key_press, self.map_set_name,
             True
@@ -199,6 +206,13 @@ class RoboQuasar(Robot):
         if is_valid:
             if not self.map_manipulator.is_initialized():
                 self.map_manipulator.initialize(self.gps.latitude_deg, self.gps.longitude_deg)
+
+            if self.enable_kalman and self.kalman is not None:
+                self.kalman.gps_updated(timestamp - self.gps_t0, self.gps.latitude_deg, self.gps.longitude_deg,
+                                        self.gps.altitude)
+                position = self.kalman.get_position()
+                self.quasar_plotter.kalman_recomputed_plot.append(position[0], position[1])
+                self.gps_t0 = timestamp
 
             self.gps_corrected_lat = self.gps.latitude_deg
             self.gps_corrected_long = self.gps.longitude_deg
@@ -274,25 +288,46 @@ class RoboQuasar(Robot):
                                              ignore_flag=True)
                     break
 
-            if self.gps_disabled:
-                # self.check_pipeline()
-                current_lat, current_long = self.map_manipulator.map[current_checkpoint]
+            if self.enable_kalman:
+                if self.kalman is not None:
+                    self.kalman.imu_updated(timestamp - self.imu_t0,
+                                            self.imu.accel.x, self.imu.accel.y, self.imu.accel.z,
+                                            self.imu.gyro.x, self.imu.gyro.y, self.imu.gyro.z)
+                    self.imu_t0 = timestamp
 
-                angle_error = self.map_manipulator.update(
-                    current_lat, current_long, self.imu_heading_guess, goal_num=goal_checkpoint
-                )
-                goal_lat, goal_long = self.map_manipulator.map[goal_checkpoint]
+                    position = self.kalman.get_position()
+                    current_lat = position[0]
+                    current_long = position[1]
+                    # orientation = self.kalman.get_orientation()
+
+                    angle_error = self.map_manipulator.update(
+                        current_lat, current_long, self.imu_heading_guess#orientation[2]
+                    )
+                    goal_lat = self.map_manipulator.goal_lat
+                    goal_long = self.map_manipulator.goal_long
+                else:
+                    return
 
             else:
-                angle_error = self.map_manipulator.update(
-                    self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
-                )
+                if self.gps_disabled:
+                    # self.check_pipeline()
+                    current_lat, current_long = self.map_manipulator.map[current_checkpoint]
 
-                current_lat = self.gps_corrected_lat
-                current_long = self.gps_corrected_long
+                    angle_error = self.map_manipulator.update(
+                        current_lat, current_long, self.imu_heading_guess, goal_num=goal_checkpoint
+                    )
+                    goal_lat, goal_long = self.map_manipulator.map[goal_checkpoint]
 
-                goal_lat = self.map_manipulator.goal_lat
-                goal_long = self.map_manipulator.goal_long
+                else:
+                    angle_error = self.map_manipulator.update(
+                        self.gps_corrected_lat, self.gps_corrected_long, self.imu_heading_guess
+                    )
+
+                    current_lat = self.gps_corrected_lat
+                    current_long = self.gps_corrected_long
+
+                    goal_lat = self.map_manipulator.goal_lat
+                    goal_long = self.map_manipulator.goal_long
 
             if self.map_manipulator.current_index != self.prev_index:
                 print("Current map location:", self.map_manipulator.current_index)
@@ -428,6 +463,13 @@ class RoboQuasar(Robot):
                 self.debug_print("\tIMU already corrected", ignore_flag=True)
             self.drift_corrected = True
 
+            if self.enable_kalman and self.kalman is None:
+                self.kalman = GrovesKalmanFilter(
+                    initial_roll=0.0, initial_pitch=0.0, initial_yaw=bearing,
+                    initial_lat=locked_lat, initial_long=locked_long, initial_alt=self.gps.altitude,
+                    **constants
+                )
+
         else:
             self.debug_print("Invalid GPS. Ignoring", ignore_flag=True)
 
@@ -525,12 +567,12 @@ class RoboQuasar(Robot):
             if self.parser is not None:
                 print(self.parser.index, end=" -> ")
                 self.parser.index += 500
-                print(self.parser.index)
+                print(self.parser.index, self.current_timestamp)
         elif event.key == "]":
             if self.parser is not None:
                 print(self.parser.index, end=" -> ")
                 self.parser.index += 5000
-                print(self.parser.index)
+                print(self.parser.index, self.current_timestamp)
                 self.pid.error_sum = 0
 
     def close(self, reason):
@@ -782,6 +824,8 @@ file_sets = {
         ("06;16", "raceday/2017_Apr_21"),
         ("06;29;50", "raceday/2017_Apr_21"),
         ("06;44", "raceday/2017_Apr_21"),
+        ("10;18", "raceday/2017_Apr_21"),
+        ("06;01", "raceday/2017_Apr_22"),
     ),
     "push practice 6": (
         ("23;15", "push_practice/2017_Apr_18"),

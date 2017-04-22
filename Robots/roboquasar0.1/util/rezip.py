@@ -6,18 +6,13 @@ from atlasbuggy.files.atlasbuggyfile import AtlasReadFile
 # os.chdir("..")
 
 def rezip_file():
-    file_name = None
-    directory = None
-
-    if len(sys.argv) > 1:
-        file_name = sys.argv[1]
-    if len(sys.argv) > 2:
-        file_name = sys.argv[1]
-        directory = sys.argv[2]
+    file_name_index = sys.argv[1].rfind("/")
+    directory, file_name = sys.argv[1][:file_name_index], sys.argv[1][file_name_index + 1:]
 
     if file_name is None:
         return
     atlas_file = AtlasReadFile(file_name, directory, False, "txt", "logs")
+    atlas_file.open()
 
     print(atlas_file.full_path)
     with open(atlas_file.full_path, "r") as file:

@@ -12,8 +12,8 @@ def avi_to_mp4():
             )
         )
 
-    directory = "videos/raceday/2017_Apr_21_raw"
-    output_dir = "videos/raceday/2017_Apr_21"
+    directory = "videos/raceday/2017_Apr_22_raw"
+    output_dir = "videos/raceday/2017_Apr_22"
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     path_threads = []

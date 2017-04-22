@@ -7,12 +7,12 @@ file_name, directory = file_sets["race day 2017"][-1]
 
 robot = RoboQuasar(
     True, "buggy 2",
-    enable_cameras=False, use_log_file_maps=True, show_cameras=True, animate=True, enable_pid=False
+    enable_cameras=False,
 )
 robot.manual_mode = False
 simulator = RobotSimulator(
     file_name, directory, robot, debug_enabled=False,
-    # start_index=19000
+    # start_index=12000
     # start_index=35000
 )
 
